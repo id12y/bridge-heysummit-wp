@@ -1,0 +1,50 @@
+name: Weekly News Report
+
+on:
+  schedule:
+    - cron: '0 7 * * 5'
+  workflow_dispatch:
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - run: pip install -r requirements.txt
+
+      - run: mkdir -p data reports
+
+      - name: Ingest news sources
+        run: python -m emailexpert_news_agent ingest --config config/watchers.yml
+
+      - name: Generate weekly report
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          python -m emailexpert_news_agent report --config config/watchers.yml --days 7 --out reports/weekly-${DATE}.md
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report-${{ github.run_id }}
+          path: reports/*.md
+          retention-days: 90
+
+      - name: Email report
+        if: ${{ vars.EMAIL_ENABLED == 'true' }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "📬 EmailExpert Weekly News Briefing"
+          to: ${{ secrets.EMAIL_TO }}
+          from: ${{ secrets.EMAIL_FROM }}
+          body: "Weekly news briefing attached."
+          attachments: reports/*.md
