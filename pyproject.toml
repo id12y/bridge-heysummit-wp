@@ -1,0 +1,16 @@
+[project]
+name = "emailexpert-news-agent"
+version = "0.1.0"
+description = "Weekly email industry news research agent (RSS + scraping + page diffs)."
+requires-python = ">=3.10"
+dependencies = [
+  "requests>=2.31.0",
+  "feedparser>=6.0.11",
+  "beautifulsoup4>=4.12.2",
+  "PyYAML>=6.0.1",
+  "python-dateutil>=2.9.0.post0",
+  "trafilatura>=1.6.3"
+]
+
+[project.scripts]
+emailexpert-news = "emailexpert_news_agent.cli:main"
