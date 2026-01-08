@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS items (
 );
 
 CREATE INDEX IF NOT EXISTS idx_items_fetched_at ON items(fetched_at);
+CREATE INDEX IF NOT EXISTS idx_items_published_at ON items(published_at);
 CREATE INDEX IF NOT EXISTS idx_items_source_id ON items(source_id);
 
 CREATE TABLE IF NOT EXISTS snapshots (
@@ -131,6 +132,23 @@ class DB:
         self.conn.commit()
 
     def items_since(self, iso_since: str) -> List[sqlite3.Row]:
+        """Get items published since the given date.
+        
+        Uses published_at if available, falls back to fetched_at for items
+        without publication dates (like web snapshots).
+        """
+        cur = self.conn.execute(
+            '''
+            SELECT * FROM items
+            WHERE COALESCE(published_at, fetched_at) >= ?
+            ORDER BY score DESC, COALESCE(published_at, fetched_at) DESC
+            ''',
+            (iso_since,),
+        )
+        return cur.fetchall()
+
+    def items_since_by_fetched(self, iso_since: str) -> List[sqlite3.Row]:
+        """Get items fetched since the given date (for snapshots/updates)."""
         cur = self.conn.execute(
             '''
             SELECT * FROM items
