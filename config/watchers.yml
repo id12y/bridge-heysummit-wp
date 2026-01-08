@@ -1,0 +1,907 @@
+# EmailExpert News Agent - Comprehensive Source List
+# Curated for emailexpert.com editorial coverage
+# Last updated: January 2025
+
+db_path: data/news.db
+
+fetch:
+  user_agent: "emailexpert-news-agent/0.1 (contact: editor@emailexpert.com)"
+  timeout_seconds: 30
+  max_items_per_source: 50
+  per_domain_delay_seconds: 1.5
+
+report:
+  top_n_per_category: 10
+  include_uncategorized: true
+
+# =============================================================================
+# CATEGORIES & KEYWORDS
+# =============================================================================
+
+categories:
+  mailbox_provider_policy:
+    keywords:
+      - "postmaster"
+      - "bulk sender"
+      - "sender requirements"
+      - "one-click unsubscribe"
+      - "complaint rate"
+      - "spam rate"
+      - "throttl"
+      - "rate limit"
+      - "sender hub"
+      - "postmaster tools"
+      - "inbox placement"
+      - "spam folder"
+      - "junk folder"
+      - "sender reputation"
+      - "email policy"
+      - "bulk mail"
+      - "mass mail"
+
+  authentication_identity:
+    keywords:
+      - "spf"
+      - "dkim"
+      - "dmarc"
+      - "alignment"
+      - "bimi"
+      - "vmc"
+      - "verified mark"
+      - "brand indicators"
+      - "arc"
+      - "authenticated received chain"
+      - "email authentication"
+      - "domain alignment"
+      - "p=reject"
+      - "p=quarantine"
+
+  deliverability_incidents:
+    keywords:
+      - "outage"
+      - "degradation"
+      - "incident"
+      - "block"
+      - "blacklist"
+      - "blocklist"
+      - "deferral"
+      - "bounce"
+      - "550"
+      - "421"
+      - "smtp error"
+      - "delivery failure"
+      - "service disruption"
+      - "delayed"
+      - "queued"
+
+  privacy_measurement:
+    keywords:
+      - "mail privacy protection"
+      - "mpp"
+      - "prefetch"
+      - "proxy"
+      - "open rate"
+      - "click tracking"
+      - "bot opens"
+      - "apple proxy"
+      - "hide my email"
+      - "email privacy"
+      - "tracking pixel"
+      - "read receipt"
+
+  security_abuse_fraud:
+    keywords:
+      - "phishing"
+      - "spoof"
+      - "impersonation"
+      - "bec"
+      - "business email compromise"
+      - "malware"
+      - "credential"
+      - "brand abuse"
+      - "email fraud"
+      - "ransomware"
+      - "social engineering"
+      - "account takeover"
+      - "lookalike domain"
+      - "typosquat"
+
+  regulation_compliance:
+    keywords:
+      - "gdpr"
+      - "can-spam"
+      - "canspam"
+      - "casl"
+      - "ccpa"
+      - "enforcement"
+      - "fine"
+      - "consent"
+      - "unsubscribe"
+      - "opt-out"
+      - "opt-in"
+      - "data protection"
+      - "privacy regulation"
+      - "ico"
+      - "ftc"
+
+  standards_governance:
+    keywords:
+      - "ietf"
+      - "rfc"
+      - "draft"
+      - "m3aawg"
+      - "smtp"
+      - "imap"
+      - "dane"
+      - "mta-sts"
+      - "tls-rpt"
+      - "starttls"
+      - "email standard"
+      - "working group"
+      - "internet draft"
+
+  esp_vendor_ecosystem:
+    keywords:
+      - "esp"
+      - "email service provider"
+      - "mta"
+      - "roadmap"
+      - "pricing"
+      - "acquisition"
+      - "merger"
+      - "security bulletin"
+      - "new feature"
+      - "product update"
+      - "platform update"
+      - "api update"
+      - "integration"
+      - "partnership"
+
+  applied_marketing_design:
+    keywords:
+      - "html email"
+      - "css support"
+      - "dark mode"
+      - "accessibility"
+      - "amp for email"
+      - "schema"
+      - "structured data"
+      - "email design"
+      - "responsive email"
+      - "email template"
+      - "email client"
+      - "rendering"
+
+  data_research_benchmarks:
+    keywords:
+      - "benchmark"
+      - "study"
+      - "dataset"
+      - "report"
+      - "survey"
+      - "statistics"
+      - "email volume"
+      - "market share"
+      - "industry report"
+      - "state of email"
+
+  people_governance_education:
+    keywords:
+      - "conference"
+      - "summit"
+      - "webinar"
+      - "training"
+      - "guidance"
+      - "best practice"
+      - "certification"
+      - "course"
+      - "tutorial"
+
+  forward_looking_analysis:
+    keywords:
+      - "forecast"
+      - "prediction"
+      - "roadmap"
+      - "trend"
+      - "what to expect"
+      - "future of email"
+      - "2025"
+      - "2026"
+      - "upcoming"
+      - "planned"
+
+# =============================================================================
+# SOURCES
+# =============================================================================
+
+sources:
+
+  # ---------------------------------------------------------------------------
+  # MAILBOX PROVIDERS - Primary Sources (Highest Trust)
+  # ---------------------------------------------------------------------------
+
+  # --- Google/Gmail ---
+  - id: google_workspace_updates
+    name: "Google Workspace Updates"
+    type: rss
+    url: "https://workspaceupdates.googleblog.com/feeds/posts/default"
+    trust: 0.95
+    category_hints: ["mailbox_provider_policy", "esp_vendor_ecosystem"]
+
+  - id: google_sender_guidelines
+    name: "Gmail Sender Guidelines"
+    type: web_snapshot
+    url: "https://support.google.com/a/answer/14229414"
+    trust: 0.98
+    category_hints: ["mailbox_provider_policy", "authentication_identity", "regulation_compliance"]
+
+  - id: google_bulk_sender_guidelines
+    name: "Gmail Bulk Sender Guidelines"
+    type: web_snapshot
+    url: "https://support.google.com/mail/answer/81126"
+    trust: 0.98
+    category_hints: ["mailbox_provider_policy", "authentication_identity"]
+
+  - id: gmail_postmaster_help
+    name: "Gmail Postmaster Tools Help"
+    type: web_snapshot
+    url: "https://support.google.com/mail/answer/9981691"
+    trust: 0.95
+    category_hints: ["mailbox_provider_policy", "deliverability_incidents"]
+
+  - id: google_security_blog
+    name: "Google Security Blog"
+    type: rss
+    url: "https://security.googleblog.com/feeds/posts/default"
+    trust: 0.9
+    category_hints: ["security_abuse_fraud", "authentication_identity"]
+
+  # --- Microsoft/Outlook ---
+  - id: microsoft_365_blog
+    name: "Microsoft 365 Blog"
+    type: rss
+    url: "https://www.microsoft.com/en-us/microsoft-365/blog/feed/"
+    trust: 0.9
+    category_hints: ["mailbox_provider_policy", "esp_vendor_ecosystem"]
+
+  - id: microsoft_defender_blog
+    name: "Microsoft Defender for Office 365 Blog"
+    type: web_list
+    start_urls:
+      - "https://techcommunity.microsoft.com/category/microsoft-defender-for-office-365/blog/microsoftdefenderforoffice365blog"
+    allow_domains: ["techcommunity.microsoft.com"]
+    item_url_regex: "/blog/"
+    fetch_full_text: true
+    trust: 0.9
+    category_hints: ["security_abuse_fraud", "deliverability_incidents"]
+
+  - id: microsoft_exchange_blog
+    name: "Microsoft Exchange Team Blog"
+    type: web_list
+    start_urls:
+      - "https://techcommunity.microsoft.com/category/exchange/blog/exchange"
+    allow_domains: ["techcommunity.microsoft.com"]
+    item_url_regex: "/blog/"
+    fetch_full_text: true
+    trust: 0.9
+    category_hints: ["mailbox_provider_policy", "esp_vendor_ecosystem"]
+
+  - id: outlook_sender_requirements
+    name: "Outlook.com Sender Requirements"
+    type: web_snapshot
+    url: "https://sendersupport.olc.protection.outlook.com/pm/policies.aspx"
+    trust: 0.95
+    category_hints: ["mailbox_provider_policy", "authentication_identity"]
+
+  - id: microsoft_security_blog
+    name: "Microsoft Security Blog"
+    type: rss
+    url: "https://www.microsoft.com/en-us/security/blog/feed/"
+    trust: 0.9
+    category_hints: ["security_abuse_fraud"]
+
+  # --- Yahoo/AOL ---
+  - id: yahoo_postmaster_blog
+    name: "Postmaster @ Yahoo & AOL"
+    type: web_list
+    start_urls:
+      - "https://blog.postmaster.yahooinc.com/"
+    allow_domains: ["blog.postmaster.yahooinc.com"]
+    item_url_regex: "/post/"
+    fetch_full_text: true
+    trust: 0.95
+    category_hints: ["mailbox_provider_policy", "deliverability_incidents", "authentication_identity"]
+
+  - id: yahoo_sender_hub
+    name: "Yahoo Sender Hub"
+    type: web_snapshot
+    url: "https://senders.yahooinc.com/best-practices/"
+    trust: 0.95
+    category_hints: ["mailbox_provider_policy", "authentication_identity"]
+
+  # --- Apple ---
+  - id: apple_mpp_page
+    name: "Apple Mail Privacy Protection"
+    type: web_snapshot
+    url: "https://www.apple.com/legal/privacy/data/en/mail-privacy-protection/"
+    trust: 0.95
+    category_hints: ["privacy_measurement"]
+
+  - id: apple_icloud_postmaster
+    name: "Apple iCloud Postmaster"
+    type: web_snapshot
+    url: "https://support.apple.com/en-us/102322"
+    trust: 0.95
+    category_hints: ["mailbox_provider_policy", "authentication_identity"]
+
+  # --- Other Mailbox Providers ---
+  - id: fastmail_blog
+    name: "Fastmail Blog"
+    type: rss
+    url: "https://www.fastmail.com/blog/rss.xml"
+    trust: 0.85
+    category_hints: ["mailbox_provider_policy", "privacy_measurement"]
+
+  - id: protonmail_blog
+    name: "Proton Mail Blog"
+    type: rss
+    url: "https://proton.me/blog/feed"
+    trust: 0.85
+    category_hints: ["privacy_measurement", "security_abuse_fraud"]
+
+  # ---------------------------------------------------------------------------
+  # ESP / EMAIL SERVICE PROVIDERS
+  # ---------------------------------------------------------------------------
+
+  # --- Major ESPs ---
+  - id: sendgrid_blog
+    name: "Twilio SendGrid Blog"
+    type: rss
+    url: "https://sendgrid.com/en-us/blog.rss"
+    trust: 0.8
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents"]
+
+  - id: mailchimp_resources
+    name: "Mailchimp Resources"
+    type: rss
+    url: "https://mailchimp.com/resources/feed/"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem", "applied_marketing_design"]
+
+  - id: postmark_blog
+    name: "Postmark Blog"
+    type: rss
+    url: "https://postmarkapp.com/blog/feed"
+    trust: 0.85
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents", "standards_governance"]
+
+  - id: mailgun_blog
+    name: "Mailgun Blog"
+    type: rss
+    url: "https://www.mailgun.com/blog/feed/"
+    trust: 0.8
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents"]
+
+  - id: sparkpost_blog
+    name: "SparkPost/Bird Blog"
+    type: rss
+    url: "https://www.bird.com/blog/rss.xml"
+    trust: 0.8
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents"]
+
+  - id: brevo_blog
+    name: "Brevo Blog"
+    type: rss
+    url: "https://www.brevo.com/blog/feed/"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem", "applied_marketing_design"]
+
+  - id: klaviyo_blog
+    name: "Klaviyo Blog"
+    type: rss
+    url: "https://www.klaviyo.com/blog/feed"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem", "applied_marketing_design"]
+
+  - id: customerio_blog
+    name: "Customer.io Blog"
+    type: rss
+    url: "https://customer.io/blog/rss/"
+    trust: 0.8
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents"]
+
+  - id: iterable_blog
+    name: "Iterable Blog"
+    type: rss
+    url: "https://iterable.com/blog/feed/"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem", "applied_marketing_design"]
+
+  - id: hubspot_marketing_blog
+    name: "HubSpot Marketing Blog"
+    type: rss
+    url: "https://blog.hubspot.com/marketing/rss.xml"
+    trust: 0.7
+    category_hints: ["esp_vendor_ecosystem", "applied_marketing_design"]
+
+  - id: activecampaign_blog
+    name: "ActiveCampaign Blog"
+    type: rss
+    url: "https://www.activecampaign.com/blog/feed"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem"]
+
+  - id: convertkit_blog
+    name: "ConvertKit Blog"
+    type: rss
+    url: "https://convertkit.com/blog/feed"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem"]
+
+  - id: mailerlite_blog
+    name: "MailerLite Blog"
+    type: rss
+    url: "https://www.mailerlite.com/blog/feed"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem"]
+
+  - id: drip_blog
+    name: "Drip Blog"
+    type: rss
+    url: "https://www.drip.com/blog/feed"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem"]
+
+  - id: omnisend_blog
+    name: "Omnisend Blog"
+    type: rss
+    url: "https://www.omnisend.com/blog/feed/"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem"]
+
+  # --- AWS SES ---
+  - id: aws_ses_blog
+    name: "AWS Messaging & Targeting Blog"
+    type: rss
+    url: "https://aws.amazon.com/blogs/messaging-and-targeting/feed/"
+    trust: 0.85
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents"]
+
+  # ---------------------------------------------------------------------------
+  # MTA / EMAIL INFRASTRUCTURE
+  # ---------------------------------------------------------------------------
+
+  - id: halon_blog
+    name: "Halon Blog"
+    type: rss
+    url: "https://halon.io/blog/rss/"
+    trust: 0.85
+    category_hints: ["esp_vendor_ecosystem", "standards_governance"]
+
+  - id: greenarrow_blog
+    name: "GreenArrow Blog"
+    type: web_list
+    start_urls:
+      - "https://www.greenarrowemail.com/blog"
+    allow_domains: ["www.greenarrowemail.com"]
+    item_url_regex: "/blog/"
+    fetch_full_text: true
+    trust: 0.85
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents"]
+
+  - id: socketlabs_blog
+    name: "SocketLabs Blog"
+    type: rss
+    url: "https://www.socketlabs.com/blog/feed/"
+    trust: 0.8
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents"]
+
+  - id: elastic_email_blog
+    name: "Elastic Email Blog"
+    type: rss
+    url: "https://elasticemail.com/blog/feed"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem"]
+
+  # ---------------------------------------------------------------------------
+  # EMAIL VERIFICATION / HYGIENE
+  # ---------------------------------------------------------------------------
+
+  - id: zerobounce_blog
+    name: "ZeroBounce Blog"
+    type: rss
+    url: "https://www.zerobounce.net/blog/feed/"
+    trust: 0.8
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents"]
+
+  - id: neverbounce_blog
+    name: "NeverBounce Blog"
+    type: rss
+    url: "https://neverbounce.com/blog/feed/"
+    trust: 0.8
+    category_hints: ["esp_vendor_ecosystem"]
+
+  - id: kickbox_blog
+    name: "Kickbox Blog"
+    type: rss
+    url: "https://blog.kickbox.com/feed/"
+    trust: 0.8
+    category_hints: ["esp_vendor_ecosystem", "deliverability_incidents"]
+
+  - id: hunter_blog
+    name: "Hunter Blog"
+    type: rss
+    url: "https://hunter.io/blog/feed/"
+    trust: 0.75
+    category_hints: ["esp_vendor_ecosystem"]
+
+  # ---------------------------------------------------------------------------
+  # AUTHENTICATION / DMARC / SECURITY VENDORS
+  # ---------------------------------------------------------------------------
+
+  - id: valimail_blog
+    name: "Valimail Blog"
+    type: rss
+    url: "https://www.valimail.com/blog/feed/"
+    trust: 0.85
+    category_hints: ["authentication_identity", "security_abuse_fraud"]
+
+  - id: dmarcian_blog
+    name: "dmarcian Blog"
+    type: rss
+    url: "https://dmarcian.com/blog/feed/"
+    trust: 0.85
+    category_hints: ["authentication_identity", "standards_governance"]
+
+  - id: easydmarc_blog
+    name: "EasyDMARC Blog"
+    type: rss
+    url: "https://easydmarc.com/blog/feed/"
+    trust: 0.85
+    category_hints: ["authentication_identity", "security_abuse_fraud"]
+
+  - id: redsift_blog
+    name: "Red Sift Blog"
+    type: rss
+    url: "https://redsift.com/blog-posts/rss.xml"
+    trust: 0.8
+    category_hints: ["authentication_identity", "security_abuse_fraud"]
+
+  - id: proofpoint_threat_blog
+    name: "Proofpoint Threat Blog"
+    type: rss
+    url: "https://www.proofpoint.com/us/blog/threat-insight/feed"
+    trust: 0.85
+    category_hints: ["security_abuse_fraud"]
+
+  - id: agari_blog
+    name: "Agari/Fortra Blog"
+    type: rss
+    url: "https://www.agari.com/insights/rss.xml"
+    trust: 0.8
+    category_hints: ["security_abuse_fraud", "authentication_identity"]
+
+  # ---------------------------------------------------------------------------
+  # DELIVERABILITY TOOLS / MONITORING
+  # ---------------------------------------------------------------------------
+
+  - id: validity_blog
+    name: "Validity Blog"
+    type: rss
+    url: "https://www.validity.com/blog/feed/"
+    trust: 0.85
+    category_hints: ["deliverability_incidents", "data_research_benchmarks"]
+
+  - id: glockapps_blog
+    name: "GlockApps Blog"
+    type: rss
+    url: "https://glockapps.com/blog/feed/"
+    trust: 0.8
+    category_hints: ["deliverability_incidents", "mailbox_provider_policy"]
+
+  # ---------------------------------------------------------------------------
+  # INDUSTRY BODIES / STANDARDS ORGANIZATIONS
+  # ---------------------------------------------------------------------------
+
+  - id: m3aawg_blog
+    name: "M3AAWG News"
+    type: web_list
+    start_urls:
+      - "https://www.m3aawg.org/news"
+    allow_domains: ["www.m3aawg.org"]
+    item_url_regex: "/news/"
+    fetch_full_text: true
+    trust: 0.9
+    category_hints: ["standards_governance", "security_abuse_fraud", "people_governance_education"]
+
+  - id: spamhaus_news
+    name: "Spamhaus News"
+    type: rss
+    url: "https://www.spamhaus.org/news/feed/"
+    trust: 0.9
+    category_hints: ["security_abuse_fraud", "deliverability_incidents"]
+
+  - id: spamhaus_blog
+    name: "Spamhaus Blog"
+    type: web_list
+    start_urls:
+      - "https://www.spamhaus.org/resource-hub/"
+    allow_domains: ["www.spamhaus.org"]
+    item_url_regex: "/resource-hub/"
+    fetch_full_text: true
+    trust: 0.9
+    category_hints: ["security_abuse_fraud", "data_research_benchmarks"]
+
+  - id: ietf_emailcore
+    name: "IETF Email Core WG"
+    type: web_snapshot
+    url: "https://datatracker.ietf.org/wg/emailcore/documents/"
+    trust: 0.95
+    category_hints: ["standards_governance"]
+
+  - id: ietf_dmarc
+    name: "IETF DMARC WG"
+    type: web_snapshot
+    url: "https://datatracker.ietf.org/wg/dmarc/documents/"
+    trust: 0.95
+    category_hints: ["standards_governance", "authentication_identity"]
+
+  - id: dmarc_org
+    name: "DMARC.org"
+    type: web_snapshot
+    url: "https://dmarc.org/"
+    trust: 0.9
+    category_hints: ["authentication_identity", "standards_governance"]
+
+  - id: bimi_group
+    name: "BIMI Group"
+    type: web_snapshot
+    url: "https://bimigroup.org/implementation-guide/"
+    trust: 0.9
+    category_hints: ["authentication_identity"]
+
+  # ---------------------------------------------------------------------------
+  # INDUSTRY BLOGS / THOUGHT LEADERS
+  # ---------------------------------------------------------------------------
+
+  - id: wordtotheweise_blog
+    name: "Word to the Wise"
+    type: rss
+    url: "https://wordtothewise.com/feed/"
+    trust: 0.9
+    category_hints: ["deliverability_incidents", "mailbox_provider_policy", "authentication_identity"]
+
+  - id: litmus_blog
+    name: "Litmus Blog"
+    type: rss
+    url: "https://www.litmus.com/blog/feed"
+    trust: 0.8
+    category_hints: ["applied_marketing_design", "data_research_benchmarks"]
+
+  - id: emailonacid_blog
+    name: "Email on Acid Blog"
+    type: rss
+    url: "https://www.emailonacid.com/blog/feed/"
+    trust: 0.8
+    category_hints: ["applied_marketing_design", "deliverability_incidents"]
+
+  - id: reallygoodemails
+    name: "Really Good Emails Blog"
+    type: rss
+    url: "https://reallygoodemails.com/feed"
+    trust: 0.7
+    category_hints: ["applied_marketing_design"]
+
+  - id: onlyinfluencers
+    name: "Only Influencers"
+    type: rss
+    url: "https://www.onlyinfluencers.com/feed"
+    trust: 0.75
+    category_hints: ["people_governance_education", "forward_looking_analysis"]
+
+  - id: emailkarma_blog
+    name: "Email Karma Blog"
+    type: rss
+    url: "https://www.emailkarma.net/feed/"
+    trust: 0.8
+    category_hints: ["deliverability_incidents", "mailbox_provider_policy"]
+
+  - id: spamresource_blog
+    name: "Spam Resource"
+    type: rss
+    url: "https://www.spamresource.com/feeds/posts/default"
+    trust: 0.85
+    category_hints: ["deliverability_incidents", "mailbox_provider_policy", "security_abuse_fraud"]
+
+  - id: returnpath_blog
+    name: "Return Path (Validity) Blog"
+    type: rss
+    url: "https://returnpath.com/blog/feed/"
+    trust: 0.8
+    category_hints: ["deliverability_incidents", "data_research_benchmarks"]
+
+  # ---------------------------------------------------------------------------
+  # SECURITY / THREAT INTELLIGENCE
+  # ---------------------------------------------------------------------------
+
+  - id: cisco_talos_blog
+    name: "Cisco Talos Blog"
+    type: rss
+    url: "https://blog.talosintelligence.com/feeds/posts/default"
+    trust: 0.85
+    category_hints: ["security_abuse_fraud"]
+
+  - id: cofense_blog
+    name: "Cofense Blog"
+    type: rss
+    url: "https://cofense.com/blog/feed/"
+    trust: 0.8
+    category_hints: ["security_abuse_fraud"]
+
+  - id: apwg_news
+    name: "APWG News"
+    type: web_list
+    start_urls:
+      - "https://apwg.org/news/"
+    allow_domains: ["apwg.org"]
+    item_url_regex: "/news/"
+    fetch_full_text: true
+    trust: 0.85
+    category_hints: ["security_abuse_fraud", "data_research_benchmarks"]
+
+  - id: krebs_on_security
+    name: "Krebs on Security"
+    type: rss
+    url: "https://krebsonsecurity.com/feed/"
+    trust: 0.85
+    category_hints: ["security_abuse_fraud"]
+
+  - id: bleeping_computer
+    name: "Bleeping Computer"
+    type: rss
+    url: "https://www.bleepingcomputer.com/feed/"
+    trust: 0.75
+    category_hints: ["security_abuse_fraud", "deliverability_incidents"]
+
+  # ---------------------------------------------------------------------------
+  # REGULATORY / PRIVACY NEWS
+  # ---------------------------------------------------------------------------
+
+  - id: ico_news
+    name: "UK ICO News"
+    type: rss
+    url: "https://ico.org.uk/about-the-ico/media-centre/rss/"
+    trust: 0.9
+    category_hints: ["regulation_compliance"]
+
+  - id: ftc_news
+    name: "US FTC News"
+    type: rss
+    url: "https://www.ftc.gov/feeds/press-releases.xml"
+    trust: 0.9
+    category_hints: ["regulation_compliance"]
+
+  - id: cnil_news
+    name: "CNIL News (France)"
+    type: rss
+    url: "https://www.cnil.fr/fr/rss.xml"
+    trust: 0.85
+    category_hints: ["regulation_compliance"]
+
+  # ---------------------------------------------------------------------------
+  # TECH NEWS (Filtered for Email)
+  # ---------------------------------------------------------------------------
+
+  - id: techcrunch_email
+    name: "TechCrunch Email/Marketing"
+    type: google_news_rss
+    query: 'site:techcrunch.com (email marketing OR ESP OR email deliverability OR "email security")'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.6
+    category_hints: ["esp_vendor_ecosystem"]
+
+  - id: theverge_email
+    name: "The Verge Email/Privacy"
+    type: google_news_rss
+    query: 'site:theverge.com (email privacy OR Gmail OR Outlook OR "email security")'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.6
+    category_hints: ["privacy_measurement", "mailbox_provider_policy"]
+
+  # ---------------------------------------------------------------------------
+  # GOOGLE NEWS - BROAD DISCOVERY (Lower Trust, Higher Recall)
+  # ---------------------------------------------------------------------------
+
+  - id: gnews_gmail_sender_policy
+    name: "Google News: Gmail Sender Policy"
+    type: google_news_rss
+    query: 'Gmail (bulk sender OR "sender requirements" OR postmaster OR "spam policy")'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.4
+    category_hints: ["mailbox_provider_policy"]
+
+  - id: gnews_outlook_sender_policy
+    name: "Google News: Outlook Sender Policy"
+    type: google_news_rss
+    query: 'Outlook.com (sender requirements OR postmaster OR "email policy" OR deliverability)'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.4
+    category_hints: ["mailbox_provider_policy"]
+
+  - id: gnews_dmarc_authentication
+    name: "Google News: DMARC/Authentication"
+    type: google_news_rss
+    query: '(DMARC OR DKIM OR SPF OR BIMI) (email authentication OR "email security" OR enforcement)'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.45
+    category_hints: ["authentication_identity"]
+
+  - id: gnews_email_phishing
+    name: "Google News: Email Phishing/Fraud"
+    type: google_news_rss
+    query: '(email phishing OR "business email compromise" OR BEC OR "email fraud" OR "credential phishing")'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.45
+    category_hints: ["security_abuse_fraud"]
+
+  - id: gnews_email_outage
+    name: "Google News: Email Outages"
+    type: google_news_rss
+    query: '(Gmail OR Outlook OR Yahoo OR "email service") (outage OR down OR disruption OR incident)'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.45
+    category_hints: ["deliverability_incidents"]
+
+  - id: gnews_email_privacy
+    name: "Google News: Email Privacy"
+    type: google_news_rss
+    query: '(email privacy OR "email tracking" OR "mail privacy protection" OR "hide my email")'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.4
+    category_hints: ["privacy_measurement"]
+
+  - id: gnews_esp_news
+    name: "Google News: ESP Industry"
+    type: google_news_rss
+    query: '(Mailchimp OR SendGrid OR Klaviyo OR "email marketing platform") (acquisition OR funding OR pricing OR feature OR partnership)'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.4
+    category_hints: ["esp_vendor_ecosystem"]
+
+  - id: gnews_email_regulation
+    name: "Google News: Email Regulation"
+    type: google_news_rss
+    query: '(email OR newsletter) (GDPR OR "CAN-SPAM" OR CASL OR "unsubscribe" OR consent) (enforcement OR fine OR regulation)'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.4
+    category_hints: ["regulation_compliance"]
+
+  - id: gnews_email_deliverability
+    name: "Google News: Email Deliverability"
+    type: google_news_rss
+    query: '("email deliverability" OR "inbox placement" OR "spam folder" OR blacklist OR blocklist)'
+    hl: "en-US"
+    gl: "US"
+    ceid: "US:en"
+    trust: 0.4
+    category_hints: ["deliverability_incidents"]
