@@ -30,9 +30,13 @@ def generate_weekly_report(cfg: AppConfig, db: DB, *, days: int = 7) -> str:
             for c in cats:
                 by_cat[c].append(r)
 
-    # sort per category
+    # sort per category by score, then by publication date
     for c in list(by_cat.keys()):
-        by_cat[c] = sorted(by_cat[c], key=lambda x: (x["score"] or 0.0, x["fetched_at"]), reverse=True)
+        by_cat[c] = sorted(
+            by_cat[c], 
+            key=lambda x: (x["score"] or 0.0, x["published_at"] or x["fetched_at"]), 
+            reverse=True
+        )
 
     # report
     lines: List[str] = []
@@ -52,8 +56,21 @@ def generate_weekly_report(cfg: AppConfig, db: DB, *, days: int = 7) -> str:
         for it in top:
             why = first_sentences(it["content_text"] or "", max_chars=240)
             src = it["source_name"]
-            pub = it["published_at"] or it["fetched_at"]
-            lines.append(f"- [{it['title']}]({it['url']}) — *{src}* — {pub}")
+            
+            # Format date nicely - show just the date part
+            pub_raw = it["published_at"] or it["fetched_at"]
+            try:
+                # Extract just the date (YYYY-MM-DD) from ISO format
+                pub_date = pub_raw[:10] if pub_raw else "unknown"
+            except:
+                pub_date = pub_raw
+            
+            # Mark page updates differently from articles
+            if it["item_type"] == "page_update":
+                lines.append(f"- **[Updated]** [{it['title']}]({it['url']}) — *{src}* — {pub_date}")
+            else:
+                lines.append(f"- [{it['title']}]({it['url']}) — *{src}* — {pub_date}")
+            
             if why:
                 lines.append(f"  - {why}")
         lines.append("")
@@ -63,8 +80,12 @@ def generate_weekly_report(cfg: AppConfig, db: DB, *, days: int = 7) -> str:
         lines.append("")
         for it in uncategorized[: cfg.report.top_n_per_category]:
             src = it["source_name"]
-            pub = it["published_at"] or it["fetched_at"]
-            lines.append(f"- [{it['title']}]({it['url']}) — *{src}* — {pub}")
+            pub_raw = it["published_at"] or it["fetched_at"]
+            try:
+                pub_date = pub_raw[:10] if pub_raw else "unknown"
+            except:
+                pub_date = pub_raw
+            lines.append(f"- [{it['title']}]({it['url']}) — *{src}* — {pub_date}")
         lines.append("")
 
     return "\n".join(lines)
