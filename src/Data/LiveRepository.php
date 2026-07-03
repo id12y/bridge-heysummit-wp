@@ -582,10 +582,23 @@ class LiveRepository extends BaseMapper implements Repository {
 				$first_error = null;
 				$saw_empty   = false;
 
+				// The collection is paginated (10 per page, oldest first on
+				// real accounts) — page 1 of a long-running summit is years
+				// old and the upcoming sessions live on the LAST pages, so a
+				// single-page read shows nothing. Walk every page, capped.
+				$options = self::request_options();
+
+				/**
+				 * Filter the page cap for render-time talk fetches.
+				 *
+				 * @param int $max_pages Maximum pages per collection (default 20).
+				 */
+				$options['max_pages'] = max( 1, (int) apply_filters( 'eex_live_max_pages', 20 ) );
+
 				foreach ( \Emailexpert\Events\Api\PathStyles::ordered( $conn_id, 'talks', array_keys( $requests ) ) as $style ) {
 					[ $path, $args ] = $requests[ $style ];
 
-					$response = $client->get( $path, $args, self::request_options() );
+					$response = $client->get_all( $path, $args, $options );
 
 					if ( is_wp_error( $response ) ) {
 						$first_error = $first_error ?? $response;

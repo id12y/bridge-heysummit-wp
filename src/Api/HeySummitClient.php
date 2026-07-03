@@ -269,21 +269,24 @@ class HeySummitClient {
 	 *
 	 * Follows DRF-style `next` links until exhausted, with a safety cap.
 	 *
-	 * @param string              $path Relative path.
-	 * @param array<string,mixed> $args Query arguments for the first page.
+	 * @param string              $path    Relative path.
+	 * @param array<string,mixed> $args    Query arguments for the first page.
+	 * @param array<string,mixed> $options Request options (timeout, retries)
+	 *                                     plus an optional max_pages override
+	 *                                     for latency-sensitive callers.
 	 * @return array<int,array<string,mixed>>|WP_Error All results, or error.
 	 */
-	public function get_all( string $path, array $args = [] ) {
+	public function get_all( string $path, array $args = [], array $options = [] ) {
 		/**
 		 * Filter the hard cap on pages followed per collection.
 		 *
 		 * @param int    $max_pages Maximum pages (default 50).
 		 * @param string $path      The collection path.
 		 */
-		$max_pages = (int) apply_filters( 'eex_max_pages', 50, $path );
+		$max_pages = (int) apply_filters( 'eex_max_pages', (int) ( $options['max_pages'] ?? 50 ), $path );
 
 		$results = [];
-		$page    = $this->get( $path, $args );
+		$page    = $this->get( $path, $args, $options );
 		$pages   = 1;
 
 		while ( true ) {
@@ -314,7 +317,7 @@ class HeySummitClient {
 				break;
 			}
 
-			$page = $this->get_absolute( $next );
+			$page = $this->get_absolute( $next, $options );
 			++$pages;
 		}
 
@@ -487,16 +490,17 @@ class HeySummitClient {
 	/**
 	 * GET an absolute `next` URL, provided it stays on the API host.
 	 *
-	 * @param string $url Absolute URL from a `next` field.
+	 * @param string              $url     Absolute URL from a `next` field.
+	 * @param array<string,mixed> $options Request options (timeout, retries).
 	 * @return array<string,mixed>|WP_Error
 	 */
-	private function get_absolute( string $url ) {
+	private function get_absolute( string $url, array $options = [] ) {
 		if ( ! str_starts_with( $url, self::BASE_URL ) ) {
 			// Never follow a pagination link off the API host.
 			return new WP_Error( 'eex_pagination', __( 'Pagination link left the HeySummit API host; aborting.', 'emailexpert-events' ) );
 		}
 
-		return $this->get( substr( $url, strlen( self::BASE_URL ) ) );
+		return $this->get( substr( $url, strlen( self::BASE_URL ) ), [], $options );
 	}
 
 	/**

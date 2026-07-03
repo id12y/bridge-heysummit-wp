@@ -512,3 +512,17 @@ distinguishes sessions with no date on HeySummit from sessions that are
 all in the past (naming the most recent date), because the operator's
 fix is different in each case. The version constant is surfaced so an
 operator can confirm which build a site is actually running.
+
+## D47. Live talk fetches walk the whole paginated collection
+
+Found on the production account: the talks collection paginates 10 per
+page, oldest first, with no date or upcoming filter (the v1 reference's
+example shows `count: 62` with a `next` link). The Lite render path read
+page 1 only, so a summit running since 2020 reported "10 sessions, most
+recent 2020" while its 2026 sessions sat on the last pages. The live
+fetch now uses `get_all()` (which sync always used), passing its short
+timeouts through and capping at 20 pages via `eex_live_max_pages`. The
+walk lives inside the single cached fetch, so the cost is once per cache
+lifetime. A page cap that truncates would drop the newest talks (they
+are at the end), which is why the cap is generous and filterable rather
+than tight.

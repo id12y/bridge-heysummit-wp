@@ -810,6 +810,62 @@ final class LiteModeTest extends TestCase {
 		$this->assertSame( '', Repositories::current()->diagnose() );
 	}
 
+	public function test_live_talks_walk_every_page_of_the_collection(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		// Real accounts paginate talks 10 per page, oldest first: page 1 of a
+		// long-running summit is years old and the upcoming sessions sit on
+		// the last page. A page-1-only read shows nothing upcoming.
+		$this->mock_http(
+			static function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( str_contains( $url, 'page=2' ) ) {
+					return self::json_response(
+						[
+							'count'   => 11,
+							'next'    => null,
+							'results' => [
+								[
+									'id'    => 602,
+									'title' => 'Fresh session',
+									'date'  => $future,
+									'event' => 101,
+								],
+							],
+						]
+					);
+				}
+
+				if ( str_contains( $url, 'talks/' ) ) {
+					return self::json_response(
+						[
+							'count'   => 11,
+							'next'    => \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=2',
+							'results' => [
+								[
+									'id'    => 601,
+									'title' => 'Ancient session',
+									'date'  => '2020-12-10T16:00:00Z',
+									'event' => 101,
+								],
+							],
+						]
+					);
+				}
+
+				return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			}
+		);
+
+		$titles = array_map( static fn( array $talk ): string => (string) $talk['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		$this->assertSame( [ 'Fresh session' ], $titles, 'the upcoming session on page 2 is found — page 1 alone would show nothing' );
+		$this->assertSame( '', Repositories::current()->diagnose(), 'a healthy paginated pipeline has no diagnosis' );
+	}
+
 	public function test_talks_filter_falls_back_to_event_id_parameter(): void {
 		$this->go_lite();
 		$this->mock_http(
@@ -945,7 +1001,7 @@ final class LiteModeTest extends TestCase {
 			function ( $url ) {
 				$this->requests[] = (string) $url;
 
-				if ( str_contains( (string) $url, 'events/101/' ) ) {
+				if ( str_contains( (string) $url, 'events/101/' ) && ! str_contains( (string) $url, 'talks/' ) ) {
 					return self::json_response(
 						[
 							'id'        => 101,
