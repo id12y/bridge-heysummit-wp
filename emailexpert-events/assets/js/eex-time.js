@@ -51,6 +51,12 @@
 			var cta = node.querySelector( '[data-eex-cta]' );
 			var join = node.getAttribute( 'data-eex-join' ) || '';
 
+			// Defence in depth: the value is sanitised server-side, but this
+			// attribute becomes an href, so only http(s) may pass here too.
+			if ( join && ! /^https?:\/\//i.test( join ) ) {
+				join = '';
+			}
+
 			node.classList.remove( 'eex-is-live', 'eex-is-soon', 'eex-is-past' );
 
 			if ( now >= start && now <= end ) {

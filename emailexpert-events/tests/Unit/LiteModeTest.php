@@ -601,6 +601,46 @@ final class LiteModeTest extends TestCase {
 		$this->assertArrayHasKey( 'eex_upcoming_sessions', $GLOBALS['eex_test_shortcodes'] ?? [] );
 	}
 
+	public function test_hostile_api_urls_never_reach_lite_markup(): void {
+		$this->go_lite();
+		$this->mock_http(
+			function ( $url ) {
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'        => 501,
+									'title'     => 'Hostile session',
+									'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + 3600 ),
+									'talk_url'  => 'javascript:alert(1)',
+									'event'     => 101,
+								],
+							],
+						]
+					);
+				}
+
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'        => 101,
+								'title'     => 'Hub',
+								'event_url' => 'javascript:alert(2)',
+							],
+						],
+					]
+				);
+			}
+		);
+
+		$html = Components::render( 'upcoming-sessions', [] );
+
+		$this->assertStringContainsString( 'Hostile session', $html );
+		$this->assertStringNotContainsString( 'javascript:', $html );
+	}
+
 	// -- Per-session .ics from live data. --------------------------------------
 
 	public function test_live_ics_builds_from_repository_data(): void {

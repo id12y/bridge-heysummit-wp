@@ -127,16 +127,47 @@ abstract class BaseMapper {
 	/**
 	 * Extract a URL from a value that may be a string or {url: …} object.
 	 *
+	 * API responses are third-party data: only http/https URLs pass.
+	 * Anything else (javascript:, data:, protocol-relative, garbage)
+	 * becomes '' — some of these values end up in data attributes that
+	 * client-side code later assigns to href, where esc_attr alone would
+	 * not neutralise a hostile scheme.
+	 *
 	 * @param mixed $value Raw value.
 	 */
 	protected static function url_of( $value ): string {
-		if ( is_string( $value ) && '' !== trim( $value ) ) {
-			return trim( $value );
-		}
-		if ( is_array( $value ) ) {
+		$url = '';
+
+		if ( is_string( $value ) ) {
+			$url = trim( $value );
+		} elseif ( is_array( $value ) ) {
 			foreach ( [ 'url', 'src', 'href' ] as $key ) {
 				if ( isset( $value[ $key ] ) && is_string( $value[ $key ] ) && '' !== trim( $value[ $key ] ) ) {
-					return trim( $value[ $key ] );
+					$url = trim( $value[ $key ] );
+					break;
+				}
+			}
+		}
+
+		if ( '' === $url || ! preg_match( '#^https?://#i', $url ) ) {
+			return '';
+		}
+
+		return esc_url_raw( $url );
+	}
+
+	/**
+	 * First candidate key holding a valid http(s) URL.
+	 *
+	 * @param array<string,mixed> $raw  Raw record.
+	 * @param string[]            $keys Candidate keys, first match wins.
+	 */
+	protected static function url_str( array $raw, array $keys ): string {
+		foreach ( $keys as $key ) {
+			if ( isset( $raw[ $key ] ) ) {
+				$url = self::url_of( $raw[ $key ] );
+				if ( '' !== $url ) {
+					return $url;
 				}
 			}
 		}

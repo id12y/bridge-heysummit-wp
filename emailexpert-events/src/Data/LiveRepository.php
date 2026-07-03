@@ -448,7 +448,7 @@ class LiveRepository extends BaseMapper implements Repository {
 	 * @return array<string,mixed>
 	 */
 	protected function map_event( array $raw, string $conn_id ): array {
-		$url = self::url_of( $raw['event_url'] ?? ( $raw['url'] ?? '' ) );
+		$url = self::url_str( $raw, [ 'event_url', 'url', 'public_url' ] );
 
 		return [
 			'id'            => 0,
@@ -480,7 +480,7 @@ class LiveRepository extends BaseMapper implements Repository {
 	 */
 	protected function map_talk( array $raw, array $event ): array {
 		$hs_id         = self::id_of( $raw, [ 'id' ] );
-		$talk_url      = self::url_of( $raw['talk_url'] ?? ( $raw['url'] ?? '' ) );
+		$talk_url      = self::url_str( $raw, [ 'talk_url', 'url', 'public_url' ] );
 		$raw_event_url = (string) ( $event['raw_event_url'] ?? '' );
 		$event_url     = '' !== $raw_event_url ? Utm::tag( $raw_event_url ) : '';
 

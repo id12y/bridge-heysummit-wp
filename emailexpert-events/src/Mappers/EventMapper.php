@@ -31,7 +31,7 @@ final class EventMapper extends BaseMapper {
 			'hs_id'                     => $hs_id,
 			'title'                     => self::str( $raw, [ 'title', 'name' ] ),
 			'description'               => self::str( $raw, [ 'description', 'summary', 'about' ] ),
-			'event_url'                 => self::str( $raw, [ 'event_url', 'url', 'public_url' ] ),
+			'event_url'                 => self::url_str( $raw, [ 'event_url', 'url', 'public_url' ] ),
 			'timezone'                  => self::str( $raw, [ 'timezone', 'time_zone', 'tz' ] ),
 			'first_talk_at'             => self::datetime( $raw, [ 'first_talk_at', 'starts_at', 'start_date' ] ),
 			'last_talk_at'              => self::datetime( $raw, [ 'last_talk_at', 'ends_at', 'end_date' ] ),

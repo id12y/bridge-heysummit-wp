@@ -145,4 +145,40 @@ final class MappersTest extends TestCase {
 	public function test_attendee_mapper_rejects_unidentifiable_record(): void {
 		$this->assertNull( AttendeeMapper::map( [ 'name' => 'ghost' ] ) );
 	}
+
+	public function test_mappers_reject_non_http_urls_from_the_api(): void {
+		// Third-party URLs end up in data attributes that client code
+		// assigns to href: hostile schemes must die at the mapping layer.
+		$talk = TalkMapper::map(
+			[
+				'id'         => 1,
+				'title'      => 'Hostile',
+				'talk_url'   => 'javascript:alert(1)',
+				'replay_url' => 'data:text/html,x',
+			]
+		);
+
+		$this->assertSame( '', $talk['talk_url'] );
+		$this->assertSame( '', $talk['replay_url'] );
+
+		$event = \Emailexpert\Events\Mappers\EventMapper::map(
+			[
+				'id'        => 2,
+				'title'     => 'Hostile hub',
+				'event_url' => 'javascript:alert(1)',
+			]
+		);
+
+		$this->assertSame( '', $event['event_url'] );
+
+		// Real URLs still pass untouched.
+		$ok = TalkMapper::map(
+			[
+				'id'       => 3,
+				'title'    => 'Fine',
+				'talk_url' => 'https://summit.example.com/talks/3/',
+			]
+		);
+		$this->assertSame( 'https://summit.example.com/talks/3/', $ok['talk_url'] );
+	}
 }
