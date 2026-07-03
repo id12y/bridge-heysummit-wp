@@ -10,7 +10,6 @@ namespace Emailexpert\Events\WooCommerce;
 use Emailexpert\Events\Api\HeySummitClient;
 use Emailexpert\Events\Logging\Logger;
 use Emailexpert\Events\Mappers\AttendeeRequestBuilder;
-use Emailexpert\Events\Mappers\TicketSaleRequestBuilder;
 use Emailexpert\Events\Options;
 use Emailexpert\Events\Webhooks\Attribution;
 
@@ -179,44 +178,56 @@ class Pusher {
 		}
 
 		$client = HeySummitClient::for_connection( $connection );
+		$email  = (string) $order->get_billing_email();
+		$gross  = (float) $item->get_total() + (float) $item->get_total_tax();
+		$net    = (float) $item->get_total();
 
-		// 1. Create the attendee.
+		// 1. Create the attendee with the mapped ticket price in the same
+		// call (the spec's AttendeeCreateRequest carries ticket_price_id).
+		// The v2 API has no off-platform sale recording: amounts stay in
+		// the order note and the local attribution row only.
 		$attendee_request = AttendeeRequestBuilder::build(
 			[
 				'name'            => trim( $order->get_billing_first_name() . ' ' . $order->get_billing_last_name() ),
-				'email'           => $order->get_billing_email(),
+				'email'           => $email,
 				'event_hs_id'     => (string) $mapping['event'],
+				'ticket_price_id' => (string) $mapping['ticket'],
 				'order_reference' => (string) $order_id,
 			]
 		);
 
 		$attendee_response = $client->post( (string) $attendee_request['path'], (array) $attendee_request['body'] );
+		$already_existed   = false;
 
 		if ( is_wp_error( $attendee_response ) ) {
-			return $this->fail( $order, $item_id, $record, $attendee_response->get_error_message() );
-		}
+			if ( ! \Emailexpert\Events\Accounts\Pusher::is_already_exists_error( $attendee_response ) ) {
+				return $this->fail( $order, $item_id, $record, $attendee_response->get_error_message() );
+			}
 
-		$attendee_hs_id = (string) ( $attendee_response['id'] ?? '' );
+			// 2. Recovery: the attendee already exists. Find them by email
+			// (documented ?email= filter) and attach the ticket via the
+			// documented-idempotent attach endpoint.
+			$already_existed = true;
+			$attendee_hs_id  = \Emailexpert\Events\Api\AttendeeLookup::find_id( $client, (string) $mapping['event'], $email );
 
-		// 2. Import the external ticket sale.
-		$gross = (float) $item->get_total() + (float) $item->get_total_tax();
-		$net   = (float) $item->get_total();
+			if ( '' === $attendee_hs_id ) {
+				return $this->fail( $order, $item_id, $record, __( 'Attendee already exists on HeySummit but could not be found by email to attach the ticket.', 'emailexpert-events' ) . ' ' . $attendee_response->get_error_message() );
+			}
 
-		$sale_request = TicketSaleRequestBuilder::build(
-			[
-				'attendee_hs_id'  => $attendee_hs_id,
-				'ticket_hs_id'    => (string) $mapping['ticket'],
-				'amount_gross'    => number_format( $gross, 2, '.', '' ),
-				'amount_net'      => number_format( $net, 2, '.', '' ),
-				'currency'        => $order->get_currency(),
-				'order_reference' => (string) $order_id,
-			]
-		);
+			$attach_request  = \Emailexpert\Events\Mappers\TicketAttachRequestBuilder::build(
+				[
+					'event_hs_id'     => (string) $mapping['event'],
+					'attendee_hs_id'  => $attendee_hs_id,
+					'ticket_price_id' => (string) $mapping['ticket'],
+				]
+			);
+			$attach_response = $client->post( (string) $attach_request['path'], (array) $attach_request['body'] );
 
-		$sale_response = $client->post( (string) $sale_request['path'], (array) $sale_request['body'] );
-
-		if ( is_wp_error( $sale_response ) ) {
-			return $this->fail( $order, $item_id, $record, $sale_response->get_error_message() );
+			if ( is_wp_error( $attach_response ) ) {
+				return $this->fail( $order, $item_id, $record, $attach_response->get_error_message() );
+			}
+		} else {
+			$attendee_hs_id = (string) ( $attendee_response['id'] ?? '' );
 		}
 
 		// 3. Record the outcome.
@@ -229,10 +240,11 @@ class Pusher {
 		$order->delete_meta_data( '_eex_hs_push_failed' );
 		$order->add_order_note(
 			sprintf(
-				/* translators: 1: attendee ID, 2: ticket ID. */
-				__( 'Pushed to HeySummit: attendee %1$s registered with ticket %2$s.', 'emailexpert-events' ),
+				/* translators: 1: attendee ID, 2: ticket price ID, 3: note when the attendee pre-existed. */
+				__( 'Pushed to HeySummit: attendee %1$s registered with ticket price %2$s.%3$s Amounts are not recorded on HeySummit (the v2 API has no off-platform sale import); they remain on this order.', 'emailexpert-events' ),
 				$attendee_hs_id ?: '?',
-				(string) $mapping['ticket']
+				(string) $mapping['ticket'],
+				$already_existed ? ' ' . __( 'The attendee already existed; the ticket was attached idempotently.', 'emailexpert-events' ) : ''
 			)
 		);
 

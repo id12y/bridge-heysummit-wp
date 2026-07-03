@@ -538,11 +538,10 @@ final class LiteModeTest extends TestCase {
 			}
 		}
 
-		$attendee_calls = array_filter( $posts, static fn( $p ) => str_contains( $p['url'], 'attendees/' ) );
-		$ticket_calls   = array_filter( $posts, static fn( $p ) => str_contains( $p['url'], 'external-ticket-sales/' ) );
+		$attendee_calls = array_filter( $posts, static fn( $p ) => str_contains( $p['url'], 'events/101/attendees/' ) );
 
 		$this->assertCount( 1, $attendee_calls, 'attendee pushed exactly as in Full' );
-		$this->assertCount( 1, $ticket_calls, 'ticket sale imported exactly as in Full' );
+		$this->assertSame( 'T-1', array_values( $attendee_calls )[0]['body']['ticket_price_id'], 'ticket price rides in the create body' );
 
 		// The push-record (attribution) table appears only now — and no log table.
 		$this->assertContains( 'wp_eex_attribution', $GLOBALS['eex_test_dbdelta'] );

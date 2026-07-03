@@ -154,33 +154,36 @@ class LiveRepository extends BaseMapper implements Repository {
 			return $known;
 		}
 
-		$keys = $this->configured_keys();
-		if ( empty( $keys ) || ! preg_match( '/^\d+$/', $ref ) ) {
+		if ( ! preg_match( '/^\d+$/', $ref ) ) {
 			return null;
 		}
 
-		[ $conn_id ] = explode( '|', (string) $keys[0], 2 );
-		$client      = $this->client( $conn_id );
+		// The spec serves single talks nested under their event only; try
+		// each configured event (budgeted, cached).
+		foreach ( $this->configured_keys() as $key ) {
+			[ $conn_id, $event_id ] = array_pad( explode( '|', $key, 2 ), 2, '' );
 
-		if ( null === $client ) {
-			return null;
-		}
-
-		$raw = LiveCache::remember(
-			'talk|' . $conn_id . '|' . $ref,
-			static function () use ( $client, $ref ) {
-				// A WP_Error propagates its reason to the cache status.
-				return $client->get( 'talks/' . rawurlencode( $ref ) . '/', [], self::request_options() );
+			$client = $this->client( $conn_id );
+			if ( null === $client || '' === $event_id ) {
+				continue;
 			}
-		);
 
-		if ( ! is_array( $raw ) || empty( $raw ) ) {
-			return null;
+			$raw = LiveCache::remember(
+				'talk|' . $conn_id . '|' . $event_id . '|' . $ref,
+				static function () use ( $client, $event_id, $ref ) {
+					// A WP_Error propagates its reason to the cache status.
+					return $client->get( 'events/' . rawurlencode( $event_id ) . '/talks/' . rawurlencode( $ref ) . '/', [], self::request_options() );
+				}
+			);
+
+			if ( is_array( $raw ) && '' !== self::id_of( $raw, [ 'id' ] ) ) {
+				$event = $this->event_summary( $event_id );
+
+				return $this->map_talk( $raw, $event ?? [] );
+			}
 		}
 
-		$event = $this->event_summary( self::id_of( $raw, [ 'event', 'event_id' ] ) );
-
-		return $this->map_talk( $raw, $event ?? [] );
+		return null;
 	}
 
 	/**
@@ -539,11 +542,7 @@ class LiveRepository extends BaseMapper implements Repository {
 				// nested route is permitted (top-level answers 403). The
 				// working style is remembered per connection so later
 				// fetches lead with it.
-				$requests = [
-					'event'    => [ 'talks/', [ 'event' => $event_hs_id ] ],
-					'event_id' => [ 'talks/', [ 'event_id' => $event_hs_id ] ],
-					'nested'   => [ 'events/' . rawurlencode( $event_hs_id ) . '/talks/', [] ],
-				];
+				$requests = \Emailexpert\Events\Api\TalkRoutes::requests( $event_hs_id );
 
 				$first_error = null;
 				$saw_empty   = false;
@@ -586,6 +585,12 @@ class LiveRepository extends BaseMapper implements Repository {
 			// different event.
 			$talk_event = self::id_of( $raw, [ 'event', 'event_id' ] );
 			if ( '' !== $talk_event && $talk_event !== $event_hs_id ) {
+				continue;
+			}
+
+			// "Mark this talk as inactive if you want to remove it from the
+			// site" (spec) — respect it.
+			if ( isset( $raw['is_active'] ) && false === $raw['is_active'] ) {
 				continue;
 			}
 
@@ -658,6 +663,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			if ( ! is_array( $speaker ) ) {
 				continue;
 			}
+			if ( isset( $speaker['is_active'] ) && false === $speaker['is_active'] ) {
+				continue; // Hidden speaker (spec).
+			}
 			$raw_speakers[] = $speaker;
 			$entry          = $this->map_speaker( $speaker, $event_url );
 			if ( '' !== $entry['name'] ) {
@@ -675,9 +683,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			'title'         => self::str( $raw, [ 'title', 'name' ] ),
 			'permalink'     => Utm::tag( $talk_url ) ?: $event_url,
 			'description'   => self::str( $raw, [ 'description' ] ),
-			'starts_at'     => self::datetime( $raw, [ 'starts_at' ] ),
+			'starts_at'     => self::datetime( $raw, [ 'starts_at', 'date' ] ),
 			'ends_at'       => self::datetime( $raw, [ 'ends_at' ] ),
-			'start_ts'      => (int) strtotime( self::datetime( $raw, [ 'starts_at' ] ) ),
+			'start_ts'      => (int) strtotime( self::datetime( $raw, [ 'starts_at', 'date' ] ) ),
 			'talk_url'      => Utm::tag( $talk_url ),
 			'replay_url'    => self::url_of( $raw['replay_url'] ?? '' ),
 			'speakers'      => $speakers,
@@ -711,10 +719,10 @@ class LiveRepository extends BaseMapper implements Repository {
 			'id'        => (int) self::id_of( $raw, [ 'id' ] ),
 			'name'      => $name,
 			'url'       => $event_url,
-			'headline'  => self::str( $raw, [ 'headline', 'title' ] ),
+			'headline'  => self::str( $raw, [ 'headline', 'company_title', 'expert_creds', 'title' ] ),
 			'company'   => self::str( $raw, [ 'company' ] ),
 			'photo_id'  => 0,
-			'photo_url' => self::url_of( $raw['avatar'] ?? ( $raw['photo_url'] ?? '' ) ),
+			'photo_url' => self::url_str( $raw, [ 'headshot', 'avatar', 'photo_url' ] ),
 		];
 	}
 

@@ -176,7 +176,7 @@ final class AdminUi {
 							</select>
 						</label>
 						<label>
-							<?php esc_html_e( 'Ticket ID:', 'emailexpert-events' ); ?>
+							<?php esc_html_e( 'Ticket price ID:', 'emailexpert-events' ); ?>
 							<input type="text" name="<?php echo esc_attr( $field ); ?>[ticket]" value="<?php echo esc_attr( (string) $rule['ticket'] ); ?>" size="10" />
 						</label>
 						<label>

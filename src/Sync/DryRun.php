@@ -45,7 +45,17 @@ class DryRun {
 		];
 
 		if ( ! empty( $config['talks'] ) ) {
-			$raw_talks = $client->get_all( 'talks/', [ 'event' => $event_id ] );
+			$raw_talks = null;
+			foreach ( \Emailexpert\Events\Api\PathStyles::ordered( $client->connection_id(), 'talks', array_keys( \Emailexpert\Events\Api\TalkRoutes::requests( $event_id ) ) ) as $style ) {
+				$route     = \Emailexpert\Events\Api\TalkRoutes::requests( $event_id )[ $style ];
+				$attempt   = $client->get_all( $route[0], $route[1] );
+				$raw_talks = $raw_talks ?? $attempt;
+
+				if ( ! is_wp_error( $attempt ) ) {
+					$raw_talks = $attempt;
+					break;
+				}
+			}
 
 			if ( is_wp_error( $raw_talks ) ) {
 				return $raw_talks;

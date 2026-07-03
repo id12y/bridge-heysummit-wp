@@ -14,7 +14,6 @@ use Emailexpert\Events\Accounts\Engine;
 use Emailexpert\Events\Accounts\Pusher;
 use Emailexpert\Events\Accounts\Rules;
 use Emailexpert\Events\Accounts\Suppression;
-use Emailexpert\Events\Accounts\TicketAssignment;
 use Emailexpert\Events\Accounts\Triggers;
 use Emailexpert\Events\Options;
 use Emailexpert\Events\Registrations;
@@ -29,7 +28,6 @@ use Emailexpert\Events\Webhooks\Privacy;
  * @covers \Emailexpert\Events\Accounts\Backfill
  * @covers \Emailexpert\Events\Accounts\Suppression
  * @covers \Emailexpert\Events\Accounts\Consent
- * @covers \Emailexpert\Events\Accounts\TicketAssignment
  * @covers \Emailexpert\Events\Registrations
  */
 final class AccountsModuleTest extends TestCase {
@@ -413,65 +411,60 @@ final class AccountsModuleTest extends TestCase {
 		$this->assertSame( 'done', Registrations::get( $owner_id, '101' )['status'] );
 	}
 
-	public function test_ticket_assignment_follows_discovery(): void {
-		// create_param: the attendee-create schema exposes a ticket field.
-		update_option(
-			'eex_discovery_c1',
-			[
-				'write:attendees'             => [ 'found' => [ 'name' => 'string', 'email' => 'email', 'event' => 'field', 'ticket' => 'field' ] ], // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
-				'write:external-ticket-sales' => [ 'found' => [ 'attendee' => 'field' ] ],
-			]
-		);
-		$this->assertSame( TicketAssignment::CREATE_PARAM, TicketAssignment::method( 'c1' ) );
-
+	public function test_ticket_price_rides_in_the_create_body(): void {
+		// The spec's AttendeeCreateRequest carries ticket_price_id: one POST
+		// to the nested attendee-create route, nothing else.
 		$this->member_rule();
 		$user_id = eex_test_create_user( 'jane', 'jane@example.org', [ 'member' ] );
 		( new Triggers() )->on_add_role( $user_id, 'member' );
 		$this->run_queue();
 
-		$this->assertSame( 'T-FREE', $this->attendee_calls()[0]['body']['ticket'], 'ticket rides in the create body' );
-		$this->assertCount( 1, $this->posts, 'no ticket-import call needed' );
+		$this->assertCount( 1, $this->posts, 'exactly one write' );
+		$this->assertStringContainsString( 'events/101/attendees/', $this->posts[0]['url'], 'the documented nested route' );
+		$this->assertSame( 'T-FREE', $this->posts[0]['body']['ticket_price_id'] );
+		$this->assertArrayNotHasKey( 'event', $this->posts[0]['body'], 'the event travels in the path' );
+	}
 
-		// ticket_import: no ticket field on create; import endpoint present.
-		update_option(
-			'eex_discovery_c1',
-			[
-				'write:attendees'             => [ 'found' => [ 'name' => 'string', 'email' => 'email', 'event' => 'field' ] ], // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
-				'write:external-ticket-sales' => [ 'found' => [ 'attendee' => 'field', 'ticket' => 'field' ] ],
-			]
-		);
-		$this->assertSame( TicketAssignment::TICKET_IMPORT, TicketAssignment::method( 'c1' ) );
+	public function test_existing_attendee_still_gets_the_ticket_via_idempotent_attach(): void {
+		// Create answers "already exists" -> the attendee is found by the
+		// documented ?email= filter and the ticket attached through the
+		// documented-idempotent attach endpoint (docs/decisions.md D45).
+		$this->member_rule();
 
-		$this->posts = [];
-		$user_b      = eex_test_create_user( 'sam', 'sam@example.org', [ 'member' ] );
-		( new Triggers() )->on_add_role( $user_b, 'member' );
+		remove_all_filters( 'pre_http_request' );
+		$this->mock_http( function ( $url, $args ) {
+			if ( 'POST' === ( $args['method'] ?? '' ) ) {
+				$this->posts[] = [
+					'url'  => $url,
+					'body' => (array) json_decode( (string) ( $args['body'] ?? '' ), true ),
+				];
+
+				if ( str_contains( $url, '/tickets/' ) ) {
+					return self::json_response( [ 'id' => 61001 ], 200 );
+				}
+
+				return self::json_response( [ 'email' => [ 'attendee with this email already exists.' ] ], 400 );
+			}
+
+			if ( str_contains( $url, 'attendees/' ) && str_contains( $url, 'email=' ) ) {
+				return self::json_response( [ 'results' => [ [ 'id' => 61001, 'email' => 'jane@example.org' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			}
+
+			return self::json_response( [ 'results' => [] ] );
+		} );
+
+		$user_id = eex_test_create_user( 'jane', 'jane@example.org', [ 'member' ] );
+		( new Triggers() )->on_add_role( $user_id, 'member' );
 		$this->run_queue();
 
-		$this->assertCount( 2, $this->posts, 'create + zero-amount ticket import' );
-		$sale = $this->posts[1]['body'];
-		$this->assertSame( '0.00', $sale['amount_gross'] );
-		$this->assertSame( 'T-FREE', $sale['ticket'] );
+		$record = Registrations::get( $user_id, '101' );
+		$this->assertSame( 'done', $record['status'] );
+		$this->assertSame( '61001', (string) $record['attendee_hs_id'], 'the existing attendee was found by email' );
 
-		// unsupported: attendee registered, warning logged naming the ticket.
-		update_option(
-			'eex_discovery_c1',
-			[
-				'write:attendees'             => [ 'found' => [ 'name' => 'string', 'email' => 'email' ] ],
-				'write:external-ticket-sales' => [ 'found' => [] ],
-			]
-		);
-		$this->assertSame( TicketAssignment::UNSUPPORTED, TicketAssignment::method( 'c1' ) );
-
-		$this->posts = [];
-		$user_c      = eex_test_create_user( 'ann', 'ann@example.org', [ 'member' ] );
-		( new Triggers() )->on_add_role( $user_c, 'member' );
-		$this->run_queue();
-
-		$this->assertCount( 1, $this->posts, 'attendee still registered' );
-		global $wpdb;
-		$logged = json_encode( $wpdb->tables['wp_eex_log'] ); // phpcs:ignore
-		$this->assertStringContainsString( 'could not be assigned', $logged );
-		$this->assertStringContainsString( 'T-FREE', $logged );
+		$attach_calls = array_values( array_filter( $this->posts, static fn( $p ) => str_contains( $p['url'], '/tickets/' ) ) );
+		$this->assertCount( 1, $attach_calls, 'ticket attached idempotently' );
+		$this->assertStringContainsString( 'events/101/attendees/61001/tickets/', $attach_calls[0]['url'] );
+		$this->assertSame( 'T-FREE', $attach_calls[0]['body']['ticket_price_id'] );
 	}
 
 	public function test_failed_push_retries_then_flags_user(): void {

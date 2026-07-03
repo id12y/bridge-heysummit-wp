@@ -477,3 +477,25 @@ remembers the working one per connection, so steady-state traffic never
 burns calls on refused routes. `boolish()` accepts candidate key lists
 for the underscore variant, and the discovery panel samples the nested
 route before reporting a top-level 403 as an error.
+
+
+## D45. The write allowlist follows the real API: create + idempotent attach
+
+The published OpenAPI spec shows the v2 API has no external-ticket-sales
+endpoint and no top-level attendees route: attendee create is
+POST events/<id>/attendees/ (with optional ticket_price_id in the body)
+and ticket assignment for an existing attendee is the
+documented-idempotent POST events/<id>/attendees/<pk>/tickets/. The
+allowlist now holds exactly those two anchored patterns — the same two
+sanctioned operations as the v2 hard rule (attendee create + ticket
+assignment), at their real addresses — and rejects everything else the
+spec exposes, including event/talk/speaker/category create-update-delete
+and webhook-subscription management. Consequences: one POST per push on
+the happy path; "already exists" recovers by finding the attendee via the
+documented ?email= filter and attaching the ticket idempotently
+(supersedes D31's no-assignment caution, which applied to the sale
+import); order amounts cannot be recorded on HeySummit and stay on the
+WooCommerce order; the mapped value is a ticket PRICE id and the UI says
+so. Talks use `date` with no end time; inactive talks/speakers are
+respected; webhook actions are inferred from documented payload shapes
+when no action key travels.

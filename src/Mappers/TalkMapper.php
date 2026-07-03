@@ -48,7 +48,7 @@ final class TalkMapper extends BaseMapper {
 			'hs_id'           => $hs_id,
 			'title'           => self::str( $raw, [ 'title', 'name' ] ),
 			'description'     => self::str( $raw, [ 'description', 'summary', 'abstract' ] ),
-			'starts_at'       => self::datetime( $raw, [ 'starts_at', 'start_time', 'start_date', 'scheduled_at' ] ),
+			'starts_at'       => self::datetime( $raw, [ 'starts_at', 'date', 'start_time', 'start_date', 'scheduled_at' ] ),
 			'ends_at'         => self::datetime( $raw, [ 'ends_at', 'end_time', 'end_date' ] ),
 			'talk_url'        => self::url_str( $raw, [ 'talk_url', 'url', 'public_url' ] ),
 			'replay_url'      => self::url_str( $raw, [ 'replay_url', 'recording_url', 'video_url' ] ),

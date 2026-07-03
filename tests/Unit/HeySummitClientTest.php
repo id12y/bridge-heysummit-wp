@@ -210,11 +210,11 @@ final class HeySummitClientTest extends TestCase {
 		} );
 
 		$client = new HeySummitClient( 'k', 'c1' );
-		$result = $client->post( 'attendees/', [ 'email' => 'a@b.c' ] );
+		$result = $client->post( 'events/101/attendees/', [ 'email' => 'a@b.c' ] );
 
 		$this->assertTrue( is_wp_error( $result ) );
 		$this->assertStringContainsString( 'ticket: This field is required.', $result->get_error_message() );
-		$this->assertStringContainsString( 'POST attendees/', $result->get_error_message() );
+		$this->assertStringContainsString( 'POST events/101/attendees/', $result->get_error_message() );
 		$this->assertIsArray( $result->get_error_data()['body'], 'raw body stays available for already-exists detection' );
 	}
 

@@ -33,12 +33,16 @@ final class Discovery {
 			$report[ $resource ] = self::inspect_resource( $client, $resource );
 		}
 
-		// Write shapes for the WooCommerce bridge: DRF describes the POST
-		// body under actions.POST on an OPTIONS request — safe, nothing is
-		// created. Recorded so the request builders can be verified against
-		// the live API before any order is pushed.
-		foreach ( \Emailexpert\Events\Api\WriteEndpoints::ALLOWLIST as $write_path ) {
-			$report[ 'write:' . rtrim( $write_path, '/' ) ] = self::inspect_write_shape( $client, $write_path );
+		// Write shape for the attendee-create endpoint: DRF describes the
+		// POST body under actions.POST on an OPTIONS request — safe, nothing
+		// is created. The allowlist entries are patterns needing a real
+		// event ID; the ticket attach endpoint additionally needs an
+		// attendee ID, so only create is sampled (its body is spec-verified:
+		// email, name, ticket_price_id, questions).
+		$sample_event = self::sample_event_id( $client );
+
+		if ( '' !== $sample_event ) {
+			$report['write:attendees'] = self::inspect_write_shape( $client, 'events/' . rawurlencode( $sample_event ) . '/attendees/' );
 		}
 
 		update_option( 'eex_discovery_' . sanitize_key( $connection_id ), $report, false );

@@ -14,8 +14,9 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Sell tickets with WooCommerce; each consented, completed purchase is
- * pushed to HeySummit as a registered attendee with an imported external
- * ticket sale (the API's off-platform sales flow). Registered only on
+ * pushed to HeySummit as a registered attendee with the mapped ticket
+ * price assigned in the create call (the v2 API has no off-platform sale
+ * import; amounts stay on the order). Registered only on
  * woocommerce_loaded, so no code here loads without WooCommerce.
  */
 final class Module {
@@ -193,7 +194,7 @@ final class Module {
 			</select>
 		</p>
 		<p class="form-field">
-			<label><?php esc_html_e( 'HeySummit ticket', 'emailexpert-events' ); ?></label>
+			<label><?php esc_html_e( 'HeySummit ticket price', 'emailexpert-events' ); ?></label>
 			<select name="eex_hs_ticket<?php echo esc_attr( $suffix ); ?>">
 				<option value=""><?php esc_html_e( 'Choose…', 'emailexpert-events' ); ?></option>
 				<?php foreach ( (array) ( $tickets[ $connection . '|' . $event ] ?? [] ) as $row ) : ?>
@@ -319,12 +320,41 @@ final class Module {
 
 		$list = [];
 		foreach ( $tickets as $ticket ) {
-			if ( is_array( $ticket ) && isset( $ticket['id'] ) ) {
-				$list[] = [
-					'id'    => (string) $ticket['id'],
-					'title' => sanitize_text_field( (string) ( $ticket['title'] ?? $ticket['name'] ?? $ticket['id'] ) ),
-				];
+			if ( ! is_array( $ticket ) || ! isset( $ticket['id'] ) ) {
+				continue;
 			}
+
+			// What attendee-create/attach need is a ticket PRICE id. The
+			// spec types Ticket.prices as an opaque string; expand it when
+			// it decodes to price records, otherwise fall back to the
+			// ticket row so the operator can confirm the price ID manually.
+			$prices = $ticket['prices'] ?? null;
+			if ( is_string( $prices ) ) {
+				$decoded = json_decode( $prices, true );
+				$prices  = is_array( $decoded ) ? $decoded : null;
+			}
+
+			$expanded = false;
+			if ( is_array( $prices ) ) {
+				foreach ( $prices as $price ) {
+					if ( is_array( $price ) && isset( $price['id'] ) && is_scalar( $price['id'] ) ) {
+						$expanded = true;
+						$list[]   = [
+							'id'    => (string) $price['id'],
+							'title' => trim( (string) ( $ticket['title'] ?? $ticket['id'] ) . ' — ' . (string) ( $price['title'] ?? $price['name'] ?? $price['price'] ?? $price['id'] ) ),
+						];
+					}
+				}
+			}
+
+			if ( $expanded ) {
+				continue;
+			}
+
+			$list[] = [
+				'id'    => (string) $ticket['id'],
+				'title' => sanitize_text_field( (string) ( $ticket['title'] ?? $ticket['name'] ?? $ticket['id'] ) . ' ' . __( '(confirm the ticket price ID)', 'emailexpert-events' ) ),
+			];
 		}
 
 		$cache = (array) get_option( 'eex_available_tickets', [] );

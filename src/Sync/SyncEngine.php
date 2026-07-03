@@ -170,6 +170,9 @@ class SyncEngine {
 				if ( ! is_array( $raw_talk ) ) {
 					continue;
 				}
+				if ( isset( $raw_talk['is_active'] ) && false === $raw_talk['is_active'] ) {
+					continue; // Inactive = removed from the site (spec); orphan-drafts below.
+				}
 				$mapped = TalkMapper::map( $raw_talk );
 				if ( null !== $mapped ) {
 					$mapped['raw']  = $raw_talk;
@@ -271,11 +274,7 @@ class SyncEngine {
 	 * @return array<int,array<string,mixed>>|\WP_Error
 	 */
 	protected function fetch_talks( HeySummitClient $client, string $event_id ) {
-		$requests = [
-			'event'    => [ 'talks/', [ 'event' => $event_id ] ],
-			'event_id' => [ 'talks/', [ 'event_id' => $event_id ] ],
-			'nested'   => [ 'events/' . rawurlencode( $event_id ) . '/talks/', [] ],
-		];
+		$requests = \Emailexpert\Events\Api\TalkRoutes::requests( $event_id );
 
 		$first_error = null;
 		$unfiltered  = null;

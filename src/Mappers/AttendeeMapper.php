@@ -44,7 +44,7 @@ final class AttendeeMapper extends BaseMapper {
 		}
 
 		$referer_domain = '';
-		$referer        = self::str( $raw, [ 'http_referer', 'http_referrer', 'referer' ] );
+		$referer        = self::str( $raw, [ 'http_referer', 'http_referer_domain', 'referrer', 'http_referrer', 'referer', 'referer_ref' ] );
 		if ( '' !== $referer ) {
 			$referer_domain = strtolower( (string) wp_parse_url( $referer, PHP_URL_HOST ) );
 		}
