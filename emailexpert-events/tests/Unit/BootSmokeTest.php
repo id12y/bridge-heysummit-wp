@@ -36,7 +36,7 @@ final class BootSmokeTest extends TestCase {
 			$relative = substr( $file->getPathname(), strlen( $src ) + 1, -4 );
 			$class    = 'Emailexpert\\Events\\' . str_replace( '/', '\\', $relative );
 
-			$this->assertTrue( class_exists( $class ) || trait_exists( $class ), "Class {$class} must load" );
+			$this->assertTrue( class_exists( $class ) || interface_exists( $class ) || trait_exists( $class ), "Class {$class} must load" );
 		}
 	}
 

@@ -18,10 +18,14 @@ final class Ics {
 	/**
 	 * Download URL for one session's .ics.
 	 *
-	 * @param int $talk_id Talk post ID.
+	 * @param int|array<string,mixed> $talk Talk post ID, or a talk data array
+	 *                                      whose ics_ref identifies the
+	 *                                      session in the active repository.
 	 */
-	public static function download_url( int $talk_id ): string {
-		return add_query_arg( 'eex_ics', $talk_id, home_url( '/' ) );
+	public static function download_url( $talk ): string {
+		$ref = is_array( $talk ) ? ( $talk['ics_ref'] ?? $talk['id'] ?? 0 ) : (int) $talk;
+
+		return add_query_arg( 'eex_ics', $ref, home_url( '/' ) );
 	}
 
 	/**
@@ -83,51 +87,90 @@ final class Ics {
 	}
 
 	/**
+	 * A complete VCALENDAR document from talk data arrays (Lite mode, where
+	 * sessions have no posts).
+	 *
+	 * @param array<int,array<string,mixed>> $talks Talk data arrays.
+	 * @param string                         $name  Calendar display name.
+	 */
+	public static function calendar_from_data( array $talks, string $name = '' ): string {
+		$lines = [
+			'BEGIN:VCALENDAR',
+			'VERSION:2.0',
+			'PRODID:-//emailexpert//emailexpert Events//EN',
+			'CALSCALE:GREGORIAN',
+			'METHOD:PUBLISH',
+		];
+
+		if ( '' !== $name ) {
+			$lines[] = self::fold( 'X-WR-CALNAME:' . self::escape( $name ) );
+		}
+
+		foreach ( $talks as $data ) {
+			$event_lines = self::vevent_from_data( (array) $data );
+			if ( ! empty( $event_lines ) ) {
+				$lines = array_merge( $lines, $event_lines );
+			}
+		}
+
+		$lines[] = 'END:VCALENDAR';
+
+		return implode( "\r\n", $lines ) . "\r\n";
+	}
+
+	/**
 	 * VEVENT lines for one talk; empty when the talk has no start time.
 	 *
 	 * @param int $talk_id Talk post ID.
 	 * @return string[]
 	 */
 	public static function vevent( int $talk_id ): array {
-		$data  = Components::talk_data( $talk_id );
-		$start = strtotime( (string) $data['starts_at'] );
+		return self::vevent_from_data( Components::talk_data( $talk_id ) );
+	}
+
+	/**
+	 * VEVENT lines from a talk data array (see Data\Repository); empty when
+	 * the talk has no start time.
+	 *
+	 * @param array<string,mixed> $data Talk data.
+	 * @return string[]
+	 */
+	public static function vevent_from_data( array $data ): array {
+		$start = strtotime( (string) ( $data['starts_at'] ?? '' ) );
 
 		if ( false === $start ) {
 			return [];
 		}
 
-		$end = strtotime( (string) $data['ends_at'] );
+		$end = strtotime( (string) ( $data['ends_at'] ?? '' ) );
 		if ( false === $end || $end <= $start ) {
 			$end = $start + HOUR_IN_SECONDS;
 		}
 
-		$hs_id = (string) get_post_meta( $talk_id, '_eex_heysummit_id', true );
+		$hs_id = (string) ( $data['hs_id'] ?? '' );
 		$host  = (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST );
 
-		$speakers    = array_map( static fn( array $s ): string => (string) $s['name'], (array) $data['speakers'] );
-		$description = (string) $data['permalink'];
+		$speakers    = array_map( static fn( array $s ): string => (string) $s['name'], (array) ( $data['speakers'] ?? [] ) );
+		$description = (string) ( $data['permalink'] ?? '' );
 		if ( ! empty( $speakers ) ) {
 			$description .= '\n' . sprintf( 'Speakers: %s', implode( ', ', $speakers ) );
 		}
 		// Tag from the raw URL (talk_data may already carry page-context
 		// tags; calendar entries get their own campaign).
-		$raw_event_url = (int) $data['event_post_id'] > 0
-			? (string) get_post_meta( (int) $data['event_post_id'], '_eex_event_url', true )
-			: '';
-		$register      = Utm::tag( $raw_event_url, 0, 'calendar' );
+		$register = Utm::tag( (string) ( $data['raw_event_url'] ?? '' ), 0, 'calendar' );
 		if ( '' !== $register ) {
 			$description .= '\n' . sprintf( 'Register: %s', $register );
 		}
 
 		return [
 			'BEGIN:VEVENT',
-			self::fold( 'UID:eex-talk-' . ( $hs_id ?: $talk_id ) . '@' . $host ),
+			self::fold( 'UID:eex-talk-' . ( $hs_id ?: (string) ( $data['id'] ?? '' ) ) . '@' . $host ),
 			'DTSTAMP:' . gmdate( 'Ymd\THis\Z' ),
 			'DTSTART:' . gmdate( 'Ymd\THis\Z', $start ),
 			'DTEND:' . gmdate( 'Ymd\THis\Z', $end ),
-			self::fold( 'SUMMARY:' . self::escape( (string) $data['title'] ) ),
+			self::fold( 'SUMMARY:' . self::escape( (string) ( $data['title'] ?? '' ) ) ),
 			self::fold( 'DESCRIPTION:' . self::escape( $description ) ),
-			self::fold( 'URL:' . self::escape( (string) $data['permalink'] ) ),
+			self::fold( 'URL:' . self::escape( (string) ( $data['permalink'] ?? '' ) ) ),
 			'END:VEVENT',
 		];
 	}

@@ -292,3 +292,16 @@ enabled rule with trigger matching waived (the operator is the trigger),
 but conditions, exclusions, suppression, consent and idempotency all still
 apply — consent remains a hard rule even for manual pushes. Failed records
 are retried on the same action.
+
+## D33. v4: components consume data arrays through a Repository interface
+
+Render callbacks, blocks, shortcodes and Elementor widget wrappers were
+already one code path; v4 moves their data access behind
+`Data\Repository` (upcoming/past sessions, events, event summary, talk,
+speakers, categories, sponsors) so Lite mode can swap the source without
+forking any rendering. `SyncedRepository` reassembles the exact reads the
+templates previously made inline, and the card templates now take data
+arrays (with a back-compat branch for theme overrides passing post IDs) —
+proven by the pre-existing rendering tests passing unchanged. Talk data
+gained hs_id, event_hs_id, raw_event_url, ics_ref and published keys so
+the ICS builder is a pure data function shared by both modes.

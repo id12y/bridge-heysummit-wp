@@ -62,7 +62,7 @@ final class Privacy {
 	 * @param int    $page          Page (single page; the data set is small).
 	 * @return array<string,mixed>
 	 */
-	public function export( string $email_address, int $page = 1 ): array {
+	public function export( string $email_address, int $page = 1 ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- core exporter signature.
 		$hash = self::hash( $email_address );
 		$data = [];
 
@@ -98,7 +98,7 @@ final class Privacy {
 	 * @param int    $page          Page.
 	 * @return array<string,mixed>
 	 */
-	public function erase( string $email_address, int $page = 1 ): array {
+	public function erase( string $email_address, int $page = 1 ): array { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- core eraser signature.
 		global $wpdb;
 
 		$hash    = self::hash( $email_address );

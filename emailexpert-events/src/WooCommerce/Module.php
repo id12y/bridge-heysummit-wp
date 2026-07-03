@@ -288,7 +288,7 @@ final class Module {
 			[
 				'post_type'      => [ 'product', 'product_variation' ],
 				'post_status'    => 'any',
-				'posts_per_page' => 200,
+				'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- deliberate cap on the admin mapping summary.
 				'no_found_rows'  => true,
 				'meta_key'       => '_eex_hs_ticket', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- bounded admin summary.
 			]

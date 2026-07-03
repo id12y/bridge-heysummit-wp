@@ -261,7 +261,9 @@ class Triggers {
 		$user_id = (int) $user_id;
 		$user    = get_userdata( $user_id );
 
-		if ( ! $user || ! $old_user_data || (string) $user->user_email === (string) ( $old_user_data->user_email ?? '' ) ) {
+		$old_email = $old_user_data ? (string) ( $old_user_data->user_email ?? '' ) : '';
+
+		if ( ! $user || ! $old_user_data || $old_email === (string) $user->user_email ) {
 			return;
 		}
 

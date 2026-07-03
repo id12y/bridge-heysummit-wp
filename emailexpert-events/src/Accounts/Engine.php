@@ -148,7 +148,8 @@ class Engine {
 		$user_id = (int) $user->ID;
 
 		// Trigger-specific matching (waived for manual pushes).
-		if ( Rules::TRIGGER_CONFIRMED === $trigger && (string) $rule['confirmed_point'] !== (string) ( $context['confirmed_point'] ?? '' ) ) {
+		$context_point = (string) ( $context['confirmed_point'] ?? '' );
+		if ( Rules::TRIGGER_CONFIRMED === $trigger && $context_point !== (string) $rule['confirmed_point'] ) {
 			return '';
 		}
 

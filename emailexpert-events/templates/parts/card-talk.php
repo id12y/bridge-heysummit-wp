@@ -62,7 +62,7 @@ if ( empty( $eex_data['id'] ) ) {
 				<a class="eex-cta eex-cta-register" data-eex-cta="1" href="<?php echo esc_url( $eex_register_url ); ?>"><?php esc_html_e( 'Register', 'emailexpert-events' ); ?></a>
 			<?php endif; ?>
 			<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
-				<a class="eex-cta-secondary" href="<?php echo esc_url( Ics::download_url( (int) $eex_data['id'] ) ); ?>"><?php esc_html_e( 'Add to calendar (.ics)', 'emailexpert-events' ); ?></a>
+				<a class="eex-cta-secondary" href="<?php echo esc_url( Ics::download_url( $eex_data ) ); ?>"><?php esc_html_e( 'Add to calendar (.ics)', 'emailexpert-events' ); ?></a>
 				<a class="eex-cta-secondary" href="<?php echo esc_url( Ics::google_url( $eex_data ) ); ?>" rel="noopener"><?php esc_html_e( 'Google Calendar', 'emailexpert-events' ); ?></a>
 			<?php endif; ?>
 		<?php endif; ?>

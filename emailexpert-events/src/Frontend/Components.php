@@ -7,7 +7,8 @@
 
 namespace Emailexpert\Events\Frontend;
 
-use Emailexpert\Events\Options;
+use Emailexpert\Events\Data\Repositories;
+use Emailexpert\Events\Data\Repository;
 use Emailexpert\Events\PostTypes\PostTypes;
 use Emailexpert\Events\PostTypes\Taxonomies;
 
@@ -15,8 +16,10 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * One definition table and one render callback per component, shared by the
- * Gutenberg blocks, the shortcodes and the Elementor widgets. Everything
- * renders from the local database; there is no HTTP in any render path.
+ * Gutenberg blocks, the shortcodes and the Elementor widgets. All data comes
+ * through the Repository interface: the synced local database in Full mode,
+ * the live API cache in Lite mode — the callbacks themselves are one code
+ * path and never ask which.
  */
 final class Components {
 
@@ -318,7 +321,15 @@ final class Components {
 	}
 
 	/**
-	 * Assemble the render data for one talk.
+	 * The active data repository.
+	 */
+	private static function repo(): Repository {
+		return Repositories::current();
+	}
+
+	/**
+	 * Assemble the render data for one talk (synced-post path; the Lite
+	 * repository assembles the same shape from the live API).
 	 *
 	 * @param int $post_id Talk post ID.
 	 * @return array<string,mixed>
@@ -347,8 +358,11 @@ final class Components {
 
 		$categories = get_the_terms( $post_id, Taxonomies::CATEGORY );
 
+		$raw_event_url = $event_post_id > 0 ? (string) get_post_meta( $event_post_id, '_eex_event_url', true ) : '';
+
 		return [
 			'id'            => $post_id,
+			'hs_id'         => (string) get_post_meta( $post_id, '_eex_heysummit_id', true ),
 			'title'         => get_the_title( $post_id ),
 			'permalink'     => (string) get_permalink( $post_id ),
 			'description'   => (string) get_post_meta( $post_id, '_eex_description', true ),
@@ -358,9 +372,13 @@ final class Components {
 			'replay_url'    => $replay,
 			'speakers'      => $speakers,
 			'categories'    => is_array( $categories ) ? $categories : [],
+			'event_hs_id'   => $event_hs_id,
 			'event_post_id' => $event_post_id,
 			'timezone'      => $event_post_id > 0 ? (string) get_post_meta( $event_post_id, '_eex_timezone', true ) : '',
-			'event_url'     => Utm::tag( $event_post_id > 0 ? (string) get_post_meta( $event_post_id, '_eex_event_url', true ) : '' ),
+			'event_url'     => Utm::tag( $raw_event_url ),
+			'raw_event_url' => $raw_event_url,
+			'ics_ref'       => $post_id,
+			'published'     => 'publish' === get_post_status( $post_id ),
 		];
 	}
 
@@ -412,20 +430,18 @@ final class Components {
 	/**
 	 * Render a list of talk cards, or the empty state.
 	 *
-	 * @param int[]               $ids     Talk post IDs.
-	 * @param array<string,mixed> $atts    Component attributes.
-	 * @param string              $context 'upcoming' or 'past'.
+	 * @param array<int,array<string,mixed>> $items   Talk data arrays.
+	 * @param array<string,mixed>            $atts    Component attributes.
+	 * @param string                         $context 'upcoming' or 'past'.
 	 */
-	private static function talk_cards( array $ids, array $atts, string $context ): string {
-		if ( empty( $ids ) ) {
+	private static function talk_cards( array $items, array $atts, string $context ): string {
+		if ( empty( $items ) ) {
 			return self::empty_state( (string) ( $atts['empty_text'] ?? '' ) );
 		}
 
 		ob_start();
 		echo '<ul class="eex-grid eex-talk-grid" role="list">';
-		foreach ( $ids as $id ) {
-			$data = self::talk_data( $id );
-
+		foreach ( $items as $data ) {
 			// Filterable data attributes for the session filter bar.
 			printf(
 				'<li class="eex-grid-item" data-eex-title="%s" data-eex-cats="%s" data-eex-speakers="%s">',
@@ -462,7 +478,7 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_upcoming_sessions( array $atts ): string {
-		$html = self::talk_cards( Query::upcoming_talks( $atts ), $atts, 'upcoming' );
+		$html = self::talk_cards( self::repo()->upcoming_talks( $atts ), $atts, 'upcoming' );
 
 		if ( ! empty( $atts['show_subscribe'] ) ) {
 			$feed_url = home_url( '/feeds/eex/calendar.ics' );
@@ -499,10 +515,10 @@ final class Components {
 		$query_atts           = $atts;
 		$query_atts['offset'] = ( $page - 1 ) * $limit;
 
-		$html = self::talk_cards( Query::past_talks( $query_atts ), $atts, 'past' );
+		$html = self::talk_cards( self::repo()->past_talks( $query_atts ), $atts, 'past' );
 
 		if ( ! empty( $atts['paginate'] ) ) {
-			$total = Query::past_talks_total( $atts );
+			$total = self::repo()->past_talks_total( $atts );
 			$pages = (int) ceil( $total / $limit );
 
 			if ( $pages > 1 ) {
@@ -528,28 +544,7 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_upcoming_events( array $atts ): string {
-		$ids = Query::upcoming_events( $atts );
-
-		if ( empty( $ids ) ) {
-			return self::empty_state( (string) $atts['empty_text'] );
-		}
-
-		ob_start();
-		echo '<ul class="eex-grid eex-event-grid" role="list">';
-		foreach ( $ids as $id ) {
-			echo '<li class="eex-grid-item">';
-			TemplateLoader::part(
-				'card-event',
-				[
-					'event_id' => $id,
-					'context'  => 'upcoming',
-				]
-			);
-			echo '</li>';
-		}
-		echo '</ul>';
-
-		return (string) ob_get_clean();
+		return self::event_cards( self::repo()->upcoming_events( $atts ), $atts, 'upcoming' );
 	}
 
 	/**
@@ -558,21 +553,30 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_past_events( array $atts ): string {
-		$ids = Query::past_events( $atts );
+		return self::event_cards( self::repo()->past_events( $atts ), $atts, 'past' );
+	}
 
-		if ( empty( $ids ) ) {
+	/**
+	 * Render a list of event cards, or the empty state.
+	 *
+	 * @param array<int,array<string,mixed>> $items   Event data arrays.
+	 * @param array<string,mixed>            $atts    Component attributes.
+	 * @param string                         $context 'upcoming' or 'past'.
+	 */
+	private static function event_cards( array $items, array $atts, string $context ): string {
+		if ( empty( $items ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
 		}
 
 		ob_start();
 		echo '<ul class="eex-grid eex-event-grid" role="list">';
-		foreach ( $ids as $id ) {
+		foreach ( $items as $event ) {
 			echo '<li class="eex-grid-item">';
 			TemplateLoader::part(
 				'card-event',
 				[
-					'event_id' => $id,
-					'context'  => 'past',
+					'event'   => $event,
+					'context' => $context,
 				]
 			);
 			echo '</li>';
@@ -593,31 +597,29 @@ final class Components {
 		$label    = '';
 
 		if ( '' !== (string) $atts['talk'] ) {
-			$talk_id = self::resolve_talk( (string) $atts['talk'] );
-			if ( $talk_id > 0 ) {
-				$data     = self::talk_data( $talk_id );
+			$data = self::repo()->talk( (string) $atts['talk'] );
+			if ( null !== $data ) {
 				$target   = (string) $data['starts_at'];
 				$timezone = (string) $data['timezone'];
 				$label    = (string) $data['title'];
 			}
 		} else {
-			$event_post_id = Query::resolve_event( (string) $atts['event'] );
-			if ( $event_post_id > 0 ) {
-				$label    = get_the_title( $event_post_id );
-				$timezone = (string) get_post_meta( $event_post_id, '_eex_timezone', true );
-				$first    = (string) get_post_meta( $event_post_id, '_eex_first_talk_at', true );
+			$event = self::repo()->event_summary( (string) $atts['event'] );
+			if ( null !== $event ) {
+				$label    = (string) $event['title'];
+				$timezone = (string) $event['timezone'];
+				$first    = (string) $event['first_talk_at'];
 
 				// For an evergreen hub, count to the next upcoming session instead.
-				$next = Query::upcoming_talks(
+				$next = self::repo()->upcoming_talks(
 					[
 						'event' => (string) $atts['event'],
 						'limit' => 1,
 					]
 				);
 				if ( ! empty( $next ) ) {
-					$data   = self::talk_data( $next[0] );
-					$target = (string) $data['starts_at'];
-					$label  = (string) $data['title'];
+					$target = (string) $next[0]['starts_at'];
+					$label  = (string) $next[0]['title'];
 				} else {
 					$target = $first;
 				}
@@ -638,38 +640,21 @@ final class Components {
 	}
 
 	/**
-	 * Resolve the `talk` attribute (HeySummit ID or post ID).
-	 *
-	 * @param string $talk Attribute.
-	 */
-	private static function resolve_talk( string $talk ): int {
-		$by_hs = \Emailexpert\Events\Sync\Upserter::find_by_hs_id( PostTypes::TALK, $talk );
-		if ( $by_hs > 0 ) {
-			return $by_hs;
-		}
-
-		$post = get_post( (int) $talk );
-
-		return ( $post && PostTypes::TALK === $post->post_type ) ? (int) $post->ID : 0;
-	}
-
-	/**
 	 * Schedule grouped by day in event-local time.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_schedule( array $atts ): string {
-		$ids = array_merge( Query::upcoming_talks( $atts + [ 'limit' => 0 ] ), Query::past_talks( $atts + [ 'limit' => 0 ] ) );
+		$items = array_merge( self::repo()->upcoming_talks( $atts + [ 'limit' => 0 ] ), self::repo()->past_talks( $atts + [ 'limit' => 0 ] ) );
 
-		if ( empty( $ids ) ) {
+		if ( empty( $items ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
 		}
 
 		// Order every talk chronologically and group by event-local day.
 		$rows = [];
-		foreach ( $ids as $id ) {
-			$data = self::talk_data( $id );
-			$ts   = strtotime( (string) $data['starts_at'] );
+		foreach ( $items as $data ) {
+			$ts = strtotime( (string) $data['starts_at'] );
 			if ( false === $ts ) {
 				continue;
 			}
@@ -715,9 +700,9 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_speakers( array $atts ): string {
-		$ids = Query::speakers( $atts );
+		$items = self::repo()->speakers( $atts );
 
-		if ( empty( $ids ) ) {
+		if ( empty( $items ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
 		}
 
@@ -725,9 +710,9 @@ final class Components {
 
 		ob_start();
 		printf( '<ul class="eex-grid eex-speaker-grid" style="--eex-columns:%d" role="list">', (int) $columns );
-		foreach ( $ids as $id ) {
+		foreach ( $items as $speaker ) {
 			echo '<li class="eex-grid-item">';
-			TemplateLoader::part( 'card-speaker', [ 'speaker_id' => $id ] );
+			TemplateLoader::part( 'card-speaker', [ 'speaker' => $speaker ] );
 			echo '</li>';
 		}
 		echo '</ul>';
@@ -743,15 +728,15 @@ final class Components {
 	private static function render_featured_talks( array $atts ): string {
 		$requested = array_filter( array_map( 'trim', explode( ',', (string) $atts['ids'] ) ) );
 
-		$ids = [];
+		$items = [];
 		foreach ( $requested as $ref ) {
-			$talk_id = self::resolve_talk( $ref );
-			if ( $talk_id > 0 && 'publish' === get_post_status( $talk_id ) ) {
-				$ids[] = $talk_id;
+			$data = self::repo()->talk( $ref );
+			if ( null !== $data && ! empty( $data['published'] ) ) {
+				$items[] = $data;
 			}
 		}
 
-		return self::talk_cards( $ids, $atts, 'featured' );
+		return self::talk_cards( $items, $atts, 'featured' );
 	}
 
 	/**
@@ -760,35 +745,10 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_sponsors( array $atts ): string {
-		$event_post_id = Query::resolve_event( (string) $atts['event'] );
-
-		$sponsors = get_posts(
-			[
-				'post_type'      => PostTypes::SPONSOR,
-				'post_status'    => 'publish',
-				'posts_per_page' => -1,
-				'no_found_rows'  => true,
-			]
-		);
-
 		// Group by tier in tier order.
 		$tiers = [];
-		foreach ( $sponsors as $sponsor ) {
-			$sponsor_id = (int) $sponsor->ID;
-
-			if ( $event_post_id > 0 ) {
-				$event_ids = array_map( 'intval', (array) get_post_meta( $sponsor_id, '_eex_event_ids', true ) );
-				if ( ! empty( $event_ids ) && ! in_array( $event_post_id, $event_ids, true ) ) {
-					continue;
-				}
-			}
-
-			$terms = get_the_terms( $sponsor_id, Taxonomies::TIER );
-			$term  = ( is_array( $terms ) && ! empty( $terms ) ) ? $terms[0] : null;
-			$order = $term ? (int) get_term_meta( (int) $term->term_id, '_eex_tier_order', true ) : 99;
-			$name  = $term ? (string) $term->name : __( 'Partner', 'emailexpert-events' );
-
-			$tiers[ $order . '|' . $name ][] = $sponsor_id;
+		foreach ( self::repo()->sponsors( $atts ) as $sponsor ) {
+			$tiers[ (int) $sponsor['tier_order'] . '|' . (string) $sponsor['tier_name'] ][] = $sponsor;
 		}
 
 		if ( empty( $tiers ) ) {
@@ -798,12 +758,12 @@ final class Components {
 		ksort( $tiers );
 
 		ob_start();
-		foreach ( $tiers as $key => $sponsor_ids ) {
+		foreach ( $tiers as $key => $tier_sponsors ) {
 			[ , $tier_name ] = explode( '|', $key, 2 );
 			echo '<section class="eex-sponsor-tier"><h3 class="eex-tier-heading">' . esc_html( $tier_name ) . '</h3><ul class="eex-grid eex-sponsor-grid" role="list">';
-			foreach ( $sponsor_ids as $sponsor_id ) {
+			foreach ( $tier_sponsors as $sponsor ) {
 				echo '<li class="eex-grid-item">';
-				TemplateLoader::part( 'card-sponsor', [ 'sponsor_id' => $sponsor_id ] );
+				TemplateLoader::part( 'card-sponsor', [ 'sponsor' => $sponsor ] );
 				echo '</li>';
 			}
 			echo '</ul></section>';
@@ -820,13 +780,8 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_session_filter( array $atts ): string {
-		$categories  = get_terms(
-			[
-				'taxonomy'   => Taxonomies::CATEGORY,
-				'hide_empty' => false,
-			]
-		);
-		$speaker_ids = Query::speakers( $atts + [ 'limit' => 0 ] );
+		$categories = self::repo()->categories( $atts );
+		$speakers   = self::repo()->speakers( $atts + [ 'limit' => 0 ] );
 
 		ob_start();
 		echo '<div class="eex-filter-bar" data-eex-filter="1">';
@@ -845,28 +800,27 @@ final class Components {
 			echo '</form>';
 		}
 
-		if ( is_array( $categories ) && ! empty( $categories ) ) {
+		if ( ! empty( $categories ) ) {
 			echo '<nav class="eex-filter-categories" aria-label="' . esc_attr__( 'Filter by category', 'emailexpert-events' ) . '">';
-			foreach ( $categories as $term ) {
-				$link = function_exists( 'get_term_link' ) ? get_term_link( $term ) : '';
+			foreach ( $categories as $category ) {
 				printf(
 					'<a class="eex-badge" href="%s" data-eex-filter-cat="%s">%s</a> ',
-					esc_url( is_string( $link ) ? $link : '' ),
-					esc_attr( (string) $term->slug ),
-					esc_html( (string) $term->name )
+					esc_url( (string) $category['url'] ),
+					esc_attr( (string) $category['slug'] ),
+					esc_html( (string) $category['name'] )
 				);
 			}
 			echo '</nav>';
 		}
 
-		if ( ! empty( $speaker_ids ) ) {
+		if ( ! empty( $speakers ) ) {
 			echo '<nav class="eex-filter-speakers" aria-label="' . esc_attr__( 'Filter by speaker', 'emailexpert-events' ) . '">';
-			foreach ( $speaker_ids as $speaker_id ) {
+			foreach ( $speakers as $speaker ) {
 				printf(
 					'<a class="eex-chip" href="%s" data-eex-filter-speaker="%s">%s</a> ',
-					esc_url( (string) get_permalink( $speaker_id ) ),
-					esc_attr( strtolower( get_the_title( $speaker_id ) ) ),
-					esc_html( get_the_title( $speaker_id ) )
+					esc_url( (string) $speaker['url'] ),
+					esc_attr( strtolower( (string) $speaker['name'] ) ),
+					esc_html( (string) $speaker['name'] )
 				);
 			}
 			echo '</nav>';
@@ -883,20 +837,20 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_reg_counter( array $atts ): string {
-		$event_post_id = Query::resolve_event( (string) $atts['event'] );
+		$event = self::repo()->event_summary( (string) $atts['event'] );
 
-		if ( 0 === $event_post_id ) {
+		if ( null === $event ) {
 			return '';
 		}
 
-		$count     = (int) get_post_meta( $event_post_id, '_eex_registration_count', true );
+		$count     = (int) $event['reg_count'];
 		$threshold = max( 0, (int) $atts['threshold'] );
 
 		if ( $count < $threshold ) {
 			return '';
 		}
 
-		$event_hs_id = (string) get_post_meta( $event_post_id, '_eex_heysummit_id', true );
+		$event_hs_id = (string) $event['hs_id'];
 
 		return sprintf(
 			'<p class="eex-reg-counter" data-eex-counter="%s" data-eex-threshold="%d"><span class="eex-reg-count">%s</span> %s</p>',

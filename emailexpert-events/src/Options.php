@@ -28,6 +28,7 @@ final class Options {
 	 */
 	public static function defaults(): array {
 		return [
+			'mode'                  => 'full',
 			'frequency'             => 'hourly',
 			'schema_enabled'        => 1,
 			'schema_event'          => 1,
@@ -53,6 +54,21 @@ final class Options {
 			'digest_enabled'        => 0,
 			'accounts_enabled'      => 0,
 		];
+	}
+
+	/**
+	 * The operating mode: 'full' (synced local content) or 'lite' (live
+	 * display only). Anything unrecognised is treated as Full.
+	 */
+	public static function mode(): string {
+		return 'lite' === (string) self::setting( 'mode' ) ? 'lite' : 'full';
+	}
+
+	/**
+	 * Whether Lite mode is active.
+	 */
+	public static function is_lite(): bool {
+		return 'lite' === self::mode();
 	}
 
 	/**

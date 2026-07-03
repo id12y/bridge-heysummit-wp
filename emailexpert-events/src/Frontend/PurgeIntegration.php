@@ -95,10 +95,10 @@ final class PurgeIntegration {
 		// LiteSpeed Cache (actions are no-ops when the plugin is absent).
 		if ( ! empty( $urls ) ) {
 			foreach ( $urls as $url ) {
-				do_action( 'litespeed_purge_url', $url );
+				do_action( 'litespeed_purge_url', $url ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- third-party plugin's own hook.
 			}
 		} elseif ( $allow_full ) {
-			do_action( 'litespeed_purge_all' );
+			do_action( 'litespeed_purge_all' ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- third-party plugin's own hook.
 		}
 
 		// W3 Total Cache.
@@ -112,7 +112,7 @@ final class PurgeIntegration {
 
 		// Cloudflare plugin (standard action; no-op when absent).
 		if ( ! empty( $urls ) ) {
-			do_action( 'cloudflare_purge_by_url', $urls );
+			do_action( 'cloudflare_purge_by_url', $urls ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- third-party plugin's own hook.
 		}
 
 		/**
