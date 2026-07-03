@@ -582,17 +582,129 @@ class LiveRepository extends BaseMapper implements Repository {
 				$first_error = null;
 				$saw_empty   = false;
 
+				$options = self::request_options();
+				$now     = time();
+
+				/**
+				 * Filter the total page fetches allowed per talk harvest.
+				 *
+				 * @param int $max_pages Maximum page fetches (default 12).
+				 */
+				$budget = max( 2, (int) apply_filters( 'eex_live_max_pages', 12 ) );
+
+				$has_future = static function ( array $rows ) use ( $now ): bool {
+					foreach ( $rows as $row ) {
+						foreach ( [ 'starts_at', 'date' ] as $field ) {
+							if ( isset( $row[ $field ] ) && is_string( $row[ $field ] ) && '' !== $row[ $field ] && (int) strtotime( $row[ $field ] ) >= $now ) {
+								return true;
+							}
+						}
+					}
+
+					return false;
+				};
+
+				// The collection is paginated (10 per page) with no date
+				// filter, and real accounts order it oldest-first — a summit
+				// with 500 past talks keeps its upcoming sessions on the LAST
+				// pages, far beyond any forward page walk. Harvest from both
+				// ends instead: page 1 (which also covers newest-first
+				// accounts), then jump to the last page via the reported
+				// count and walk towards the middle until a page contains
+				// nothing upcoming. Cost stays a handful of requests no
+				// matter how much history the summit has.
+				$harvest = static function ( string $path, array $args ) use ( $client, $options, $normalise, $has_future, $budget ) {
+					$first = $client->get( $path, $args, $options );
+
+					if ( is_wp_error( $first ) ) {
+						return $first;
+					}
+
+					$rows = $normalise( $first );
+					$next = isset( $first['next'] ) && is_string( $first['next'] ) ? $first['next'] : '';
+
+					if ( '' === $next ) {
+						return $rows; // Single page: nothing more to walk.
+					}
+
+					$size = max( 1, count( $rows ) );
+					$last = (int) ceil( max( 0, (int) ( $first['count'] ?? 0 ) ) / $size );
+
+					$fetched   = 1;
+					$collected = $rows;
+					$seen      = [ 1 => true ];
+
+					// Backwards from the end (oldest-first accounts).
+					for ( $page = $last; $page >= 2 && $fetched < $budget; $page-- ) {
+						$response = $client->get( $path, [ 'page' => $page ] + $args, $options );
+
+						if ( is_wp_error( $response ) ) {
+							break;
+						}
+
+						$page_rows = $normalise( $response );
+						$collected = array_merge( $collected, $page_rows );
+
+						$seen[ $page ] = true;
+						++$fetched;
+
+						if ( ! $has_future( $page_rows ) ) {
+							break; // Everything from here back is older still.
+						}
+					}
+
+					// Forwards from page 1 (newest-first accounts).
+					if ( $has_future( $rows ) ) {
+						$bound = $last >= 2 ? $last : $budget;
+
+						for ( $page = 2; $page <= $bound && $fetched < $budget; $page++ ) {
+							if ( isset( $seen[ $page ] ) ) {
+								break; // Met the backwards walk.
+							}
+
+							$response = $client->get( $path, [ 'page' => $page ] + $args, $options );
+
+							if ( is_wp_error( $response ) ) {
+								break;
+							}
+
+							$page_rows = $normalise( $response );
+							$collected = array_merge( $collected, $page_rows );
+							++$fetched;
+
+							if ( ! $has_future( $page_rows ) ) {
+								break;
+							}
+						}
+					}
+
+					// The two walks can overlap on unsorted accounts.
+					$unique = [];
+					foreach ( $collected as $row ) {
+						$rid = isset( $row['id'] ) && is_scalar( $row['id'] ) ? (string) $row['id'] : '';
+
+						if ( '' === $rid ) {
+							$unique[] = $row;
+							continue;
+						}
+
+						$unique[ 'id-' . $rid ] = $row;
+					}
+
+					return array_values( $unique );
+				};
+
 				foreach ( \Emailexpert\Events\Api\PathStyles::ordered( $conn_id, 'talks', array_keys( $requests ) ) as $style ) {
 					[ $path, $args ] = $requests[ $style ];
 
-					$response = $client->get( $path, $args, self::request_options() );
+					$response = $harvest( $path, $args );
 
 					if ( is_wp_error( $response ) ) {
 						$first_error = $first_error ?? $response;
 						continue;
 					}
 
-					$results = $normalise( $response );
+					$results = $response;
 
 					if ( ! empty( $results ) && $usable( $results ) ) {
 						\Emailexpert\Events\Api\PathStyles::remember( $conn_id, 'talks', $style );

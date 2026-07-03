@@ -182,3 +182,23 @@ assumption has been reconciled (docs/decisions.md D45):
 - The API also documents webhook-subscription management
   (`GET/POST webhooks/`); the plugin only ever needs the manual setup in
   HeySummit's UI and does not write there (outside the allowlist).
+
+## Talks are paginated 10 per page, oldest first (live finding)
+
+The v1 reference's own example shows it: `"count": 62, "next":
+".../talks/?page=2"`. There is no date filter and no upcoming filter —
+the only documented talk filters are `event` and `is_active`. On a real
+long-running account the collection is ordered oldest-first, so page 1
+is years old and the *upcoming* sessions sit on the last pages. Any
+consumer that reads a single page therefore concludes "nothing
+upcoming" while dozens of future sessions exist.
+
+Sync walks every `next` link (`HeySummitClient::get_all()`, capped at
+300 pages by `eex_max_pages` as runaway protection — 500+ talk accounts
+are real, so the cap must sit far above them). The Lite render path
+cannot afford a full walk at all: it reads page 1, jumps to the LAST
+page via the response's `count`, and walks backwards until a page holds
+nothing upcoming (plus a symmetric forward walk for newest-first
+accounts), merged and de-duplicated by talk id. A handful of requests
+regardless of history depth, capped by `eex_live_max_pages` (default 12
+fetches), all inside one cached fetch per cache lifetime.
