@@ -57,14 +57,21 @@ final class Upserter {
 	 * @param string              $post_type Post type.
 	 * @param array<string,mixed> $mapped    Mapper output (must contain hs_id).
 	 * @param array<string,mixed> $context   connection_id, source_event_id,
-	 *                                       import_status, raw, force.
+	 *                                       import_status, raw, force,
+	 *                                       existing_post_id (skip the lookup),
+	 *                                       preserve_identity (leave identity
+	 *                                       meta as stored; cross-event speaker
+	 *                                       dedup), hash_exclude (keys removed
+	 *                                       from change detection).
 	 * @return array{id:int,action:string} Post ID (0 when skipped before
 	 *                                     creation) and what happened:
 	 *                                     created|updated|skipped_hash|skipped_mode.
 	 */
 	public static function upsert( string $post_type, array $mapped, array $context = [] ): array {
 		$hs_id   = (string) ( $mapped['hs_id'] ?? '' );
-		$post_id = self::find_by_hs_id( $post_type, $hs_id );
+		$post_id = isset( $context['existing_post_id'] )
+			? (int) $context['existing_post_id']
+			: self::find_by_hs_id( $post_type, $hs_id );
 
 		if ( $post_id > 0 ) {
 			$mode = (string) get_post_meta( $post_id, '_eex_sync_mode', true );
@@ -77,7 +84,7 @@ final class Upserter {
 			}
 		}
 
-		$hash = md5( (string) wp_json_encode( self::hashable( $mapped ) ) );
+		$hash = md5( (string) wp_json_encode( self::hashable( $mapped, (array) ( $context['hash_exclude'] ?? [] ) ) ) );
 
 		if ( $post_id > 0 && empty( $context['force'] ) ) {
 			$existing_hash = (string) get_post_meta( $post_id, '_eex_sync_hash', true );
@@ -92,12 +99,14 @@ final class Upserter {
 
 		$meta = self::meta_for( $post_type, $mapped );
 
-		$meta['_eex_heysummit_id']    = $hs_id;
-		$meta['_eex_source_event_id'] = (string) ( $context['source_event_id'] ?? ( $mapped['event_hs_id'] ?? '' ) );
-		$meta['_eex_connection_id']   = (string) ( $context['connection_id'] ?? '' );
-		$meta['_eex_sync_hash']       = $hash;
-		$meta['_eex_last_synced']     = gmdate( 'Y-m-d\TH:i:s\Z' );
-		$meta['_eex_orphaned']        = 0;
+		if ( 0 === $post_id || empty( $context['preserve_identity'] ) ) {
+			$meta['_eex_heysummit_id']    = $hs_id;
+			$meta['_eex_source_event_id'] = (string) ( $context['source_event_id'] ?? ( $mapped['event_hs_id'] ?? '' ) );
+			$meta['_eex_connection_id']   = (string) ( $context['connection_id'] ?? '' );
+		}
+		$meta['_eex_sync_hash']   = $hash;
+		$meta['_eex_last_synced'] = gmdate( 'Y-m-d\TH:i:s\Z' );
+		$meta['_eex_orphaned']    = 0;
 
 		if ( isset( $context['raw'] ) ) {
 			$meta['_eex_raw'] = (string) wp_json_encode( $context['raw'] );
@@ -149,10 +158,14 @@ final class Upserter {
 	 * Volatile context (raw payload noise) is excluded; the mapped shape is
 	 * already normalised, so it is its own hash basis.
 	 *
-	 * @param array<string,mixed> $mapped Mapped record.
+	 * @param array<string,mixed> $mapped  Mapped record.
+	 * @param string[]            $exclude Keys removed from the hash basis.
 	 * @return array<string,mixed>
 	 */
-	private static function hashable( array $mapped ): array {
+	private static function hashable( array $mapped, array $exclude = [] ): array {
+		foreach ( $exclude as $key ) {
+			unset( $mapped[ $key ] );
+		}
 		ksort( $mapped );
 
 		return $mapped;

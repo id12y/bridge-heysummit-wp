@@ -806,3 +806,25 @@ if ( ! function_exists( 'wp_create_nonce' ) ) {
 		return 'testnonce';
 	}
 }
+
+// --- media. ---------------------------------------------------------------------
+if ( ! function_exists( 'set_post_thumbnail' ) ) {
+	function set_post_thumbnail( $post, $thumbnail_id ) {
+		$post_id = is_object( $post ) ? $post->ID : (int) $post;
+		EEX_Test_State::$post_meta[ $post_id ]['_thumbnail_id'] = (int) $thumbnail_id;
+		return true;
+	}
+}
+if ( ! function_exists( 'get_post_thumbnail_id' ) ) {
+	function get_post_thumbnail_id( $post = null ) {
+		$post_id = is_object( $post ) ? $post->ID : (int) $post;
+		return (int) ( EEX_Test_State::$post_meta[ $post_id ]['_thumbnail_id'] ?? 0 );
+	}
+}
+if ( ! function_exists( 'media_sideload_image' ) ) {
+	function media_sideload_image( $file, $post_id = 0, $desc = null, $return_type = 'html' ) {
+		$id = wp_insert_post( [ 'post_type' => 'attachment', 'post_title' => (string) $desc, 'guid' => $file ] );
+		$GLOBALS['eex_test_sideloads'][] = [ 'url' => $file, 'post' => $post_id, 'attachment' => $id ];
+		return 'id' === $return_type ? $id : '<img src="' . $file . '" />';
+	}
+}

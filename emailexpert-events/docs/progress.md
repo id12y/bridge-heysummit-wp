@@ -44,3 +44,28 @@
   field boxes; excluding a post drafts it immediately.
 - Tests: 37 passing (mappers against assumed-shape fixtures with variants,
   upsert idempotency/hash/mode/status behaviours). PHPCS clean.
+
+## M3 — Sync engine
+
+- SyncEngine: per-event flow (event detail → categories → talks → orphans →
+  speakers → relationship resolution), resource toggles honoured (disabled
+  types fully untouched, including talk→speaker relationships), category
+  include/exclude filter with orphan-drafting of filtered talks, talk filter
+  parameter negotiation with client-side fallback.
+- Speaker dedup: HS ID → alternate IDs → email hash → exact name+company;
+  cross-event matches preserve identity meta and record alternate IDs;
+  identity fields excluded from the change hash to avoid write thrash.
+- Orphan handling: draft + _eex_orphaned, never delete; detached/excluded and
+  already-orphaned posts skipped; speakers still referenced by live talks
+  spared.
+- Scheduling: recurring cron (15min/hourly/twicedaily/daily), async "Sync
+  now", 20s time budget with queued continuation, Action Scheduler fan-out
+  when present.
+- Media: speaker photos sideloaded once, re-downloaded only on source URL
+  change, alt text set, featured image assigned.
+- Health: consecutive-failure tracking (notice at 3, email at 6, reset on
+  success), Site Health test, status shared with `wp eex status`.
+- WP-CLI: `wp eex sync [--event] [--force]`, `status`, `orphans --list`,
+  `discover`, `webhooks:replay <log_id>`.
+- Tests: 46 passing including engine flow, filters, orphans, dedup,
+  escalation. PHPCS clean.
