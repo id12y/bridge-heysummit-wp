@@ -509,6 +509,15 @@ if ( ! function_exists( 'wp_generate_password' ) ) {
 		return $out;
 	}
 }
+if ( ! function_exists( 'wp_unschedule_hook' ) ) {
+	function wp_unschedule_hook( $hook ) {
+		$before = count( EEX_Test_State::$scheduled );
+		EEX_Test_State::$scheduled = array_values(
+			array_filter( EEX_Test_State::$scheduled, static fn( $e ) => $e['hook'] !== $hook )
+		);
+		return $before - count( EEX_Test_State::$scheduled );
+	}
+}
 if ( ! function_exists( 'wp_next_scheduled' ) ) {
 	function wp_next_scheduled( $hook, $args = [] ) {
 		foreach ( EEX_Test_State::$scheduled as $event ) {
@@ -1250,5 +1259,37 @@ if ( ! function_exists( '__return_true' ) ) {
 if ( ! function_exists( '__return_false' ) ) {
 	function __return_false() {
 		return false;
+	}
+}
+
+// --- admin-ajax. ----------------------------------------------------------
+if ( ! class_exists( 'EEX_Test_Ajax_Exit' ) ) {
+	/** Thrown by the wp_send_json_* stubs to emulate their exit. */
+	class EEX_Test_Ajax_Exit extends \Exception {
+		public bool $success;
+		public $payload;
+		public int $status;
+
+		public function __construct( bool $success, $payload, int $status ) {
+			parent::__construct( 'ajax exit' );
+			$this->success = $success;
+			$this->payload = $payload;
+			$this->status  = $status;
+		}
+	}
+}
+if ( ! function_exists( 'wp_send_json_success' ) ) {
+	function wp_send_json_success( $data = null, $status_code = 200 ) {
+		throw new EEX_Test_Ajax_Exit( true, $data, (int) $status_code );
+	}
+}
+if ( ! function_exists( 'wp_send_json_error' ) ) {
+	function wp_send_json_error( $data = null, $status_code = 200 ) {
+		throw new EEX_Test_Ajax_Exit( false, $data, (int) $status_code );
+	}
+}
+if ( ! function_exists( 'check_ajax_referer' ) ) {
+	function check_ajax_referer( $action = -1, $query_arg = false, $stop = true ) {
+		return 1;
 	}
 }

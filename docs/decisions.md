@@ -407,4 +407,43 @@ root — installable directly as `wp-content/plugins/emailexpert-events/`.
 CI dropped its working-directory indirection and path filters; the wizard's
 documentation links point at the root README. Historical decisions and
 progress entries that mention the subdirectory are records of their time
-and stand unedited.
+and stand unedited. The repository was subsequently renamed to
+`id12y/bridge-heysummit-wp`; the wizard links follow it (old GitHub URLs
+redirect, but only until the old name is ever reused).
+
+## D41. MyListing detection failure is a guided path, not a dead end
+
+The bridge was already opt-in per source (projection checkboxes default
+off), but the UI never said so — it now does, with a status pill naming
+how many listing types were detected. When automatic detection cannot
+read the theme's structure, the bridges page no longer just announces
+the bridge is disabled: it offers a one-click detection retry and a
+manual mapping form (listing post type, listing-type meta key, type
+lines "slug | Label", optional field lines "key | Label"). A stored
+manual mapping is treated as a confident detection result tagged
+source=manual — the operator knows their site — and always wins over
+the automatic cache until explicitly discarded. Manual and automatic
+results flow through the identical projection code; nothing is forked.
+The admin stylesheet was rebuilt at the same time (white sheet per
+screen, separated sections, card rows, status pills, a numbered wizard
+stepper) and now loads on the bridges page, which previously enqueued
+nothing.
+
+## D42. Sweep for first-use traps: dead buttons, stale wizard state, cron leftovers
+
+A contract audit (JS selectors ↔ markup, AJAX actions ↔ handlers, form
+actions ↔ admin_post registrations, settings reads ↔ defaults, scheduled
+hooks ↔ cleared hooks) found three real faults, all fixed:
+(1) the product editor's "Load tickets" buttons were dead — eex-admin.js
+and its nonce were only enqueued on the plugin's own screens; a shared
+`Admin\AdminAssets::enqueue()` now serves every screen with eex buttons,
+including product edit;
+(2) a successful wizard connection test didn't reveal the server-rendered
+discovery summary and Continue button — the wizard now reloads on
+success, which also refreshes the form's stale hidden connection ID;
+(3) queued jobs were never fully cleared: wp_clear_scheduled_hook()
+without args skips arg-carrying events (nearly all of ours), and four job
+hooks were missing from the lists entirely. `Install\Cron` now holds the
+single inventory of every scheduled hook; deactivation, uninstall and the
+Lite switch clear through wp_unschedule_hook(), and the Lite switch
+deliberately keeps Woo push jobs (the bridge runs in both modes).

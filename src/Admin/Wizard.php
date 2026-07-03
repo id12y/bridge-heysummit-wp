@@ -57,20 +57,7 @@ final class Wizard {
 			return;
 		}
 
-		wp_enqueue_style( 'eex-admin', EEX_PLUGIN_URL . 'assets/css/eex-admin.css', [], EEX_VERSION );
-		wp_enqueue_script( 'eex-admin', EEX_PLUGIN_URL . 'assets/js/eex-admin.js', [], EEX_VERSION, true );
-		wp_localize_script(
-			'eex-admin',
-			'eexAdmin',
-			[
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'eex_admin' ),
-				'i18n'    => [
-					'working' => __( 'Working…', 'emailexpert-events' ),
-					'failed'  => __( 'Request failed.', 'emailexpert-events' ),
-				],
-			]
-		);
+		AdminAssets::enqueue();
 	}
 
 	/**
@@ -279,7 +266,7 @@ final class Wizard {
 		<p><?php esc_html_e( 'Add the blocks or shortcodes to any page; they render live HeySummit data through a short server-side cache. Nothing has been imported and nothing will be.', 'emailexpert-events' ); ?></p>
 		<ul>
 			<li><a href="<?php echo esc_url( admin_url( 'options-general.php?page=emailexpert-events' ) ); ?>"><?php esc_html_e( 'Plugin settings', 'emailexpert-events' ); ?></a></li>
-			<li><a href="https://github.com/id12y/emailexpert-news-scout/blob/main/README.md#shortcode-and-block-reference"><?php esc_html_e( 'Shortcode and block reference', 'emailexpert-events' ); ?></a></li>
+			<li><a href="https://github.com/id12y/bridge-heysummit-wp/blob/main/README.md#shortcode-and-block-reference"><?php esc_html_e( 'Shortcode and block reference', 'emailexpert-events' ); ?></a></li>
 			<?php if ( class_exists( 'WooCommerce' ) ) : ?>
 				<li><a href="<?php echo esc_url( admin_url( 'options-general.php?page=emailexpert-events-bridge' ) ); ?>"><?php esc_html_e( 'WooCommerce detected: map products to HeySummit tickets (works in Lite exactly as in Full).', 'emailexpert-events' ); ?></a></li>
 			<?php endif; ?>
@@ -527,7 +514,7 @@ final class Wizard {
 			<h2><?php esc_html_e( 'All done', 'emailexpert-events' ); ?></h2>
 			<ul>
 				<li><a href="<?php echo esc_url( admin_url( 'options-general.php?page=emailexpert-events' ) ); ?>"><?php esc_html_e( 'Plugin settings', 'emailexpert-events' ); ?></a></li>
-				<li><a href="https://github.com/id12y/emailexpert-news-scout/blob/main/README.md#shortcode-and-block-reference"><?php esc_html_e( 'Shortcode and block reference', 'emailexpert-events' ); ?></a></li>
+				<li><a href="https://github.com/id12y/bridge-heysummit-wp/blob/main/README.md#shortcode-and-block-reference"><?php esc_html_e( 'Shortcode and block reference', 'emailexpert-events' ); ?></a></li>
 				<?php if ( did_action( 'elementor/loaded' ) || defined( 'ELEMENTOR_VERSION' ) ) : ?>
 					<li><?php esc_html_e( 'Elementor detected: widgets are in the "emailexpert Events" category.', 'emailexpert-events' ); ?></li>
 				<?php endif; ?>

@@ -100,9 +100,28 @@ final class FootprintTest extends TestCase {
 		Scheduler::sync_schedule_state();
 		Logger::info( 'sync', 'creates maintenance schedule' );
 
+		// Queued jobs carry args; clearing must remove them regardless.
+		wp_schedule_single_event( time() + 60, 'eex_woo_push', [ 501, 1000 ] );
+		wp_schedule_single_event( time() + 60, 'eex_accounts_push', [ 7, '101', 'r1', 1 ] );
+		wp_schedule_single_event( time() + 60, 'eex_process_webhook', [ [ 'action' => 'x' ] ] );
+
 		Activator::deactivate();
 
 		$this->assertSame( [], \EEX_Test_State::$scheduled );
+	}
+
+	public function test_switching_to_lite_clears_full_only_jobs_but_keeps_woo_pushes(): void {
+		update_option( Options::SYNCED_EVENTS, [ 'c1|101' => [ 'enabled' => 1 ] ] );
+		Scheduler::sync_schedule_state();
+		wp_schedule_single_event( time() + 60, 'eex_accounts_push', [ 7, '101', 'r1', 1 ] );
+		wp_schedule_single_event( time() + 60, 'eex_woo_push', [ 501, 1000 ] );
+
+		\Emailexpert\Events\Install\Mode::switch_to_lite( false );
+
+		$hooks = array_column( \EEX_Test_State::$scheduled, 'hook' );
+		$this->assertNotContains( 'eex_sync_cron', $hooks );
+		$this->assertNotContains( 'eex_accounts_push', $hooks, 'accounts is Full-only' );
+		$this->assertContains( 'eex_woo_push', $hooks, 'the Woo bridge works in both modes: its queue survives' );
 	}
 
 	public function test_webhook_secret_generated_on_demand_not_at_activation(): void {

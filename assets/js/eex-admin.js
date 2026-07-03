@@ -63,7 +63,54 @@
 	}
 
 	bindAjaxButton( '.eex-test-connection', 'eex_test_connection', function ( button ) {
-		return { connection: button.getAttribute( 'data-connection' ) };
+		var payload = { connection: button.getAttribute( 'data-connection' ) };
+
+		// Send the key as typed, so testing works before saving (a key that
+		// authenticates is saved server-side). Settings page: the key field
+		// in the same table row; wizard: the single key field on the form.
+		var row = button.closest( 'tr' ) || document;
+		var keyField = row.querySelector( 'input[type="password"][name*="api_key"]' ) || document.getElementById( 'eex-wizard-key' );
+
+		if ( keyField && ! keyField.disabled && keyField.value ) {
+			payload.api_key = keyField.value;
+		}
+
+		return payload;
+	}, function ( button, payload ) {
+		if ( ! payload.connection ) {
+			return;
+		}
+
+		// In the wizard, a successful test unlocks the next step and the
+		// discovery summary — both server-rendered, so reload to show them
+		// (this also refreshes the form's hidden connection ID).
+		if ( button.closest( '.eex-wizard' ) ) {
+			window.setTimeout( function () {
+				window.location.reload();
+			}, 800 );
+
+			return;
+		}
+
+		// A saved key means the row now has a real connection ID: put it on
+		// the button (so a re-test targets the saved row) and into the row's
+		// hidden id field (so a later "Save settings" updates this
+		// connection instead of re-creating it), and clear the typed key
+		// (blank keeps the stored key on save).
+		button.setAttribute( 'data-connection', payload.connection );
+
+		var row = button.closest( 'tr' );
+		if ( row && payload.saved ) {
+			var idField = row.querySelector( 'input[name*="[id]"]' );
+			var keyField = row.querySelector( 'input[type="password"][name*="api_key"]' );
+			if ( idField ) {
+				idField.value = payload.connection;
+			}
+			if ( keyField ) {
+				keyField.value = '';
+				keyField.placeholder = ( window.eexAdmin && eexAdmin.i18n && eexAdmin.i18n.keySaved ) || 'Key saved';
+			}
+		}
 	} );
 
 	bindAjaxButton( '.eex-load-events', 'eex_load_events', function ( button ) {

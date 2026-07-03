@@ -16,13 +16,29 @@ global $wpdb;
 $eex_settings   = (array) get_option( 'eex_settings', [] );
 $eex_delete_all = ! empty( $eex_settings['uninstall_delete'] );
 
-// Scheduled events.
-wp_clear_scheduled_hook( 'eex_sync_cron' );
-wp_clear_scheduled_hook( 'eex_daily_maintenance' );
-wp_clear_scheduled_hook( 'eex_sync_continue' );
-wp_clear_scheduled_hook( 'eex_async_sync' );
-wp_clear_scheduled_hook( 'eex_process_webhook' );
-wp_clear_scheduled_hook( 'eex_abandonment_check' );
+// Scheduled events — wp_unschedule_hook clears queued jobs regardless of
+// their args (wp_clear_scheduled_hook without args would miss them).
+$eex_cron_hooks = [
+	'eex_sync_cron',
+	'eex_daily_maintenance',
+	'eex_weekly_digest',
+	'eex_sync_continue',
+	'eex_async_sync',
+	'eex_process_webhook',
+	'eex_abandonment_check',
+	'eex_relay_deliver',
+	'eex_woo_push',
+	'eex_accounts_push',
+	'eex_accounts_backfill',
+];
+
+foreach ( $eex_cron_hooks as $eex_cron_hook ) {
+	if ( function_exists( 'wp_unschedule_hook' ) ) {
+		wp_unschedule_hook( $eex_cron_hook );
+	} else {
+		wp_clear_scheduled_hook( $eex_cron_hook );
+	}
+}
 
 // Custom tables.
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange

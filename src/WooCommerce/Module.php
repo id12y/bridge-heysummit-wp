@@ -38,6 +38,25 @@ final class Module {
 		add_action( 'eex_bridge_sections', [ $module, 'bridge_section' ] );
 		add_action( 'admin_post_eex_save_woo', [ $module, 'save_settings' ] );
 		add_action( 'admin_init', [ $module, 'maybe_block_checkout_notice' ] );
+		add_action( 'admin_enqueue_scripts', [ $module, 'enqueue' ] );
+	}
+
+	/**
+	 * The product editor renders "Load tickets" buttons wired to the shared
+	 * admin script; without this enqueue they would be dead buttons.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue( string $hook ): void {
+		if ( ! in_array( $hook, [ 'post.php', 'post-new.php' ], true ) ) {
+			return;
+		}
+
+		$screen = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+
+		if ( $screen && 'product' === (string) $screen->post_type ) {
+			\Emailexpert\Events\Admin\AdminAssets::enqueue();
+		}
 	}
 
 	/**

@@ -44,7 +44,7 @@ final class Module {
 			if ( is_admin() ) {
 				\Emailexpert\Events\Admin\Notices::add(
 					'mylisting_detection',
-					__( 'MyListing was found but its listing types could not be read confidently, so the listings bridge is disabled. No listings will be created or changed.', 'emailexpert-events' ),
+					__( 'MyListing was found but its listing types could not be read automatically, so the listings bridge is off and no listings will be created or changed. You can map the listing structure yourself under Settings → EEX Bridges (it takes a minute), or retry detection there after a theme update.', 'emailexpert-events' ),
 					'warning'
 				);
 			}

@@ -20,11 +20,6 @@ defined( 'ABSPATH' ) || exit;
 final class Mode {
 
 	/**
-	 * Sync-related cron hooks stopped by a switch to Lite.
-	 */
-	private const SYNC_HOOKS = [ 'eex_sync_cron', 'eex_sync_continue', 'eex_async_sync', 'eex_weekly_digest' ];
-
-	/**
 	 * The plugin's post types.
 	 */
 	private const POST_TYPES = [ 'eex_event', 'eex_talk', 'eex_speaker', 'eex_sponsor' ];
@@ -62,9 +57,7 @@ final class Mode {
 	 * @param bool $keep_content Keep synced posts as a frozen archive.
 	 */
 	public static function switch_to_lite( bool $keep_content ): void {
-		foreach ( self::SYNC_HOOKS as $hook ) {
-			wp_clear_scheduled_hook( $hook );
-		}
+		Cron::unschedule( Cron::FULL_ONLY );
 
 		if ( ! $keep_content ) {
 			foreach ( self::content_ids() as $post_id ) {
