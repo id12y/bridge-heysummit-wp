@@ -37,6 +37,32 @@ final class Module {
 		add_action( 'wp_ajax_eex_woo_tickets', [ $module, 'ajax_tickets' ] );
 		add_action( 'eex_bridge_sections', [ $module, 'bridge_section' ] );
 		add_action( 'admin_post_eex_save_woo', [ $module, 'save_settings' ] );
+		add_action( 'admin_init', [ $module, 'maybe_block_checkout_notice' ] );
+	}
+
+	/**
+	 * Warn when the store uses the block checkout on a WooCommerce too old
+	 * for the Additional Checkout Fields API: the consent checkbox cannot
+	 * render there, so mapped purchases would silently never push.
+	 */
+	public function maybe_block_checkout_notice(): void {
+		if ( function_exists( 'woocommerce_register_additional_checkout_field' ) ) {
+			return; // Consent is captured on the block checkout.
+		}
+
+		if ( ! function_exists( 'wc_get_page_id' ) || ! function_exists( 'has_block' ) ) {
+			return;
+		}
+
+		$checkout_page = (int) wc_get_page_id( 'checkout' );
+
+		if ( $checkout_page > 0 && has_block( 'woocommerce/checkout', $checkout_page ) ) {
+			\Emailexpert\Events\Admin\Notices::add(
+				'woo_block_checkout',
+				__( 'Your checkout uses the WooCommerce checkout block, but this WooCommerce version cannot show the event-registration consent checkbox there. Ticket purchases will not push to HeySummit until you update WooCommerce to 8.9+ or switch to the classic [woocommerce_checkout] shortcode.', 'emailexpert-events' ),
+				'warning'
+			);
+		}
 	}
 
 	/**

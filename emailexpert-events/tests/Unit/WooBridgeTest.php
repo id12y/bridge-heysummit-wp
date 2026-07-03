@@ -171,6 +171,35 @@ final class WooBridgeTest extends TestCase {
 		$this->assertCount( 1, array_filter( $this->posts, static fn( $p ) => str_contains( $p['url'], 'attendees/' ) ) );
 	}
 
+	public function test_block_checkout_consent_registers_field_and_gates_push_identically(): void {
+		// The consent checkbox reaches the block checkout via the
+		// Additional Checkout Fields API…
+		( new \Emailexpert\Events\WooCommerce\Consent() )->register();
+		do_action( 'woocommerce_init' );
+
+		$this->assertCount( 1, \EEX_Test_WC::$checkout_fields );
+		$this->assertSame( \Emailexpert\Events\WooCommerce\Consent::BLOCK_FIELD_ID, \EEX_Test_WC::$checkout_fields[0]['id'] );
+		$this->assertSame( 'checkbox', \EEX_Test_WC::$checkout_fields[0]['type'] );
+
+		// …and a ticked field lands in the same order meta the classic
+		// checkout writes, so the pusher needs no second path.
+		$fixture = $this->make_order( 1, false ); // No classic consent.
+		do_action( 'woocommerce_set_additional_field_value', \Emailexpert\Events\WooCommerce\Consent::BLOCK_FIELD_ID, 1, 'other', $fixture['order'] );
+
+		$this->assertNotEmpty( $fixture['order']->get_meta( '_eex_consent' ) );
+
+		$pusher = new Pusher();
+		$pusher->queue_order( 501 );
+		$this->run_queue( $pusher );
+
+		$this->assertCount( 1, array_filter( $this->posts, static fn( $p ) => str_contains( $p['url'], 'attendees/' ) ), 'block-checkout consent gates the push exactly like classic consent' );
+
+		// An unticked field records nothing.
+		$untouched = $this->make_order( 1, false );
+		do_action( 'woocommerce_set_additional_field_value', \Emailexpert\Events\WooCommerce\Consent::BLOCK_FIELD_ID, 0, 'other', $untouched['order'] );
+		$this->assertEmpty( $untouched['order']->get_meta( '_eex_consent' ) );
+	}
+
 	public function test_unmapped_product_produces_zero_api_calls(): void {
 		$this->make_order( 1, true, false );
 		$pusher = new Pusher();

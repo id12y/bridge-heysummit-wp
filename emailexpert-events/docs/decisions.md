@@ -359,3 +359,24 @@ local pages. Sponsors move into the settings option (max 60 lean rows,
 external logo URLs, no media library); the per-session .ics endpoint
 resolves HeySummit talk IDs through the live repository under the same
 cache and budget as any render.
+
+## D38. Production review fixes: cache keys, URL schemes, abuse guards, block checkout
+
+Four findings from the pre-launch review, each closed structurally:
+(1) the past-sessions page number became a component attribute (via the
+existing from_get mechanism) so the fragment cache keys on it;
+(2) `BaseMapper::url_of()` now enforces an http/https allowlist +
+esc_url_raw for every URL that arrives from the API — the single point
+all mappers and the live repository flow through — and eex-time.js
+re-checks the scheme before assigning `data-eex-join` to an href;
+(3) visitor-controlled values no longer mint cache entries: searches
+render uncached, the calendar feed caches only known-entity parameters,
+and the Lite .ics endpoint resolves talk IDs via the new
+`Repository::known_talk()` (cached collections only, never a per-ID
+fetch) behind a 60/min per-IP rate limit (`RateLimiter`);
+(4) the Woo consent checkbox reaches the block checkout through the
+Additional Checkout Fields API (WC 8.9+), writing the same `_eex_consent`
+meta via `woocommerce_set_additional_field_value` so the pusher has one
+path; the block field is optional and shown on every checkout (the
+Blocks API cannot condition on cart contents), and older WooCommerce
+with a block checkout gets an admin warning naming the consequence.

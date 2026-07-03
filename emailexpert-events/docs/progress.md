@@ -344,3 +344,15 @@
   option; live `.ics`; dashboard cache status; CLI guards; Elementor
   plain widgets only; Woo bridge identical in both modes.
 - Suite: 181 tests, 757 assertions; PHPCS clean (bare `phpcs` exits 0).
+
+## Production review fixes
+
+- Pagination is part of the fragment-cache key (page 2 never serves a
+  cached page 1).
+- API URLs pass an http/https allowlist at the mapping layer; the time
+  module re-checks the scheme before writing an href.
+- Cache-stuffing guards: uncached searches, known-entity-only feed
+  caching, known_talk()-only .ics resolution with per-IP rate limiting.
+- Block-checkout consent via the Additional Checkout Fields API, with an
+  admin warning on WooCommerce versions that cannot capture it.
+- Suite: 189 tests, 792 assertions; PHPCS clean.

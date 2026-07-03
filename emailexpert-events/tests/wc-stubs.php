@@ -16,10 +16,14 @@ if ( ! class_exists( 'EEX_Test_WC' ) ) {
 		public static array $item_meta = [];
 		public static int $next_item_id = 1000;
 
+		/** @var array<int,array<string,mixed>> registered block-checkout fields. */
+		public static array $checkout_fields = [];
+
 		public static function reset(): void {
-			self::$orders       = [];
-			self::$item_meta    = [];
-			self::$next_item_id = 1000;
+			self::$orders          = [];
+			self::$item_meta       = [];
+			self::$next_item_id    = 1000;
+			self::$checkout_fields = [];
 		}
 	}
 }
@@ -151,5 +155,12 @@ if ( ! function_exists( 'wc_update_order_item_meta' ) ) {
 if ( ! function_exists( 'wc_add_notice' ) ) {
 	function wc_add_notice( $message, $notice_type = 'success' ) {
 		$GLOBALS['eex_test_wc_notices'][] = [ $message, $notice_type ];
+	}
+}
+
+if ( ! function_exists( 'woocommerce_register_additional_checkout_field' ) ) {
+	function woocommerce_register_additional_checkout_field( $args ) {
+		EEX_Test_WC::$checkout_fields[] = (array) $args;
+		return true;
 	}
 }

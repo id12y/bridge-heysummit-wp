@@ -637,3 +637,15 @@ Sponsors were always manual data. In Lite they live inside the settings
 option (up to 60 lean rows: name, link, external logo URL, tier, blurb)
 with a simplified editor on the settings page — no posts, no media
 sideloading.
+
+## Checkout compatibility note
+
+The registration-consent checkbox renders on the classic
+`[woocommerce_checkout]` shortcode checkout (required there when the cart
+contains mapped products) and on the block checkout via WooCommerce's
+Additional Checkout Fields API (WooCommerce 8.9+, where it appears on
+every checkout and is optional). Either way the rule is the same: no
+recorded consent, no push. On older WooCommerce versions using the block
+checkout, consent cannot be captured — the plugin shows an admin warning
+and purchases will not push until WooCommerce is updated or the classic
+checkout is used.
