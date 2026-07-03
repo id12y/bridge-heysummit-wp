@@ -1,0 +1,34 @@
+{
+	"count": 3,
+	"next": null,
+	"previous": null,
+	"results": [
+		{
+			"id": 501,
+			"name": "Jane Sender",
+			"headline": "VP Deliverability",
+			"company": "Inbox Co",
+			"email": "Jane@Inbox.example",
+			"bio": "Jane has run deliverability at scale for a decade.",
+			"avatar": "https://cdn.heysummit.example/jane.jpg",
+			"links": [ "https://linkedin.example/janesender" ],
+			"event": 101
+		},
+		{
+			"id": "502",
+			"first_name": "Sam",
+			"last_name": "Postmaster",
+			"headline": "Postmaster",
+			"company": "BigMail",
+			"avatar": { "url": "https://cdn.heysummit.example/sam.png" },
+			"twitter": "https://twitter.example/sampostmaster",
+			"event": { "id": 101 }
+		},
+		{
+			"id": 503,
+			"name": "Duplicate Jane",
+			"email": "jane@inbox.example",
+			"company": "Inbox Co"
+		}
+	]
+}

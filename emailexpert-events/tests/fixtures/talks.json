@@ -1,0 +1,32 @@
+{
+	"count": 3,
+	"next": null,
+	"previous": null,
+	"results": [
+		{
+			"id": 9001,
+			"title": "Deliverability in 2026",
+			"description": "Where inbox placement is heading.",
+			"starts_at": "2026-08-01T15:00:00Z",
+			"ends_at": "2026-08-01T16:00:00Z",
+			"talk_url": "https://hub.emailexpert.org/talks/deliverability-2026",
+			"event": 101,
+			"speakers": [ { "id": 501, "name": "Jane Sender" }, 502 ],
+			"categories": [ { "id": 31, "title": "Deliverability" } ]
+		},
+		{
+			"id": "9002",
+			"title": "BIMI Workshop",
+			"starts_at": "2026-03-05T10:00:00Z",
+			"event": { "id": "101", "title": "emailexpert Member Hub" },
+			"speakers": [],
+			"categories": [ 32 ],
+			"replay_url": "https://www.youtube.com/watch?v=abc123def45"
+		},
+		{
+			"id": 9003,
+			"title": "Untimed announcement",
+			"event_id": 101
+		}
+	]
+}

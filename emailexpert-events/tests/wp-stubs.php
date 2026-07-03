@@ -754,3 +754,55 @@ if ( ! function_exists( 'get_the_terms' ) ) {
 		return empty( $terms ) ? false : $terms;
 	}
 }
+
+// --- registration no-ops and misc additions. ------------------------------------
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return parse_url( (string) $url, $component );
+	}
+}
+if ( ! function_exists( 'register_post_type' ) ) {
+	function register_post_type( $post_type, $args = [] ) {
+		$GLOBALS['eex_test_post_types'][ $post_type ] = $args;
+		return (object) [ 'name' => $post_type ];
+	}
+}
+if ( ! function_exists( 'register_taxonomy' ) ) {
+	function register_taxonomy( $taxonomy, $object_type, $args = [] ) {
+		$GLOBALS['eex_test_taxonomies'][ $taxonomy ] = $args;
+		return true;
+	}
+}
+if ( ! function_exists( 'register_post_meta' ) ) {
+	function register_post_meta( $post_type, $meta_key, $args = [] ) {
+		$GLOBALS['eex_test_registered_meta'][ $post_type ][ $meta_key ] = $args;
+		return true;
+	}
+}
+if ( ! function_exists( 'update_term_meta' ) ) {
+	function update_term_meta( $term_id, $key, $value ) {
+		$GLOBALS['eex_test_term_meta'][ (int) $term_id ][ $key ] = $value;
+		return true;
+	}
+}
+if ( ! function_exists( 'get_term_meta' ) ) {
+	function get_term_meta( $term_id, $key = '', $single = false ) {
+		$value = $GLOBALS['eex_test_term_meta'][ (int) $term_id ][ $key ] ?? null;
+		return $single ? ( $value ?? '' ) : ( null === $value ? [] : [ $value ] );
+	}
+}
+if ( ! function_exists( 'current_user_can' ) ) {
+	function current_user_can( $capability, ...$args ) {
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_verify_nonce' ) ) {
+	function wp_verify_nonce( $nonce, $action = -1 ) {
+		return 1;
+	}
+}
+if ( ! function_exists( 'wp_create_nonce' ) ) {
+	function wp_create_nonce( $action = -1 ) {
+		return 'testnonce';
+	}
+}
