@@ -407,4 +407,6 @@ root — installable directly as `wp-content/plugins/emailexpert-events/`.
 CI dropped its working-directory indirection and path filters; the wizard's
 documentation links point at the root README. Historical decisions and
 progress entries that mention the subdirectory are records of their time
-and stand unedited.
+and stand unedited. The repository was subsequently renamed to
+`id12y/bridge-heysummit-wp`; the wizard links follow it (old GitHub URLs
+redirect, but only until the old name is ever reused).
