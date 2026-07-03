@@ -97,6 +97,16 @@ interface Repository {
 	public function talk( string $ref ): ?array;
 
 	/**
+	 * One talk by reference, resolved WITHOUT any uncached remote fetch —
+	 * for visitor-controlled references (the public .ics endpoint), where
+	 * talk() would let arbitrary IDs trigger API calls and cache writes.
+	 *
+	 * @param string $ref Talk reference.
+	 * @return array<string,mixed>|null Talk data array.
+	 */
+	public function known_talk( string $ref ): ?array;
+
+	/**
 	 * Speakers with at least one talk matching the filters, alphabetical.
 	 *
 	 * @param array<string,mixed> $atts event, category, limit.

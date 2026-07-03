@@ -641,6 +641,85 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringNotContainsString( 'javascript:', $html );
 	}
 
+	// -- Cache-stuffing guards. -------------------------------------------------
+
+	public function test_search_queries_never_mint_cache_entries(): void {
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_talk',
+				'post_status' => 'publish',
+				'post_title'  => 'Searchable',
+				'meta_input'  => [ '_eex_starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() - 3600 ) ],
+			]
+		);
+
+		$fragments = static fn(): int => count(
+			array_filter( array_keys( \EEX_Test_State::$transients ), static fn( $k ): bool => str_starts_with( (string) $k, 'eex_c_' ) )
+		);
+
+		// A plain render caches one fragment.
+		Components::render( 'past-sessions', [] );
+		$this->assertSame( 1, $fragments() );
+
+		// Visitor-typed searches render fresh: no new rows per unique string.
+		try {
+			foreach ( [ 'aaa', 'bbb', 'ccc' ] as $q ) {
+				$_GET['eex_q'] = $q;
+				Components::render( 'past-sessions', [] );
+			}
+		} finally {
+			unset( $_GET['eex_q'] );
+		}
+
+		$this->assertSame( 1, $fragments(), 'no transient per search string' );
+	}
+
+	public function test_feed_caches_only_known_entity_parameters(): void {
+		$feeds = new \Emailexpert\Events\Frontend\Feeds();
+
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'publish',
+				'post_title'  => 'Hub',
+				'meta_input'  => [ '_eex_heysummit_id' => '101' ],
+			]
+		);
+
+		$this->assertTrue( $feeds->should_cache( [ 'event' => '', 'category' => '' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertTrue( $feeds->should_cache( [ 'event' => '101', 'category' => '' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertFalse( $feeds->should_cache( [ 'event' => 'random-junk-9137', 'category' => '' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertFalse( $feeds->should_cache( [ 'event' => '', 'category' => 'no-such-category' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+	}
+
+	public function test_visitor_controlled_ics_refs_cannot_trigger_per_id_api_fetches(): void {
+		$this->go_lite();
+		$this->mock_api();
+
+		$repo = Repositories::current();
+
+		// Unknown ID: resolved against the cached collections only — no
+		// talks/<id>/ request, no per-ID cache row.
+		$this->assertNull( $repo->known_talk( '999999' ) );
+		$this->assertSame( [], array_filter( $this->requests, static fn( $u ): bool => str_contains( (string) $u, 'talks/999999' ) ) );
+
+		// A talk that exists in the configured events resolves fine.
+		$known = $repo->known_talk( '501' );
+		$this->assertNotNull( $known );
+		$this->assertSame( 'Live session one', $known['title'] );
+	}
+
+	public function test_rate_limiter_caps_per_ip_per_minute(): void {
+		$_SERVER['REMOTE_ADDR'] = '198.51.100.7';
+
+		for ( $i = 0; $i < 5; $i++ ) {
+			$this->assertTrue( \Emailexpert\Events\RateLimiter::allow( 'test-bucket', 5 ) );
+		}
+
+		$this->assertFalse( \Emailexpert\Events\RateLimiter::allow( 'test-bucket', 5 ), 'sixth request in the window is refused' );
+		$this->assertTrue( \Emailexpert\Events\RateLimiter::allow( 'other-bucket', 5 ), 'buckets are independent' );
+	}
+
 	// -- Per-session .ics from live data. --------------------------------------
 
 	public function test_live_ics_builds_from_repository_data(): void {

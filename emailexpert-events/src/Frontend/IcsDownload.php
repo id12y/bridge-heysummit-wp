@@ -54,12 +54,18 @@ final class IcsDownload {
 	}
 
 	/**
-	 * Lite variant: build the VEVENT from live talk data.
+	 * Lite variant: build the VEVENT from live talk data. Rate limited, and
+	 * resolved via known_talk() only — the reference is visitor-controlled,
+	 * so it must never trigger a per-ID API fetch or cache write.
 	 *
 	 * @param string $ref HeySummit talk ID.
 	 */
 	private function serve_live( string $ref ): void {
-		$data = \Emailexpert\Events\Data\Repositories::current()->talk( $ref );
+		if ( ! \Emailexpert\Events\RateLimiter::allow( 'ics', 60 ) ) {
+			return; // Fall through to the normal page.
+		}
+
+		$data = \Emailexpert\Events\Data\Repositories::current()->known_talk( $ref );
 
 		if ( null === $data || '' === (string) ( $data['starts_at'] ?? '' ) ) {
 			return; // Unknown session: fall through to the normal page.

@@ -149,12 +149,9 @@ class LiveRepository extends BaseMapper implements Repository {
 	 * @return array<string,mixed>|null
 	 */
 	public function talk( string $ref ): ?array {
-		foreach ( $this->configured_events() as $event ) {
-			foreach ( $this->talks_for_event( $event ) as $talk ) {
-				if ( (string) $talk['hs_id'] === $ref ) {
-					return $talk;
-				}
-			}
+		$known = $this->known_talk( $ref );
+		if ( null !== $known ) {
+			return $known;
 		}
 
 		$keys = $this->configured_keys();
@@ -185,6 +182,26 @@ class LiveRepository extends BaseMapper implements Repository {
 		$event = $this->event_summary( self::id_of( $raw, [ 'event', 'event_id' ] ) );
 
 		return $this->map_talk( $raw, $event ?? [] );
+	}
+
+	/**
+	 * A talk from the configured events' (cached) collections only — no
+	 * targeted fetch, so visitor-controlled references cannot spend API
+	 * calls or mint per-ID cache rows.
+	 *
+	 * @param string $ref Talk reference.
+	 * @return array<string,mixed>|null
+	 */
+	public function known_talk( string $ref ): ?array {
+		foreach ( $this->configured_events() as $event ) {
+			foreach ( $this->talks_for_event( $event ) as $talk ) {
+				if ( (string) $talk['hs_id'] === $ref ) {
+					return $talk;
+				}
+			}
+		}
+
+		return null;
 	}
 
 	/**

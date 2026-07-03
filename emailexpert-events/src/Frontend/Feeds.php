@@ -67,12 +67,17 @@ final class Feeds {
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-		$cached = Cache::get( 'feed-calendar', $atts );
+		$cacheable = $this->should_cache( $atts );
+
+		$cached = $cacheable ? Cache::get( 'feed-calendar', $atts ) : null;
 
 		if ( null === $cached ) {
 			$talk_ids = Query::upcoming_talks( $atts );
 			$cached   = Ics::calendar( $talk_ids, get_bloginfo( 'name' ) . ' — ' . __( 'Sessions', 'emailexpert-events' ) );
-			Cache::set( 'feed-calendar', $atts, $cached );
+
+			if ( $cacheable ) {
+				Cache::set( 'feed-calendar', $atts, $cached );
+			}
 		}
 
 		header( 'Content-Type: text/calendar; charset=utf-8' );
@@ -80,5 +85,32 @@ final class Feeds {
 
 		echo $cached; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- text/calendar document, escaped per RFC 5545.
 		exit;
+	}
+
+	/**
+	 * Cache only parameter combinations that resolve to known entities:
+	 * arbitrary visitor strings must not mint transient rows. Unknown
+	 * values still get a (fresh-built, DB-only) response.
+	 *
+	 * @param array<string,mixed> $atts Request attributes.
+	 */
+	public function should_cache( array $atts ): bool {
+		return ( '' === (string) $atts['event'] || Query::resolve_event( (string) $atts['event'] ) > 0 )
+			&& ( '' === (string) $atts['category'] || $this->known_categories( (string) $atts['category'] ) );
+	}
+
+	/**
+	 * Whether every slug in a comma-separated category filter exists.
+	 *
+	 * @param string $category Comma-separated slugs.
+	 */
+	private function known_categories( string $category ): bool {
+		foreach ( array_filter( array_map( 'sanitize_title', explode( ',', $category ) ) ) as $slug ) {
+			if ( ! get_term_by( 'slug', $slug, \Emailexpert\Events\PostTypes\Taxonomies::CATEGORY ) ) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 }

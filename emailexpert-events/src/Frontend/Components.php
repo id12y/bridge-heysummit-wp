@@ -301,9 +301,16 @@ final class Components {
 		// campaign-tagged URLs derived from the rendering page.
 		$cache_atts = $atts + [ '_ctx' => Utm::cache_context() ];
 
-		$cached = Cache::get( $name, $cache_atts );
-		if ( null !== $cached ) {
-			return $cached;
+		// Visitor-typed search strings never mint cache entries: every
+		// unique ?eex_q= would otherwise write a transient row (unbounded,
+		// unauthenticated). Searches render fresh instead.
+		$cacheable = '' === (string) ( $atts['q'] ?? '' );
+
+		if ( $cacheable ) {
+			$cached = Cache::get( $name, $cache_atts );
+			if ( null !== $cached ) {
+				return $cached;
+			}
 		}
 
 		self::$schema_pool = [];
@@ -325,7 +332,9 @@ final class Components {
 		 */
 		$html = (string) apply_filters( 'eex_card_html', $html, $name, $atts );
 
-		Cache::set( $name, $cache_atts, $html );
+		if ( $cacheable ) {
+			Cache::set( $name, $cache_atts, $html );
+		}
 
 		return $html;
 	}

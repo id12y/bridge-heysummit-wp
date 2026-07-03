@@ -101,6 +101,16 @@ class SyncedRepository implements Repository {
 	}
 
 	/**
+	 * Same as talk(): local post lookups involve no remote fetch.
+	 *
+	 * @param string $ref Talk reference.
+	 * @return array<string,mixed>|null
+	 */
+	public function known_talk( string $ref ): ?array {
+		return $this->talk( $ref );
+	}
+
+	/**
 	 * Speakers.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
