@@ -254,9 +254,67 @@ final class SettingsPage {
 	 */
 	private function render_lite_section(): void {
 		$selected = array_map( 'strval', (array) Options::setting( 'lite_events' ) );
+
+		// A live health check right where the events are configured: the
+		// pipeline diagnosis when components would render empty, or the
+		// upcoming-session count when they would not.
+		$diagnosis  = '';
+		$upcoming   = 0;
+		$repository = \Emailexpert\Events\Data\Repositories::current();
+
+		if ( $repository instanceof \Emailexpert\Events\Data\LiveRepository ) {
+			$diagnosis = $repository->diagnose();
+
+			if ( '' === $diagnosis ) {
+				$upcoming = count( $repository->upcoming_talks( [] ) );
+			}
+		}
+
+		$status = \Emailexpert\Events\Data\LiveCache::status();
 		?>
 		<h2><?php esc_html_e( 'Live display', 'emailexpert-events' ); ?></h2>
 		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Live status', 'emailexpert-events' ); ?></th>
+				<td>
+					<?php if ( '' !== $diagnosis ) : ?>
+						<p><span class="eex-pill eex-pill-warn"><?php esc_html_e( 'Nothing to display', 'emailexpert-events' ); ?></span> <?php echo esc_html( $diagnosis ); ?></p>
+					<?php else : ?>
+						<p>
+							<span class="eex-pill eex-pill-ok"><?php esc_html_e( 'Working', 'emailexpert-events' ); ?></span>
+							<?php
+							printf(
+								/* translators: %d: upcoming session count. */
+								esc_html( _n( '%d upcoming session ready to display.', '%d upcoming sessions ready to display.', $upcoming, 'emailexpert-events' ) ),
+								(int) $upcoming
+							);
+							?>
+						</p>
+					<?php endif; ?>
+					<p class="description">
+						<?php
+						printf(
+							/* translators: 1: last successful fetch (UTC), 2: last failed fetch (UTC). */
+							esc_html__( 'Last successful HeySummit fetch: %1$s. Last failure: %2$s.', 'emailexpert-events' ),
+							esc_html( $status['last_success'] ?: __( 'never', 'emailexpert-events' ) ),
+							esc_html( $status['last_failure'] ?: __( 'never', 'emailexpert-events' ) )
+						);
+						?>
+					</p>
+					<?php if ( '' !== $status['last_error'] ) : ?>
+						<p class="description"><code><?php echo esc_html( $status['last_error'] ); ?></code></p>
+					<?php endif; ?>
+					<p class="description">
+						<?php
+						printf(
+							/* translators: %s: plugin version. */
+							esc_html__( 'Plugin version %s.', 'emailexpert-events' ),
+							esc_html( EEX_VERSION )
+						);
+						?>
+					</p>
+				</td>
+			</tr>
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Events to display', 'emailexpert-events' ); ?></th>
 				<td>
