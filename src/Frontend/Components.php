@@ -310,7 +310,7 @@ final class Components {
 			$cached = Cache::get( $name, $cache_atts );
 			if ( null !== $cached ) {
 				// The debug note rides outside the cached fragment.
-				return $cached . self::admin_debug_note();
+				return $cached . self::admin_debug_note( $name, $cached );
 			}
 		}
 
@@ -337,29 +337,56 @@ final class Components {
 			Cache::set( $name, $cache_atts, $html );
 		}
 
-		return $html . self::admin_debug_note();
+		return $html . self::admin_debug_note( $name, $html );
 	}
 
 	/**
 	 * An HTML comment appended for administrators only — never cached, so
-	 * it can't leak to visitors — explaining that Lite is currently serving
-	 * degraded (last-good or empty) data and why. This is what turns "the
-	 * block looks empty" into a debuggable report.
+	 * it can't leak to visitors — explaining why a Lite component is empty
+	 * or serving degraded data. This is what turns "the block looks empty"
+	 * into a debuggable report.
+	 *
+	 * @param string $name Component name.
+	 * @param string $html The rendered (possibly cached) fragment.
 	 */
-	private static function admin_debug_note(): string {
+	private static function admin_debug_note( string $name, string $html ): string {
 		if ( ! Options::is_lite()
 			|| ! function_exists( 'current_user_can' )
-			|| ! current_user_can( 'manage_options' )
-			|| ! \Emailexpert\Events\Data\LiveCache::degraded() ) {
+			|| ! current_user_can( 'manage_options' ) ) {
 			return '';
 		}
 
-		$status = \Emailexpert\Events\Data\LiveCache::status();
+		$notes = [];
+
+		if ( \Emailexpert\Events\Data\LiveCache::degraded() ) {
+			$status  = \Emailexpert\Events\Data\LiveCache::status();
+			$notes[] = sprintf(
+				'the last HeySummit fetch failed at %s UTC: %s. Components are rendering last-good or empty-state data.',
+				$status['last_failure'],
+				$status['last_error'] ?: 'no reason recorded'
+			);
+		}
+
+		// An empty live component gets a pipeline diagnosis: which stage
+		// produced nothing and where to fix it.
+		if ( str_contains( $html, 'eex-empty' ) && in_array( $name, [ 'upcoming-sessions', 'upcoming-events', 'schedule', 'featured-talks', 'speakers' ], true ) ) {
+			$repository = Repositories::current();
+
+			if ( $repository instanceof \Emailexpert\Events\Data\LiveRepository ) {
+				$diagnosis = $repository->diagnose();
+				if ( '' !== $diagnosis ) {
+					$notes[] = $diagnosis;
+				}
+			}
+		}
+
+		if ( empty( $notes ) ) {
+			return '';
+		}
 
 		return sprintf(
-			"\n<!-- emailexpert Events (visible to administrators only): the last HeySummit fetch failed at %s UTC: %s. Components are rendering last-good or empty-state data. See Dashboard -> emailexpert Events. -->",
-			esc_html( $status['last_failure'] ),
-			esc_html( str_replace( '--', '- -', $status['last_error'] ?: 'no reason recorded' ) )
+			"\n<!-- emailexpert Events (visible to administrators only): %s See Dashboard -> emailexpert Events. -->",
+			esc_html( str_replace( '--', '- -', implode( ' | ', $notes ) ) )
 		);
 	}
 

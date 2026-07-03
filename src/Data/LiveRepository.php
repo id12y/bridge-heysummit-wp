@@ -154,33 +154,36 @@ class LiveRepository extends BaseMapper implements Repository {
 			return $known;
 		}
 
-		$keys = $this->configured_keys();
-		if ( empty( $keys ) || ! preg_match( '/^\d+$/', $ref ) ) {
+		if ( ! preg_match( '/^\d+$/', $ref ) ) {
 			return null;
 		}
 
-		[ $conn_id ] = explode( '|', (string) $keys[0], 2 );
-		$client      = $this->client( $conn_id );
+		// The spec serves single talks nested under their event only; try
+		// each configured event (budgeted, cached).
+		foreach ( $this->configured_keys() as $key ) {
+			[ $conn_id, $event_id ] = array_pad( explode( '|', $key, 2 ), 2, '' );
 
-		if ( null === $client ) {
-			return null;
-		}
-
-		$raw = LiveCache::remember(
-			'talk|' . $conn_id . '|' . $ref,
-			static function () use ( $client, $ref ) {
-				// A WP_Error propagates its reason to the cache status.
-				return $client->get( 'talks/' . rawurlencode( $ref ) . '/', [], self::request_options() );
+			$client = $this->client( $conn_id );
+			if ( null === $client || '' === $event_id ) {
+				continue;
 			}
-		);
 
-		if ( ! is_array( $raw ) || empty( $raw ) ) {
-			return null;
+			$raw = LiveCache::remember(
+				'talk|' . $conn_id . '|' . $event_id . '|' . $ref,
+				static function () use ( $client, $event_id, $ref ) {
+					// A WP_Error propagates its reason to the cache status.
+					return $client->get( 'events/' . rawurlencode( $event_id ) . '/talks/' . rawurlencode( $ref ) . '/', [], self::request_options() );
+				}
+			);
+
+			if ( is_array( $raw ) && '' !== self::id_of( $raw, [ 'id' ] ) ) {
+				$event = $this->event_summary( $event_id );
+
+				return $this->map_talk( $raw, $event ?? [] );
+			}
 		}
 
-		$event = $this->event_summary( self::id_of( $raw, [ 'event', 'event_id' ] ) );
-
-		return $this->map_talk( $raw, $event ?? [] );
+		return null;
 	}
 
 	/**
@@ -286,6 +289,74 @@ class LiveRepository extends BaseMapper implements Repository {
 	}
 
 	/**
+	 * A one-line explanation of why components might be empty, for
+	 * administrators (the on-page debug note and the dashboard widget).
+	 * Walks the pipeline in order and reports the first gap; '' when data
+	 * is flowing. Uses the same caches and budget as any render.
+	 */
+	public function diagnose(): string {
+		$keys = $this->configured_keys();
+
+		if ( empty( $keys ) ) {
+			return __( 'No events are chosen to display. Go to Settings → emailexpert Events → Live display → Choose events.', 'emailexpert-events' );
+		}
+
+		$has_client = false;
+		foreach ( $keys as $key ) {
+			[ $conn_id ] = explode( '|', $key, 2 );
+			if ( null !== $this->client( (string) $conn_id ) ) {
+				$has_client = true;
+				break;
+			}
+		}
+
+		if ( ! $has_client ) {
+			return __( 'The configured events reference a connection with no API key saved. Check Settings → emailexpert Events → API.', 'emailexpert-events' );
+		}
+
+		$events = $this->configured_events();
+
+		if ( empty( $events ) ) {
+			return sprintf(
+				/* translators: %s: comma-separated configured connection|event keys. */
+				__( 'The configured event(s) %s could not be fetched from HeySummit — check the event IDs and the cache status on the dashboard widget.', 'emailexpert-events' ),
+				implode( ', ', $keys )
+			);
+		}
+
+		$total = 0;
+		$next  = 0;
+		$now   = time();
+
+		foreach ( $events as $event ) {
+			foreach ( $this->talks_for_event( $event ) as $talk ) {
+				++$total;
+				if ( (int) $talk['start_ts'] >= $now ) {
+					++$next;
+				}
+			}
+		}
+
+		if ( 0 === $total ) {
+			return sprintf(
+				/* translators: %s: comma-separated event IDs. */
+				__( 'HeySummit returned no sessions for event(s) %s (tried both ?event= and ?event_id= filters). Confirm the event has published talks.', 'emailexpert-events' ),
+				implode( ', ', array_map( static fn( array $event ): string => (string) $event['hs_id'], $events ) )
+			);
+		}
+
+		if ( 0 === $next ) {
+			return sprintf(
+				/* translators: %d: total sessions found. */
+				__( '%d session(s) were found, but none start in the future — Lite is forward-looking and shows upcoming sessions only.', 'emailexpert-events' ),
+				$total
+			);
+		}
+
+		return '';
+	}
+
+	/**
 	 * Client options for render-time fetches: short timeout, no retries.
 	 *
 	 * @return array<string,int>
@@ -343,8 +414,31 @@ class LiveRepository extends BaseMapper implements Repository {
 				}
 			);
 
+			$found = [];
+
 			foreach ( (array) $collection as $raw ) {
 				if ( is_array( $raw ) && in_array( self::id_of( $raw, [ 'id' ] ), array_map( 'strval', $event_ids ), true ) ) {
+					$found[ self::id_of( $raw, [ 'id' ] ) ] = true;
+
+					$events[] = $this->map_event( $raw, (string) $conn_id );
+				}
+			}
+
+			// A configured event beyond the first collection page still
+			// resolves: one targeted, cached fetch per missing ID.
+			foreach ( array_map( 'strval', $event_ids ) as $event_id ) {
+				if ( isset( $found[ $event_id ] ) ) {
+					continue;
+				}
+
+				$raw = LiveCache::remember(
+					'event|' . $conn_id . '|' . $event_id,
+					static function () use ( $client, $event_id ) {
+						return $client->get( 'events/' . rawurlencode( $event_id ) . '/', [], self::request_options() );
+					}
+				);
+
+				if ( is_array( $raw ) && '' !== self::id_of( $raw, [ 'id' ] ) ) {
 					$events[] = $this->map_event( $raw, (string) $conn_id );
 				}
 			}
@@ -420,18 +514,64 @@ class LiveRepository extends BaseMapper implements Repository {
 
 		$event_hs_id = (string) $event['hs_id'];
 
+		$conn_id = (string) $event['connection'];
+
 		$collection = LiveCache::remember(
 			'talks|' . $key,
-			static function () use ( $client, $event_hs_id ) {
-				$response = $client->get( 'talks/', [ 'event' => $event_hs_id ], self::request_options() );
+			static function () use ( $client, $event_hs_id, $conn_id ) {
+				$normalise = static function ( $response ): array {
+					$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( is_array( $response ) && array_is_list( $response ) ? $response : [] );
 
-				if ( is_wp_error( $response ) ) {
-					return $response; // The reason reaches the cache status.
+					return array_values( array_filter( $results, 'is_array' ) );
+				};
+
+				$usable = static function ( array $results ) use ( $event_hs_id ): bool {
+					foreach ( $results as $raw ) {
+						$talk_event = (string) ( is_scalar( $raw['event'] ?? null ) ? $raw['event'] : ( $raw['event']['id'] ?? ( $raw['event_id'] ?? '' ) ) );
+						if ( '' === $talk_event || $talk_event === $event_hs_id ) {
+							return true; // At least one talk plausibly belongs here.
+						}
+					}
+
+					return false;
+				};
+
+				// Three known route styles (docs/api-notes.md): top-level
+				// filtered by ?event=, by ?event_id=, and nested under the
+				// event — live verification found accounts where only the
+				// nested route is permitted (top-level answers 403). The
+				// working style is remembered per connection so later
+				// fetches lead with it.
+				$requests = \Emailexpert\Events\Api\TalkRoutes::requests( $event_hs_id );
+
+				$first_error = null;
+				$saw_empty   = false;
+
+				foreach ( \Emailexpert\Events\Api\PathStyles::ordered( $conn_id, 'talks', array_keys( $requests ) ) as $style ) {
+					[ $path, $args ] = $requests[ $style ];
+
+					$response = $client->get( $path, $args, self::request_options() );
+
+					if ( is_wp_error( $response ) ) {
+						$first_error = $first_error ?? $response;
+						continue;
+					}
+
+					$results = $normalise( $response );
+
+					if ( ! empty( $results ) && $usable( $results ) ) {
+						\Emailexpert\Events\Api\PathStyles::remember( $conn_id, 'talks', $style );
+
+						return $results;
+					}
+
+					$saw_empty = true;
 				}
 
-				$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( array_is_list( $response ) ? $response : [] );
-
-				return array_values( array_filter( $results, 'is_array' ) );
+				// Any style that answered successfully-but-empty means "no
+				// sessions yet" (an event with no talks is normal); only
+				// when every style errored does the reason surface.
+				return $saw_empty ? [] : ( $first_error ?? [] );
 			}
 		);
 
@@ -445,6 +585,12 @@ class LiveRepository extends BaseMapper implements Repository {
 			// different event.
 			$talk_event = self::id_of( $raw, [ 'event', 'event_id' ] );
 			if ( '' !== $talk_event && $talk_event !== $event_hs_id ) {
+				continue;
+			}
+
+			// "Mark this talk as inactive if you want to remove it from the
+			// site" (spec) — respect it.
+			if ( isset( $raw['is_active'] ) && false === $raw['is_active'] ) {
 				continue;
 			}
 
@@ -477,7 +623,7 @@ class LiveRepository extends BaseMapper implements Repository {
 			'first_talk_at' => self::datetime( $raw, [ 'first_talk_at', 'starts_at' ] ),
 			'last_talk_at'  => self::datetime( $raw, [ 'last_talk_at', 'ends_at' ] ),
 			'timezone'      => self::str( $raw, [ 'timezone' ] ),
-			'open'          => self::boolish( $raw, 'is_open_for_registrations' ),
+			'open'          => self::boolish( $raw, [ 'is_open_for_registrations', '_is_open_for_registrations' ] ),
 			'evergreen'     => self::boolish( $raw, 'is_evergreen' ),
 			'venue'         => self::str( $raw, [ 'venue_name', 'venue' ] ),
 			'reg_count'     => 0,
@@ -517,6 +663,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			if ( ! is_array( $speaker ) ) {
 				continue;
 			}
+			if ( isset( $speaker['is_active'] ) && false === $speaker['is_active'] ) {
+				continue; // Hidden speaker (spec).
+			}
 			$raw_speakers[] = $speaker;
 			$entry          = $this->map_speaker( $speaker, $event_url );
 			if ( '' !== $entry['name'] ) {
@@ -534,9 +683,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			'title'         => self::str( $raw, [ 'title', 'name' ] ),
 			'permalink'     => Utm::tag( $talk_url ) ?: $event_url,
 			'description'   => self::str( $raw, [ 'description' ] ),
-			'starts_at'     => self::datetime( $raw, [ 'starts_at' ] ),
+			'starts_at'     => self::datetime( $raw, [ 'starts_at', 'date' ] ),
 			'ends_at'       => self::datetime( $raw, [ 'ends_at' ] ),
-			'start_ts'      => (int) strtotime( self::datetime( $raw, [ 'starts_at' ] ) ),
+			'start_ts'      => (int) strtotime( self::datetime( $raw, [ 'starts_at', 'date' ] ) ),
 			'talk_url'      => Utm::tag( $talk_url ),
 			'replay_url'    => self::url_of( $raw['replay_url'] ?? '' ),
 			'speakers'      => $speakers,
@@ -570,10 +719,10 @@ class LiveRepository extends BaseMapper implements Repository {
 			'id'        => (int) self::id_of( $raw, [ 'id' ] ),
 			'name'      => $name,
 			'url'       => $event_url,
-			'headline'  => self::str( $raw, [ 'headline', 'title' ] ),
+			'headline'  => self::str( $raw, [ 'headline', 'company_title', 'expert_creds', 'title' ] ),
 			'company'   => self::str( $raw, [ 'company' ] ),
 			'photo_id'  => 0,
-			'photo_url' => self::url_of( $raw['avatar'] ?? ( $raw['photo_url'] ?? '' ) ),
+			'photo_url' => self::url_str( $raw, [ 'headshot', 'avatar', 'photo_url' ] ),
 		];
 	}
 

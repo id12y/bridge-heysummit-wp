@@ -329,4 +329,66 @@ final class WebhooksTest extends TestCase {
 		$missing = $controller->read( new WP_REST_Request( [ 'event' => '999' ] ) );
 		$this->assertSame( 404, $missing->get_status() );
 	}
+
+	public function test_documented_payloads_classify_without_an_action_key(): void {
+		// The OpenAPI spec's outbound webhook examples carry no action key
+		// in the body; classification falls back to shape inference.
+		$checkout = Parser::parse(
+			[
+				'event_id'         => 67890,
+				'attendee_id'      => 12345,
+				'email'            => 'attendee@example.com',
+				'name'             => 'John Doe',
+				'paid_at'          => '2023-10-26T10:05:00+00:00',
+				'amount_gross'     => '99.00',
+				'ticket_purchases' => [
+					[
+						'id'              => 1001,
+						'ticket_price_id' => 101,
+						'ticket_name'     => 'VIP Pass',
+					],
+				],
+				'tickets'          => [
+					[
+						'ticket_id'   => 1,
+						'ticket_name' => 'VIP Pass',
+					],
+				],
+			]
+		);
+
+		$this->assertSame( Parser::ACTION_CHECKOUT, $checkout['action'] );
+		$this->assertSame( '67890', $checkout['event_hs_id'] );
+		$this->assertSame( 'VIP Pass', $checkout['attendee']['ticket_name'] );
+
+		$talk_added = Parser::parse(
+			[
+				'attendee_id'         => 12345,
+				'attendee_email'      => 'attendee@example.com',
+				'attendee_name'       => 'John Doe',
+				'attendee_created_at' => '2023-10-26T10:00:00+00:00',
+				'event_id'            => 67890,
+				'talk_id'             => 444,
+				'talk_name'           => 'Scaling Community-Led Events',
+				'utm_source'          => 'linkedin',
+			]
+		);
+
+		$this->assertSame( Parser::ACTION_TALK_ADDED, $talk_added['action'] );
+		$this->assertSame( '444', $talk_added['talk_hs_id'] );
+		$this->assertNotNull( $talk_added['attendee'], 'the attendee_-prefixed fields become the attendee record' );
+		$this->assertSame( 'attendee@example.com', $talk_added['attendee']['email'] );
+
+		$started = Parser::parse(
+			[
+				'id'                   => 12345,
+				'email'                => 'attendee@example.com',
+				'registration_status'  => 'Completed Order',
+				'event_id'             => 67890,
+				'registration_answers' => [ 'What is your company name?' => 'Example Corp' ],
+			]
+		);
+
+		$this->assertSame( Parser::ACTION_STARTED, $started['action'] );
+	}
 }

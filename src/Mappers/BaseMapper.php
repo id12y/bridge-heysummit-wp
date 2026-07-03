@@ -38,8 +38,19 @@ abstract class BaseMapper {
 	 * @param array<string,mixed> $raw Raw record.
 	 * @param string              $key Key.
 	 */
-	protected static function boolish( array $raw, string $key ): bool {
-		if ( ! isset( $raw[ $key ] ) ) {
+	protected static function boolish( array $raw, $key ): bool {
+		// Live verification showed some accounts prefix flags (e.g.
+		// _is_open_for_registrations), so candidates are allowed.
+		$keys = (array) $key;
+		$key  = null;
+		foreach ( $keys as $candidate ) {
+			if ( isset( $raw[ $candidate ] ) ) {
+				$key = $candidate;
+				break;
+			}
+		}
+
+		if ( null === $key ) {
 			return false;
 		}
 

@@ -10,7 +10,7 @@ namespace Emailexpert\Events\Accounts;
 use Emailexpert\Events\Api\HeySummitClient;
 use Emailexpert\Events\Logging\Logger;
 use Emailexpert\Events\Mappers\AttendeeRequestBuilder;
-use Emailexpert\Events\Mappers\TicketSaleRequestBuilder;
+use Emailexpert\Events\Mappers\TicketAttachRequestBuilder;
 use Emailexpert\Events\Options;
 use Emailexpert\Events\Registrations;
 use Emailexpert\Events\Webhooks\Attribution;
@@ -22,7 +22,8 @@ defined( 'ABSPATH' ) || exit;
  * consent re-checked at push time, "attendee already exists" treated as
  * success, 3 retries with backoff, terminal failures flagged with an admin
  * notice and a per-user manual push. Uses only the two allowlisted write
- * endpoints; ticket assignment follows the discovery finding.
+ * endpoints; the ticket price rides in the create body (spec), and an
+ * already-existing attendee gets it via the documented-idempotent attach.
  */
 class Pusher {
 
@@ -110,67 +111,54 @@ class Pusher {
 			return $this->fail( $user_id, $event_hs_id, $rule_id, $attempt, __( 'Connection has no API key.', 'emailexpert-events' ) );
 		}
 
-		$client   = HeySummitClient::for_connection( $connection );
-		$ticket   = null !== $rule ? (string) $rule['ticket'] : '';
-		$method   = TicketAssignment::method( $connection_id );
-		$purchase = [
-			'name'            => (string) ( $user->display_name ?: $user->user_login ),
-			'email'           => (string) $user->user_email,
-			'event_hs_id'     => $event_hs_id,
-			'order_reference' => 'account:' . $user_id,
-		];
+		$client = HeySummitClient::for_connection( $connection );
+		$ticket = null !== $rule ? (string) $rule['ticket'] : '';
 
-		$request = AttendeeRequestBuilder::build( $purchase );
-
-		// Ticket in the create body when discovery showed the field exists.
-		if ( '' !== $ticket && TicketAssignment::CREATE_PARAM === $method ) {
-			$request['body'][ TicketAssignment::create_param_field( $connection_id ) ] = $ticket;
-		}
+		// Create carries the ticket price directly (the spec's
+		// AttendeeCreateRequest); no second call on the happy path.
+		$request = AttendeeRequestBuilder::build(
+			[
+				'name'            => (string) ( $user->display_name ?: $user->user_login ),
+				'email'           => (string) $user->user_email,
+				'event_hs_id'     => $event_hs_id,
+				'ticket_price_id' => $ticket,
+				'order_reference' => 'account:' . $user_id,
+			]
+		);
 
 		$response       = $client->post( (string) $request['path'], (array) $request['body'] );
 		$already_exists = false;
+		$attendee_hs_id = '';
 
 		if ( is_wp_error( $response ) ) {
-			if ( self::is_already_exists_error( $response ) ) {
-				// An existing attendee is success, never an error.
-				$already_exists = true;
-				$response       = [];
-			} else {
+			if ( ! self::is_already_exists_error( $response ) ) {
 				return $this->fail( $user_id, $event_hs_id, $rule_id, $attempt, $response->get_error_message() );
 			}
-		}
 
-		$attendee_hs_id = (string) ( $response['id'] ?? '' );
+			// An existing attendee is success, never an error — and the
+			// ticket can still be assigned: find them by email and use the
+			// documented-idempotent attach endpoint (D45; supersedes D31's
+			// no-assignment caution, which applied to the sale import).
+			$already_exists = true;
+			$attendee_hs_id = \Emailexpert\Events\Api\AttendeeLookup::find_id( $client, $event_hs_id, (string) $user->user_email );
 
-		// Ticket via the import endpoint when that is the discovered method
-		// (zero amounts: a free assignment, not a sale). Skipped for
-		// already-existing attendees: their ticket state is unknown and a
-		// duplicate import is worse than none.
-		if ( '' !== $ticket && ! $already_exists && TicketAssignment::TICKET_IMPORT === $method ) {
-			$sale = TicketSaleRequestBuilder::build(
-				[
-					'attendee_hs_id'  => $attendee_hs_id,
-					'ticket_hs_id'    => $ticket,
-					'amount_gross'    => '0.00',
-					'amount_net'      => '0.00',
-					'currency'        => '',
-					'order_reference' => 'account:' . $user_id,
-				]
-			);
+			if ( '' !== $ticket && '' !== $attendee_hs_id ) {
+				$attach = TicketAttachRequestBuilder::build(
+					[
+						'event_hs_id'     => $event_hs_id,
+						'attendee_hs_id'  => $attendee_hs_id,
+						'ticket_price_id' => $ticket,
+					]
+				);
 
-			$sale_response = $client->post( (string) $sale['path'], (array) $sale['body'] );
+				$attach_response = $client->post( (string) $attach['path'], (array) $attach['body'] );
 
-			if ( is_wp_error( $sale_response ) ) {
-				return $this->fail( $user_id, $event_hs_id, $rule_id, $attempt, $sale_response->get_error_message() );
+				if ( is_wp_error( $attach_response ) ) {
+					return $this->fail( $user_id, $event_hs_id, $rule_id, $attempt, $attach_response->get_error_message() );
+				}
 			}
-		}
-
-		if ( '' !== $ticket && TicketAssignment::UNSUPPORTED === $method ) {
-			Logger::warning(
-				Logger::CONTEXT_API,
-				sprintf( 'Attendee registered for event %s but ticket "%s" could not be assigned via the API (discovery shows no assignment path). Assign it manually in HeySummit.', $event_hs_id, $ticket ),
-				[ 'flag' => 'discovery', 'connection' => $connection_id ] // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
-			);
+		} else {
+			$attendee_hs_id = (string) ( $response['id'] ?? '' );
 		}
 
 		// Success: the ledger records rule, trigger and consent source.

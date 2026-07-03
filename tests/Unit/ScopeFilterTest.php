@@ -182,11 +182,12 @@ final class ScopeFilterTest extends TestCase {
 		];
 
 		$this->mock_http( function ( $url ) use ( $talks ) {
-			if ( str_contains( $url, 'events/101/' ) ) {
-				return self::json_response( [ 'id' => 101, 'title' => 'Hub' ] );
-			}
+			// Talks first: the nested route also carries the event prefix.
 			if ( str_contains( $url, 'talks/' ) ) {
 				return self::json_response( [ 'results' => $talks ] );
+			}
+			if ( str_contains( $url, 'events/101/' ) ) {
+				return self::json_response( [ 'id' => 101, 'title' => 'Hub' ] );
 			}
 
 			return self::json_response( [ 'results' => [] ] );

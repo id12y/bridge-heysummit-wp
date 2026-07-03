@@ -38,7 +38,7 @@ final class EventMapper extends BaseMapper {
 			'is_live'                   => self::boolish( $raw, 'is_live' ),
 			'is_archived'               => self::boolish( $raw, 'is_archived' ),
 			'is_evergreen'              => self::boolish( $raw, 'is_evergreen' ),
-			'is_open_for_registrations' => self::boolish( $raw, 'is_open_for_registrations' ),
+			'is_open_for_registrations' => self::boolish( $raw, [ 'is_open_for_registrations', '_is_open_for_registrations' ] ),
 		];
 	}
 }

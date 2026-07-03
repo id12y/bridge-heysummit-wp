@@ -538,11 +538,10 @@ final class LiteModeTest extends TestCase {
 			}
 		}
 
-		$attendee_calls = array_filter( $posts, static fn( $p ) => str_contains( $p['url'], 'attendees/' ) );
-		$ticket_calls   = array_filter( $posts, static fn( $p ) => str_contains( $p['url'], 'external-ticket-sales/' ) );
+		$attendee_calls = array_filter( $posts, static fn( $p ) => str_contains( $p['url'], 'events/101/attendees/' ) );
 
 		$this->assertCount( 1, $attendee_calls, 'attendee pushed exactly as in Full' );
-		$this->assertCount( 1, $ticket_calls, 'ticket sale imported exactly as in Full' );
+		$this->assertSame( 'T-1', array_values( $attendee_calls )[0]['body']['ticket_price_id'], 'ticket price rides in the create body' );
 
 		// The push-record (attribution) table appears only now — and no log table.
 		$this->assertContains( 'wp_eex_attribution', $GLOBALS['eex_test_dbdelta'] );
@@ -650,7 +649,9 @@ final class LiteModeTest extends TestCase {
 		$status = LiveCache::status();
 		$this->assertNotSame( '', $status['last_failure'] );
 		$this->assertStringContainsString( 'unreachable', $status['last_error'], 'the client error message survives' );
-		$this->assertStringContainsString( 'events|c1', $status['last_error'], 'the failing resource key is named' );
+		// The collection fails first, then the targeted per-event fallback is
+		// tried and fails too — the last failure names that resource key.
+		$this->assertStringContainsString( '[event|c1|101]', $status['last_error'], 'the failing resource key is named' );
 		$this->assertTrue( LiveCache::degraded() );
 
 		// The ring buffer holds the request trail (no table in Lite).
@@ -685,6 +686,275 @@ final class LiteModeTest extends TestCase {
 
 		$healthy = Components::render( 'upcoming-sessions', [] );
 		$this->assertStringNotContainsString( 'administrators only', $healthy );
+	}
+
+	// -- Empty-state diagnosis (the "why is my block empty" report). -----------
+
+	public function test_switching_to_lite_seeds_display_events_from_enabled_synced_events(): void {
+		update_option( Options::CONNECTIONS, [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		update_option(
+			Options::SYNCED_EVENTS,
+			[
+				'c1|101' => [ 'enabled' => 1 ],
+				'c1|102' => [ 'enabled' => 0 ],
+			]
+		);
+
+		Mode::switch_to_lite( false );
+
+		$this->assertSame( [ 'c1|101' ], (array) Options::setting( 'lite_events' ), 'enabled synced events become the Lite display list' );
+	}
+
+	public function test_empty_lite_block_carries_a_diagnosis_for_admins(): void {
+		// Lite with a connection but no display events chosen: the classic
+		// switched-from-settings trap.
+		update_option( Options::CONNECTIONS, [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		Options::update_settings(
+			[
+				'mode'        => 'lite',
+				'mode_chosen' => 1,
+				'lite_events' => [],
+			]
+		);
+		Repositories::reset();
+
+		$html = Components::render( 'upcoming-sessions', [] );
+
+		$this->assertStringContainsString( 'New sessions are announced soon.', $html, 'visitors still get the polite empty state' );
+		$this->assertStringContainsString( 'No events are chosen to display', $html, 'admins get the reason' );
+		$this->assertStringContainsString( 'Choose events', $html );
+	}
+
+	public function test_diagnosis_names_each_pipeline_stage(): void {
+		$this->go_lite();
+
+		$repo = Repositories::current();
+		$this->assertInstanceOf( LiveRepository::class, $repo );
+
+		// Configured event that the API does not return.
+		$this->mock_http( fn() => self::json_response( [ 'results' => [] ] ) );
+		$this->assertStringContainsString( 'could not be fetched', $repo->diagnose() );
+
+		// Event resolves but has no sessions.
+		remove_all_filters( 'pre_http_request' );
+		LiveCache::flush();
+		Repositories::reset();
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [] ] );
+				}
+
+				return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			}
+		);
+		$this->assertStringContainsString( 'returned no sessions', Repositories::current()->diagnose() );
+
+		// Sessions exist but are all past.
+		remove_all_filters( 'pre_http_request' );
+		LiveCache::flush();
+		Repositories::reset();
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'        => 501,
+									'title'     => 'Old session',
+									'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ),
+									'event'     => 101,
+								],
+							],
+						]
+					);
+				}
+
+				return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			}
+		);
+		$this->assertStringContainsString( 'none start in the future', Repositories::current()->diagnose() );
+
+		// Healthy pipeline: no diagnosis.
+		remove_all_filters( 'pre_http_request' );
+		LiveCache::flush();
+		Repositories::reset();
+		$this->mock_api();
+		$this->assertSame( '', Repositories::current()->diagnose() );
+	}
+
+	public function test_talks_filter_falls_back_to_event_id_parameter(): void {
+		$this->go_lite();
+		$this->mock_http(
+			function ( $url ) {
+				$this->requests[] = (string) $url;
+
+				// ?event= is ignored by this "API" (returns an unrelated
+				// event's talks); ?event_id= filters correctly.
+				if ( str_contains( (string) $url, 'talks/' ) && str_contains( (string) $url, 'event_id=101' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'        => 501,
+									'title'     => 'Filtered by event_id',
+									'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + 3600 ),
+									'event'     => 101,
+								],
+							],
+						]
+					);
+				}
+
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 999, 'title' => 'Other event talk', 'event' => 999 ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			}
+		);
+
+		$html = Components::render( 'upcoming-sessions', [] );
+
+		$this->assertStringContainsString( 'Filtered by event_id', $html );
+	}
+
+	public function test_nested_talks_route_serves_accounts_that_refuse_top_level( ): void {
+		// Verified live: events/ works but top-level talks/ answers 403;
+		// the same data is served nested under the event.
+		$this->go_lite();
+		$this->mock_http(
+			function ( $url ) {
+				$this->requests[] = (string) $url;
+
+				if ( str_contains( (string) $url, 'events/101/talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'        => 501,
+									'title'     => 'Nested-route session',
+									'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + 3600 ),
+									'event'     => 101,
+								],
+							],
+						]
+					);
+				}
+
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response( [ 'detail' => 'You do not have permission to perform this action.' ], 403 );
+				}
+
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'                          => 101,
+								'title'                       => 'Hub',
+								'event_url'                   => 'https://summit.example.com/hub/',
+								'_is_open_for_registrations'  => true,
+							],
+						],
+					]
+				);
+			}
+		);
+
+		$html = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( 'Nested-route session', $html );
+
+		// The working style is remembered: after a cache flush the next
+		// fetch leads with the nested route instead of re-trying 403s.
+		$this->requests = [];
+		LiveCache::flush();
+		Cache::flush();
+		LiveCache::reset_request_state();
+		Repositories::reset();
+
+		Components::render( 'upcoming-sessions', [] );
+
+		$talk_requests = array_values( array_filter( $this->requests, static fn( $u ): bool => str_contains( (string) $u, 'talks/' ) ) );
+		$this->assertNotEmpty( $talk_requests );
+		$this->assertStringContainsString( 'events/101/talks/', (string) $talk_requests[0], 'nested route tried first once learnt' );
+		$this->assertCount( 1, $talk_requests, 'no wasted calls on refused routes' );
+	}
+
+	public function test_underscore_prefixed_open_flag_is_recognised(): void {
+		// Verified live: the events resource exposes
+		// _is_open_for_registrations (leading underscore).
+		$this->go_lite();
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [] ] );
+				}
+
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'                          => 101,
+								'title'                       => 'Evergreen hub',
+								'event_url'                   => 'https://summit.example.com/hub/',
+								'is_evergreen'                => true,
+								'_is_open_for_registrations'  => true,
+							],
+						],
+					]
+				);
+			}
+		);
+
+		$events = Repositories::current()->upcoming_events( [] );
+
+		$this->assertCount( 1, $events, 'an open evergreen event is upcoming — the underscore flag must be read' );
+		$this->assertTrue( (bool) $events[0]['open'] );
+	}
+
+	public function test_configured_event_beyond_the_first_page_is_fetched_directly(): void {
+		$this->go_lite();
+		$this->mock_http(
+			function ( $url ) {
+				$this->requests[] = (string) $url;
+
+				if ( str_contains( (string) $url, 'events/101/' ) ) {
+					return self::json_response(
+						[
+							'id'        => 101,
+							'title'     => 'Second-page hub',
+							'event_url' => 'https://summit.example.com/hub/',
+						]
+					);
+				}
+
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'        => 501,
+									'title'     => 'Deep-page session',
+									'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + 3600 ),
+									'event'     => 101,
+								],
+							],
+						]
+					);
+				}
+
+				// The events collection page does NOT contain event 101.
+				return self::json_response( [ 'results' => [ [ 'id' => 999, 'title' => 'Unrelated' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			}
+		);
+
+		// Budget: collection + targeted event + talks = 3 fetches; allow them.
+		add_filter( 'eex_live_budget', static fn() => 5 );
+
+		$html = Components::render( 'upcoming-sessions', [] );
+
+		$this->assertStringContainsString( 'Deep-page session', $html );
 	}
 
 	// -- Cache-stuffing guards. -------------------------------------------------

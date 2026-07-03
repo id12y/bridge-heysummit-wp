@@ -65,11 +65,25 @@ final class Mode {
 			}
 		}
 
+		// Seed the Lite display list from the events that were enabled for
+		// sync, so components keep showing the same events straight after
+		// the switch instead of an unexplained empty state.
+		$lite_events = array_values( array_filter( array_map( 'strval', (array) Options::setting( 'lite_events' ) ) ) );
+
+		if ( empty( $lite_events ) ) {
+			foreach ( Options::synced_events() as $key => $config ) {
+				if ( ! empty( $config['enabled'] ) ) {
+					$lite_events[] = (string) $key;
+				}
+			}
+		}
+
 		Options::update_settings(
 			[
 				'mode'           => 'lite',
 				'mode_chosen'    => 1,
 				'lite_archive'   => ( $keep_content && self::has_content() ) ? 1 : 0,
+				'lite_events'    => $lite_events,
 				'flush_rewrites' => 1,
 			]
 		);

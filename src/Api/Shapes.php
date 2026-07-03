@@ -25,41 +25,45 @@ final class Shapes {
 	 */
 	public const RESOURCES = [
 		'events'     => [
-			'id'                        => [ 'type' => 'int|string' ],
-			'title'                     => [ 'type' => 'string' ],
-			'event_url'                 => [
+			'id'                         => [ 'type' => 'int|string' ],
+			'title'                      => [ 'type' => 'string' ],
+			'event_url'                  => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'description'               => [
+			'description'                => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'timezone'                  => [
+			'timezone'                   => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'first_talk_at'             => [
+			'first_talk_at'              => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'last_talk_at'              => [
+			'last_talk_at'               => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'is_live'                   => [
+			'is_live'                    => [
 				'type'     => 'bool',
 				'optional' => true,
 			],
-			'is_archived'               => [
+			'is_archived'                => [
 				'type'     => 'bool',
 				'optional' => true,
 			],
-			'is_evergreen'              => [
+			'is_evergreen'               => [
 				'type'     => 'bool',
 				'optional' => true,
 			],
-			'is_open_for_registrations' => [
+			'is_open_for_registrations'  => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
+			'_is_open_for_registrations' => [
 				'type'     => 'bool',
 				'optional' => true,
 			],
@@ -67,7 +71,7 @@ final class Shapes {
 		'talks'      => [
 			'id'          => [ 'type' => 'int|string' ],
 			'title'       => [ 'type' => 'string' ],
-			'description' => [
+			'date'        => [
 				'type'     => 'string',
 				'optional' => true,
 			],
@@ -76,14 +80,6 @@ final class Shapes {
 				'optional' => true,
 			],
 			'ends_at'     => [
-				'type'     => 'string',
-				'optional' => true,
-			],
-			'talk_url'    => [
-				'type'     => 'string',
-				'optional' => true,
-			],
-			'replay_url'  => [
 				'type'     => 'string',
 				'optional' => true,
 			],
@@ -99,50 +95,54 @@ final class Shapes {
 				'type'     => 'array',
 				'optional' => true,
 			],
+			'is_active'   => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
+			'is_featured' => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
 		],
 		'speakers'   => [
-			'id'         => [ 'type' => 'int|string' ],
-			'name'       => [
+			'id'            => [ 'type' => 'int|string' ],
+			'first_name'    => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'first_name' => [
+			'last_name'     => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'last_name'  => [
+			'name'          => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'headline'   => [
+			'company'       => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'bio'        => [
+			'company_title' => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'company'    => [
+			'expert_creds'  => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'email'      => [
+			'headshot'      => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'avatar'     => [
-				'type'     => 'string|array',
-				'optional' => true,
-			],
-			'photo_url'  => [
+			'bio'           => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'links'      => [
-				'type'     => 'array',
+			'is_active'     => [
+				'type'     => 'bool',
 				'optional' => true,
 			],
-			'event'      => [
+			'event'         => [
 				'type'     => 'int|string|array',
 				'optional' => true,
 			],

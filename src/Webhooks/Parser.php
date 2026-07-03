@@ -108,7 +108,7 @@ final class Parser {
 		}
 
 		if ( '' === $raw ) {
-			return '';
+			return self::infer_action( $payload );
 		}
 
 		if ( str_contains( $raw, 'checkout' ) || str_contains( $raw, 'complete' ) || str_contains( $raw, 'purchase' ) ) {
@@ -120,6 +120,31 @@ final class Parser {
 		}
 
 		if ( str_contains( $raw, 'regist' ) || str_contains( $raw, 'start' ) || str_contains( $raw, 'attendee' ) ) {
+			return self::ACTION_STARTED;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Infer the action from the documented payload shapes when no action
+	 * key travels in the body (the OpenAPI spec's outbound webhook examples
+	 * carry none): checkout has paid_at/ticket_purchases, talk-added has
+	 * talk_id plus attendee_* fields, registration-started has
+	 * registration_status/registration_answers.
+	 *
+	 * @param array<string,mixed> $payload Raw payload.
+	 */
+	private static function infer_action( array $payload ): string {
+		if ( isset( $payload['paid_at'] ) || isset( $payload['ticket_purchases'] ) ) {
+			return self::ACTION_CHECKOUT;
+		}
+
+		if ( isset( $payload['talk_id'] ) && ( isset( $payload['attendee_id'] ) || isset( $payload['attendee_email'] ) ) ) {
+			return self::ACTION_TALK_ADDED;
+		}
+
+		if ( isset( $payload['registration_status'] ) || isset( $payload['registration_answers'] ) ) {
 			return self::ACTION_STARTED;
 		}
 
@@ -144,6 +169,20 @@ final class Parser {
 		if ( isset( $payload['data'] ) && is_array( $payload['data'] ) && ! array_is_list( $payload['data'] ) ) {
 			$candidates[] = $payload['data'];
 		}
+		// The talk-added payload prefixes every attendee field; check it
+		// before the flat shape, which would otherwise half-match.
+		if ( isset( $payload['attendee_id'] ) || isset( $payload['attendee_email'] ) ) {
+			$candidates[] = [
+				'id'         => $payload['attendee_id'] ?? null,
+				'email'      => $payload['attendee_email'] ?? ( $payload['email'] ?? '' ),
+				'name'       => $payload['attendee_name'] ?? ( $payload['name'] ?? '' ),
+				'created_at' => $payload['attendee_created_at'] ?? '',
+				'event_id'   => $payload['event_id'] ?? '',
+				'utm_source' => $payload['utm_source'] ?? '',
+				'tickets'    => $payload['tickets'] ?? null,
+			];
+		}
+
 		$candidates[] = $payload; // Flat shape.
 
 		foreach ( $candidates as $candidate ) {

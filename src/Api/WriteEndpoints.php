@@ -11,20 +11,25 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * The single place that defines which HeySummit endpoints may ever be
- * written to. The amended hard rule: no writes to the HeySummit API except
- * the WooCommerce module's attendee-create and external-ticket-sale-import
- * calls. HeySummitClient::post() consults this list and throws for anything
- * else — including every other resource the read side knows about (events,
- * talks, speakers, categories) and the event archive action.
+ * written to. The hard rule (v2, re-verified against the published OpenAPI
+ * spec — docs/decisions.md D45): the only sanctioned writes are attendee
+ * create and ticket assignment. In the real v2 API those live at
+ * POST events/<id>/attendees/ and the documented-idempotent
+ * POST events/<id>/attendees/<pk>/tickets/; the originally assumed
+ * external-ticket-sales endpoint does not exist. HeySummitClient::post()
+ * consults this list and throws for anything else — including event
+ * create/update (which the spec exposes and this plugin must never touch),
+ * every other resource, and anything with traversal or query noise.
  */
 final class WriteEndpoints {
 
 	/**
-	 * Allowed write path prefixes, relative to the API base.
+	 * Allowed write paths, as anchored patterns over the relative path.
+	 * Numeric IDs only; no other segments; nothing else matches.
 	 */
 	public const ALLOWLIST = [
-		'attendees/',
-		'external-ticket-sales/',
+		'#^events/\d+/attendees/$#',
+		'#^events/\d+/attendees/\d+/tickets/$#',
 	];
 
 	/**
@@ -40,8 +45,8 @@ final class WriteEndpoints {
 			return false;
 		}
 
-		foreach ( self::ALLOWLIST as $prefix ) {
-			if ( str_starts_with( $path, $prefix ) ) {
+		foreach ( self::ALLOWLIST as $pattern ) {
+			if ( 1 === preg_match( $pattern, $path ) ) {
 				return true;
 			}
 		}

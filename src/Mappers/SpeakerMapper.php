@@ -34,7 +34,7 @@ final class SpeakerMapper extends BaseMapper {
 
 		// Photo: candidate fields, string or {url: …}. First match wins (see docs/decisions.md D5).
 		$photo_url = '';
-		foreach ( [ 'avatar', 'photo_url', 'photo', 'avatar_url', 'image' ] as $field ) {
+		foreach ( [ 'headshot', 'avatar', 'photo_url', 'photo', 'avatar_url', 'image' ] as $field ) {
 			if ( isset( $raw[ $field ] ) ) {
 				$photo_url = self::url_of( $raw[ $field ] );
 				if ( '' !== $photo_url ) {
@@ -66,7 +66,7 @@ final class SpeakerMapper extends BaseMapper {
 		return [
 			'hs_id'       => $hs_id,
 			'name'        => $name,
-			'headline'    => self::str( $raw, [ 'headline', 'title', 'job_title', 'position' ] ),
+			'headline'    => self::str( $raw, [ 'headline', 'company_title', 'expert_creds', 'title', 'job_title', 'position' ] ),
 			'bio'         => self::str( $raw, [ 'bio', 'description', 'about' ] ),
 			'company'     => self::str( $raw, [ 'company', 'organisation', 'organization' ] ),
 			'email'       => $email,

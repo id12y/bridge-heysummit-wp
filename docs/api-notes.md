@@ -122,3 +122,63 @@ already/exists/unique/duplicate in the body) are treated as success and
 recorded; no ticket import follows for a pre-existing attendee. Verify the
 resolved method in the diagnostics panel after Test connection and override
 with the `eex_ticket_assignment_method` filter if the live API differs.
+
+
+## Live verification findings (first real account)
+
+The first live discovery run (Lite-only install) verified:
+
+- `events/` matches the assumed shape, with extras: `url` (the record's
+  own API URL — DRF hyperlinked style), `company_name`, `logo`,
+  `logo_white`, `feature_image`, inline `categories`/`tags`, `status`,
+  and **`_is_open_for_registrations` with a leading underscore** (the
+  mappers now accept both spellings).
+- **Top-level collection routes other than `events/` answered HTTP 403**
+  (`talks/`, `speakers/`, `categories/`, `tickets/`, `attendees/`, and
+  OPTIONS on both write endpoints) even though the key is valid. The
+  same data is served nested under the event
+  (`events/<id>/talks/`, `events/<id>/tickets/`). All talk/ticket
+  fetchers now negotiate three route styles — `talks/?event=`,
+  `talks/?event_id=`, `events/<id>/talks/` — and remember the working
+  style per connection (`Api\PathStyles`); the discovery panel samples
+  the nested route before reporting an error.
+- Whether the write endpoints accept POST despite refusing OPTIONS is
+  still unverified — the first sandbox WooCommerce order will tell.
+
+
+## Reconciled against the published OpenAPI 3.1 spec
+
+The operator supplied the actual HeySummit v2 OpenAPI document; every
+assumption has been reconciled (docs/decisions.md D45):
+
+- **All resources are event-nested**: `events/<id>/talks|speakers|
+  categories|tickets|attendees|talkattendees/`. No top-level collections
+  besides `events/` and `webhooks/`. Fetchers default to nested first.
+- **Talks carry `date`** (a single date-time; no end time — the +1h
+  default applies everywhere an end is needed), inline full `speakers`
+  and `categories` objects, `is_active` (respected: inactive = removed
+  from the site) and `is_featured`.
+- **Speakers**: `first_name`/`last_name`, `headshot`, `company`,
+  `company_title`, `expert_creds`, `bio`, `is_active`. No email.
+- **Attendees**: `http_referer_domain` and `referer_ref` (not
+  `http_referer`); `talks` is a list of IDs; no tickets field.
+- **Writes**: attendee create is `POST events/<id>/attendees/`
+  (`email`, `name`, optional `ticket_price_id`, optional `questions`);
+  ticket assignment for an existing attendee is the documented-idempotent
+  `POST events/<id>/attendees/<pk>/tickets/` (`ticket_price_id`).
+  **`external-ticket-sales/` does not exist** — the v2 API cannot record
+  off-platform sale amounts; they stay on the WooCommerce order. The
+  allowlist holds exactly these two patterns; the spec also exposes
+  create/update/delete on events, talks, speakers, categories, attendees
+  and webhook subscriptions — all structurally unreachable.
+- **The mapped value is a ticket PRICE id** (`ticket_price_id`), not a
+  ticket id. The mapping UI expands `Ticket.prices` when the payload
+  allows and labels unexpanded rows so the operator can confirm the ID.
+- **Outbound webhook payloads carry no action key in the body**; the
+  parser now infers the action from documented shapes (checkout has
+  `paid_at`/`ticket_purchases`; talk-added has `talk_id` plus
+  `attendee_*`-prefixed fields; registration-started has
+  `registration_status`/`registration_answers`).
+- The API also documents webhook-subscription management
+  (`GET/POST webhooks/`); the plugin only ever needs the manual setup in
+  HeySummit's UI and does not write there (outside the allowlist).

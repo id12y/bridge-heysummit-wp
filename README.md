@@ -6,7 +6,7 @@ content), and receives HeySummit registration webhooks for a live counter,
 notifications and an attribution log.
 
 - **Read-only against HeySummit** apart from the WooCommerce bridge's two
-  allowlisted endpoints (attendee create, external ticket sale import) —
+  allowlisted endpoints (attendee create, idempotent ticket attach) —
   enforced in code, see the v2 section. No front-end page load ever calls
   HeySummit.
 - Works with **no API key, no Elementor and the API unreachable**: all
@@ -380,7 +380,9 @@ optional "listings only" mode noindexes the plugin pages.
 ## WooCommerce → HeySummit bridge (optional)
 
 Sell tickets in WooCommerce; each consented, completed purchase becomes a
-HeySummit attendee with an imported external ticket sale (the API's
+HeySummit attendee with the mapped ticket price assigned in the create
+call (the v2 API has no off-platform sale import — amounts stay on the
+order; formerly described here as an external ticket sale, the API's
 off-platform flow, avoiding HeySummit's transaction fee).
 
 - Map a product (or variation) on its edit screen: HeySummit tab →
@@ -401,7 +403,8 @@ off-platform flow, avoiding HeySummit's transaction fee).
 - Refunds: attendee removal is outside the write allowlist, so a full
   refund adds a manual-removal note/notice and fires `eex_woo_refunded`.
 - **Write allowlist**: the client can only ever POST to
-  `attendees/` and `external-ticket-sales/` (defined once in
+  `events/<id>/attendees/` and `events/<id>/attendees/<pk>/tickets/`
+  (anchored patterns, defined once in
   `Api\WriteEndpoints`); anything else throws. Discovery verifies both
   write shapes via OPTIONS — nothing is created during discovery.
 - Attribution rows from Woo pushes carry the order ID and dedupe against
@@ -536,7 +539,7 @@ weekly numbers and the digest.
 
 Resolved at runtime from the discovery diagnostic (see
 `docs/api-notes.md`): ticket in the create body when the API supports it,
-otherwise a zero-amount external ticket sale import, otherwise the attendee
+otherwise the documented-idempotent ticket attach, otherwise the attendee
 is registered without a ticket and a warning names the intended ticket in
 the log and diagnostics panel. No new write endpoints: the v2 allowlist
 (attendee create + ticket import) is unchanged and still enforced in code.

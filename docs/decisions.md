@@ -447,3 +447,55 @@ hooks were missing from the lists entirely. `Install\Cron` now holds the
 single inventory of every scheduled hook; deactivation, uninstall and the
 Lite switch clear through wp_unschedule_hook(), and the Lite switch
 deliberately keeps Woo push jobs (the bridge runs in both modes).
+
+## D43. Empty Lite components diagnose themselves
+
+The reported field failure: Lite's upcoming-sessions block rendered the
+polite empty state with no way to tell why. Three causes closed:
+(1) switching Full → Lite never populated the display list — it now
+seeds `lite_events` from the events that were enabled for sync;
+(2) two live-API assumptions made robust: a configured event missing
+from the first collection page gets a targeted cached `events/<id>/`
+fetch, and the talks filter tries `?event=` then falls back to
+`?event_id=` (the sync engine's order), detecting unfiltered responses;
+(3) `LiveRepository::diagnose()` walks the pipeline (no events chosen →
+no keyed connection → event unfetchable → no sessions → none upcoming)
+and reports the first gap — shown on the dashboard widget and appended
+to empty components as the admin-only, uncached HTML comment. Visitors
+always keep the plain empty state.
+
+
+## D44. Routes are negotiated and remembered per connection
+
+Live verification (docs/api-notes.md) found an account where every
+top-level collection route except `events/` answers 403, with the data
+served nested under the event instead, and the open-registrations flag
+spelt `_is_open_for_registrations`. Rather than hardcoding the newly
+observed variant (other accounts may serve the original shape), the
+talk/ticket fetchers try all known route styles and `Api\PathStyles`
+remembers the working one per connection, so steady-state traffic never
+burns calls on refused routes. `boolish()` accepts candidate key lists
+for the underscore variant, and the discovery panel samples the nested
+route before reporting a top-level 403 as an error.
+
+
+## D45. The write allowlist follows the real API: create + idempotent attach
+
+The published OpenAPI spec shows the v2 API has no external-ticket-sales
+endpoint and no top-level attendees route: attendee create is
+POST events/<id>/attendees/ (with optional ticket_price_id in the body)
+and ticket assignment for an existing attendee is the
+documented-idempotent POST events/<id>/attendees/<pk>/tickets/. The
+allowlist now holds exactly those two anchored patterns — the same two
+sanctioned operations as the v2 hard rule (attendee create + ticket
+assignment), at their real addresses — and rejects everything else the
+spec exposes, including event/talk/speaker/category create-update-delete
+and webhook-subscription management. Consequences: one POST per push on
+the happy path; "already exists" recovers by finding the attendee via the
+documented ?email= filter and attaching the ticket idempotently
+(supersedes D31's no-assignment caution, which applied to the sale
+import); order amounts cannot be recorded on HeySummit and stay on the
+WooCommerce order; the mapped value is a ticket PRICE id and the UI says
+so. Talks use `date` with no end time; inactive talks/speakers are
+respected; webhook actions are inferred from documented payload shapes
+when no action key travels.

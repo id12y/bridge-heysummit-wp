@@ -118,12 +118,18 @@ final class WooBridgeTest extends TestCase {
 	public function test_write_allowlist_rejects_everything_else(): void {
 		$client = new HeySummitClient( 'k', 'c1' );
 
-		$this->assertTrue( WriteEndpoints::allowed( 'attendees/' ) );
-		$this->assertTrue( WriteEndpoints::allowed( 'external-ticket-sales/' ) );
-		$this->assertFalse( WriteEndpoints::allowed( 'events/' ) );
-		$this->assertFalse( WriteEndpoints::allowed( 'events/101/archive/' ) );
-		$this->assertFalse( WriteEndpoints::allowed( 'talks/' ) );
-		$this->assertFalse( WriteEndpoints::allowed( 'attendees/../events/' ) );
+		$this->assertTrue( WriteEndpoints::allowed( 'events/101/attendees/' ), 'attendee create' );
+		$this->assertTrue( WriteEndpoints::allowed( 'events/101/attendees/55001/tickets/' ), 'idempotent ticket attach' );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/' ), 'event create is exposed by the API and must never be reachable' );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/' ), 'event update likewise' );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/talks/' ), 'talk create likewise' );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/speakers/' ) );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/categories/' ) );
+		$this->assertFalse( WriteEndpoints::allowed( 'webhooks/' ) );
+		$this->assertFalse( WriteEndpoints::allowed( 'attendees/' ), 'the v1-era top-level route no longer exists' );
+		$this->assertFalse( WriteEndpoints::allowed( 'external-ticket-sales/' ), 'never existed in v2' );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/attendees/?x=1' ) );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/attendees/../../events/' ) );
 
 		$this->expectException( \InvalidArgumentException::class );
 		$client->post( 'events/101/archive/', [] );
@@ -141,24 +147,18 @@ final class WooBridgeTest extends TestCase {
 		$this->run_queue( $pusher );
 
 		$attendee_calls = array_filter( $this->posts, static fn( $p ) => str_contains( $p['url'], 'attendees/' ) );
-		$ticket_calls   = array_filter( $this->posts, static fn( $p ) => str_contains( $p['url'], 'external-ticket-sales/' ) );
 
 		$this->assertCount( 1, $attendee_calls, 'exactly one attendee-create' );
-		$this->assertCount( 1, $ticket_calls, 'exactly one ticket import' );
+		$this->assertCount( 1, $this->posts, 'one POST total: the ticket price rides in the create body (spec)' );
 
-		// Correct data in both calls.
-		$attendee_body = array_values( $attendee_calls )[0]['body'];
+		$attendee_call = array_values( $attendee_calls )[0];
+		$this->assertStringContainsString( 'events/101/attendees/', $attendee_call['url'], 'the spec-documented nested route' );
+
+		$attendee_body = $attendee_call['body'];
 		$this->assertSame( 'Test Buyer', $attendee_body['name'] );
 		$this->assertSame( 'buyer@example.org', $attendee_body['email'] );
-		$this->assertSame( '101', $attendee_body['event'] );
-
-		$ticket_body = array_values( $ticket_calls )[0]['body'];
-		$this->assertSame( '55001', $ticket_body['attendee'] );
-		$this->assertSame( 'T-1', $ticket_body['ticket'] );
-		$this->assertSame( '120.00', $ticket_body['amount_gross'] );
-		$this->assertSame( '100.00', $ticket_body['amount_net'] );
-		$this->assertSame( 'GBP', $ticket_body['currency'] );
-		$this->assertSame( '501', $ticket_body['order_reference'] );
+		$this->assertSame( 'T-1', $attendee_body['ticket_price_id'] );
+		$this->assertArrayNotHasKey( 'event', $attendee_body, 'the event travels in the path, not the body' );
 
 		// Attendee ID stored on the item; note added; hook fired.
 		$this->assertSame( '55001', (string) wc_get_order_item_meta( $fixture['item_id'], '_eex_hs_attendee_id', true ) );

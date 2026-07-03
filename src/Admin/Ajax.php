@@ -98,15 +98,12 @@ final class Ajax {
 			}
 
 			$sessions = '';
-			$page     = $client->get(
-				'talks/',
-				[
-					'event'     => (string) $event['id'],
-					'page_size' => 1,
-				]
-			);
-			if ( ! is_wp_error( $page ) && isset( $page['count'] ) ) {
-				$sessions = (string) (int) $page['count'];
+			foreach ( \Emailexpert\Events\Api\TalkRoutes::requests( (string) $event['id'] ) as $route ) {
+				$page = $client->get( $route[0], $route[1] + [ 'page_size' => 1 ] );
+				if ( ! is_wp_error( $page ) && isset( $page['count'] ) ) {
+					$sessions = (string) (int) $page['count'];
+					break;
+				}
 			}
 
 			$list[] = [

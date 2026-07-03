@@ -33,12 +33,16 @@ final class Discovery {
 			$report[ $resource ] = self::inspect_resource( $client, $resource );
 		}
 
-		// Write shapes for the WooCommerce bridge: DRF describes the POST
-		// body under actions.POST on an OPTIONS request — safe, nothing is
-		// created. Recorded so the request builders can be verified against
-		// the live API before any order is pushed.
-		foreach ( \Emailexpert\Events\Api\WriteEndpoints::ALLOWLIST as $write_path ) {
-			$report[ 'write:' . rtrim( $write_path, '/' ) ] = self::inspect_write_shape( $client, $write_path );
+		// Write shape for the attendee-create endpoint: DRF describes the
+		// POST body under actions.POST on an OPTIONS request — safe, nothing
+		// is created. The allowlist entries are patterns needing a real
+		// event ID; the ticket attach endpoint additionally needs an
+		// attendee ID, so only create is sampled (its body is spec-verified:
+		// email, name, ticket_price_id, questions).
+		$sample_event = self::sample_event_id( $client );
+
+		if ( '' !== $sample_event ) {
+			$report['write:attendees'] = self::inspect_write_shape( $client, 'events/' . rawurlencode( $sample_event ) . '/attendees/' );
 		}
 
 		update_option( 'eex_discovery_' . sanitize_key( $connection_id ), $report, false );
@@ -129,6 +133,23 @@ final class Discovery {
 		$expected = Shapes::RESOURCES[ $resource_slug ];
 		$response = $client->get( $resource_slug . '/' );
 
+		// Some accounts refuse top-level collection routes (403) but serve
+		// the same resources nested under an event (DRF hyperlinked style,
+		// verified live). Sample the nested route before reporting an error.
+		if ( is_wp_error( $response ) && in_array( $resource_slug, [ 'talks', 'speakers', 'categories', 'tickets' ], true ) ) {
+			$event_id = self::sample_event_id( $client );
+
+			if ( '' !== $event_id ) {
+				$nested = $client->get( 'events/' . rawurlencode( $event_id ) . '/' . $resource_slug . '/' );
+
+				if ( ! is_wp_error( $nested ) ) {
+					$report         = self::compare_sample( $nested, $expected );
+					$report['note'] = sprintf( 'Top-level %1$s/ refused (%2$s); served nested under events/<id>/%1$s/ instead — the plugin uses the nested route on this connection.', $resource_slug, $response->get_error_message() );
+					return $report;
+				}
+			}
+		}
+
 		if ( is_wp_error( $response ) ) {
 			return [
 				'error'         => $response->get_error_message(),
@@ -138,6 +159,35 @@ final class Discovery {
 				'type_mismatch' => [],
 			];
 		}
+
+		return self::compare_sample( $response, $expected );
+	}
+
+	/**
+	 * The first event ID visible on the connection (for nested sampling).
+	 *
+	 * @param HeySummitClient $client Client.
+	 */
+	private static function sample_event_id( HeySummitClient $client ): string {
+		$events = $client->get( 'events/' );
+
+		if ( is_wp_error( $events ) ) {
+			return '';
+		}
+
+		$first = isset( $events['results'][0] ) && is_array( $events['results'][0] ) ? $events['results'][0] : null;
+
+		return null !== $first && isset( $first['id'] ) && is_scalar( $first['id'] ) ? (string) $first['id'] : '';
+	}
+
+	/**
+	 * Compare a collection response's first record against expected fields.
+	 *
+	 * @param array<string,mixed>               $response Decoded response.
+	 * @param array<string,array<string,mixed>> $expected Expected fields.
+	 * @return array<string,mixed>
+	 */
+	private static function compare_sample( array $response, array $expected ): array {
 
 		$sample = null;
 		if ( isset( $response['results'] ) && is_array( $response['results'] ) && ! empty( $response['results'] ) ) {

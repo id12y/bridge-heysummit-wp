@@ -91,9 +91,8 @@ final class SyncEngineTest extends TestCase {
 		];
 
 		$this->mock_http( function ( $url ) {
-			if ( str_contains( $url, 'events/101/' ) ) {
-				return self::json_response( $this->api['event'] );
-			}
+			// Specific routes first: the nested talks/categories/speakers
+			// URLs also contain the event-detail prefix.
 			if ( str_contains( $url, 'categories/' ) ) {
 				return self::json_response( [ 'results' => $this->api['categories'] ] );
 			}
@@ -102,6 +101,9 @@ final class SyncEngineTest extends TestCase {
 			}
 			if ( str_contains( $url, 'speakers/' ) ) {
 				return self::json_response( [ 'results' => $this->api['speakers'] ] );
+			}
+			if ( str_contains( $url, 'events/101/' ) ) {
+				return self::json_response( $this->api['event'] );
 			}
 
 			return self::json_response( [ 'results' => [] ] );
