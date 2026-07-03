@@ -10,6 +10,7 @@ namespace Emailexpert\Events\Admin;
 use Emailexpert\Events\Api\Discovery;
 use Emailexpert\Events\Options;
 use Emailexpert\Events\Sync\Scheduler;
+use Emailexpert\Events\Admin\Digest;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -108,6 +109,8 @@ final class SettingsPage {
 
 				<?php submit_button( __( 'Save settings', 'emailexpert-events' ) ); ?>
 			</form>
+
+			<?php self::render_export_import(); ?>
 		</div>
 		<?php
 	}
@@ -439,6 +442,56 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><?php esc_html_e( 'Outbound relay', 'emailexpert-events' ); ?></th>
+				<td>
+					<p class="description"><?php esc_html_e( 'Forward each processed, verified action as JSON to these URLs (n8n, Make, an ESP). Attendee emails are relayed as hashes only.', 'emailexpert-events' ); ?></p>
+					<table class="widefat striped" id="eex-relay-urls" style="max-width:780px">
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'URL', 'emailexpert-events' ); ?></th>
+								<th><?php esc_html_e( 'Shared secret header', 'emailexpert-events' ); ?></th>
+								<th><?php esc_html_e( 'Actions', 'emailexpert-events' ); ?></th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php
+							$eex_relays   = array_values( array_filter( (array) get_option( 'eex_relay_urls', [] ), 'is_array' ) );
+							$eex_relays[] = [
+								'url'     => '',
+								'secret'  => '',
+								'actions' => [ 'checkout_complete', 'registration_started', 'talk_added' ],
+							];
+							foreach ( $eex_relays as $eex_i => $eex_relay ) :
+								?>
+								<tr>
+									<td><input type="url" class="regular-text" name="relays[<?php echo (int) $eex_i; ?>][url]" value="<?php echo esc_attr( (string) ( $eex_relay['url'] ?? '' ) ); ?>" placeholder="https://" /></td>
+									<td><input type="text" name="relays[<?php echo (int) $eex_i; ?>][secret]" value="<?php echo esc_attr( (string) ( $eex_relay['secret'] ?? '' ) ); ?>" autocomplete="off" /></td>
+									<td>
+										<?php
+										foreach ( [
+											'checkout_complete' => __( 'Checkout', 'emailexpert-events' ),
+											'registration_started' => __( 'Started', 'emailexpert-events' ),
+											'talk_added' => __( 'Talk added', 'emailexpert-events' ),
+										] as $eex_action => $eex_label ) :
+											?>
+											<label><input type="checkbox" name="relays[<?php echo (int) $eex_i; ?>][actions][]" value="<?php echo esc_attr( $eex_action ); ?>" <?php checked( in_array( $eex_action, (array) ( $eex_relay['actions'] ?? [] ), true ) ); ?> /> <?php echo esc_html( $eex_label ); ?></label>
+										<?php endforeach; ?>
+									</td>
+									<td>
+										<?php if ( '' !== (string) ( $eex_relay['url'] ?? '' ) ) : ?>
+											<button type="button" class="button eex-relay-test" data-index="<?php echo (int) $eex_i; ?>"><?php esc_html_e( 'Send test payload', 'emailexpert-events' ); ?></button>
+											<span class="eex-inline-result" aria-live="polite"></span>
+										<?php endif; ?>
+									</td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+					<p class="description"><?php esc_html_e( 'Leave a URL blank to remove its row on save.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><?php esc_html_e( 'Capture mode', 'emailexpert-events' ); ?></th>
 				<td>
 					<label><input type="checkbox" name="settings[wh_capture]" value="1" <?php checked( (bool) Options::setting( 'wh_capture' ) ); ?> /> <?php esc_html_e( 'Store complete raw payloads in the log (flagged capture) for parser verification', 'emailexpert-events' ); ?></label>
@@ -497,6 +550,27 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><?php esc_html_e( 'UTM auto-tagging', 'emailexpert-events' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="settings[utm_enabled]" value="1" <?php checked( (bool) Options::setting( 'utm_enabled' ) ); ?> /> <?php esc_html_e( 'Append UTM parameters to HeySummit register and event links (active once a source is set)', 'emailexpert-events' ); ?></label><br />
+					<label><?php esc_html_e( 'Source', 'emailexpert-events' ); ?> <input type="text" name="settings[utm_source]" value="<?php echo esc_attr( (string) Options::setting( 'utm_source' ) ); ?>" placeholder="emailexpert.com" /></label>
+					<label><?php esc_html_e( 'Medium', 'emailexpert-events' ); ?> <input type="text" name="settings[utm_medium]" value="<?php echo esc_attr( (string) Options::setting( 'utm_medium' ) ); ?>" placeholder="web" /></label>
+					<p class="description"><?php esc_html_e( 'Campaign is set automatically from the rendering page slug; override per page with the _eex_utm_campaign custom field.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Page cache purging', 'emailexpert-events' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="settings[purge_enabled]" value="1" <?php checked( (bool) Options::setting( 'purge_enabled' ) ); ?> /> <?php esc_html_e( 'Purge common page caches (WP Rocket, LiteSpeed, W3TC, Cloudflare) after syncs and counter changes', 'emailexpert-events' ); ?></label>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Weekly digest', 'emailexpert-events' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="settings[digest_enabled]" value="1" <?php checked( (bool) Options::setting( 'digest_enabled' ) ); ?> /> <?php esc_html_e( 'Email the admin a Monday summary (registrations by source, sessions, sync health)', 'emailexpert-events' ); ?></label>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><?php esc_html_e( 'Sync health', 'emailexpert-events' ); ?></th>
 				<td>
 					<label><input type="checkbox" name="settings[health_email]" value="1" <?php checked( (bool) Options::setting( 'health_email' ) ); ?> /> <?php esc_html_e( 'Email the admin after six consecutive failed sync runs', 'emailexpert-events' ); ?></label>
@@ -535,6 +609,7 @@ final class SettingsPage {
 		$this->save_connections();
 		$this->save_events();
 		$this->save_settings();
+		$this->save_relays();
 
 		// Cron on demand: reflects whether any event is enabled.
 		Scheduler::sync_schedule_state();
@@ -657,12 +732,68 @@ final class SettingsPage {
 				'health_email'          => empty( $posted['health_email'] ) ? 0 : 1,
 				'retention_months'      => max( 1, min( 120, (int) ( $posted['retention_months'] ?? 24 ) ) ),
 				'uninstall_delete'      => empty( $posted['uninstall_delete'] ) ? 0 : 1,
+				'utm_enabled'           => empty( $posted['utm_enabled'] ) ? 0 : 1,
+				'utm_source'            => sanitize_text_field( (string) ( $posted['utm_source'] ?? '' ) ),
+				'utm_medium'            => sanitize_text_field( (string) ( $posted['utm_medium'] ?? 'web' ) ),
+				'purge_enabled'         => empty( $posted['purge_enabled'] ) ? 0 : 1,
+				'digest_enabled'        => empty( $posted['digest_enabled'] ) ? 0 : 1,
 			]
 		);
+
+		Digest::sync_schedule_state();
 
 		// The attribution table exists from the moment webhooks are enabled.
 		if ( ! empty( $posted['wh_checkout'] ) || ! empty( $posted['wh_started'] ) || ! empty( $posted['wh_talk'] ) ) {
 			\Emailexpert\Events\Install\Tables::ensure_attribution();
 		}
+	}
+
+	/**
+	 * Persist the outbound relay targets.
+	 */
+	private function save_relays(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in save(); sanitised field-by-field below.
+		$posted = isset( $_POST['relays'] ) && is_array( $_POST['relays'] ) ? wp_unslash( $_POST['relays'] ) : null;
+
+		if ( null === $posted ) {
+			return; // Section not present in this submission.
+		}
+
+		$saved = [];
+		foreach ( $posted as $row ) {
+			if ( ! is_array( $row ) ) {
+				continue;
+			}
+			$url = esc_url_raw( (string) ( $row['url'] ?? '' ) );
+			if ( '' === $url ) {
+				continue; // Blank URL removes the row.
+			}
+			$saved[] = [
+				'url'     => $url,
+				'secret'  => sanitize_text_field( (string) ( $row['secret'] ?? '' ) ),
+				'actions' => array_values( array_intersect( array_map( 'sanitize_key', (array) ( $row['actions'] ?? [] ) ), [ 'checkout_complete', 'registration_started', 'talk_added' ] ) ),
+			];
+		}
+
+		update_option( 'eex_relay_urls', $saved, false );
+	}
+
+	/**
+	 * Export / import section rendered after the main form.
+	 */
+	public static function render_export_import(): void {
+		$export_url = wp_nonce_url( admin_url( 'admin-post.php?action=eex_export_settings' ), 'eex_export_settings' );
+		?>
+		<h2><?php esc_html_e( 'Settings export and import', 'emailexpert-events' ); ?></h2>
+		<p>
+			<a class="button" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export settings (JSON, no keys or secrets)', 'emailexpert-events' ); ?></a>
+		</p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data">
+			<input type="hidden" name="action" value="eex_import_preview" />
+			<?php wp_nonce_field( 'eex_import_settings' ); ?>
+			<input type="file" name="eex_import_file" accept="application/json" />
+			<?php submit_button( __( 'Preview import', 'emailexpert-events' ), 'secondary', '', false ); ?>
+		</form>
+		<?php
 	}
 }

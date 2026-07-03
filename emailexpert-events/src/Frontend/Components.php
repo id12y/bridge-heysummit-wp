@@ -81,6 +81,11 @@ final class Components {
 						'type'    => 'integer',
 						'default' => 1,
 					],
+					'q'          => [
+						'type'     => 'string',
+						'default'  => '',
+						'from_get' => 'eex_q',
+					],
 					'empty_text' => [
 						'type'    => 'string',
 						'default' => __( 'Session replays appear here after each session.', 'emailexpert-events' ),
@@ -206,6 +211,23 @@ final class Components {
 					],
 				],
 			],
+			'session-filter'    => [
+				'title' => __( 'Session filter bar', 'emailexpert-events' ),
+				'atts'  => [
+					'event'       => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'category'    => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'show_search' => [
+						'type'    => 'integer',
+						'default' => 1,
+					],
+				],
+			],
 			'reg-counter'       => [
 				'title' => __( 'Registration counter', 'emailexpert-events' ),
 				'atts'  => [
@@ -240,7 +262,11 @@ final class Components {
 
 		Assets::mark_needed();
 
-		$cached = Cache::get( $name, $atts );
+		// The cache key varies by UTM campaign context: rendered HTML embeds
+		// campaign-tagged URLs derived from the rendering page.
+		$cache_atts = $atts + [ '_ctx' => Utm::cache_context() ];
+
+		$cached = Cache::get( $name, $cache_atts );
 		if ( null !== $cached ) {
 			return $cached;
 		}
@@ -259,7 +285,7 @@ final class Components {
 		 */
 		$html = (string) apply_filters( 'eex_card_html', $html, $name, $atts );
 
-		Cache::set( $name, $atts, $html );
+		Cache::set( $name, $cache_atts, $html );
 
 		return $html;
 	}
@@ -276,6 +302,12 @@ final class Components {
 
 		foreach ( $schema as $key => $spec ) {
 			$value = $atts[ $key ] ?? $spec['default'];
+
+			// Some attributes (search query) may arrive via the query string
+			// so no-JS filtering works on cached-page links.
+			if ( ! empty( $spec['from_get'] ) && '' === (string) $value && isset( $_GET[ $spec['from_get'] ] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public read-only filter.
+				$value = sanitize_text_field( wp_unslash( $_GET[ $spec['from_get'] ] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised on this line.
+			}
 
 			$out[ $key ] = 'integer' === $spec['type']
 				? (int) $value
@@ -322,13 +354,13 @@ final class Components {
 			'description'   => (string) get_post_meta( $post_id, '_eex_description', true ),
 			'starts_at'     => (string) get_post_meta( $post_id, '_eex_starts_at', true ),
 			'ends_at'       => (string) get_post_meta( $post_id, '_eex_ends_at', true ),
-			'talk_url'      => (string) get_post_meta( $post_id, '_eex_talk_url', true ),
+			'talk_url'      => Utm::tag( (string) get_post_meta( $post_id, '_eex_talk_url', true ) ),
 			'replay_url'    => $replay,
 			'speakers'      => $speakers,
 			'categories'    => is_array( $categories ) ? $categories : [],
 			'event_post_id' => $event_post_id,
 			'timezone'      => $event_post_id > 0 ? (string) get_post_meta( $event_post_id, '_eex_timezone', true ) : '',
-			'event_url'     => $event_post_id > 0 ? (string) get_post_meta( $event_post_id, '_eex_event_url', true ) : '',
+			'event_url'     => Utm::tag( $event_post_id > 0 ? (string) get_post_meta( $event_post_id, '_eex_event_url', true ) : '' ),
 		];
 	}
 
@@ -392,11 +424,19 @@ final class Components {
 		ob_start();
 		echo '<ul class="eex-grid eex-talk-grid" role="list">';
 		foreach ( $ids as $id ) {
-			echo '<li class="eex-grid-item">';
+			$data = self::talk_data( $id );
+
+			// Filterable data attributes for the session filter bar.
+			printf(
+				'<li class="eex-grid-item" data-eex-title="%s" data-eex-cats="%s" data-eex-speakers="%s">',
+				esc_attr( strtolower( (string) $data['title'] ) ),
+				esc_attr( implode( ',', array_map( static fn( $term ): string => (string) $term->slug, (array) $data['categories'] ) ) ),
+				esc_attr( strtolower( implode( ',', array_map( static fn( array $s ): string => (string) $s['name'], (array) $data['speakers'] ) ) ) )
+			);
 			TemplateLoader::part(
 				'card-talk',
 				[
-					'data'    => self::talk_data( $id ),
+					'data'    => $data,
 					'context' => $context,
 				]
 			);
@@ -768,6 +808,71 @@ final class Components {
 			}
 			echo '</ul></section>';
 		}
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Session library filter bar: server-rendered category and speaker
+	 * links that work without JS; with JS, instant client-side filtering of
+	 * the rendered session list.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_session_filter( array $atts ): string {
+		$categories  = get_terms(
+			[
+				'taxonomy'   => Taxonomies::CATEGORY,
+				'hide_empty' => false,
+			]
+		);
+		$speaker_ids = Query::speakers( $atts + [ 'limit' => 0 ] );
+
+		ob_start();
+		echo '<div class="eex-filter-bar" data-eex-filter="1">';
+
+		if ( ! empty( $atts['show_search'] ) ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public read-only filter.
+			$current_q = isset( $_GET['eex_q'] ) ? sanitize_text_field( wp_unslash( $_GET['eex_q'] ) ) : '';
+			echo '<form class="eex-filter-search" method="get" role="search">';
+			printf(
+				'<label class="screen-reader-text" for="eex-filter-q">%s</label><input type="search" id="eex-filter-q" name="eex_q" value="%s" placeholder="%s" data-eex-filter-text="1" />',
+				esc_html__( 'Search sessions', 'emailexpert-events' ),
+				esc_attr( $current_q ),
+				esc_attr__( 'Search sessions…', 'emailexpert-events' )
+			);
+			printf( '<button type="submit" class="eex-cta-secondary">%s</button>', esc_html__( 'Search', 'emailexpert-events' ) );
+			echo '</form>';
+		}
+
+		if ( is_array( $categories ) && ! empty( $categories ) ) {
+			echo '<nav class="eex-filter-categories" aria-label="' . esc_attr__( 'Filter by category', 'emailexpert-events' ) . '">';
+			foreach ( $categories as $term ) {
+				$link = function_exists( 'get_term_link' ) ? get_term_link( $term ) : '';
+				printf(
+					'<a class="eex-badge" href="%s" data-eex-filter-cat="%s">%s</a> ',
+					esc_url( is_string( $link ) ? $link : '' ),
+					esc_attr( (string) $term->slug ),
+					esc_html( (string) $term->name )
+				);
+			}
+			echo '</nav>';
+		}
+
+		if ( ! empty( $speaker_ids ) ) {
+			echo '<nav class="eex-filter-speakers" aria-label="' . esc_attr__( 'Filter by speaker', 'emailexpert-events' ) . '">';
+			foreach ( $speaker_ids as $speaker_id ) {
+				printf(
+					'<a class="eex-chip" href="%s" data-eex-filter-speaker="%s">%s</a> ',
+					esc_url( (string) get_permalink( $speaker_id ) ),
+					esc_attr( strtolower( get_the_title( $speaker_id ) ) ),
+					esc_html( get_the_title( $speaker_id ) )
+				);
+			}
+			echo '</nav>';
+		}
+
+		echo '</div>';
 
 		return (string) ob_get_clean();
 	}

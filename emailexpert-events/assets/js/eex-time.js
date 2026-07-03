@@ -171,3 +171,80 @@
 		init();
 	}
 }() );
+
+/**
+ * Session filter bar: progressive enhancement. Without JS the category,
+ * speaker and search links work as ordinary links/forms; with JS they
+ * filter the rendered session grids instantly.
+ */
+( function () {
+	'use strict';
+
+	var bars = document.querySelectorAll( '[data-eex-filter]' );
+	if ( ! bars.length ) {
+		return;
+	}
+
+	var state = { cat: '', speaker: '', text: '' };
+
+	function applyFilters() {
+		document.querySelectorAll( '.eex-talk-grid > li[data-eex-title]' ).forEach( function ( item ) {
+			var show = true;
+			if ( state.cat ) {
+				var cats = ( item.getAttribute( 'data-eex-cats' ) || '' ).split( ',' );
+				show = show && -1 !== cats.indexOf( state.cat );
+			}
+			if ( state.speaker ) {
+				var speakers = ( item.getAttribute( 'data-eex-speakers' ) || '' ).split( ',' );
+				show = show && -1 !== speakers.indexOf( state.speaker );
+			}
+			if ( state.text ) {
+				show = show && -1 !== ( item.getAttribute( 'data-eex-title' ) || '' ).indexOf( state.text );
+			}
+			item.hidden = ! show;
+		} );
+	}
+
+	bars.forEach( function ( bar ) {
+		bar.addEventListener( 'click', function ( event ) {
+			var cat = event.target.closest( '[data-eex-filter-cat]' );
+			var speaker = event.target.closest( '[data-eex-filter-speaker]' );
+			if ( ! cat && ! speaker ) {
+				return;
+			}
+			event.preventDefault();
+
+			if ( cat ) {
+				var value = cat.getAttribute( 'data-eex-filter-cat' );
+				state.cat = state.cat === value ? '' : value;
+				bar.querySelectorAll( '[data-eex-filter-cat]' ).forEach( function ( link ) {
+					link.classList.toggle( 'eex-current', link === cat && state.cat === value );
+				} );
+			}
+			if ( speaker ) {
+				var name = speaker.getAttribute( 'data-eex-filter-speaker' );
+				state.speaker = state.speaker === name ? '' : name;
+				bar.querySelectorAll( '[data-eex-filter-speaker]' ).forEach( function ( link ) {
+					link.classList.toggle( 'eex-current', link === speaker && state.speaker === name );
+				} );
+			}
+			applyFilters();
+		} );
+
+		var text = bar.querySelector( '[data-eex-filter-text]' );
+		if ( text ) {
+			text.addEventListener( 'input', function () {
+				state.text = text.value.toLowerCase();
+				applyFilters();
+			} );
+			var form = text.closest( 'form' );
+			if ( form ) {
+				form.addEventListener( 'submit', function ( event ) {
+					event.preventDefault();
+					state.text = text.value.toLowerCase();
+					applyFilters();
+				} );
+			}
+		}
+	} );
+}() );

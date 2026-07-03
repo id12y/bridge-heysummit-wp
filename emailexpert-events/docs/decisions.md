@@ -220,3 +220,31 @@ A pushed sale inserts a completed attribution row tagged with the order ID
 create response. `Attribution::insert()` now dedupes completed rows on
 attendee ID + event, so the checkout-complete webhook HeySummit emits for
 the imported sale never double-counts, whichever side lands first.
+
+## D26. UTM tagging semantics
+
+Tagging is active only when enabled AND a source is configured ("on by
+default once configured"). Existing utm_* parameters on a URL are never
+overwritten. Campaign comes from the per-page `_eex_utm_campaign` meta,
+falling back to the rendering page's slug; calendar entries use the fixed
+campaign `calendar` (tagged from the raw event URL so the page context
+never leaks into feeds). Because rendered HTML now varies by rendering
+page, the component cache key includes the campaign context. Schema
+`offers` URLs stay untagged: structured data should carry the canonical
+registration URL.
+
+## D27. Relay privacy and layout
+
+The relay forwards the plugin's mapped attendee, which never contains a raw
+email (hash only) — the raw key is additionally stripped defensively before
+dispatch. Shared secrets ride in an `X-Eex-Secret` header, are never
+logged, and never leave the site in settings exports.
+
+## D28. Export/import boundaries
+
+Exports carry eex_settings (whitelisted keys only on import),
+eex_synced_events, the MyListing bridge config, connections as id+label,
+and relay URLs without secrets. Import preserves every local key and
+secret, merging by connection ID / relay URL, and re-evaluates the sync
+cron state after applying. Woo product mappings are post meta and
+deliberately do not travel (product IDs differ between sites).

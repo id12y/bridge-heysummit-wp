@@ -25,7 +25,7 @@ if ( 0 === $eex_event_id ) {
 $eex_first = (string) get_post_meta( $eex_event_id, '_eex_first_talk_at', true );
 $eex_tz    = (string) get_post_meta( $eex_event_id, '_eex_timezone', true );
 $eex_open  = (bool) get_post_meta( $eex_event_id, '_eex_is_open_for_registrations', true );
-$eex_url   = (string) get_post_meta( $eex_event_id, '_eex_event_url', true );
+$eex_url   = \Emailexpert\Events\Frontend\Utm::tag( (string) get_post_meta( $eex_event_id, '_eex_event_url', true ) );
 $eex_venue = (string) get_post_meta( $eex_event_id, '_eex_venue_name', true );
 $eex_terms = get_the_terms( $eex_event_id, Taxonomies::SERIES );
 ?>

@@ -279,3 +279,40 @@
 			} );
 	} );
 }() );
+
+/* Relay test buttons. */
+( function () {
+	'use strict';
+
+	if ( typeof window.eexAdmin === 'undefined' ) {
+		return;
+	}
+
+	document.addEventListener( 'click', function ( event ) {
+		var button = event.target.closest( '.eex-relay-test' );
+		if ( ! button ) {
+			return;
+		}
+		event.preventDefault();
+
+		var slot = button.parentElement.querySelector( '.eex-inline-result' );
+		var body = new window.FormData();
+		body.append( 'action', 'eex_relay_test' );
+		body.append( 'nonce', window.eexAdmin.nonce );
+		body.append( 'index', button.getAttribute( 'data-index' ) );
+
+		button.disabled = true;
+		window.fetch( window.eexAdmin.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: body } )
+			.then( function ( r ) {
+				return r.json();
+			} )
+			.then( function ( json ) {
+				if ( slot ) {
+					slot.textContent = ( json.data && json.data.message ) || ( json.success ? 'OK' : window.eexAdmin.i18n.failed );
+				}
+			} )
+			.finally( function () {
+				button.disabled = false;
+			} );
+	} );
+}() );

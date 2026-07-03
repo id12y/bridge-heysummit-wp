@@ -64,6 +64,9 @@ final class Plugin {
 			new Frontend\Feeds(),
 			new Frontend\IcsDownload(),
 			new Frontend\CacheFlush(),
+			new Frontend\PurgeIntegration(),
+			new Webhooks\Relay(),
+			new Admin\Digest(),
 		];
 
 		if ( is_admin() ) {
@@ -73,6 +76,8 @@ final class Plugin {
 			$services[] = new Admin\Ajax();
 			$services[] = new Admin\Notices();
 			$services[] = new Admin\AttributionReport();
+			$services[] = new Admin\Dashboard();
+			$services[] = new Admin\ExportImport();
 			$services[] = new PostTypes\SyncModeUi();
 		}
 

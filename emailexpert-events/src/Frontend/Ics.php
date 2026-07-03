@@ -109,6 +109,15 @@ final class Ics {
 		if ( ! empty( $speakers ) ) {
 			$description .= '\n' . sprintf( 'Speakers: %s', implode( ', ', $speakers ) );
 		}
+		// Tag from the raw URL (talk_data may already carry page-context
+		// tags; calendar entries get their own campaign).
+		$raw_event_url = (int) $data['event_post_id'] > 0
+			? (string) get_post_meta( (int) $data['event_post_id'], '_eex_event_url', true )
+			: '';
+		$register      = Utm::tag( $raw_event_url, 0, 'calendar' );
+		if ( '' !== $register ) {
+			$description .= '\n' . sprintf( 'Register: %s', $register );
+		}
 
 		return [
 			'BEGIN:VEVENT',

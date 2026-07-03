@@ -31,6 +31,39 @@ final class Ajax {
 		add_action( 'wp_ajax_eex_wizard_events', [ $this, 'wizard_events' ] );
 		add_action( 'wp_ajax_eex_wizard_dry_run', [ $this, 'wizard_dry_run' ] );
 		add_action( 'wp_ajax_eex_wizard_progress', [ $this, 'wizard_progress' ] );
+		add_action( 'wp_ajax_eex_relay_test', [ $this, 'relay_test' ] );
+	}
+
+	/**
+	 * Send a test payload to one configured relay URL.
+	 */
+	public function relay_test(): void {
+		$this->guard();
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in guard().
+		$index   = isset( $_POST['index'] ) ? (int) $_POST['index'] : -1;
+		$targets = \Emailexpert\Events\Webhooks\Relay::targets();
+		$target  = $targets[ $index ] ?? null;
+
+		if ( null === $target ) {
+			wp_send_json_error( [ 'message' => __( 'Save the relay URL first, then test it.', 'emailexpert-events' ) ], 400 );
+		}
+
+		$result = \Emailexpert\Events\Webhooks\Relay::send(
+			$target,
+			[
+				'action'  => 'test',
+				'site'    => home_url( '/' ),
+				'sent_at' => gmdate( 'Y-m-d\TH:i:s\Z' ),
+				'note'    => 'Test payload from emailexpert Events.',
+			]
+		);
+
+		if ( $result['ok'] ) {
+			wp_send_json_success( [ 'message' => sprintf( /* translators: %s: HTTP status. */ __( 'Delivered (%s).', 'emailexpert-events' ), $result['message'] ) ] );
+		}
+
+		wp_send_json_error( [ 'message' => $result['message'] ] );
 	}
 
 	/**

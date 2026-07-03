@@ -258,3 +258,30 @@
 - Tests: 132 passing (9 new: allowlist enforcement, single-push despite
   repeated hooks, unmapped = zero calls, consent gate, retry/flag/manual
   re-push, multi-quantity, attribution dedupe, refund paths).
+
+## V2-WI5 — Extras
+
+- UTM auto-tagging (Utm helper) across component register/event URLs,
+  event cards and singles, Elementor URL tags, ICS descriptions (campaign
+  `calendar`) and projected listings; per-page campaign override; component
+  cache varies by campaign context; never clobbers existing parameters.
+- Outbound relay: per-action forwarding of verified payloads (email hash
+  only) to configured URLs with X-Eex-Secret header, 3 retries with
+  backoff, logged deliveries, per-URL send-test button.
+- Session filter bar (eex/session-filter + [eex_session_filter]):
+  server-rendered category/speaker links and a GET search form that filters
+  past-sessions server-side (?eex_q=); with JS, instant client-side
+  filtering via data attributes on the session grid. Front-end assets still
+  ~3.7KB gzipped combined.
+- Dashboard widget: next three sessions, 7-day registrations with a source
+  spark, last sync + health, quick links.
+- Settings export/import: JSON export without any key/secret material,
+  import with per-group diff preview and transient-stashed confirm; local
+  keys and secrets always preserved.
+- Cache purge integration (off by default): WP Rocket, LiteSpeed, W3TC,
+  Cloudflare hooks scoped to affected URLs with full-purge fallback, plus
+  eex_cache_purged for bespoke hosts.
+- Weekly digest (off by default): Monday plain-text email with
+  registrations by source, session counts, upcoming sessions and sync
+  health; schedule follows the toggle.
+- Tests: 146 passing (14 new extras tests).

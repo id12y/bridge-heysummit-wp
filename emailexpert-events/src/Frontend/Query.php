@@ -237,6 +237,7 @@ final class Query {
 		$event_hs_id    = $event_post_id > 0 ? (string) get_post_meta( $event_post_id, '_eex_heysummit_id', true ) : '';
 		$category_slugs = self::category_slugs( (string) ( $atts['category'] ?? '' ) );
 		$only_ids       = array_filter( array_map( 'intval', (array) ( $atts['ids'] ?? [] ) ) );
+		$search         = strtolower( trim( (string) ( $atts['q'] ?? '' ) ) );
 
 		$talks = [];
 
@@ -244,6 +245,10 @@ final class Query {
 			$post_id = (int) $post->ID;
 
 			if ( ! empty( $only_ids ) && ! in_array( $post_id, $only_ids, true ) ) {
+				continue;
+			}
+
+			if ( '' !== $search && ! str_contains( strtolower( (string) $post->post_title ), $search ) ) {
 				continue;
 			}
 

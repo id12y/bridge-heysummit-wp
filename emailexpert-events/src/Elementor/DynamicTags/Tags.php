@@ -346,7 +346,7 @@ class RegisterUrlTag extends BaseUrlTag {
 
 		$event_id = $this->current_event_id();
 
-		return $event_id > 0 ? (string) get_post_meta( $event_id, '_eex_event_url', true ) : '';
+		return \Emailexpert\Events\Frontend\Utm::tag( $event_id > 0 ? (string) get_post_meta( $event_id, '_eex_event_url', true ) : '' );
 	}
 }
 
@@ -386,7 +386,7 @@ class EventUrlTag extends BaseUrlTag {
 	protected function url(): string {
 		$event_id = $this->current_event_id();
 
-		return $event_id > 0 ? (string) get_post_meta( $event_id, '_eex_event_url', true ) : '';
+		return \Emailexpert\Events\Frontend\Utm::tag( $event_id > 0 ? (string) get_post_meta( $event_id, '_eex_event_url', true ) : '' );
 	}
 }
 

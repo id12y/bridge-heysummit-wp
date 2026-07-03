@@ -22,7 +22,7 @@ while ( have_posts() ) :
 	$eex_last  = (string) get_post_meta( $eex_id, '_eex_last_talk_at', true );
 	$eex_tz    = (string) get_post_meta( $eex_id, '_eex_timezone', true );
 	$eex_open  = (bool) get_post_meta( $eex_id, '_eex_is_open_for_registrations', true );
-	$eex_url   = (string) get_post_meta( $eex_id, '_eex_event_url', true );
+	$eex_url   = \Emailexpert\Events\Frontend\Utm::tag( (string) get_post_meta( $eex_id, '_eex_event_url', true ), $eex_id );
 	$eex_desc  = (string) get_post_meta( $eex_id, '_eex_description', true );
 	$eex_venue = (string) get_post_meta( $eex_id, '_eex_venue_name', true );
 	$eex_terms = get_the_terms( $eex_id, Taxonomies::SERIES );

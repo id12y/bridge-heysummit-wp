@@ -225,11 +225,13 @@ class Projector {
 		if ( 'sessions' === $source ) {
 			$data = Components::talk_data( $post_id );
 
+			$campaign = (string) ( get_post( $post_id )->post_name ?? '' );
+
 			$values['starts_at']    = (string) $data['starts_at'];
 			$values['ends_at']      = (string) $data['ends_at'];
-			$values['register_url'] = (string) ( $data['event_url'] ?: $data['talk_url'] );
+			$values['register_url'] = \Emailexpert\Events\Frontend\Utm::tag( (string) ( $data['event_url'] ?: $data['talk_url'] ), $post_id, $campaign );
 			$values['replay_url']   = (string) $data['replay_url'];
-			$values['event_url']    = (string) $data['event_url'];
+			$values['event_url']    = \Emailexpert\Events\Frontend\Utm::tag( (string) $data['event_url'], $post_id, $campaign );
 			$values['categories']   = array_map( static fn( $term ): string => (string) $term->name, (array) $data['categories'] );
 		} elseif ( 'events' === $source ) {
 			$values['starts_at']    = (string) get_post_meta( $post_id, '_eex_first_talk_at', true );

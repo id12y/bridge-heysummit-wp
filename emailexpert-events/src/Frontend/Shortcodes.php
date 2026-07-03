@@ -29,6 +29,7 @@ final class Shortcodes {
 		'featured-talks'    => 'eex_featured_talks',
 		'sponsors'          => 'eex_sponsors',
 		'reg-counter'       => 'eex_reg_counter',
+		'session-filter'    => 'eex_session_filter',
 	];
 
 	/**

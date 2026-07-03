@@ -1105,3 +1105,31 @@ if ( ! function_exists( 'get_current_screen' ) ) {
 		return $GLOBALS['eex_test_current_screen'] ?? null;
 	}
 }
+
+// --- queried object / dashboard / archive links. ---------------------------------------
+if ( ! function_exists( 'get_queried_object_id' ) ) {
+	function get_queried_object_id() {
+		return (int) ( $GLOBALS['eex_test_queried_object_id'] ?? 0 );
+	}
+}
+if ( ! function_exists( 'get_queried_object' ) ) {
+	function get_queried_object() {
+		return get_post( get_queried_object_id() );
+	}
+}
+if ( ! function_exists( 'get_post_type_archive_link' ) ) {
+	function get_post_type_archive_link( $post_type ) {
+		return 'https://example.test/' . $post_type . '/';
+	}
+}
+if ( ! function_exists( 'wp_add_dashboard_widget' ) ) {
+	function wp_add_dashboard_widget( $widget_id, $widget_name, $callback, $control_callback = null, $callback_args = null ) {
+		$GLOBALS['eex_test_dashboard_widgets'][ $widget_id ] = $callback;
+	}
+}
+if ( ! function_exists( 'get_term_link' ) ) {
+	function get_term_link( $term, $taxonomy = '' ) {
+		$slug = is_object( $term ) ? $term->slug : (string) $term;
+		return 'https://example.test/term/' . $slug . '/';
+	}
+}
