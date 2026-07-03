@@ -42,3 +42,26 @@
 	word-break: break-word;
 	max-width: 480px;
 }
+
+/* Wizard. */
+.eex-wizard-steps {
+	display: flex;
+	gap: 16px;
+	list-style: decimal inside;
+	margin: 12px 0 20px;
+	padding: 0;
+}
+
+.eex-wizard-steps .eex-step-current {
+	font-weight: 700;
+}
+
+.eex-wizard-event {
+	display: inline-block;
+	margin: 4px 0;
+}
+
+.eex-wizard-preview {
+	font-weight: 600;
+	margin: 8px 0 0;
+}

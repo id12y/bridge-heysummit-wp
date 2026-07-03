@@ -193,3 +193,20 @@
   activation only; log and attribution admin screens handle absent tables;
   retention pruning skips absent tables.
 - Tests: 103 passing including the new FootprintTest (7 tests).
+
+## V2-WI2 — Time-scoped imports and setup wizard
+
+- ScopeFilter (shared by engine and dry run): future all/none; past
+  all/none/most-recent-N/since-date, composing with the category filter;
+  rolling evaluation every run; out-of-scope talks treated exactly like
+  category-excluded ones (not created, orphan-drafted). Scope controls in
+  the standard sync settings; defaults all/all.
+- DryRun: GET-only preview producing sessions/past/upcoming/speakers/images
+  counts guaranteed (by shared filter) to match a confirmed import.
+- Wizard: dismissible activation notice, re-runnable from settings, five
+  steps (connect + inline discovery summary; choose events with dates and
+  session counts; scope; live dry-run preview updating on change; confirm →
+  async initial sync with log-fed progress and completion links, detecting
+  Elementor/MyListing/WooCommerce). Writes only the standard options.
+- Tests: 112 passing, including the acceptance-critical dry-run == import
+  == most-recent-5 == scope-reduction-orphans chain.

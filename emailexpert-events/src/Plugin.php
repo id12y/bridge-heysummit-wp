@@ -68,6 +68,7 @@ final class Plugin {
 
 		if ( is_admin() ) {
 			$services[] = new Admin\SettingsPage();
+			$services[] = new Admin\Wizard();
 			$services[] = new Admin\Ajax();
 			$services[] = new Admin\Notices();
 			$services[] = new Admin\AttributionReport();

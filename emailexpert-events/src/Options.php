@@ -174,6 +174,10 @@ final class Options {
 				'import_status'   => 'publish',
 				'cat_filter_mode' => '',
 				'cat_filter'      => [],
+				'future_mode'     => 'all',
+				'past_mode'       => 'all',
+				'past_n'          => 20,
+				'past_since'      => '',
 				'title'           => '',
 			]
 		);

@@ -28,6 +28,151 @@ final class Ajax {
 		add_action( 'wp_ajax_eex_load_categories', [ $this, 'load_categories' ] );
 		add_action( 'wp_ajax_eex_sync_now', [ $this, 'sync_now' ] );
 		add_action( 'wp_ajax_eex_regenerate_secret', [ $this, 'regenerate_secret' ] );
+		add_action( 'wp_ajax_eex_wizard_events', [ $this, 'wizard_events' ] );
+		add_action( 'wp_ajax_eex_wizard_dry_run', [ $this, 'wizard_dry_run' ] );
+		add_action( 'wp_ajax_eex_wizard_progress', [ $this, 'wizard_progress' ] );
+	}
+
+	/**
+	 * Wizard step 2: events with dates and session counts. The count comes
+	 * from the DRF `count` field of a one-item talks page — one cheap GET
+	 * per event, wizard-time only.
+	 */
+	public function wizard_events(): void {
+		$this->guard();
+		$connection = $this->requested_connection();
+
+		$client = HeySummitClient::for_connection( $connection );
+		$events = $client->get_all( 'events/' );
+
+		if ( is_wp_error( $events ) ) {
+			wp_send_json_error( [ 'message' => $events->get_error_message() ] );
+		}
+
+		$list = [];
+		foreach ( $events as $event ) {
+			if ( ! is_array( $event ) || ! isset( $event['id'] ) ) {
+				continue;
+			}
+
+			$mapped = \Emailexpert\Events\Mappers\EventMapper::map( $event );
+			$dates  = '';
+			if ( null !== $mapped && '' !== $mapped['first_talk_at'] ) {
+				$dates = substr( $mapped['first_talk_at'], 0, 10 );
+				if ( '' !== $mapped['last_talk_at'] ) {
+					$dates .= ' – ' . substr( $mapped['last_talk_at'], 0, 10 );
+				}
+			}
+
+			$sessions = '';
+			$page     = $client->get(
+				'talks/',
+				[
+					'event'     => (string) $event['id'],
+					'page_size' => 1,
+				]
+			);
+			if ( ! is_wp_error( $page ) && isset( $page['count'] ) ) {
+				$sessions = (string) (int) $page['count'];
+			}
+
+			$list[] = [
+				'id'       => (string) $event['id'],
+				'title'    => sanitize_text_field( (string) ( $event['title'] ?? $event['id'] ) ),
+				'dates'    => $dates,
+				'sessions' => $sessions,
+			];
+		}
+
+		$available                      = (array) get_option( 'eex_available_events', [] );
+		$available[ $connection['id'] ] = $list;
+		update_option( 'eex_available_events', $available, false );
+
+		wp_send_json_success( [ 'events' => $list ] );
+	}
+
+	/**
+	 * Wizard step 4: GET-only dry run for one event with posted scope
+	 * overrides. Writes nothing.
+	 */
+	public function wizard_dry_run(): void {
+		$this->guard();
+		$connection = $this->requested_connection();
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified in guard(); sanitised below.
+		$event_id = isset( $_POST['event'] ) ? sanitize_text_field( wp_unslash( $_POST['event'] ) ) : '';
+		$scope    = isset( $_POST['scope'] ) && is_array( $_POST['scope'] ) ? wp_unslash( $_POST['scope'] ) : []; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitised by Wizard::sanitise_scope.
+		// phpcs:enable
+
+		if ( '' === $event_id ) {
+			wp_send_json_error( [ 'message' => __( 'Missing event ID.', 'emailexpert-events' ) ], 400 );
+		}
+
+		$config = array_merge(
+			(array) ( \Emailexpert\Events\Options::event_config( $connection['id'], $event_id ) ?? [] ),
+			Wizard::sanitise_scope( $scope )
+		);
+
+		$counts = \Emailexpert\Events\Sync\DryRun::preview( $connection, $event_id, $config );
+
+		if ( is_wp_error( $counts ) ) {
+			wp_send_json_error( [ 'message' => $counts->get_error_message() ] );
+		}
+
+		wp_send_json_success(
+			[
+				'counts'  => $counts,
+				'message' => sprintf(
+					/* translators: 1: sessions, 2: past, 3: upcoming, 4: speakers, 5: images. */
+					__( '%1$d sessions: %2$d past, %3$d upcoming; %4$d speakers, ~%5$d images', 'emailexpert-events' ),
+					$counts['sessions'],
+					$counts['past'],
+					$counts['upcoming'],
+					$counts['speakers'],
+					$counts['images']
+				),
+			]
+		);
+	}
+
+	/**
+	 * Wizard step 5: initial-sync progress from the sync log.
+	 */
+	public function wizard_progress(): void {
+		$this->guard();
+
+		global $wpdb;
+
+		$lines = [];
+		if ( \Emailexpert\Events\Install\Tables::exists( 'log' ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table, admin polling.
+			$rows = (array) $wpdb->get_results(
+				"SELECT created_at, level, message FROM {$wpdb->prefix}eex_log WHERE context = 'sync' ORDER BY id DESC LIMIT 15",
+				ARRAY_A
+			);
+			foreach ( $rows as $row ) {
+				$lines[] = sprintf( '[%s] %s %s', (string) $row['created_at'], (string) $row['level'], (string) $row['message'] );
+			}
+		}
+
+		$started   = (string) get_option( 'eex_wizard_started_at', '' );
+		$last_sync = (array) get_option( 'eex_last_sync', [] );
+		$enabled   = \Emailexpert\Events\Sync\SyncEngine::enabled_event_keys();
+
+		$done = ! empty( $enabled );
+		foreach ( $enabled as $key ) {
+			if ( '' === (string) ( $last_sync[ $key ] ?? '' ) || ( '' !== $started && (string) $last_sync[ $key ] < $started ) ) {
+				$done = false;
+				break;
+			}
+		}
+
+		wp_send_json_success(
+			[
+				'lines' => $lines,
+				'done'  => $done,
+			]
+		);
 	}
 
 	/**

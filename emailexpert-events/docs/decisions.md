@@ -149,3 +149,26 @@ bulky (discovery snapshots, availability caches, schema versions) stays
 non-autoloaded. Term seeding moved from per-request init to activation.
 Upgrades from v1 are safe: dbDelta reconciles existing tables on the first
 guarded write and the schema option starts tracking from there.
+
+## D18. Untimed talks count as upcoming in the time scope
+
+The time scope splits on `starts_at` versus now. Talks the API returns with
+no start time cannot be "past", so they ride with the future bucket:
+"future: none" drops them, past modes never touch them. Consistent with the
+front end, where untimed talks appear in neither upcoming nor past lists.
+
+## D19. Wizard step 2 session counts via DRF pagination
+
+Per-event session counts come from `talks/?event=<id>&page_size=1`, reading
+the DRF `count` field — one cheap GET per event at wizard time instead of
+paging whole collections. When the field is absent the count is simply
+omitted from the listing (never guessed).
+
+## D20. Wizard state is the standard settings
+
+Step 1 writes the connection, step 2 enables/disables events in
+`eex_synced_events`, steps 3–4 merge scope into the same rows, and
+confirmation kicks the ordinary async sync and cron scheduling. Abandoning
+the wizard mid-way leaves a valid partial configuration and no orphaned
+state; the only wizard-specific options are the dismissible notice flag and
+a started-at timestamp used by the progress poll.

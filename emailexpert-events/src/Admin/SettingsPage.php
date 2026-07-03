@@ -262,6 +262,9 @@ final class SettingsPage {
 		$frequency  = (string) Options::setting( 'frequency' );
 		?>
 		<h2><?php esc_html_e( 'Sync', 'emailexpert-events' ); ?></h2>
+		<p>
+			<a class="button" href="<?php echo esc_url( admin_url( 'options-general.php?page=emailexpert-events-setup' ) ); ?>"><?php esc_html_e( 'Run the setup wizard', 'emailexpert-events' ); ?></a>
+		</p>
 
 		<?php foreach ( $connections as $connection ) : ?>
 			<?php
@@ -352,6 +355,26 @@ final class SettingsPage {
 						<option value="publish" <?php selected( $config['import_status'], 'publish' ); ?>><?php esc_html_e( 'Publish immediately', 'emailexpert-events' ); ?></option>
 						<option value="pending" <?php selected( $config['import_status'], 'pending' ); ?>><?php esc_html_e( 'Pending review', 'emailexpert-events' ); ?></option>
 					</select>
+				</label>
+
+				<label>
+					<?php esc_html_e( 'Future sessions:', 'emailexpert-events' ); ?>
+					<select name="<?php echo esc_attr( $field ); ?>[future_mode]">
+						<option value="all" <?php selected( $config['future_mode'], 'all' ); ?>><?php esc_html_e( 'All', 'emailexpert-events' ); ?></option>
+						<option value="none" <?php selected( $config['future_mode'], 'none' ); ?>><?php esc_html_e( 'None', 'emailexpert-events' ); ?></option>
+					</select>
+				</label>
+
+				<label>
+					<?php esc_html_e( 'Past sessions:', 'emailexpert-events' ); ?>
+					<select name="<?php echo esc_attr( $field ); ?>[past_mode]" class="eex-past-mode">
+						<option value="all" <?php selected( $config['past_mode'], 'all' ); ?>><?php esc_html_e( 'All', 'emailexpert-events' ); ?></option>
+						<option value="none" <?php selected( $config['past_mode'], 'none' ); ?>><?php esc_html_e( 'None', 'emailexpert-events' ); ?></option>
+						<option value="recent" <?php selected( $config['past_mode'], 'recent' ); ?>><?php esc_html_e( 'Most recent N', 'emailexpert-events' ); ?></option>
+						<option value="since" <?php selected( $config['past_mode'], 'since' ); ?>><?php esc_html_e( 'Since a date', 'emailexpert-events' ); ?></option>
+					</select>
+					<input type="number" min="0" name="<?php echo esc_attr( $field ); ?>[past_n]" value="<?php echo esc_attr( (string) (int) $config['past_n'] ); ?>" size="4" aria-label="<?php esc_attr_e( 'Most recent N past sessions', 'emailexpert-events' ); ?>" />
+					<input type="date" name="<?php echo esc_attr( $field ); ?>[past_since]" value="<?php echo esc_attr( (string) $config['past_since'] ); ?>" aria-label="<?php esc_attr_e( 'Import past sessions since date', 'emailexpert-events' ); ?>" />
 				</label>
 
 				<label>
@@ -588,6 +611,10 @@ final class SettingsPage {
 				'import_status'   => in_array( $row['import_status'] ?? '', [ 'publish', 'pending' ], true ) ? $row['import_status'] : 'publish',
 				'cat_filter_mode' => in_array( $row['cat_filter_mode'] ?? '', [ '', 'include', 'exclude' ], true ) ? $row['cat_filter_mode'] : '',
 				'cat_filter'      => array_map( 'sanitize_text_field', (array) ( $row['cat_filter'] ?? [] ) ),
+				'future_mode'     => in_array( $row['future_mode'] ?? 'all', [ 'all', 'none' ], true ) ? $row['future_mode'] : 'all',
+				'past_mode'       => in_array( $row['past_mode'] ?? 'all', [ 'all', 'none', 'recent', 'since' ], true ) ? $row['past_mode'] : 'all',
+				'past_n'          => max( 0, (int) ( $row['past_n'] ?? 20 ) ),
+				'past_since'      => preg_match( '/^\\d{4}-\\d{2}-\\d{2}$/', (string) ( $row['past_since'] ?? '' ) ) ? (string) $row['past_since'] : '',
 				'title'           => sanitize_text_field( (string) ( $row['title'] ?? '' ) ),
 			];
 		}

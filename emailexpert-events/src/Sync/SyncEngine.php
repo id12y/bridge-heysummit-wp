@@ -165,11 +165,15 @@ class SyncEngine {
 					continue;
 				}
 				$mapped = TalkMapper::map( $raw_talk );
-				if ( null !== $mapped && $this->passes_category_filter( $mapped, $config ) ) {
+				if ( null !== $mapped ) {
 					$mapped['raw']  = $raw_talk;
 					$mapped_talks[] = $mapped;
 				}
 			}
+
+			// Category filter and time scope together decide existence:
+			// out-of-scope talks are not created and orphan-draft below.
+			$mapped_talks = ScopeFilter::apply( $mapped_talks, $config );
 
 			$seen_talk_ids = [];
 			$talk_posts    = [];
@@ -314,27 +318,6 @@ class SyncEngine {
 		}
 
 		return false;
-	}
-
-	/**
-	 * Apply the per-event category include/exclude filter. Talks removed by
-	 * the filter are treated as if they do not exist.
-	 *
-	 * @param array<string,mixed> $mapped Mapped talk.
-	 * @param array<string,mixed> $config Event config.
-	 */
-	protected function passes_category_filter( array $mapped, array $config ): bool {
-		$mode   = (string) ( $config['cat_filter_mode'] ?? '' );
-		$filter = array_map( 'strval', (array) ( $config['cat_filter'] ?? [] ) );
-
-		if ( '' === $mode || empty( $filter ) ) {
-			return true;
-		}
-
-		$talk_categories = array_map( 'strval', (array) ( $mapped['category_hs_ids'] ?? [] ) );
-		$intersects      = ! empty( array_intersect( $talk_categories, $filter ) );
-
-		return 'include' === $mode ? $intersects : ! $intersects;
 	}
 
 	/**

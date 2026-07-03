@@ -109,3 +109,120 @@
 		} );
 	}
 }() );
+
+/* Wizard behaviours. */
+( function () {
+	'use strict';
+
+	if ( typeof window.eexAdmin === 'undefined' ) {
+		return;
+	}
+
+	var config = window.eexAdmin;
+
+	function post( action, fields ) {
+		var body = new window.FormData();
+		body.append( 'action', action );
+		body.append( 'nonce', config.nonce );
+		Object.keys( fields || {} ).forEach( function ( key ) {
+			var value = fields[ key ];
+			if ( Array.isArray( value ) ) {
+				value.forEach( function ( item ) {
+					body.append( key, item );
+				} );
+			} else {
+				body.append( key, value );
+			}
+		} );
+		return window.fetch( config.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: body } )
+			.then( function ( r ) {
+				return r.json();
+			} );
+	}
+
+	/* Step 2: load events with dates and session counts, then reload. */
+	document.addEventListener( 'click', function ( event ) {
+		var button = event.target.closest( '.eex-wizard-load-events' );
+		if ( ! button ) {
+			return;
+		}
+		event.preventDefault();
+		button.disabled = true;
+		post( 'eex_wizard_events', { connection: button.getAttribute( 'data-connection' ) } )
+			.then( function ( json ) {
+				if ( json.success ) {
+					window.location.reload();
+				} else {
+					var slot = button.parentElement.querySelector( '.eex-inline-result' );
+					if ( slot ) {
+						slot.textContent = ( json.data && json.data.message ) || config.i18n.failed;
+					}
+					button.disabled = false;
+				}
+			} );
+	} );
+
+	/* Step 4: live dry-run preview per event as scope changes. */
+	function refreshPreview( row ) {
+		var slot = row.querySelector( '.eex-wizard-preview' );
+		if ( ! slot ) {
+			return;
+		}
+		slot.textContent = config.i18n.working;
+
+		var fields = {
+			connection: row.getAttribute( 'data-connection' ),
+			event: row.getAttribute( 'data-event' )
+		};
+		row.querySelectorAll( '.eex-scope-input' ).forEach( function ( input ) {
+			var name = input.getAttribute( 'name' ) || '';
+			var short = name.replace( /^scope\[[^\]]*\]\[/, 'scope[' );
+			if ( 'checkbox' === input.type && ! input.checked ) {
+				return;
+			}
+			if ( ! fields[ short ] ) {
+				fields[ short ] = [];
+			}
+			fields[ short ].push( input.value );
+		} );
+
+		post( 'eex_wizard_dry_run', fields ).then( function ( json ) {
+			slot.textContent = json.success ? json.data.message : ( ( json.data && json.data.message ) || config.i18n.failed );
+		} );
+	}
+
+	document.querySelectorAll( '.eex-wizard-scope' ).forEach( function ( row ) {
+		if ( row.querySelector( '.eex-wizard-preview' ) ) {
+			refreshPreview( row );
+			row.addEventListener( 'change', function () {
+				refreshPreview( row );
+			} );
+		}
+	} );
+
+	/* Step 5: progress polling. */
+	var progress = document.querySelector( '[data-eex-progress]' );
+	if ( progress ) {
+		var poll = function () {
+			post( 'eex_wizard_progress', {} ).then( function ( json ) {
+				if ( ! json.success ) {
+					return;
+				}
+				progress.innerHTML = '';
+				var pre = document.createElement( 'pre' );
+				pre.textContent = ( json.data.lines || [] ).join( '\n' ) || '…';
+				progress.appendChild( pre );
+
+				if ( json.data.done ) {
+					var complete = document.getElementById( 'eex-wizard-complete' );
+					if ( complete ) {
+						complete.hidden = false;
+					}
+				} else {
+					window.setTimeout( poll, 3000 );
+				}
+			} );
+		};
+		poll();
+	}
+}() );
