@@ -226,3 +226,56 @@
 		poll();
 	}
 }() );
+
+/* WooCommerce product mapping: load tickets for the chosen connection + event. */
+( function () {
+	'use strict';
+
+	if ( typeof window.eexAdmin === 'undefined' ) {
+		return;
+	}
+
+	document.addEventListener( 'click', function ( event ) {
+		var button = event.target.closest( '.eex-woo-load-tickets' );
+		if ( ! button ) {
+			return;
+		}
+		event.preventDefault();
+
+		var panel = button.closest( '.woocommerce_options_panel, .eex-variation-mapping' ) || document;
+		var connection = panel.querySelector( '[name="' + button.getAttribute( 'data-connection-field' ) + '"]' );
+		var eventField = panel.querySelector( '[name="' + button.getAttribute( 'data-event-field' ) + '"]' );
+
+		var body = new window.FormData();
+		body.append( 'action', 'eex_woo_tickets' );
+		body.append( 'nonce', window.eexAdmin.nonce );
+		body.append( 'connection', connection ? connection.value : '' );
+		body.append( 'event', eventField ? eventField.value : '' );
+
+		button.disabled = true;
+		window.fetch( window.eexAdmin.ajaxUrl, { method: 'POST', credentials: 'same-origin', body: body } )
+			.then( function ( r ) {
+				return r.json();
+			} )
+			.then( function ( json ) {
+				button.disabled = false;
+				if ( ! json.success ) {
+					window.alert( ( json.data && json.data.message ) || window.eexAdmin.i18n.failed );
+					return;
+				}
+				var select = button.parentElement.querySelector( 'select' );
+				if ( ! select ) {
+					return;
+				}
+				var current = select.value;
+				select.innerHTML = '<option value=""></option>';
+				json.data.tickets.forEach( function ( ticket ) {
+					var option = document.createElement( 'option' );
+					option.value = ticket.id;
+					option.textContent = ticket.title;
+					option.selected = ticket.id === current;
+					select.appendChild( option );
+				} );
+			} );
+	} );
+}() );

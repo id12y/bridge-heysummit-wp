@@ -72,10 +72,33 @@ procedure in the README.
 
 ## Hard runtime rules
 
-- **GET only.** The client exposes no write method. The v1-era API includes
-  an event archive action; a stray POST against a live event ID would
-  archive it. Nothing in this plugin ever issues a non-GET request to
-  HeySummit.
+- **Reads everywhere, writes nowhere except the allowlist.** (Amended in
+  v2.) Sync and discovery are GET/OPTIONS only. The single write surface is
+  `HeySummitClient::post()`, which throws for any endpoint outside
+  `Api\WriteEndpoints::ALLOWLIST` (attendee create and external ticket sale
+  import, used only by the WooCommerce bridge). The v1-era API includes an
+  event archive action; a stray POST against a live event ID would archive
+  it — that path is structurally unreachable.
 - No API calls from any front-end request path.
 - The API key is never logged, never rendered in full (last 4 characters
   only), never present in REST responses.
+
+## v2: write endpoints (WooCommerce bridge)
+
+The amended hard rule allows writes to exactly two endpoints, enforced in
+code by `Api\WriteEndpoints::ALLOWLIST` (the single place the list is
+defined; `HeySummitClient::post()` throws for anything else, including the
+event archive action):
+
+| Purpose | Assumed endpoint | Assumed body | Risk if wrong |
+|---|---|---|---|
+| Attendee create | `POST attendees/` | `{name, email, event}` | Discovery records the real POST schema via OPTIONS (`write:attendees` in the report); correct the body in `Mappers\AttendeeRequestBuilder` or via the `eex_attendee_request` filter |
+| External ticket sale import | `POST external-ticket-sales/` | `{attendee, ticket, amount_gross, amount_net, currency, order_reference}` | Same, via `write:external-ticket-sales` and `Mappers\TicketSaleRequestBuilder` / `eex_ticket_sale_request`. If the real endpoint has a different name, change it in `WriteEndpoints::ALLOWLIST` and the builder together |
+| Ticket enumeration | `GET tickets/?event=<id>` | n/a (read) | Added to `Shapes::RESOURCES`, so the standard discovery pass samples it |
+
+Write-shape verification is non-mutating: discovery issues an OPTIONS
+request per allowlisted endpoint and records the DRF `actions.POST` field
+schema. **No POST is ever made during discovery.** Attendee removal /
+ticket-sale reversal is NOT implemented: those endpoints are outside the
+allowlist, so refunds produce an order note, an admin notice and the
+`eex_woo_refunded` hook instead (docs/decisions.md D24).

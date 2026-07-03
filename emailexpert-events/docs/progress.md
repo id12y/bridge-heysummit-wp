@@ -230,3 +230,31 @@
   eex_bridge_sections hook for other modules.
 - Tests: 123 passing (11 new bridge tests: gating, mapping, idempotency,
   modes, status mirroring, canonical both ways, discovery logging).
+
+## V2-WI4 — WooCommerce → HeySummit bridge
+
+- Amended hard rule enforced in code: Api\WriteEndpoints::ALLOWLIST
+  (attendees/, external-ticket-sales/) is the single write definition;
+  HeySummitClient::post() throws for anything else; OPTIONS-based write
+  shape verification added to discovery (write:attendees,
+  write:external-ticket-sales) plus a tickets read resource — nothing is
+  ever created during discovery.
+- Request builders isolated alongside the mappers
+  (AttendeeRequestBuilder, TicketSaleRequestBuilder), filterable for live
+  shape corrections.
+- Module (src/WooCommerce/, loaded on woocommerce_loaded only): product and
+  variation mapping UI (HeySummit tab; connection → event → ticket with
+  API-enumerated tickets), checkout consent checkbox for carts with mapped
+  products (timestamp in order meta; no consent = no push, flagged),
+  push jobs per mapped line item with the push record as the dedupe lock,
+  attendee-create → ticket-import → attendee ID in item meta → order note →
+  eex_woo_pushed; multi-quantity registers the purchaser once with a
+  prominent warning and eex_woo_multi_quantity (record schema
+  multi-attendee-ready); 3 retries with backoff then order flagged with
+  orders-list notice, manual push button and wp eex woo:push; refunds
+  produce the manual-removal note/notice and eex_woo_refunded (D24);
+  attribution rows tagged with order ID and deduped against webhooks by
+  attendee ID.
+- Tests: 132 passing (9 new: allowlist enforcement, single-push despite
+  repeated hooks, unmapped = zero calls, consent gate, retry/flag/manual
+  re-push, multi-quantity, attribution dedupe, refund paths).

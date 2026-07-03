@@ -209,6 +209,124 @@ class HeySummitClient {
 	}
 
 	/**
+	 * Perform a POST against an allowlisted write endpoint.
+	 *
+	 * Writes exist solely for the WooCommerce bridge (attendee create,
+	 * external ticket sale import). Any path outside
+	 * WriteEndpoints::ALLOWLIST throws — this is the enforcement point for
+	 * the amended hard rule, not a convention. No transport-level retries:
+	 * a duplicated attendee-create is worse than a failed one, so the push
+	 * job owns retrying with its local dedupe record.
+	 *
+	 * @param string              $path Relative path, e.g. 'attendees/'.
+	 * @param array<string,mixed> $body JSON body.
+	 * @return array<string,mixed>|WP_Error Decoded response body or error.
+	 *
+	 * @throws \InvalidArgumentException When the endpoint is not allowlisted.
+	 */
+	public function post( string $path, array $body ) {
+		if ( ! WriteEndpoints::allowed( $path ) ) {
+			throw new \InvalidArgumentException(
+				sprintf( 'Refusing to write to non-allowlisted HeySummit endpoint "%s".', esc_html( $path ) )
+			);
+		}
+
+		$url = self::BASE_URL . ltrim( $path, '/' );
+
+		$started  = microtime( true );
+		$response = wp_remote_post(
+			$url,
+			[
+				'timeout' => 15,
+				'headers' => [
+					'Authorization' => 'Token ' . $this->api_key,
+					'Accept'        => 'application/json',
+					'Content-Type'  => 'application/json',
+				],
+				'body'    => wp_json_encode( $body ),
+			]
+		);
+		$duration = (int) round( ( microtime( true ) - $started ) * 1000 );
+
+		if ( is_wp_error( $response ) ) {
+			$this->log_request( 'POST ' . $path, 0, $duration, $response->get_error_message() );
+
+			return new WP_Error( 'eex_unreachable', __( 'HeySummit API unreachable.', 'emailexpert-events' ) );
+		}
+
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$this->log_request( 'POST ' . $path, $status, $duration );
+
+		if ( 401 === $status || 403 === $status ) {
+			return new WP_Error( 'eex_auth', __( 'HeySummit API key invalid or lacks access.', 'emailexpert-events' ), [ 'status' => $status ] );
+		}
+
+		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( $status >= 400 ) {
+			return new WP_Error(
+				'eex_http',
+				/* translators: %d: HTTP status code. */
+				sprintf( __( 'HeySummit API returned HTTP %d.', 'emailexpert-events' ), $status ),
+				[
+					'status' => $status,
+					'body'   => is_array( $decoded ) ? $decoded : [],
+				]
+			);
+		}
+
+		return is_array( $decoded ) ? $decoded : [];
+	}
+
+	/**
+	 * Perform an OPTIONS request (safe, non-mutating). DRF describes the
+	 * POST body schema under actions.POST, which the discovery diagnostic
+	 * uses to verify the write shapes without creating anything.
+	 *
+	 * @param string $path Relative path.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	public function options_request( string $path ) {
+		$url = self::BASE_URL . ltrim( $path, '/' );
+
+		$started  = microtime( true );
+		$response = wp_remote_request(
+			$url,
+			[
+				'method'  => 'OPTIONS',
+				'timeout' => 15,
+				'headers' => [
+					'Authorization' => 'Token ' . $this->api_key,
+					'Accept'        => 'application/json',
+				],
+			]
+		);
+		$duration = (int) round( ( microtime( true ) - $started ) * 1000 );
+
+		if ( is_wp_error( $response ) ) {
+			$this->log_request( 'OPTIONS ' . $path, 0, $duration, $response->get_error_message() );
+
+			return new WP_Error( 'eex_unreachable', __( 'HeySummit API unreachable.', 'emailexpert-events' ) );
+		}
+
+		$status = (int) wp_remote_retrieve_response_code( $response );
+		$this->log_request( 'OPTIONS ' . $path, $status, $duration );
+
+		if ( $status >= 400 ) {
+			return new WP_Error(
+				'eex_http',
+				/* translators: %d: HTTP status code. */
+				sprintf( __( 'HeySummit API returned HTTP %d.', 'emailexpert-events' ), $status ),
+				[ 'status' => $status ]
+			);
+		}
+
+		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		return is_array( $decoded ) ? $decoded : [];
+	}
+
+	/**
 	 * GET an absolute `next` URL, provided it stays on the API host.
 	 *
 	 * @param string $url Absolute URL from a `next` field.

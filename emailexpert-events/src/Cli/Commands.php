@@ -34,6 +34,42 @@ final class Commands {
 		WP_CLI::add_command( 'eex orphans', [ $this, 'orphans' ] );
 		WP_CLI::add_command( 'eex discover', [ $this, 'discover' ] );
 		WP_CLI::add_command( 'eex webhooks:replay', [ $this, 'replay' ] );
+		WP_CLI::add_command( 'eex woo:push', [ $this, 'woo_push' ] );
+	}
+
+	/**
+	 * Manually push a WooCommerce order to HeySummit.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <order_id>
+	 * : The WooCommerce order ID.
+	 *
+	 * @param array<int,string> $args Positional args.
+	 */
+	public function woo_push( array $args ): void {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			WP_CLI::error( 'WooCommerce is not active.' );
+		}
+
+		$order_id = isset( $args[0] ) ? (int) $args[0] : 0;
+		if ( $order_id <= 0 ) {
+			WP_CLI::error( 'Provide an order ID: wp eex woo:push <order_id>' );
+		}
+
+		$results = ( new \Emailexpert\Events\WooCommerce\Pusher() )->push_order_now( $order_id );
+
+		if ( empty( $results ) ) {
+			WP_CLI::warning( 'No mapped line items on that order.' );
+
+			return;
+		}
+
+		foreach ( $results as $item_id => $result ) {
+			WP_CLI::log( sprintf( 'Item %d: %s — %s', $item_id, $result['status'], $result['message'] ) );
+		}
+
+		WP_CLI::success( 'Done.' );
 	}
 
 	/**

@@ -193,3 +193,30 @@ Themes load after plugins, so presence is checked on `after_setup_theme`
 with an inline class/constant check in Plugin (plus an
 `eex_mylisting_present` filter for tests); nothing in `src/MyListing/`
 loads when the theme is absent. Detection unconfidence then gates the rest.
+
+## D23. Write posture: no client retries, job-level retry with a local lock
+
+`HeySummitClient::post()` never retries at transport level: a duplicated
+attendee-create is worse than a failed one, and the API's idempotency is
+unverified. The push job owns retrying (3 attempts, 5/15/45-minute
+backoff), and the order-item push record is written *before* the first
+attempt so re-fired WooCommerce order hooks can never enqueue a second
+chain for the same item.
+
+## D24. Refunds: manual removal path only
+
+The spec asks to implement attendee removal on refund if discovery shows
+the API supports it, but the amended hard rule allowlists only attendee
+create and external ticket sale import — removal would require a third
+write endpoint. The hard rule wins: full refunds of pushed orders produce
+an order note, an admin notice and `eex_woo_refunded` for downstream
+automation; removal stays manual in HeySummit. If the allowlist is ever
+consciously extended, `WriteEndpoints::ALLOWLIST` is the single place.
+
+## D25. Woo attribution rows and webhook dedupe
+
+A pushed sale inserts a completed attribution row tagged with the order ID
+(schema v2 `order_id` column) and the HeySummit attendee ID from the
+create response. `Attribution::insert()` now dedupes completed rows on
+attendee ID + event, so the checkout-complete webhook HeySummit emits for
+the imported sale never double-counts, whichever side lands first.

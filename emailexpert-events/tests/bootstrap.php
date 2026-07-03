@@ -32,6 +32,7 @@ define( 'MONTH_IN_SECONDS', 2592000 );
 define( 'YEAR_IN_SECONDS', 31536000 );
 
 require_once __DIR__ . '/wp-stubs.php';
+require_once __DIR__ . '/wc-stubs.php';
 require_once dirname( __DIR__ ) . '/src/Autoloader.php';
 
 \Emailexpert\Events\Autoloader::register();

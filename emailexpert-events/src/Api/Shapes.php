@@ -158,6 +158,25 @@ final class Shapes {
 				'optional' => true,
 			],
 		],
+		'tickets'    => [
+			'id'    => [ 'type' => 'int|string' ],
+			'title' => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'name'  => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'price' => [
+				'type'     => 'string|float',
+				'optional' => true,
+			],
+			'event' => [
+				'type'     => 'int|string|array',
+				'optional' => true,
+			],
+		],
 		'attendees'  => [
 			'id'                  => [ 'type' => 'int|string' ],
 			'email'               => [

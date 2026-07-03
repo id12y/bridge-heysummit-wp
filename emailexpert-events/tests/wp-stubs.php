@@ -1079,3 +1079,29 @@ if ( ! function_exists( 'is_singular' ) ) {
 		return false;
 	}
 }
+
+// --- HTTP write methods. --------------------------------------------------------------
+if ( ! function_exists( 'wp_remote_post' ) ) {
+	function wp_remote_post( $url, $args = [] ) {
+		$args['method'] = 'POST';
+		$pre            = apply_filters( 'pre_http_request', false, $args, $url );
+		if ( false !== $pre ) {
+			return $pre;
+		}
+		return new WP_Error( 'http_request_failed', 'No HTTP mock installed for POST ' . $url );
+	}
+}
+if ( ! function_exists( 'wp_remote_request' ) ) {
+	function wp_remote_request( $url, $args = [] ) {
+		$pre = apply_filters( 'pre_http_request', false, $args, $url );
+		if ( false !== $pre ) {
+			return $pre;
+		}
+		return new WP_Error( 'http_request_failed', 'No HTTP mock installed for ' . ( $args['method'] ?? 'GET' ) . ' ' . $url );
+	}
+}
+if ( ! function_exists( 'get_current_screen' ) ) {
+	function get_current_screen() {
+		return $GLOBALS['eex_test_current_screen'] ?? null;
+	}
+}

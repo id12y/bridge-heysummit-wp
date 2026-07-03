@@ -44,6 +44,13 @@ final class Options {
 			'health_email'          => 1,
 			'retention_months'      => 24,
 			'uninstall_delete'      => 0,
+			'woo_push_processing'   => 0,
+			'woo_consent_text'      => __( 'Register me for the event and send me event-related emails.', 'emailexpert-events' ),
+			'utm_enabled'           => 1,
+			'utm_source'            => '',
+			'utm_medium'            => 'web',
+			'purge_enabled'         => 0,
+			'digest_enabled'        => 0,
 		];
 	}
 

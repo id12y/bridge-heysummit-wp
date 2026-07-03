@@ -33,6 +33,14 @@ final class Discovery {
 			$report[ $resource ] = self::inspect_resource( $client, $resource );
 		}
 
+		// Write shapes for the WooCommerce bridge: DRF describes the POST
+		// body under actions.POST on an OPTIONS request — safe, nothing is
+		// created. Recorded so the request builders can be verified against
+		// the live API before any order is pushed.
+		foreach ( \Emailexpert\Events\Api\WriteEndpoints::ALLOWLIST as $write_path ) {
+			$report[ 'write:' . rtrim( $write_path, '/' ) ] = self::inspect_write_shape( $client, $write_path );
+		}
+
 		update_option( 'eex_discovery_' . sanitize_key( $connection_id ), $report, false );
 
 		$has_missing = array_filter( $report, static fn( $r ) => ! empty( $r['missing'] ) || ! empty( $r['type_mismatch'] ) );
@@ -61,6 +69,53 @@ final class Discovery {
 	 */
 	public static function stored_report( string $connection_id ): array {
 		return (array) get_option( 'eex_discovery_' . sanitize_key( $connection_id ), [] );
+	}
+
+	/**
+	 * Inspect a write endpoint's POST schema via OPTIONS.
+	 *
+	 * @param HeySummitClient $client     Client.
+	 * @param string          $write_path Allowlisted write path.
+	 * @return array<string,mixed>
+	 */
+	private static function inspect_write_shape( HeySummitClient $client, string $write_path ): array {
+		$response = $client->options_request( $write_path );
+
+		if ( is_wp_error( $response ) ) {
+			return [
+				'error'         => $response->get_error_message(),
+				'found'         => [],
+				'missing'       => [],
+				'unmapped'      => [],
+				'type_mismatch' => [],
+			];
+		}
+
+		$post_schema = $response['actions']['POST'] ?? null;
+
+		if ( ! is_array( $post_schema ) ) {
+			return [
+				'error'         => '',
+				'empty'         => true,
+				'found'         => [],
+				'missing'       => [ 'actions.POST (endpoint may not accept POST or OPTIONS is not descriptive)' ],
+				'unmapped'      => [],
+				'type_mismatch' => [],
+			];
+		}
+
+		$found = [];
+		foreach ( $post_schema as $field => $meta ) {
+			$found[ (string) $field ] = is_array( $meta ) ? (string) ( $meta['type'] ?? 'unknown' ) : 'unknown';
+		}
+
+		return [
+			'error'         => '',
+			'found'         => $found,
+			'missing'       => [],
+			'unmapped'      => [],
+			'type_mismatch' => [],
+		];
 	}
 
 	/**
