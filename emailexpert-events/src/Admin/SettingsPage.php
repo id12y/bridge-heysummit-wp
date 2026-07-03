@@ -390,7 +390,7 @@ final class SettingsPage {
 	 * Webhooks section.
 	 */
 	private function render_webhooks_section(): void {
-		$secret = Options::webhook_secret();
+		$secret = Options::ensure_webhook_secret();
 		$url    = '' !== $secret ? rest_url( 'eex/v1/heysummit/' . $secret ) : '';
 		?>
 		<h2><?php esc_html_e( 'Webhooks', 'emailexpert-events' ); ?></h2>
@@ -398,7 +398,7 @@ final class SettingsPage {
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Receiver URL', 'emailexpert-events' ); ?></th>
 				<td>
-					<code id="eex-webhook-url"><?php echo esc_html( $url ?: __( 'Secret not generated yet; re-activate the plugin.', 'emailexpert-events' ) ); ?></code>
+					<code id="eex-webhook-url"><?php echo esc_html( $url ); ?></code>
 					<p>
 						<button type="button" class="button" id="eex-regenerate-secret"><?php esc_html_e( 'Regenerate secret', 'emailexpert-events' ); ?></button>
 						<span class="eex-inline-result" aria-live="polite"></span>
@@ -512,6 +512,9 @@ final class SettingsPage {
 		$this->save_connections();
 		$this->save_events();
 		$this->save_settings();
+
+		// Cron on demand: reflects whether any event is enabled.
+		Scheduler::sync_schedule_state();
 
 		wp_safe_redirect( add_query_arg( 'updated', '1', admin_url( 'options-general.php?page=' . self::SLUG ) ) );
 		exit;
@@ -630,6 +633,9 @@ final class SettingsPage {
 			]
 		);
 
-		Scheduler::schedule( $frequency );
+		// The attribution table exists from the moment webhooks are enabled.
+		if ( ! empty( $posted['wh_checkout'] ) || ! empty( $posted['wh_started'] ) || ! empty( $posted['wh_talk'] ) ) {
+			\Emailexpert\Events\Install\Tables::ensure_attribution();
+		}
 	}
 }

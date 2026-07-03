@@ -130,3 +130,22 @@ Receipt returns 200 immediately and processing runs via
 wp_schedule_single_event + spawn_cron (a queued single event per spec 8.2).
 Dedupe happens at receipt time so HeySummit's 15-minute retries do not queue
 duplicate jobs even if processing is slow.
+
+# v2 extension run
+
+## D17. Lazy initialisation model
+
+Activation now does only: CPT/taxonomy registration, term seeding, rewrite
+flush, the single autoloaded `eex_settings` option, and a dismissible
+wizard-offer option. The log table is created on first log write and the
+attribution table when webhooks are enabled (belt-and-braces guard at
+insert), both guarded by a stored schema version (`eex_schema_versions`)
+plus a per-request static — creation is never attempted per request. The
+sync cron exists only while at least one event is enabled; the daily
+maintenance cron is scheduled with the first table. The webhook secret is
+generated the first time the Webhooks settings section renders rather than
+at activation. `eex_settings` is the one autoloaded option; everything
+bulky (discovery snapshots, availability caches, schema versions) stays
+non-autoloaded. Term seeding moved from per-request init to activation.
+Upgrades from v1 are safe: dbDelta reconciles existing tables on the first
+guarded write and the schema option starts tracking from there.

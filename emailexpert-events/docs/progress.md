@@ -179,3 +179,17 @@
   environment, each with the manual step that verifies it live.
 - Final state: 96 tests, 384 assertions, PHPCS clean, front-end assets
   ~3.1KB gzipped.
+
+# v2 extension run
+
+## V2-WI1 — Footprint and lazy initialisation
+
+- Minimal activation (no tables, no cron, no secret, no redirect); tables on
+  demand via Install\Tables with stored schema versions; attribution schema
+  v2 adds order_id for the Woo bridge; daily maintenance scheduled with the
+  first table; sync cron follows enabled events (schedules on first enable,
+  unschedules on last disable); deactivation clears every hook.
+- eex_settings is now the single autoloaded option; term seeding runs at
+  activation only; log and attribution admin screens handle absent tables;
+  retention pruning skips absent tables.
+- Tests: 103 passing including the new FootprintTest (7 tests).

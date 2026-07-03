@@ -33,6 +33,8 @@ final class Logger {
 	public static function log( string $context, string $level, string $message, array $data = [] ): int {
 		global $wpdb;
 
+		\Emailexpert\Events\Install\Tables::ensure_log();
+
 		$data = self::redact( $data );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table.

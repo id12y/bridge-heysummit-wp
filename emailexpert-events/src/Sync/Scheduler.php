@@ -83,6 +83,24 @@ final class Scheduler {
 	}
 
 	/**
+	 * Cron on demand: schedule the recurring sync only while at least one
+	 * event is enabled; unschedule when the last one is disabled.
+	 *
+	 * @param string $frequency Frequency key ('' = keep the configured one).
+	 */
+	public static function sync_schedule_state( string $frequency = '' ): void {
+		$frequency = '' !== $frequency ? $frequency : (string) \Emailexpert\Events\Options::setting( 'frequency' );
+
+		if ( empty( SyncEngine::enabled_event_keys() ) ) {
+			wp_clear_scheduled_hook( 'eex_sync_cron' );
+
+			return;
+		}
+
+		self::schedule( $frequency );
+	}
+
+	/**
 	 * Queue an immediate full run without blocking the current request.
 	 *
 	 * @param bool $force Ignore sync hashes.

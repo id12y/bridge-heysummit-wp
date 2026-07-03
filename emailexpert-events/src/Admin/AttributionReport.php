@@ -65,6 +65,10 @@ final class AttributionReport {
 	private function rows( array $filters, int $limit = self::PER_PAGE ): array {
 		global $wpdb;
 
+		if ( ! \Emailexpert\Events\Install\Tables::exists( 'attribution' ) ) {
+			return [];
+		}
+
 		$where  = ' WHERE 1=1';
 		$params = [];
 

@@ -66,7 +66,22 @@ final class Options {
 	 */
 	public static function update_settings( array $values ): void {
 		$settings = wp_parse_args( (array) get_option( self::SETTINGS, [] ), self::defaults() );
-		update_option( self::SETTINGS, array_merge( $settings, $values ), false );
+		// The one autoloaded option: small, read on every request.
+		update_option( self::SETTINGS, array_merge( $settings, $values ), true );
+	}
+
+	/**
+	 * Generate the webhook secret on first use (not at activation).
+	 */
+	public static function ensure_webhook_secret(): string {
+		$secret = self::webhook_secret();
+
+		if ( '' === $secret ) {
+			$secret = wp_generate_password( 40, false, false );
+			update_option( self::SECRET, $secret, false );
+		}
+
+		return $secret;
 	}
 
 	/**

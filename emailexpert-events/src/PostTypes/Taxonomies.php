@@ -29,7 +29,6 @@ final class Taxonomies {
 	 */
 	public function register(): void {
 		add_action( 'init', [ $this, 'register_taxonomies' ] );
-		add_action( 'init', [ $this, 'seed_terms' ], 20 );
 	}
 
 	/**
@@ -83,13 +82,10 @@ final class Taxonomies {
 	}
 
 	/**
-	 * Seed the fixed series and tier terms once.
+	 * Seed the fixed series and tier terms. Runs at activation only (never
+	 * per request); idempotent via term_exists.
 	 */
 	public function seed_terms(): void {
-		if ( get_option( 'eex_terms_seeded' ) ) {
-			return;
-		}
-
 		$series = [ 'FORUM', 'Deliverability Summit', 'Sender Symposium', 'Festival of Email' ];
 		foreach ( $series as $name ) {
 			if ( ! term_exists( $name, self::SERIES ) ) {
@@ -111,7 +107,5 @@ final class Taxonomies {
 				}
 			}
 		}
-
-		update_option( 'eex_terms_seeded', 1, false );
 	}
 }

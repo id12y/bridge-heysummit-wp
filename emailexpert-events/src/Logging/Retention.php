@@ -29,14 +29,18 @@ final class Retention {
 	public function run(): void {
 		global $wpdb;
 
-		Logger::prune();
+		if ( \Emailexpert\Events\Install\Tables::exists( 'log' ) ) {
+			Logger::prune();
+		}
 
-		$months = max( 1, (int) Options::setting( 'retention_months' ) );
-		$cutoff = gmdate( 'Y-m-d H:i:s', strtotime( "-{$months} months" ) );
+		if ( \Emailexpert\Events\Install\Tables::exists( 'attribution' ) ) {
+			$months = max( 1, (int) Options::setting( 'retention_months' ) );
+			$cutoff = gmdate( 'Y-m-d H:i:s', strtotime( "-{$months} months" ) );
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table.
-		$wpdb->query(
-			$wpdb->prepare( "DELETE FROM {$wpdb->prefix}eex_attribution WHERE created_at < %s", $cutoff )
-		);
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table.
+			$wpdb->query(
+				$wpdb->prepare( "DELETE FROM {$wpdb->prefix}eex_attribution WHERE created_at < %s", $cutoff )
+			);
+		}
 	}
 }

@@ -21,10 +21,25 @@ final class Attribution {
 	 * @param array<string,mixed> $attendee    Mapped attendee.
 	 * @param string              $event_hs_id HeySummit event ID.
 	 * @param string              $status      started|completed.
-	 * @return int Row ID.
+	 * @param int                 $order_id    WooCommerce order ID for
+	 *                                         Woo-originated rows (0 = webhook).
+	 * @return int Row ID (existing row's ID when deduplicated).
 	 */
-	public static function insert( array $attendee, string $event_hs_id, string $status ): int {
+	public static function insert( array $attendee, string $event_hs_id, string $status, int $order_id = 0 ): int {
 		global $wpdb;
+
+		\Emailexpert\Events\Install\Tables::ensure_attribution();
+
+		// A Woo-pushed sale makes HeySummit emit its own checkout-complete
+		// webhook; dedupe completed rows on the HeySummit attendee ID so one
+		// registration is never counted twice.
+		$attendee_hs_id = (string) ( $attendee['hs_id'] ?? '' );
+		if ( 'completed' === $status && '' !== $attendee_hs_id ) {
+			$existing = self::completed_row_for_attendee( $attendee_hs_id, $event_hs_id );
+			if ( null !== $existing ) {
+				return (int) $existing['id'];
+			}
+		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table.
 		$wpdb->insert(
@@ -42,11 +57,46 @@ final class Attribution {
 				'affiliate_email' => substr( (string) ( $attendee['affiliate_email'] ?? '' ), 0, 191 ),
 				'ticket_name'     => substr( (string) ( $attendee['ticket_name'] ?? '' ), 0, 191 ),
 				'amount_gross'    => substr( (string) ( $attendee['amount_gross'] ?? '' ), 0, 32 ),
+				'order_id'        => $order_id,
 			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d' ]
 		);
 
 		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Find an existing completed row for a HeySummit attendee ID.
+	 *
+	 * @param string $attendee_hs_id Attendee ID.
+	 * @param string $event_hs_id    Event ID ('' = any).
+	 * @return array<string,mixed>|null
+	 */
+	public static function completed_row_for_attendee( string $attendee_hs_id, string $event_hs_id = '' ): ?array {
+		global $wpdb;
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table.
+		if ( '' !== $event_hs_id ) {
+			$row = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}eex_attribution WHERE attendee_hs_id = %s AND event_hs_id = %s AND status = 'completed'",
+					$attendee_hs_id,
+					$event_hs_id
+				),
+				ARRAY_A
+			);
+		} else {
+			$row = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT * FROM {$wpdb->prefix}eex_attribution WHERE attendee_hs_id = %s AND status = 'completed'",
+					$attendee_hs_id
+				),
+				ARRAY_A
+			);
+		}
+		// phpcs:enable
+
+		return $row ?: null;
 	}
 
 	/**

@@ -26,6 +26,16 @@ final class LogPage {
 
 		global $wpdb;
 
+		if ( ! \Emailexpert\Events\Install\Tables::exists( 'log' ) ) {
+			printf(
+				'<div class="wrap eex-log"><h1>%s</h1><p>%s</p></div>',
+				esc_html__( 'emailexpert Events sync log', 'emailexpert-events' ),
+				esc_html__( 'No log entries yet. The log table is created on the first sync or webhook.', 'emailexpert-events' )
+			);
+
+			return;
+		}
+
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only filters.
 		$context = isset( $_GET['context'] ) ? sanitize_key( $_GET['context'] ) : '';
 		$level   = isset( $_GET['level'] ) ? sanitize_key( $_GET['level'] ) : '';

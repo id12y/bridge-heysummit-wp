@@ -1039,3 +1039,22 @@ if ( ! function_exists( 'wp_add_inline_style' ) ) {
 		return true;
 	}
 }
+
+// --- schema management. -------------------------------------------------------------
+if ( ! function_exists( 'dbDelta' ) ) {
+	function dbDelta( $queries = '', $execute = true ) {
+		global $wpdb;
+		foreach ( (array) $queries as $sql ) {
+			if ( preg_match( '/CREATE TABLE (\S+)/i', (string) $sql, $m ) ) {
+				$wpdb->tables[ $m[1] ] = $wpdb->tables[ $m[1] ] ?? [];
+				$GLOBALS['eex_test_dbdelta'][] = $m[1];
+			}
+		}
+		return [];
+	}
+}
+if ( ! function_exists( 'flush_rewrite_rules' ) ) {
+	function flush_rewrite_rules( $hard = true ) {
+		$GLOBALS['eex_test_rewrites_flushed'] = true;
+	}
+}
