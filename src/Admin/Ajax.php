@@ -230,7 +230,16 @@ final class Ajax {
 		$connection    = Options::connection( $connection_id );
 
 		if ( null === $connection || '' === (string) ( $connection['api_key'] ?? '' ) ) {
-			wp_send_json_error( [ 'message' => __( 'Connection not found or has no API key saved.', 'emailexpert-events' ) ], 400 );
+			wp_send_json_error(
+				[
+					'message' => sprintf(
+						/* translators: %s: the requested connection ID, or a placeholder when none was sent. */
+						__( 'Connection "%s" not found or has no API key saved. Save the settings first, or use Test connection with the key pasted — a working key is saved automatically.', 'emailexpert-events' ),
+						'' !== $connection_id ? $connection_id : __( '(new)', 'emailexpert-events' )
+					),
+				],
+				400
+			);
 		}
 
 		return $connection;
@@ -238,39 +247,103 @@ final class Ajax {
 
 	/**
 	 * Test a connection, and on success run the discovery diagnostic.
+	 *
+	 * The key pasted into the form travels with the request, so testing
+	 * works before anything is saved — the natural first action on a fresh
+	 * install. A key that authenticates is saved (updating the connection,
+	 * or creating it when the row was new); a failing key is never stored.
 	 */
 	public function test_connection(): void {
 		$this->guard();
-		$connection = $this->requested_connection();
 
-		$client = HeySummitClient::for_connection( $connection );
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified in guard(); sanitised here.
+		$connection_id = isset( $_POST['connection'] ) ? sanitize_key( wp_unslash( $_POST['connection'] ) ) : '';
+		$posted_key    = isset( $_POST['api_key'] ) ? sanitize_text_field( wp_unslash( $_POST['api_key'] ) ) : '';
+		// phpcs:enable
+
+		$connection = Options::connection( $connection_id );
+		$stored_key = null !== $connection ? (string) ( $connection['api_key'] ?? '' ) : '';
+		$key        = '' !== $posted_key ? $posted_key : $stored_key;
+
+		if ( '' === $key ) {
+			wp_send_json_error(
+				[ 'message' => __( 'No API key to test: paste your HeySummit API key into the field first. The key is tested exactly as typed and saved automatically once it works.', 'emailexpert-events' ) ],
+				400
+			);
+		}
+
+		$client = new HeySummitClient( $key, '' !== $connection_id ? $connection_id : 'unsaved' );
 		$result = $client->test();
 
 		if ( is_wp_error( $result ) ) {
+			// Never store a key that does not authenticate.
 			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
 		}
 
+		$saved = false;
+		if ( '' !== $posted_key && $posted_key !== $stored_key && empty( $connection['from_constant'] ) ) {
+			$connection_id = $this->store_key( $connection_id, $posted_key );
+			$saved         = true;
+		}
+
 		$count  = isset( $result['count'] ) ? (int) $result['count'] : count( (array) ( $result['results'] ?? [] ) );
-		$report = Discovery::run( $client, $connection['id'] );
+		$report = Discovery::run( $client, $connection_id );
 
 		$mismatches = 0;
 		foreach ( $report as $resource_report ) {
 			$mismatches += count( (array) ( $resource_report['missing'] ?? [] ) ) + count( (array) ( $resource_report['type_mismatch'] ?? [] ) );
 		}
 
-		Notices::remove( 'auth_' . $connection['id'] );
+		Notices::remove( 'auth_' . $connection_id );
 
 		wp_send_json_success(
 			[
 				'message'    => sprintf(
-					/* translators: 1: number of events, 2: number of shape mismatches. */
-					__( 'Connection succeeded. %1$d event(s) visible. Discovery ran: %2$d shape mismatch(es); see the diagnostics panel.', 'emailexpert-events' ),
+					/* translators: 1: number of events, 2: number of shape mismatches, 3: note when the key was stored (may be empty). */
+					__( 'Connection succeeded. %1$d event(s) visible. Discovery ran: %2$d shape mismatch(es); see the diagnostics panel.%3$s', 'emailexpert-events' ),
 					$count,
-					$mismatches
+					$mismatches,
+					$saved ? ' ' . __( 'The key has been saved.', 'emailexpert-events' ) : ''
 				),
 				'mismatches' => $mismatches,
+				'connection' => $connection_id,
+				'saved'      => $saved,
 			]
 		);
+	}
+
+	/**
+	 * Persist a key that just authenticated: update the named connection,
+	 * or create one when the row was never saved.
+	 *
+	 * @param string $connection_id Connection ID ('' for a new row).
+	 * @param string $api_key       The verified key.
+	 * @return string The (possibly newly created) connection ID.
+	 */
+	private function store_key( string $connection_id, string $api_key ): string {
+		$connections = array_values( array_filter( (array) get_option( Options::CONNECTIONS, [] ), 'is_array' ) );
+		$updated     = false;
+
+		foreach ( $connections as &$row ) {
+			if ( (string) ( $row['id'] ?? '' ) === $connection_id && '' !== $connection_id ) {
+				$row['api_key'] = $api_key;
+				$updated        = true;
+			}
+		}
+		unset( $row );
+
+		if ( ! $updated ) {
+			$connection_id = 'c' . substr( md5( uniqid( 'eex', true ) ), 0, 8 );
+			$connections[] = [
+				'id'      => $connection_id,
+				'label'   => __( 'Primary', 'emailexpert-events' ),
+				'api_key' => $api_key,
+			];
+		}
+
+		update_option( Options::CONNECTIONS, $connections, false );
+
+		return $connection_id;
 	}
 
 	/**

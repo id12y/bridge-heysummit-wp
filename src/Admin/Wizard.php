@@ -66,8 +66,9 @@ final class Wizard {
 				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
 				'nonce'   => wp_create_nonce( 'eex_admin' ),
 				'i18n'    => [
-					'working' => __( 'Working…', 'emailexpert-events' ),
-					'failed'  => __( 'Request failed.', 'emailexpert-events' ),
+					'working'  => __( 'Working…', 'emailexpert-events' ),
+					'failed'   => __( 'Request failed.', 'emailexpert-events' ),
+					'keySaved' => __( 'Key saved (leave blank to keep)', 'emailexpert-events' ),
 				],
 			]
 		);
