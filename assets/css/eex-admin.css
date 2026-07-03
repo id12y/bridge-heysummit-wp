@@ -1,15 +1,70 @@
-/* Settings screen styles. */
-.eex-settings .eex-event-row {
-	margin: 8px 0;
-	padding: 12px;
-	max-width: 780px;
+/*
+ * Admin screen styles: one white sheet per screen, clearly separated
+ * sections, card rows, status pills and a proper wizard stepper. Colours
+ * lean on the WordPress admin palette (#2271b1 accent, #1d2327 text,
+ * #dcdcde borders) so the plugin feels native, just less bare.
+ */
+
+/* --- The sheet. --------------------------------------------------------- */
+
+.wrap.eex-settings {
+	max-width: 1040px;
+	margin-top: 20px;
+	padding: 8px 32px 32px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.04 );
+}
+
+.eex-settings > h1 {
+	padding: 18px 0 14px;
+	margin: 0 0 8px;
+	border-bottom: 1px solid #f0f0f1;
+	font-size: 1.5em;
+}
+
+/* Section rhythm: each h2 starts a visually separated block. */
+.eex-settings h2 {
+	margin: 36px 0 4px;
+	padding-top: 24px;
+	border-top: 1px solid #f0f0f1;
+	font-size: 1.1em;
+}
+
+.eex-settings h1 + h2,
+.eex-settings h2:first-of-type {
+	border-top: 0;
+	padding-top: 12px;
+	margin-top: 8px;
+}
+
+.eex-settings .form-table th {
+	padding-left: 0;
+}
+
+/* --- Cards (event rows, bridge sources, sponsors). ----------------------- */
+
+.eex-settings .eex-event-row,
+.eex-settings .card {
+	margin: 12px 0;
+	padding: 16px;
+	max-width: 860px;
+	background: #fbfbfc;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	box-shadow: none;
+}
+
+.eex-settings .eex-event-enable strong {
+	font-size: 1.05em;
 }
 
 .eex-settings .eex-event-options {
 	display: flex;
 	flex-wrap: wrap;
-	gap: 8px 16px;
-	margin-top: 8px;
+	gap: 10px 20px;
+	margin-top: 10px;
 	align-items: center;
 }
 
@@ -20,21 +75,108 @@
 	gap: 4px 16px;
 }
 
+.eex-lite-sponsor {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	padding: 10px;
+	margin: 6px 0;
+	background: #fbfbfc;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	max-width: 860px;
+}
+
+/* --- Tables. ------------------------------------------------------------- */
+
+.eex-settings table.widefat {
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	box-shadow: none;
+	overflow: hidden;
+	max-width: 860px;
+}
+
+.eex-settings table.widefat thead th {
+	background: #f6f7f7;
+	font-weight: 600;
+}
+
+/* --- Status pills and inline feedback. ------------------------------------ */
+
+.eex-pill {
+	display: inline-block;
+	padding: 2px 10px;
+	margin-right: 8px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.8;
+	vertical-align: baseline;
+}
+
+.eex-pill-ok {
+	background: #edfaef;
+	color: #007017;
+	border: 1px solid #b8e6bf;
+}
+
+.eex-pill-manual {
+	background: #fcf9e8;
+	color: #674e00;
+	border: 1px solid #f0e6aa;
+}
+
 .eex-inline-result {
 	margin-left: 8px;
+	font-weight: 600;
+	color: #007017;
+}
+
+.eex-inline-result:empty {
+	display: none;
 }
 
 .eex-inline-result.eex-error {
 	color: #b32d2e;
 }
 
-.eex-diagnostics {
-	margin: 16px 0;
+.eex-inline-form {
+	display: inline-block;
+	margin: 0 0 8px;
 }
 
-.eex-diagnostics summary {
+/* --- Helper panel (guided fallback flows). -------------------------------- */
+
+.eex-helper {
+	max-width: 860px;
+	padding: 16px 20px;
+	background: #fbfbfc;
+	border: 1px solid #dcdcde;
+	border-left: 4px solid #dba617;
+	border-radius: 4px;
+}
+
+.eex-helper ol {
+	margin: 12px 0 0 20px;
+}
+
+.eex-helper ol > li {
+	margin-bottom: 16px;
+}
+
+/* --- Diagnostics and log. -------------------------------------------------- */
+
+.eex-diagnostics {
+	margin: 16px 0;
+	max-width: 860px;
+}
+
+.eex-diagnostics summary,
+.eex-settings details > summary {
 	cursor: pointer;
 	font-weight: 600;
+	padding: 6px 0;
 }
 
 .eex-log pre {
@@ -43,25 +185,92 @@
 	max-width: 480px;
 }
 
-/* Wizard. */
+/* --- Wizard. --------------------------------------------------------------- */
+
 .eex-wizard-steps {
 	display: flex;
-	gap: 16px;
-	list-style: decimal inside;
-	margin: 12px 0 20px;
+	flex-wrap: wrap;
+	gap: 8px;
+	list-style: none;
+	counter-reset: eex-step;
+	margin: 16px 0 24px;
 	padding: 0;
 }
 
+.eex-wizard-steps li {
+	counter-increment: eex-step;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0;
+	padding: 6px 14px 6px 8px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 999px;
+	color: #50575e;
+	font-size: 13px;
+}
+
+.eex-wizard-steps li::before {
+	content: counter( eex-step );
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: #dcdcde;
+	color: #1d2327;
+	font-weight: 600;
+	font-size: 12px;
+}
+
+/* Step 0 renders with start="0": shift the counter. */
+.eex-wizard-steps[start="0"] {
+	counter-reset: eex-step -1;
+}
+
 .eex-wizard-steps .eex-step-current {
-	font-weight: 700;
+	background: #fff;
+	border-color: #2271b1;
+	color: #1d2327;
+	font-weight: 600;
+	box-shadow: 0 1px 2px rgba( 34, 113, 177, 0.15 );
+}
+
+.eex-wizard-steps .eex-step-current::before {
+	background: #2271b1;
+	color: #fff;
 }
 
 .eex-wizard-event {
-	display: inline-block;
-	margin: 4px 0;
+	display: block;
+	margin: 6px 0;
+	padding: 8px 12px;
+	max-width: 720px;
+	background: #fbfbfc;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
 }
 
 .eex-wizard-preview {
 	font-weight: 600;
 	margin: 8px 0 0;
+}
+
+/* --- Small screens. --------------------------------------------------------- */
+
+@media screen and ( max-width: 782px ) {
+	.wrap.eex-settings {
+		padding: 4px 16px 20px;
+	}
+
+	.eex-settings .eex-event-options {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.eex-lite-sponsor input {
+		width: 100%;
+	}
 }

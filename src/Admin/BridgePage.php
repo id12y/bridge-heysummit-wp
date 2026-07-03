@@ -31,6 +31,126 @@ final class BridgePage {
 		add_action( 'admin_post_eex_save_bridge', [ $this, 'save' ] );
 		add_action( 'admin_post_eex_project_now', [ $this, 'project_now' ] );
 		add_action( 'admin_post_eex_toggle_accounts', [ $this, 'toggle_accounts' ] );
+		add_action( 'admin_post_eex_mylisting_manual', [ $this, 'save_manual_mapping' ] );
+		add_action( 'admin_post_eex_mylisting_redetect', [ $this, 'redetect' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue' ] );
+	}
+
+	/**
+	 * Admin styles for this screen.
+	 *
+	 * @param string $hook Current admin page hook.
+	 */
+	public function enqueue( string $hook ): void {
+		if ( 'settings_page_' . self::SLUG !== $hook ) {
+			return;
+		}
+
+		wp_enqueue_style( 'eex-admin', EEX_PLUGIN_URL . 'assets/css/eex-admin.css', [], EEX_VERSION );
+	}
+
+	/**
+	 * Store (or clear) the operator's manual MyListing mapping.
+	 */
+	public function save_manual_mapping(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'emailexpert-events' ) );
+		}
+
+		check_admin_referer( 'eex_mylisting_manual' );
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified above; sanitised below.
+		if ( ! empty( $_POST['eex_manual_clear'] ) ) {
+			Detection::save_manual( null );
+			\Emailexpert\Events\Admin\Notices::remove( 'mylisting_detection' );
+			wp_safe_redirect( add_query_arg( 'updated', '1', admin_url( 'options-general.php?page=' . self::SLUG ) ) );
+			exit;
+		}
+
+		$post_type = isset( $_POST['manual']['post_type'] ) ? sanitize_key( wp_unslash( $_POST['manual']['post_type'] ) ) : '';
+		$meta_key  = isset( $_POST['manual']['type_meta_key'] ) ? sanitize_text_field( wp_unslash( $_POST['manual']['type_meta_key'] ) ) : '';
+		$types_raw = isset( $_POST['manual']['types'] ) ? sanitize_textarea_field( wp_unslash( $_POST['manual']['types'] ) ) : '';
+		$field_raw = isset( $_POST['manual']['fields'] ) ? sanitize_textarea_field( wp_unslash( $_POST['manual']['fields'] ) ) : '';
+		// phpcs:enable
+
+		$mapping = self::parse_manual_mapping( $post_type, $meta_key, $types_raw, $field_raw );
+
+		if ( null === $mapping ) {
+			wp_die( esc_html__( 'The manual mapping needs at least a listing post type and one listing type line (slug | Label).', 'emailexpert-events' ) );
+		}
+
+		Detection::save_manual( $mapping );
+		\Emailexpert\Events\Admin\Notices::remove( 'mylisting_detection' );
+
+		wp_safe_redirect( add_query_arg( 'updated', '1', admin_url( 'options-general.php?page=' . self::SLUG ) ) );
+		exit;
+	}
+
+	/**
+	 * Parse the manual-mapping form lines into a Detection manual option.
+	 * Lines are "slug | Label" for types and "meta_key | Label" for fields;
+	 * the label falls back to the key.
+	 *
+	 * @param string $post_type Listing post type.
+	 * @param string $meta_key  Listing-type meta key.
+	 * @param string $types_raw One type per line.
+	 * @param string $field_raw One field per line.
+	 * @return array<string,mixed>|null Null when unusable.
+	 */
+	public static function parse_manual_mapping( string $post_type, string $meta_key, string $types_raw, string $field_raw ): ?array {
+		if ( '' === $post_type ) {
+			return null;
+		}
+
+		$parse_lines = static function ( string $raw ): array {
+			$out = [];
+			foreach ( preg_split( '/\r\n|\r|\n/', $raw ) ?: [] as $line ) {
+				[ $key, $label ] = array_pad( array_map( 'trim', explode( '|', $line, 2 ) ), 2, '' );
+				if ( '' !== $key ) {
+					$out[] = [
+						'key'   => sanitize_text_field( $key ),
+						'label' => sanitize_text_field( '' !== $label ? $label : $key ),
+					];
+				}
+			}
+
+			return $out;
+		};
+
+		$types = array_map(
+			static fn( array $row ): array => [
+				'slug'  => sanitize_title( $row['key'] ),
+				'label' => $row['label'],
+			],
+			$parse_lines( $types_raw )
+		);
+
+		if ( empty( $types ) ) {
+			return null;
+		}
+
+		return [
+			'post_type'     => $post_type,
+			'type_meta_key' => '' !== $meta_key ? $meta_key : '_case27_listing_type',
+			'types'         => $types,
+			'fields'        => $parse_lines( $field_raw ),
+		];
+	}
+
+	/**
+	 * Re-run automatic detection on demand.
+	 */
+	public function redetect(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'emailexpert-events' ) );
+		}
+
+		check_admin_referer( 'eex_mylisting_redetect' );
+
+		Detection::get( true );
+
+		wp_safe_redirect( add_query_arg( 'updated', '1', admin_url( 'options-general.php?page=' . self::SLUG ) ) );
+		exit;
 	}
 
 	/**
@@ -130,15 +250,41 @@ final class BridgePage {
 		$detection = Detection::get();
 
 		if ( empty( $detection['confident'] ) ) {
-			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'MyListing is active but its listing types could not be read confidently; the bridge is disabled.', 'emailexpert-events' ) . '</p></div>';
+			$this->render_mylisting_helper();
 
 			return;
 		}
 
 		$config = MyListingModule::config();
+		$manual = 'manual' === (string) ( $detection['source'] ?? 'auto' );
 		?>
 		<h2><?php esc_html_e( 'MyListing projection', 'emailexpert-events' ); ?></h2>
+		<p>
+			<?php if ( $manual ) : ?>
+				<span class="eex-pill eex-pill-manual"><?php esc_html_e( 'Manual mapping in use', 'emailexpert-events' ); ?></span>
+			<?php else : ?>
+				<span class="eex-pill eex-pill-ok">
+					<?php
+					printf(
+						/* translators: %d: number of detected listing types. */
+						esc_html( _n( '%d listing type detected automatically', '%d listing types detected automatically', count( (array) $detection['types'] ), 'emailexpert-events' ) ),
+						(int) count( (array) $detection['types'] )
+					);
+					?>
+				</span>
+			<?php endif; ?>
+			<span class="description"><?php esc_html_e( 'The bridge stays off until you enable a projection below — detection alone never creates or changes listings.', 'emailexpert-events' ); ?></span>
+		</p>
 		<p class="description"><?php esc_html_e( 'One-way projection: the emailexpert Events posts stay canonical as data; the bridge creates and updates listings after each sync. Unmapped fields are never written.', 'emailexpert-events' ); ?></p>
+
+		<?php if ( $manual ) : ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="eex-inline-form">
+				<input type="hidden" name="action" value="eex_mylisting_manual" />
+				<input type="hidden" name="eex_manual_clear" value="1" />
+				<?php wp_nonce_field( 'eex_mylisting_manual' ); ?>
+				<button type="submit" class="button-link"><?php esc_html_e( 'Discard the manual mapping and retry automatic detection', 'emailexpert-events' ); ?></button>
+			</form>
+		<?php endif; ?>
 
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="eex_save_bridge" />
@@ -241,6 +387,106 @@ final class BridgePage {
 			<?php wp_nonce_field( 'eex_project_now' ); ?>
 			<?php submit_button( __( 'Project now', 'emailexpert-events' ), 'secondary' ); ?>
 		</form>
+		<?php
+	}
+
+	/**
+	 * Shown when automatic detection could not read the theme: explain what
+	 * happened, offer a retry, and let the operator map the structure
+	 * manually instead of leaving a dead end.
+	 */
+	private function render_mylisting_helper(): void {
+		$manual = (array) get_option( Detection::MANUAL_OPTION, [] );
+		?>
+		<h2><?php esc_html_e( 'MyListing projection', 'emailexpert-events' ); ?></h2>
+
+		<div class="eex-helper">
+			<p>
+				<strong><?php esc_html_e( 'MyListing was found, but its listing types could not be read automatically.', 'emailexpert-events' ); ?></strong>
+				<?php esc_html_e( 'The bridge is off and no listings will be created or changed. This usually means the theme version stores its listing-type configuration somewhere new. Two ways forward:', 'emailexpert-events' ); ?>
+			</p>
+
+			<ol>
+				<li>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="eex-inline-form">
+						<input type="hidden" name="action" value="eex_mylisting_redetect" />
+						<?php wp_nonce_field( 'eex_mylisting_redetect' ); ?>
+						<button type="submit" class="button"><?php esc_html_e( 'Retry automatic detection', 'emailexpert-events' ); ?></button>
+						<span class="description"><?php esc_html_e( 'worth a try after a theme update, or if listing types were created since the last check.', 'emailexpert-events' ); ?></span>
+					</form>
+				</li>
+				<li>
+					<p><strong><?php esc_html_e( 'Map it manually.', 'emailexpert-events' ); ?></strong> <?php esc_html_e( 'Tell the bridge how your listings are structured; everything else works exactly as with automatic detection, and the bridge still stays off until you enable a projection.', 'emailexpert-events' ); ?></p>
+
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<input type="hidden" name="action" value="eex_mylisting_manual" />
+						<?php wp_nonce_field( 'eex_mylisting_manual' ); ?>
+
+						<table class="form-table" role="presentation">
+							<tr>
+								<th scope="row"><label for="eex-manual-post-type"><?php esc_html_e( 'Listing post type', 'emailexpert-events' ); ?></label></th>
+								<td>
+									<select id="eex-manual-post-type" name="manual[post_type]">
+										<?php
+										$current = (string) ( $manual['post_type'] ?? 'job_listing' );
+										$types   = function_exists( 'get_post_types' ) ? (array) get_post_types( [ 'public' => true ], 'objects' ) : [];
+										if ( empty( $types ) ) {
+											printf( '<option value="job_listing">%s</option>', esc_html__( 'job_listing (MyListing default)', 'emailexpert-events' ) );
+										}
+										foreach ( $types as $slug => $object ) {
+											printf(
+												'<option value="%s" %s>%s (%s)</option>',
+												esc_attr( (string) $slug ),
+												selected( $current, (string) $slug, false ),
+												esc_html( (string) ( $object->labels->name ?? $slug ) ),
+												esc_html( (string) $slug )
+											);
+										}
+										?>
+									</select>
+									<p class="description"><?php esc_html_e( 'MyListing normally uses job_listing.', 'emailexpert-events' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="eex-manual-meta-key"><?php esc_html_e( 'Listing-type meta key', 'emailexpert-events' ); ?></label></th>
+								<td>
+									<input type="text" id="eex-manual-meta-key" name="manual[type_meta_key]" class="regular-text" value="<?php echo esc_attr( (string) ( $manual['type_meta_key'] ?? '_case27_listing_type' ) ); ?>" />
+									<p class="description"><?php esc_html_e( 'The post meta key holding each listing’s type slug. MyListing normally uses _case27_listing_type — check any listing in a database tool if unsure.', 'emailexpert-events' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="eex-manual-types"><?php esc_html_e( 'Listing types', 'emailexpert-events' ); ?></label></th>
+								<td>
+									<textarea id="eex-manual-types" name="manual[types]" rows="3" class="large-text code" placeholder="event | Event&#10;venue | Venue">
+									<?php
+									foreach ( (array) ( $manual['types'] ?? [] ) as $type ) {
+										echo esc_textarea( (string) ( $type['slug'] ?? '' ) . ' | ' . (string) ( $type['label'] ?? '' ) . "\n" );
+									}
+									?>
+									</textarea>
+									<p class="description"><?php esc_html_e( 'One per line: slug | Label. The slugs are what MyListing shows under Listing Types (the URL slug of each type).', 'emailexpert-events' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="eex-manual-fields"><?php esc_html_e( 'Listing fields (optional)', 'emailexpert-events' ); ?></label></th>
+								<td>
+									<textarea id="eex-manual-fields" name="manual[fields]" rows="4" class="large-text code" placeholder="job_date | Event date&#10;job_location | Location">
+									<?php
+									foreach ( (array) ( $manual['fields'] ?? [] ) as $field_row ) {
+										echo esc_textarea( (string) ( $field_row['key'] ?? '' ) . ' | ' . (string) ( $field_row['label'] ?? '' ) . "\n" );
+									}
+									?>
+									</textarea>
+									<p class="description"><?php esc_html_e( 'One per line: field meta key | Label. These become the targets offered in the field-mapping table; you can start with none and add them later.', 'emailexpert-events' ); ?></p>
+								</td>
+							</tr>
+						</table>
+
+						<?php submit_button( __( 'Save manual mapping', 'emailexpert-events' ), 'primary', '', false ); ?>
+					</form>
+				</li>
+			</ol>
+		</div>
 		<?php
 	}
 

@@ -21,15 +21,24 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Detection {
 
-	private const OPTION = 'eex_mylisting_detection';
+	private const OPTION       = 'eex_mylisting_detection';
+	public const MANUAL_OPTION = 'eex_mylisting_manual';
 
 	/**
-	 * The detection result, cached per theme version.
+	 * The detection result, cached per theme version. An operator-supplied
+	 * manual mapping (stored when automatic detection cannot read the
+	 * theme's structure) always wins: the operator knows their site.
 	 *
-	 * @param bool $refresh Force a re-run.
-	 * @return array<string,mixed> confident, post_type, type_meta_key, types.
+	 * @param bool $refresh Force a re-run of automatic detection.
+	 * @return array<string,mixed> confident, source ('auto'|'manual'),
+	 *                             post_type, type_meta_key, types.
 	 */
 	public static function get( bool $refresh = false ): array {
+		$manual = self::manual();
+		if ( null !== $manual ) {
+			return $manual;
+		}
+
 		$salt   = (string) apply_filters( 'eex_mylisting_detection_salt', function_exists( 'wp_get_theme' ) ? (string) wp_get_theme()->get( 'Version' ) : '' );
 		$cached = (array) get_option( self::OPTION, [] );
 
@@ -65,6 +74,74 @@ final class Detection {
 	}
 
 	/**
+	 * The operator's manual mapping as a confident detection result, or
+	 * null when none is stored.
+	 *
+	 * @return array<string,mixed>|null
+	 */
+	public static function manual(): ?array {
+		$stored = (array) get_option( self::MANUAL_OPTION, [] );
+
+		if ( empty( $stored['post_type'] ) || empty( $stored['types'] ) || ! is_array( $stored['types'] ) ) {
+			return null;
+		}
+
+		$fields = [];
+		foreach ( (array) ( $stored['fields'] ?? [] ) as $field ) {
+			if ( is_array( $field ) && '' !== (string) ( $field['key'] ?? '' ) ) {
+				$fields[] = [
+					'key'   => (string) $field['key'],
+					'label' => (string) ( $field['label'] ?? $field['key'] ),
+					'type'  => '',
+				];
+			}
+		}
+
+		$types = [];
+		foreach ( (array) $stored['types'] as $type ) {
+			if ( ! is_array( $type ) || '' === (string) ( $type['slug'] ?? '' ) ) {
+				continue;
+			}
+
+			$types[] = [
+				'id'         => 0,
+				'slug'       => (string) $type['slug'],
+				'label'      => (string) ( $type['label'] ?? $type['slug'] ),
+				'fields'     => $fields,
+				'taxonomies' => function_exists( 'get_object_taxonomies' ) ? array_values( (array) get_object_taxonomies( (string) $stored['post_type'] ) ) : [],
+			];
+		}
+
+		if ( empty( $types ) ) {
+			return null;
+		}
+
+		return [
+			'confident'     => true,
+			'source'        => 'manual',
+			'post_type'     => (string) $stored['post_type'],
+			'type_meta_key' => (string) ( $stored['type_meta_key'] ?: '_case27_listing_type' ),
+			'types'         => $types,
+		];
+	}
+
+	/**
+	 * Store or clear the manual mapping.
+	 *
+	 * @param array<string,mixed>|null $mapping Sanitised mapping, or null to
+	 *                                          return to automatic detection.
+	 */
+	public static function save_manual( ?array $mapping ): void {
+		if ( null === $mapping ) {
+			delete_option( self::MANUAL_OPTION );
+
+			return;
+		}
+
+		update_option( self::MANUAL_OPTION, $mapping, false );
+	}
+
+	/**
 	 * Enumerate listing types and fields from the installed theme.
 	 *
 	 * @return array<string,mixed>
@@ -82,6 +159,7 @@ final class Detection {
 
 		$empty = [
 			'confident'     => false,
+			'source'        => 'auto',
 			'post_type'     => 'job_listing',
 			'type_meta_key' => '_case27_listing_type',
 			'types'         => [],
@@ -128,6 +206,7 @@ final class Detection {
 
 		return [
 			'confident'     => true,
+			'source'        => 'auto',
 			'post_type'     => 'job_listing',
 			'type_meta_key' => '_case27_listing_type',
 			'types'         => $types,

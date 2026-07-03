@@ -270,4 +270,44 @@ final class MyListingBridgeTest extends TestCase {
 		$this->assertStringContainsString( 'discovery', $logged );
 		$this->assertStringContainsString( 'MyListing', $logged );
 	}
+
+	public function test_manual_mapping_makes_detection_confident_and_bridge_usable(): void {
+		// Automatic detection failed…
+		remove_all_filters( 'eex_mylisting_detection_override' );
+		add_filter( 'eex_mylisting_detection_override', static fn() => [ 'confident' => false ] );
+		$this->assertFalse( (bool) \Emailexpert\Events\MyListing\Detection::get( true )['confident'] );
+
+		// …so the operator maps the structure by hand (the helper form).
+		$mapping = \Emailexpert\Events\Admin\BridgePage::parse_manual_mapping(
+			'job_listing',
+			'_case27_listing_type',
+			"event | Event\nvenue | Venue",
+			"job_date | Event date\njob_location | Location"
+		);
+
+		$this->assertNotNull( $mapping );
+		\Emailexpert\Events\MyListing\Detection::save_manual( $mapping );
+
+		$detection = \Emailexpert\Events\MyListing\Detection::get();
+		$this->assertTrue( (bool) $detection['confident'], 'a manual mapping restores the bridge' );
+		$this->assertSame( 'manual', $detection['source'] );
+		$this->assertSame( 'job_listing', $detection['post_type'] );
+		$this->assertSame( [ 'event', 'venue' ], array_column( $detection['types'], 'slug' ) );
+		$this->assertSame( 'Event date', $detection['types'][0]['fields'][0]['label'] );
+
+		// Discarding it returns to (still unconfident) automatic detection.
+		\Emailexpert\Events\MyListing\Detection::save_manual( null );
+		$this->assertFalse( (bool) \Emailexpert\Events\MyListing\Detection::get( true )['confident'] );
+	}
+
+	public function test_manual_mapping_parser_rejects_unusable_input_and_fills_defaults(): void {
+		$this->assertNull( \Emailexpert\Events\Admin\BridgePage::parse_manual_mapping( '', '', 'event | Event', '' ), 'a post type is required' );
+		$this->assertNull( \Emailexpert\Events\Admin\BridgePage::parse_manual_mapping( 'job_listing', '', '', '' ), 'at least one type line is required' );
+
+		$mapping = \Emailexpert\Events\Admin\BridgePage::parse_manual_mapping( 'job_listing', '', 'Event Spaces', '' );
+		$this->assertSame( '_case27_listing_type', $mapping['type_meta_key'], 'meta key defaults to the MyListing standard' );
+		$this->assertSame( 'event-spaces', $mapping['types'][0]['slug'], 'bare lines become slug + label' );
+		$this->assertSame( 'Event Spaces', $mapping['types'][0]['label'] );
+		$this->assertSame( [], $mapping['fields'], 'fields are optional' );
+	}
 }

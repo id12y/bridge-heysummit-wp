@@ -410,3 +410,21 @@ progress entries that mention the subdirectory are records of their time
 and stand unedited. The repository was subsequently renamed to
 `id12y/bridge-heysummit-wp`; the wizard links follow it (old GitHub URLs
 redirect, but only until the old name is ever reused).
+
+## D41. MyListing detection failure is a guided path, not a dead end
+
+The bridge was already opt-in per source (projection checkboxes default
+off), but the UI never said so — it now does, with a status pill naming
+how many listing types were detected. When automatic detection cannot
+read the theme's structure, the bridges page no longer just announces
+the bridge is disabled: it offers a one-click detection retry and a
+manual mapping form (listing post type, listing-type meta key, type
+lines "slug | Label", optional field lines "key | Label"). A stored
+manual mapping is treated as a confident detection result tagged
+source=manual — the operator knows their site — and always wins over
+the automatic cache until explicitly discarded. Manual and automatic
+results flow through the identical projection code; nothing is forked.
+The admin stylesheet was rebuilt at the same time (white sheet per
+screen, separated sections, card rows, status pills, a numbered wizard
+stepper) and now loads on the bridges page, which previously enqueued
+nothing.
