@@ -46,7 +46,7 @@ final class BridgePage {
 			return;
 		}
 
-		wp_enqueue_style( 'eex-admin', EEX_PLUGIN_URL . 'assets/css/eex-admin.css', [], EEX_VERSION );
+		AdminAssets::enqueue();
 	}
 
 	/**

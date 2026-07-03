@@ -428,3 +428,22 @@ The admin stylesheet was rebuilt at the same time (white sheet per
 screen, separated sections, card rows, status pills, a numbered wizard
 stepper) and now loads on the bridges page, which previously enqueued
 nothing.
+
+## D42. Sweep for first-use traps: dead buttons, stale wizard state, cron leftovers
+
+A contract audit (JS selectors ↔ markup, AJAX actions ↔ handlers, form
+actions ↔ admin_post registrations, settings reads ↔ defaults, scheduled
+hooks ↔ cleared hooks) found three real faults, all fixed:
+(1) the product editor's "Load tickets" buttons were dead — eex-admin.js
+and its nonce were only enqueued on the plugin's own screens; a shared
+`Admin\AdminAssets::enqueue()` now serves every screen with eex buttons,
+including product edit;
+(2) a successful wizard connection test didn't reveal the server-rendered
+discovery summary and Continue button — the wizard now reloads on
+success, which also refreshes the form's stale hidden connection ID;
+(3) queued jobs were never fully cleared: wp_clear_scheduled_hook()
+without args skips arg-carrying events (nearly all of ours), and four job
+hooks were missing from the lists entirely. `Install\Cron` now holds the
+single inventory of every scheduled hook; deactivation, uninstall and the
+Lite switch clear through wp_unschedule_hook(), and the Lite switch
+deliberately keeps Woo push jobs (the bridge runs in both modes).

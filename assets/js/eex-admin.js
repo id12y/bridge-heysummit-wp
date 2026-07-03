@@ -81,6 +81,17 @@
 			return;
 		}
 
+		// In the wizard, a successful test unlocks the next step and the
+		// discovery summary — both server-rendered, so reload to show them
+		// (this also refreshes the form's hidden connection ID).
+		if ( button.closest( '.eex-wizard' ) ) {
+			window.setTimeout( function () {
+				window.location.reload();
+			}, 800 );
+
+			return;
+		}
+
 		// A saved key means the row now has a real connection ID: put it on
 		// the button (so a re-test targets the saved row) and into the row's
 		// hidden id field (so a later "Save settings" updates this

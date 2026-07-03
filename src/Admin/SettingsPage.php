@@ -111,21 +111,7 @@ final class SettingsPage {
 			return;
 		}
 
-		wp_enqueue_style( 'eex-admin', EEX_PLUGIN_URL . 'assets/css/eex-admin.css', [], EEX_VERSION );
-		wp_enqueue_script( 'eex-admin', EEX_PLUGIN_URL . 'assets/js/eex-admin.js', [], EEX_VERSION, true );
-		wp_localize_script(
-			'eex-admin',
-			'eexAdmin',
-			[
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'eex_admin' ),
-				'i18n'    => [
-					'working'  => __( 'Working…', 'emailexpert-events' ),
-					'failed'   => __( 'Request failed.', 'emailexpert-events' ),
-					'keySaved' => __( 'Key saved (leave blank to keep)', 'emailexpert-events' ),
-				],
-			]
-		);
+		AdminAssets::enqueue();
 	}
 
 	/**

@@ -509,6 +509,15 @@ if ( ! function_exists( 'wp_generate_password' ) ) {
 		return $out;
 	}
 }
+if ( ! function_exists( 'wp_unschedule_hook' ) ) {
+	function wp_unschedule_hook( $hook ) {
+		$before = count( EEX_Test_State::$scheduled );
+		EEX_Test_State::$scheduled = array_values(
+			array_filter( EEX_Test_State::$scheduled, static fn( $e ) => $e['hook'] !== $hook )
+		);
+		return $before - count( EEX_Test_State::$scheduled );
+	}
+}
 if ( ! function_exists( 'wp_next_scheduled' ) ) {
 	function wp_next_scheduled( $hook, $args = [] ) {
 		foreach ( EEX_Test_State::$scheduled as $event ) {
