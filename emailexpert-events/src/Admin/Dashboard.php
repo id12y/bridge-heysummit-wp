@@ -125,8 +125,29 @@ final class Dashboard {
 			esc_html( $status['last_failure'] ?: __( 'none', 'emailexpert-events' ) )
 		);
 
-		if ( '' !== $status['last_failure'] && $status['last_failure'] > $status['last_success'] ) {
+		if ( \Emailexpert\Events\Data\LiveCache::degraded() ) {
 			echo '<p><strong>' . esc_html__( 'HeySummit was unreachable on the last attempt; pages are serving the last good copy.', 'emailexpert-events' ) . '</strong></p>';
+
+			if ( '' !== $status['last_error'] ) {
+				printf(
+					'<p><code>%s</code></p>',
+					esc_html( $status['last_error'] )
+				);
+			}
+		}
+
+		$ring = \Emailexpert\Events\Logging\Logger::ring();
+		if ( ! empty( $ring ) ) {
+			echo '<details><summary>' . esc_html__( 'Recent log entries', 'emailexpert-events' ) . '</summary><ul>';
+			foreach ( array_slice( array_reverse( $ring ), 0, 5 ) as $entry ) {
+				printf(
+					'<li><code>%s</code> [%s] %s</li>',
+					esc_html( (string) ( $entry['created_at'] ?? '' ) ),
+					esc_html( (string) ( $entry['level'] ?? '' ) ),
+					esc_html( (string) ( $entry['message'] ?? '' ) )
+				);
+			}
+			echo '</ul></details>';
 		}
 
 		printf(

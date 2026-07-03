@@ -641,6 +641,52 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringNotContainsString( 'javascript:', $html );
 	}
 
+	public function test_live_failures_record_a_debuggable_reason(): void {
+		$this->go_lite();
+		$this->mock_api( true );
+
+		Components::render( 'upcoming-sessions', [] );
+
+		$status = LiveCache::status();
+		$this->assertNotSame( '', $status['last_failure'] );
+		$this->assertStringContainsString( 'unreachable', $status['last_error'], 'the client error message survives' );
+		$this->assertStringContainsString( 'events|c1', $status['last_error'], 'the failing resource key is named' );
+		$this->assertTrue( LiveCache::degraded() );
+
+		// The ring buffer holds the request trail (no table in Lite).
+		$messages = implode( ' ', array_column( \Emailexpert\Events\Logging\Logger::ring(), 'message' ) );
+		$this->assertStringContainsString( 'transport error', $messages );
+	}
+
+	public function test_degraded_lite_renders_carry_an_admin_only_note_outside_the_cache(): void {
+		$this->go_lite();
+		$this->mock_api( true );
+
+		// The stubbed current_user_can() returns true: this render is "an
+		// administrator viewing the page".
+		$html = Components::render( 'upcoming-sessions', [] );
+
+		$this->assertStringContainsString( 'visible to administrators only', $html );
+		$this->assertStringContainsString( 'last HeySummit fetch failed', $html );
+
+		// The note must never enter the cached fragment a visitor receives.
+		foreach ( \EEX_Test_State::$transients as $key => $value ) {
+			if ( str_starts_with( (string) $key, 'eex_c_' ) && is_string( $value ) ) {
+				$this->assertStringNotContainsString( 'administrators only', $value, 'debug note is not cached' );
+			}
+		}
+
+		// A healthy fetch clears the degraded state and the note disappears.
+		remove_all_filters( 'pre_http_request' );
+		$this->mock_api();
+		LiveCache::flush();
+		Cache::flush();
+		LiveCache::reset_request_state();
+
+		$healthy = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringNotContainsString( 'administrators only', $healthy );
+	}
+
 	// -- Cache-stuffing guards. -------------------------------------------------
 
 	public function test_search_queries_never_mint_cache_entries(): void {

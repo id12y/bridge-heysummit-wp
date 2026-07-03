@@ -309,7 +309,8 @@ final class Components {
 		if ( $cacheable ) {
 			$cached = Cache::get( $name, $cache_atts );
 			if ( null !== $cached ) {
-				return $cached;
+				// The debug note rides outside the cached fragment.
+				return $cached . self::admin_debug_note();
 			}
 		}
 
@@ -336,7 +337,30 @@ final class Components {
 			Cache::set( $name, $cache_atts, $html );
 		}
 
-		return $html;
+		return $html . self::admin_debug_note();
+	}
+
+	/**
+	 * An HTML comment appended for administrators only — never cached, so
+	 * it can't leak to visitors — explaining that Lite is currently serving
+	 * degraded (last-good or empty) data and why. This is what turns "the
+	 * block looks empty" into a debuggable report.
+	 */
+	private static function admin_debug_note(): string {
+		if ( ! Options::is_lite()
+			|| ! function_exists( 'current_user_can' )
+			|| ! current_user_can( 'manage_options' )
+			|| ! \Emailexpert\Events\Data\LiveCache::degraded() ) {
+			return '';
+		}
+
+		$status = \Emailexpert\Events\Data\LiveCache::status();
+
+		return sprintf(
+			"\n<!-- emailexpert Events (visible to administrators only): the last HeySummit fetch failed at %s UTC: %s. Components are rendering last-good or empty-state data. See Dashboard -> emailexpert Events. -->",
+			esc_html( $status['last_failure'] ),
+			esc_html( str_replace( '--', '- -', $status['last_error'] ?: 'no reason recorded' ) )
+		);
 	}
 
 	/**

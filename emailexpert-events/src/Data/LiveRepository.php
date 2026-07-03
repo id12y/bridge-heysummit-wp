@@ -169,9 +169,8 @@ class LiveRepository extends BaseMapper implements Repository {
 		$raw = LiveCache::remember(
 			'talk|' . $conn_id . '|' . $ref,
 			static function () use ( $client, $ref ) {
-				$response = $client->get( 'talks/' . rawurlencode( $ref ) . '/', [], self::request_options() );
-
-				return is_wp_error( $response ) ? null : $response;
+				// A WP_Error propagates its reason to the cache status.
+				return $client->get( 'talks/' . rawurlencode( $ref ) . '/', [], self::request_options() );
 			}
 		);
 
@@ -335,7 +334,7 @@ class LiveRepository extends BaseMapper implements Repository {
 					$response = $client->get( 'events/', [], self::request_options() );
 
 					if ( is_wp_error( $response ) ) {
-						return null;
+						return $response; // The reason reaches the cache status.
 					}
 
 					$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( array_is_list( $response ) ? $response : [ $response ] );
@@ -427,7 +426,7 @@ class LiveRepository extends BaseMapper implements Repository {
 				$response = $client->get( 'talks/', [ 'event' => $event_hs_id ], self::request_options() );
 
 				if ( is_wp_error( $response ) ) {
-					return null;
+					return $response; // The reason reaches the cache status.
 				}
 
 				$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( array_is_list( $response ) ? $response : [] );

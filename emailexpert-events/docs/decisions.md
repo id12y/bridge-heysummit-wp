@@ -380,3 +380,20 @@ meta via `woocommerce_set_additional_field_value` so the pusher has one
 path; the block field is optional and shown on every checkout (the
 Blocks API cannot condition on cart contents), and older WooCommerce
 with a block checkout gets an admin warning naming the consequence.
+
+## D39. Errors carry enough context to debug from the message alone
+
+Every client error now names the method and endpoint, the HTTP status,
+the API's own reason (DRF detail/message/first field error, tag-stripped
+and truncated to 200 characters) and a sync-log row reference — and the
+same structured facts ride in the WP_Error data (status, endpoint,
+detail, log_id) so callers never re-parse messages. Because push
+failures, sync health notices, wizard/AJAX results and order notes all
+display the client's message, the enrichment reaches every operator
+surface automatically. In Lite, LiveCache records the reason and
+resource key of the last failed fetch: the dashboard widget shows it
+(with the ring-buffer tail), and degraded pages append an HTML comment
+for administrators only — added outside the cached fragment so it can
+never leak to visitors — turning "the block looks empty" into a
+self-explaining report. Raw API bodies still never reach non-admin
+output, and the logger's email redaction applies unchanged.

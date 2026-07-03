@@ -170,6 +170,54 @@ final class HeySummitClientTest extends TestCase {
 		$this->assertSame( 'eex_auth', $result->get_error_code() );
 	}
 
+	public function test_errors_carry_endpoint_status_and_api_detail_for_debugging(): void {
+		$this->mock_http( fn() => self::json_response( [ 'detail' => 'Invalid page.' ], 400 ) );
+
+		$client = new HeySummitClient( 'k', 'c1' );
+		$result = $client->get( 'talks/', [ 'event' => '101' ] );
+
+		$this->assertTrue( is_wp_error( $result ) );
+		$message = $result->get_error_message();
+		$this->assertStringContainsString( 'HTTP 400', $message, 'status in the message' );
+		$this->assertStringContainsString( 'talks/', $message, 'endpoint in the message' );
+		$this->assertStringContainsString( 'Invalid page.', $message, "the API's own reason in the message" );
+
+		$data = (array) $result->get_error_data();
+		$this->assertSame( 400, $data['status'] );
+		$this->assertSame( 'talks/', $data['endpoint'] );
+		$this->assertSame( 'Invalid page.', $data['detail'] );
+		$this->assertGreaterThan( 0, $data['log_id'], 'the message points to a sync log row' );
+		$this->assertStringContainsString( 'sync log #' . $data['log_id'], $message );
+	}
+
+	public function test_auth_errors_name_the_endpoint_and_reason(): void {
+		$this->mock_http( fn() => self::json_response( [ 'detail' => 'Invalid token.' ], 401 ) );
+
+		$client = new HeySummitClient( 'bad', 'c1' );
+		$result = $client->get( 'events/' );
+
+		$this->assertStringContainsString( 'invalid or lacks access', $result->get_error_message() );
+		$this->assertStringContainsString( 'Invalid token.', $result->get_error_message() );
+		$this->assertStringContainsString( 'events/', $result->get_error_message() );
+	}
+
+	public function test_post_errors_carry_field_level_validation_detail(): void {
+		$this->mock_http( function ( $url, $args ) {
+			if ( 'POST' === ( $args['method'] ?? '' ) ) {
+				return self::json_response( [ 'ticket' => [ 'This field is required.' ] ], 400 );
+			}
+			return self::json_response( [ 'results' => [] ] );
+		} );
+
+		$client = new HeySummitClient( 'k', 'c1' );
+		$result = $client->post( 'attendees/', [ 'email' => 'a@b.c' ] );
+
+		$this->assertTrue( is_wp_error( $result ) );
+		$this->assertStringContainsString( 'ticket: This field is required.', $result->get_error_message() );
+		$this->assertStringContainsString( 'POST attendees/', $result->get_error_message() );
+		$this->assertIsArray( $result->get_error_data()['body'], 'raw body stays available for already-exists detection' );
+	}
+
 	public function test_invalid_json_is_an_error(): void {
 		$this->mock_http( fn() => [
 			'response' => [ 'code' => 200 ],

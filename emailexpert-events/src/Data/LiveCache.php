@@ -38,9 +38,11 @@ final class LiveCache {
 	 * Fetch a resource through the cache.
 	 *
 	 * @param string   $key   Stable resource key (resource + parameters).
-	 * @param callable $fetch Returns the value, or null on failure. The
-	 *                        callable owns its timeout (3 seconds for API
-	 *                        calls) so a page never hangs.
+	 * @param callable $fetch Returns the value, a WP_Error (failure with a
+	 *                        reason, recorded for the dashboard), or null
+	 *                        (failure without one). The callable owns its
+	 *                        timeout (3 seconds for API calls) so a page
+	 *                        never hangs.
 	 * @return mixed Fresh value, last-good value, or null (empty state).
 	 */
 	public static function remember( string $key, callable $fetch ) {
@@ -64,17 +66,25 @@ final class LiveCache {
 
 		++self::$cold;
 
+		$reason = '';
+
 		try {
 			$value = $fetch();
+
+			if ( is_wp_error( $value ) ) {
+				$reason = $value->get_error_message();
+				$value  = null;
+			}
 		} catch ( \Throwable $e ) {
 			// Never a fatal from a render path.
-			$value = null;
+			$reason = $e->getMessage();
+			$value  = null;
 		}
 
 		self::unlock( $key );
 
 		if ( null === $value ) {
-			self::note( 'failure' );
+			self::note( 'failure', sprintf( '%s [%s]', $reason ?: 'no data returned', $key ) );
 
 			return self::last_good( $good_key );
 		}
@@ -113,7 +123,8 @@ final class LiveCache {
 	/**
 	 * Cache status for the dashboard widget.
 	 *
-	 * @return array<string,string> last_success / last_failure timestamps.
+	 * @return array<string,string> last_success / last_failure timestamps
+	 *                              plus the last failure's reason.
 	 */
 	public static function status(): array {
 		$status = (array) get_transient( 'eex_live_status' );
@@ -121,7 +132,18 @@ final class LiveCache {
 		return [
 			'last_success' => (string) ( $status['last_success'] ?? '' ),
 			'last_failure' => (string) ( $status['last_failure'] ?? '' ),
+			'last_error'   => (string) ( $status['last_error'] ?? '' ),
 		];
+	}
+
+	/**
+	 * Whether the most recent fetch attempt failed (pages are on last-good
+	 * or empty-state data).
+	 */
+	public static function degraded(): bool {
+		$status = self::status();
+
+		return '' !== $status['last_failure'] && $status['last_failure'] > $status['last_success'];
 	}
 
 	/**
@@ -194,11 +216,16 @@ final class LiveCache {
 	 * Record fetch outcome for the dashboard.
 	 *
 	 * @param string $outcome 'success' or 'failure'.
+	 * @param string $reason  Failure reason (kept until the next failure).
 	 */
-	private static function note( string $outcome ): void {
+	private static function note( string $outcome, string $reason = '' ): void {
 		$status = (array) get_transient( 'eex_live_status' );
 
 		$status[ 'last_' . $outcome ] = gmdate( 'Y-m-d H:i:s' );
+
+		if ( 'failure' === $outcome ) {
+			$status['last_error'] = $reason;
+		}
 
 		set_transient( 'eex_live_status', $status, DAY_IN_SECONDS );
 	}

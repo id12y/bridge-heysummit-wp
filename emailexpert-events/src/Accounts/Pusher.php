@@ -282,7 +282,13 @@ class Pusher {
 
 		\Emailexpert\Events\Admin\Notices::add(
 			'accounts_push_failed',
-			__( 'One or more account registrations failed to push to HeySummit after 3 attempts. Check the flagged users on the Users screen.', 'emailexpert-events' ),
+			sprintf(
+				/* translators: 1: user ID, 2: HeySummit event ID, 3: the failure reason from the API client. */
+				__( 'An account registration failed to push to HeySummit after 3 attempts (user %1$d, event %2$s): %3$s — retry from the Users screen row action; the sync log has the full request trail.', 'emailexpert-events' ),
+				$user_id,
+				$event_hs_id,
+				$message
+			),
 			'error'
 		);
 

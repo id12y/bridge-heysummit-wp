@@ -93,35 +93,57 @@ class HeySummitClient {
 			);
 			$duration = (int) round( ( microtime( true ) - $started ) * 1000 );
 
-			$retryable = false;
+			$retryable       = false;
+			$transport_error = '';
 
 			if ( is_wp_error( $response ) ) {
-				$this->log_request( $path, 0, $duration, $response->get_error_message() );
+				$transport_error = $response->get_error_message();
+				$this->log_request( $path, 0, $duration, $transport_error );
 				$retryable = true;
 			} else {
 				$status = (int) wp_remote_retrieve_response_code( $response );
-				$this->log_request( $path, $status, $duration );
+				$body   = json_decode( wp_remote_retrieve_body( $response ), true );
+				$detail = self::api_detail( $body );
+				$log_id = $this->log_request( $path, $status, $duration, $detail );
 
 				if ( $status >= 500 ) {
 					$retryable = true;
 				} elseif ( 401 === $status || 403 === $status ) {
 					return new WP_Error(
 						'eex_auth',
-						__( 'HeySummit API key invalid or lacks access.', 'emailexpert-events' ),
-						[ 'status' => $status ]
+						sprintf(
+							/* translators: 1: endpoint path, 2: HTTP status, 3: API error detail (may be empty). */
+							__( 'HeySummit API key invalid or lacks access (GET %1$s → HTTP %2$d%3$s). Check the key and that the account is on the Business plan.', 'emailexpert-events' ),
+							$path,
+							$status,
+							'' !== $detail ? ' — ' . $detail : ''
+						),
+						self::error_data( $status, $path, $detail, $log_id )
 					);
 				} elseif ( $status >= 400 ) {
 					return new WP_Error(
 						'eex_http',
-						/* translators: %d: HTTP status code. */
-						sprintf( __( 'HeySummit API returned HTTP %d.', 'emailexpert-events' ), $status ),
-						[ 'status' => $status ]
+						sprintf(
+							/* translators: 1: HTTP status, 2: endpoint path, 3: API error detail (may be empty), 4: log reference (may be empty). */
+							__( 'HeySummit API returned HTTP %1$d for GET %2$s%3$s%4$s', 'emailexpert-events' ),
+							$status,
+							$path,
+							'' !== $detail ? ' — ' . $detail : '.',
+							self::log_ref( $log_id )
+						),
+						self::error_data( $status, $path, $detail, $log_id )
 					);
 				} else {
-					$body = json_decode( wp_remote_retrieve_body( $response ), true );
-
 					if ( ! is_array( $body ) ) {
-						return new WP_Error( 'eex_json', __( 'HeySummit API returned a response that is not valid JSON.', 'emailexpert-events' ) );
+						return new WP_Error(
+							'eex_json',
+							sprintf(
+								/* translators: %s: endpoint path. */
+								__( 'HeySummit API returned a response that is not valid JSON (GET %s).', 'emailexpert-events' ),
+								$path
+							),
+							self::error_data( $status, $path, '', $log_id )
+						);
 					}
 
 					return $body;
@@ -144,7 +166,94 @@ class HeySummitClient {
 			}
 		} while ( $retryable && $attempts <= $max_retries );
 
-		return new WP_Error( 'eex_unreachable', __( 'HeySummit API unreachable after retries.', 'emailexpert-events' ) );
+		return new WP_Error(
+			'eex_unreachable',
+			sprintf(
+				/* translators: 1: endpoint path, 2: attempt count, 3: last transport error or HTTP 5xx note. */
+				__( 'HeySummit API unreachable (GET %1$s, %2$d attempt(s)%3$s).', 'emailexpert-events' ),
+				$path,
+				$attempts,
+				'' !== $transport_error ? '; last error: ' . $transport_error : '; the API answered HTTP 5xx'
+			),
+			[
+				'endpoint' => $path,
+				'attempts' => $attempts,
+				'error'    => $transport_error,
+			]
+		);
+	}
+
+	/**
+	 * A short human-readable detail string from an API error body. DRF puts
+	 * the reason under detail/message/error or field => [messages]; the
+	 * first one found is truncated and tag-stripped so it is safe to show
+	 * an administrator and store in a note.
+	 *
+	 * @param mixed $body Decoded response body.
+	 */
+	public static function api_detail( $body ): string {
+		if ( ! is_array( $body ) ) {
+			return '';
+		}
+
+		foreach ( [ 'detail', 'message', 'error', 'non_field_errors' ] as $key ) {
+			if ( isset( $body[ $key ] ) ) {
+				$value = $body[ $key ];
+				$value = is_array( $value ) ? reset( $value ) : $value;
+
+				if ( is_scalar( $value ) && '' !== trim( (string) $value ) ) {
+					return self::truncate_detail( (string) $value );
+				}
+			}
+		}
+
+		// Field-level validation errors: "field: first message".
+		foreach ( $body as $field => $value ) {
+			if ( is_string( $field ) && is_array( $value ) && isset( $value[0] ) && is_scalar( $value[0] ) ) {
+				return self::truncate_detail( $field . ': ' . (string) $value[0] );
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Sanitise and bound a detail string.
+	 *
+	 * @param string $detail Raw detail.
+	 */
+	private static function truncate_detail( string $detail ): string {
+		$detail = trim( wp_strip_all_tags( $detail ) );
+
+		return strlen( $detail ) > 200 ? substr( $detail, 0, 197 ) . '…' : $detail;
+	}
+
+	/**
+	 * Structured data attached to every client error, so callers can build
+	 * their own messages without re-parsing ours.
+	 *
+	 * @param int    $status HTTP status.
+	 * @param string $path   Endpoint path.
+	 * @param string $detail API detail string.
+	 * @param int    $log_id Log row ID (0 when logging went to the ring buffer).
+	 * @return array<string,mixed>
+	 */
+	private static function error_data( int $status, string $path, string $detail, int $log_id ): array {
+		return [
+			'status'   => $status,
+			'endpoint' => $path,
+			'detail'   => $detail,
+			'log_id'   => $log_id,
+		];
+	}
+
+	/**
+	 * A log pointer suffix for admin-facing messages.
+	 *
+	 * @param int $log_id Log row ID.
+	 */
+	private static function log_ref( int $log_id ): string {
+		return $log_id > 0 ? sprintf( ' (sync log #%d)', $log_id ) : '';
 	}
 
 	/**
@@ -256,26 +365,62 @@ class HeySummitClient {
 		if ( is_wp_error( $response ) ) {
 			$this->log_request( 'POST ' . $path, 0, $duration, $response->get_error_message() );
 
-			return new WP_Error( 'eex_unreachable', __( 'HeySummit API unreachable.', 'emailexpert-events' ) );
+			return new WP_Error(
+				'eex_unreachable',
+				sprintf(
+					/* translators: 1: endpoint path, 2: transport error. */
+					__( 'HeySummit API unreachable (POST %1$s; %2$s).', 'emailexpert-events' ),
+					$path,
+					$response->get_error_message()
+				),
+				[
+					'endpoint' => $path,
+					'error'    => $response->get_error_message(),
+				]
+			);
 		}
 
-		$status = (int) wp_remote_retrieve_response_code( $response );
-		$this->log_request( 'POST ' . $path, $status, $duration );
+		$status  = (int) wp_remote_retrieve_response_code( $response );
+		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
+		$detail  = self::api_detail( $decoded );
+		$log_id  = $this->log_request( 'POST ' . $path, $status, $duration, $detail );
 
 		if ( 401 === $status || 403 === $status ) {
-			return new WP_Error( 'eex_auth', __( 'HeySummit API key invalid or lacks access.', 'emailexpert-events' ), [ 'status' => $status ] );
+			return new WP_Error(
+				'eex_auth',
+				sprintf(
+					/* translators: 1: endpoint path, 2: HTTP status, 3: API error detail (may be empty). */
+					__( 'HeySummit API key invalid or lacks access (POST %1$s → HTTP %2$d%3$s).', 'emailexpert-events' ),
+					$path,
+					$status,
+					'' !== $detail ? ' — ' . $detail : ''
+				),
+				[
+					'status'   => $status,
+					'endpoint' => $path,
+					'detail'   => $detail,
+					'log_id'   => $log_id,
+				]
+			);
 		}
-
-		$decoded = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		if ( $status >= 400 ) {
 			return new WP_Error(
 				'eex_http',
-				/* translators: %d: HTTP status code. */
-				sprintf( __( 'HeySummit API returned HTTP %d.', 'emailexpert-events' ), $status ),
+				sprintf(
+					/* translators: 1: HTTP status, 2: endpoint path, 3: API error detail (may be empty), 4: log reference (may be empty). */
+					__( 'HeySummit API returned HTTP %1$d for POST %2$s%3$s%4$s', 'emailexpert-events' ),
+					$status,
+					$path,
+					'' !== $detail ? ' — ' . $detail : '.',
+					$log_id > 0 ? sprintf( ' (sync log #%d)', $log_id ) : ''
+				),
 				[
-					'status' => $status,
-					'body'   => is_array( $decoded ) ? $decoded : [],
+					'status'   => $status,
+					'endpoint' => $path,
+					'detail'   => $detail,
+					'log_id'   => $log_id,
+					'body'     => is_array( $decoded ) ? $decoded : [],
 				]
 			);
 		}
@@ -352,12 +497,13 @@ class HeySummitClient {
 	 * @param string $path     Request path.
 	 * @param int    $status   HTTP status (0 for transport error).
 	 * @param int    $duration Milliseconds.
-	 * @param string $error    Transport error message, if any.
+	 * @param string $error    Transport error or API detail, if any.
+	 * @return int Log row ID (0 in Lite's ring buffer).
 	 */
-	private function log_request( string $path, int $status, int $duration, string $error = '' ): void {
+	private function log_request( string $path, int $status, int $duration, string $error = '' ): int {
 		$level = ( $status >= 400 || 0 === $status ) ? 'warning' : 'info';
 
-		Logger::log(
+		return Logger::log(
 			Logger::CONTEXT_API,
 			$level,
 			sprintf( 'GET %s -> %s (%dms)', $path, $status ?: 'transport error', $duration ),
