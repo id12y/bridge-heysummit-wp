@@ -1,0 +1,32 @@
+{
+	"count": 2,
+	"next": null,
+	"previous": null,
+	"results": [
+		{
+			"id": 101,
+			"title": "emailexpert Member Hub",
+			"description": "Ongoing sessions for emailexpert members.",
+			"event_url": "https://hub.emailexpert.org",
+			"timezone": "Europe/London",
+			"first_talk_at": "2026-01-10T14:00:00Z",
+			"last_talk_at": "2026-12-01T16:00:00Z",
+			"is_live": false,
+			"is_archived": false,
+			"is_evergreen": true,
+			"is_open_for_registrations": true
+		},
+		{
+			"id": "202",
+			"title": "emailexpert FORUM London",
+			"event_url": "https://forum.emailexpert.org",
+			"first_talk_at": "2026-09-15T08:30:00+01:00",
+			"last_talk_at": "2026-09-16T17:00:00+01:00",
+			"is_live": false,
+			"is_archived": false,
+			"is_evergreen": false,
+			"is_open_for_registrations": true,
+			"unexpected_extra_field": { "nested": true }
+		}
+	]
+}

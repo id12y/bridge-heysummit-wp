@@ -1,0 +1,6 @@
+vendor/
+node_modules/
+.phpunit.cache/
+.phpcs.cache
+composer.lock
+package-lock.json

@@ -1,0 +1,22 @@
+{
+	"count": 1,
+	"next": null,
+	"previous": null,
+	"results": [
+		{
+			"id": 7001,
+			"email": "attendee@example.org",
+			"name": "Alex Attendee",
+			"registration_status": "confirmed",
+			"event_id": 101,
+			"created_at": "2026-06-30T12:00:00Z",
+			"utm_source": "newsletter",
+			"utm_medium": "email",
+			"utm_campaign": "june-hub",
+			"http_referer": "https://emailexpert.com/events/",
+			"affiliate_email": "",
+			"talks": [ 9001 ],
+			"tickets": [ { "title": "Member", "amount_gross": "0.00" } ]
+		}
+	]
+}
