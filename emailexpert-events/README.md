@@ -560,3 +560,80 @@ the log and diagnostics panel. No new write endpoints: the v2 allowlist
 | `eex_listing_unpublished_after_registration` | `int $owner_id, int $listing_id, string $type` | Registered user's listing unpublished |
 | `eex_user_email_changed_after_registration` | `int $user_id, string $old, string $new` | Registered user changed email |
 | `eex_ticket_assignment_method` (filter) | `string $method, string $connection_id` | Override the discovered assignment method |
+
+---
+
+# v4: Lite mode
+
+A second operating mode, chosen at install (wizard step 0) and switchable
+in Settings → emailexpert Events → Operating mode. **Full** is everything
+above. **Lite** displays live HeySummit data without turning any of it
+into WordPress content: no post types or taxonomies, no posts or media,
+no sync cron, no custom tables, no extra rewrite rules. Lite suits a site
+that wants a live feed of the next sessions or events, not a mirror.
+
+## What Lite keeps and gives up
+
+Kept: the live display components (upcoming sessions, upcoming events,
+countdown, schedule, speaker grid, featured talks, sponsors wall),
+per-session `.ics` downloads and Google Calendar links, inline Event
+JSON-LD emitted by the blocks themselves, UTM auto-tagging, a three-step
+setup wizard (connect, pick events, done), settings export/import, the
+dashboard widget (next sessions and cache status) — and the **WooCommerce
+bridge, exactly as in Full**: mapped purchases push attendee and ticket
+sale identically in both modes, and the attribution table is created only
+when the first push happens.
+
+Given up (each settings location says "available in Full mode"): local
+event/session/speaker pages and archives — and therefore the SEO/GEO
+content they carry — the replays library, past-sessions archive
+(Lite is forward-looking), calendar subscribe feed, webhooks and
+attribution, the registration counter, MyListing bridge, Accounts module,
+Elementor dynamic tags and Loop Grid queries (plain Elementor widgets
+still work), and the weekly digest.
+
+## How Lite fetches data
+
+Everything is fetched **server-side at render time** through the same
+read-only client — the browser never contacts HeySummit and the API key
+never leaves the server. Responses live in transients: a fresh copy
+(configurable, default 15 minutes) plus a 24-hour last-good copy. On API
+failure or timeout the page serves last-good, failing that the
+component's empty state — never an error, never a hung page. A hard
+budget of 2 cold fetches per page request (3-second timeout each, with a
+stampede lock so concurrent visitors trigger one fetch) means a cold page
+renders immediately and the cache warms on subsequent views. "Flush live
+cache" in settings (and on the dashboard widget) clears everything;
+deactivation does too.
+
+## One code path, two repositories
+
+Every component render callback reads through the `Data\Repository`
+interface: `SyncedRepository` (Full, the local database) or
+`LiveRepository` (Lite, the API cache). Blocks, shortcodes and Elementor
+widgets share the same callbacks unforked; the only rendering differences
+in Lite are link targets (HeySummit URLs, UTM-tagged, instead of local
+pages) and the inline JSON-LD block.
+
+## Switching modes
+
+- **Lite → Full** runs the standard import wizard; nothing is lost.
+- **Full → Lite** shows a confirmation screen: keep the synced content
+  (the "frozen archive" — posts stay published and readable, post types
+  stay registered, sync stays stopped) or trash it (reversible, via the
+  bin). Sync cron is unscheduled either way.
+
+## Footprint in Lite
+
+Activation writes exactly one option (the settings option). No tables
+unless the WooCommerce bridge pushes (then only the attribution table);
+no cron unless those pushes need retries; logging goes to a 20-entry
+self-expiring ring buffer instead of the log table. Uninstall removes the
+options and transients — nothing else exists.
+
+## Lite sponsors
+
+Sponsors were always manual data. In Lite they live inside the settings
+option (up to 60 lean rows: name, link, external logo URL, tier, blurb)
+with a simplified editor on the settings page — no posts, no media
+sideloading.

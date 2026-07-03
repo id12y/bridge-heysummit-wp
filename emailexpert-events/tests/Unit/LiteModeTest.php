@@ -399,4 +399,223 @@ final class LiteModeTest extends TestCase {
 		$this->assertSame( [ 'c1|101' ], (array) Options::setting( 'lite_events' ), 'lite settings retained for a later switch back' );
 		$this->assertSame( 1, (int) Options::setting( 'flush_rewrites' ) );
 	}
+
+	// -- Criterion 5: byte-for-byte markup except link targets. ----------------
+
+	/**
+	 * Strip the two sanctioned differences: link targets and the inline
+	 * JSON-LD block.
+	 *
+	 * @param string $html Rendered component HTML.
+	 */
+	private static function normalise_markup( string $html ): string {
+		$html = (string) preg_replace( '/href="[^"]*"/', 'href=""', $html );
+		$html = (string) preg_replace( '#<script type="application/ld\+json">.*?</script>#s', '', $html );
+
+		return $html;
+	}
+
+	public function test_lite_markup_matches_full_byte_for_byte_except_link_targets(): void {
+		$starts = gmdate( 'Y-m-d\TH:i:s\Z', time() + 3600 );
+		$ends   = gmdate( 'Y-m-d\TH:i:s\Z', time() + 7200 );
+
+		// Full mode: one synced talk.
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_talk',
+				'post_status' => 'publish',
+				'post_title'  => 'Same session',
+				'meta_input'  => [
+					'_eex_heysummit_id' => '501',
+					'_eex_starts_at'    => $starts,
+					'_eex_ends_at'      => $ends,
+					'_eex_talk_url'     => 'https://summit.example.com/talks/501/',
+				],
+			]
+		);
+
+		$full = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( 'Same session', $full );
+
+		// Lite mode: the same session served live.
+		$this->go_lite();
+		Cache::flush();
+		$this->mock_http(
+			function ( $url ) use ( $starts, $ends ) {
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'        => 501,
+									'title'     => 'Same session',
+									'starts_at' => $starts,
+									'ends_at'   => $ends,
+									'talk_url'  => 'https://summit.example.com/talks/501/',
+									'event'     => 101,
+								],
+							],
+						]
+					);
+				}
+
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'    => 101,
+								'title' => 'Live Hub',
+							],
+						],
+					]
+				);
+			}
+		);
+
+		$lite = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( 'Same session', $lite );
+
+		$this->assertSame(
+			self::normalise_markup( $full ),
+			self::normalise_markup( $lite ),
+			'one code path: identical markup once link targets and inline schema are stripped'
+		);
+	}
+
+	// -- Criterion 6: the WooCommerce bridge works identically in Lite. --------
+
+	public function test_woo_push_in_lite_pushes_attendee_and_ticket_and_only_then_creates_the_table(): void {
+		\EEX_Test_WC::reset();
+		$this->go_lite();
+
+		$posts = [];
+		$this->mock_http(
+			function ( $url, $args ) use ( &$posts ) {
+				if ( 'POST' === ( $args['method'] ?? '' ) ) {
+					$posts[] = [
+						'url'  => (string) $url,
+						'body' => (array) json_decode( (string) ( $args['body'] ?? '' ), true ),
+					];
+
+					return self::json_response(
+						str_contains( (string) $url, 'attendees/' )
+							? [
+								'id'    => 55001,
+								'email' => 'buyer@example.org',
+							]
+							: [ 'id' => 77001 ],
+						201
+					);
+				}
+
+				return self::json_response( [ 'results' => [] ] );
+			}
+		);
+
+		$product_id = wp_insert_post(
+			[
+				'post_type'   => 'product',
+				'post_status' => 'publish',
+				'post_title'  => 'Forum ticket',
+			]
+		);
+		\Emailexpert\Events\WooCommerce\Module::store_mapping( $product_id, 'c1', '101', 'T-1' );
+
+		$item_id = \EEX_Test_WC::$next_item_id++;
+		$order   = new \WC_Order( 501 );
+		$order->add_item( new \WC_Order_Item_Product( $item_id, $product_id, 0, 1, 100.00, 20.00 ) );
+		$order->update_meta_data( '_eex_consent', gmdate( 'Y-m-d\TH:i:s\Z' ) );
+		\EEX_Test_WC::$orders[501] = $order;
+
+		$this->assertSame( [], $GLOBALS['eex_test_dbdelta'], 'no table before the push' );
+
+		$pusher = new \Emailexpert\Events\WooCommerce\Pusher();
+		$pusher->queue_order( 501 );
+
+		foreach ( \EEX_Test_State::$scheduled as $job ) {
+			if ( 'eex_woo_push' === $job['hook'] ) {
+				$pusher->run_job( ...$job['args'] );
+			}
+		}
+
+		$attendee_calls = array_filter( $posts, static fn( $p ) => str_contains( $p['url'], 'attendees/' ) );
+		$ticket_calls   = array_filter( $posts, static fn( $p ) => str_contains( $p['url'], 'external-ticket-sales/' ) );
+
+		$this->assertCount( 1, $attendee_calls, 'attendee pushed exactly as in Full' );
+		$this->assertCount( 1, $ticket_calls, 'ticket sale imported exactly as in Full' );
+
+		// The push-record (attribution) table appears only now — and no log table.
+		$this->assertContains( 'wp_eex_attribution', $GLOBALS['eex_test_dbdelta'] );
+		$this->assertNotContains( 'wp_eex_log', $GLOBALS['eex_test_dbdelta'], 'Lite logging stays in the ring buffer' );
+	}
+
+	// -- Criterion 8: inline Event JSON-LD from Lite blocks. -------------------
+
+	public function test_lite_blocks_emit_valid_inline_event_json_ld(): void {
+		$this->go_lite();
+		$this->mock_api();
+
+		$html = Components::render( 'upcoming-sessions', [] );
+
+		$this->assertMatchesRegularExpression( '#<script type="application/ld\+json">.*</script>#s', $html );
+
+		preg_match( '#<script type="application/ld\+json">(.*?)</script>#s', $html, $matches );
+		$payload = json_decode( (string) $matches[1], true );
+		$this->assertIsArray( $payload );
+
+		$events = isset( $payload[0] ) ? $payload : [ $payload ];
+		$this->assertCount( 2, $events, 'one Event per rendered session' );
+
+		foreach ( $events as $event ) {
+			$this->assertSame( 'https://schema.org', $event['@context'] );
+			$this->assertSame( 'Event', $event['@type'] );
+			$this->assertNotSame( '', (string) $event['name'], 'name required by the Rich Results Test' );
+			$this->assertNotSame( '', (string) $event['startDate'], 'startDate required by the Rich Results Test' );
+			$this->assertSame( 'VirtualLocation', $event['location']['@type'] );
+			$this->assertSame( 'https://summit.example.com/hub/', $event['location']['url'] );
+			$this->assertSame( 'https://schema.org/OnlineEventAttendanceMode', $event['eventAttendanceMode'] );
+		}
+
+		// Full mode never emits the inline block: single pages carry schema.
+		Options::update_settings( [ 'mode' => 'full' ] );
+		\Emailexpert\Events\Data\Repositories::reset();
+		Cache::flush();
+		$full = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringNotContainsString( 'application/ld+json', $full );
+	}
+
+	// -- Capability matrix: hidden, not greyed out. ----------------------------
+
+	public function test_full_only_components_are_absent_in_lite(): void {
+		$this->go_lite();
+
+		foreach ( Components::FULL_ONLY as $component ) {
+			$this->assertSame( '', Components::render( $component, [] ), $component . ' renders nothing in Lite' );
+			$this->assertArrayNotHasKey( $component, Components::available_definitions() );
+		}
+
+		$GLOBALS['eex_test_shortcodes'] = [];
+		( new \Emailexpert\Events\Frontend\Shortcodes() )->register();
+		$this->assertArrayNotHasKey( 'eex_past_sessions', $GLOBALS['eex_test_shortcodes'] ?? [] );
+		$this->assertArrayNotHasKey( 'eex_reg_counter', $GLOBALS['eex_test_shortcodes'] ?? [] );
+		$this->assertArrayHasKey( 'eex_upcoming_sessions', $GLOBALS['eex_test_shortcodes'] ?? [] );
+	}
+
+	// -- Per-session .ics from live data. --------------------------------------
+
+	public function test_live_ics_builds_from_repository_data(): void {
+		$this->go_lite();
+		$this->mock_api();
+
+		$data = Repositories::current()->talk( '501' );
+		$this->assertNotNull( $data );
+		$this->assertSame( 501, $data['ics_ref'] );
+
+		$ics = \Emailexpert\Events\Frontend\Ics::calendar_from_data( [ $data ] );
+
+		$this->assertStringContainsString( 'BEGIN:VCALENDAR', $ics );
+		$this->assertStringContainsString( 'UID:eex-talk-501@', $ics );
+		$this->assertStringContainsString( 'SUMMARY:Live session one', $ics );
+		$this->assertStringContainsString( 'DTSTART:', $ics );
+	}
 }

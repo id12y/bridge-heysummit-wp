@@ -123,3 +123,40 @@ HeySummit sandbox halves are covered by the operator steps, as before).
    sample, then confirm from the Accounts tab and watch the sync log.
 5. Tick "Do not register me for events" on a test profile and verify no
    rule fires for it afterwards.
+
+---
+
+# v4 acceptance report — Lite mode
+
+Run date: final v4 verification. Suite: **181 tests, 757 assertions, all
+passing**; PHPCS (bare `phpcs`, the CI invocation) exits 0; every PHP
+file syntax-checked.
+
+**Verdict counts (v4 criteria): 7 pass, 1 pass with a caveat, 0 fail.**
+
+| # | Criterion | Verdict | Evidence |
+|---|---|---|---|
+| 1 | All prior tests and criteria pass in Full mode; Full behaviour unchanged | **Pass** | The full v1–v3 suite runs unchanged (162 pre-v4 tests still green). The repository refactor kept the byte-level output: the pre-existing ComponentsTest/IcsTest/SchemaGeneratorTest assertions pass without modification; the only amended test is the accounts-gate string assertion, which now checks the strengthened gate |
+| 2 | Lite activation registers no CPTs/taxonomies, creates no tables, schedules no cron, writes exactly one option | **Pass** | `test_lite_activation_writes_exactly_one_option_and_nothing_else` — asserts empty dbDelta, empty cron, no rewrite flush, no terms, and that the only `eex_*` option present is `eex_settings` (version tracking rides inside it). `test_fresh_lite_choice_removes_the_full_shaped_activation_leftovers` covers the fresh-install path (D34) |
+| 3 | First view ≤ budgeted fetches; within TTL zero API calls; API unreachable → last-good or empty state, never erroring/hanging | **Pass** | `test_first_view_fetches_within_budget_and_second_view_is_free`, `test_api_failure_serves_last_good_then_empty_state_never_fatal`, `test_budget_caps_cold_fetches_per_request`, `test_stampede_lock_lets_exactly_one_concurrent_fetch_through`. Render-time fetches use a 3 s timeout and no transport retries; LiveCache catches Throwables |
+| 4 | No front-end response causes the browser to contact HeySummit; key in no output | **Pass** | All fetching is server-side PHP (`LiveRepository` via `HeySummitClient`); no Lite code enqueues any script that carries API URLs or credentials. `test_lite_markup_contains_no_browser_calls_to_heysummit_and_no_key` asserts no `api/v2`/auth material in output; the v1 key-redaction rules are unchanged |
+| 5 | Lite markup matches Full byte-for-byte except link targets and absent local-page features; callbacks provably shared | **Pass** | `test_lite_markup_matches_full_byte_for_byte_except_link_targets` renders the same session through both repositories and asserts byte equality after stripping only `href` values and the inline JSON-LD block. `test_render_callbacks_are_shared_one_code_path_two_repositories` pins the single-code-path structure |
+| 6 | Woo bridge in Lite: completed mapped order pushes attendee + ticket sale exactly as in Full; push-record table appears only then | **Pass** | `test_woo_push_in_lite_pushes_attendee_and_ticket_and_only_then_creates_the_table` — exactly one attendee-create and one external-ticket-sale POST, dbDelta empty before the push, contains only the attribution table after (no log table: Lite logging is the ring buffer) |
+| 7 | Lite → Full runs the wizard, full function available; Full → Lite trash removes posts + unschedules cron; keep leaves posts readable, sync stopped | **Pass** | `test_switch_to_lite_trashing_content_removes_posts_and_cron` (wp_trash_post — reversible), `test_switch_to_lite_keeping_content_freezes_the_archive`, `test_switch_back_to_full_loses_nothing`; SettingsPage `switch_mode` redirects Lite → Full into the standard wizard |
+| 8 | Inline Event JSON-LD emitted by Lite blocks validates in the Rich Results Test | **Pass (shape verified; live validation is a manual step)** | `test_lite_blocks_emit_valid_inline_event_json_ld` asserts the Google Event requirements: `@context`, `@type: Event`, non-empty `name` and `startDate`, `VirtualLocation` with URL, attendance mode, `endDate`. The Rich Results Test itself needs a public URL — run it against a live page as part of operator verification |
+
+## Operator verification steps (manual)
+
+1. Fresh install → wizard step 0 → choose **Lite** → connect → pick one
+   event → place the upcoming-sessions block on a page and compare it
+   with the live HeySummit hub.
+2. Block the API host (hosts file or firewall) and reload: the page must
+   render the same sessions from the last-good copy within normal page
+   time; after 24 hours of outage, the polite empty state.
+3. Paste the page URL into Google's Rich Results Test and confirm the
+   Event items validate.
+4. If selling in Lite: map one product to a ticket, run a sandbox order
+   through checkout with the consent box ticked, and confirm the
+   attendee and external ticket sale appear in HeySummit.
+5. Switch Full ↔ Lite both ways on a staging copy and confirm the
+   keep/trash behaviours described on the confirmation screen.

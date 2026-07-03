@@ -326,3 +326,21 @@
   zero queries while off.
 - Tests: 162 passing (16 new accounts tests covering all seven v3
   acceptance criteria). PHPCS clean.
+
+## V4 — Lite mode
+
+- Repository abstraction: render callbacks consume `Data\Repository`;
+  `SyncedRepository` preserves Full output byte-for-byte (proven by the
+  pre-existing rendering tests passing unchanged plus an explicit
+  markup-equality test); card templates take data arrays.
+- Operating mode in the settings option; wizard step 0; Lite activation
+  writes exactly one option; boot gating loads only the shared display
+  layer in Lite (frozen archive keeps the reading surface).
+- `LiveRepository` + `LiveCache`: 15-minute fresh / 24-hour last-good
+  transients, 2-cold-fetch budget, 3 s timeouts, stampede lock, flush
+  button, graceful degradation to last-good/empty state.
+- Capability matrix: Full-only components hidden from registration and
+  render; inline Event JSON-LD from Lite blocks; sponsors in the settings
+  option; live `.ics`; dashboard cache status; CLI guards; Elementor
+  plain widgets only; Woo bridge identical in both modes.
+- Suite: 181 tests, 757 assertions; PHPCS clean (bare `phpcs` exits 0).
