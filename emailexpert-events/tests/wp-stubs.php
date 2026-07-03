@@ -1133,3 +1133,94 @@ if ( ! function_exists( 'get_term_link' ) ) {
 		return 'https://example.test/term/' . $slug . '/';
 	}
 }
+
+// --- users. --------------------------------------------------------------------------
+if ( ! class_exists( 'WP_User' ) ) {
+	#[\AllowDynamicProperties]
+	class WP_User {
+		public int $ID;
+		public string $user_login;
+		public string $user_email;
+		public string $display_name;
+		public array $roles;
+
+		public function __construct( int $id, string $login = '', string $email = '', array $roles = [], string $display_name = '' ) {
+			$this->ID           = $id;
+			$this->user_login   = $login;
+			$this->user_email   = $email;
+			$this->roles        = $roles;
+			$this->display_name = $display_name ?: $login;
+		}
+	}
+}
+if ( ! function_exists( 'eex_test_create_user' ) ) {
+	function eex_test_create_user( string $login, string $email, array $roles = [ 'subscriber' ] ): int {
+		$id = count( $GLOBALS['eex_test_users'] ?? [] ) + 1;
+		$GLOBALS['eex_test_users'][ $id ] = new WP_User( $id, $login, $email, $roles );
+		return $id;
+	}
+}
+if ( ! function_exists( 'get_userdata' ) ) {
+	function get_userdata( $user_id ) {
+		return $GLOBALS['eex_test_users'][ (int) $user_id ] ?? false;
+	}
+}
+if ( ! function_exists( 'get_user_by' ) ) {
+	function get_user_by( $field, $value ) {
+		foreach ( $GLOBALS['eex_test_users'] ?? [] as $user ) {
+			if ( 'email' === $field && strtolower( $user->user_email ) === strtolower( (string) $value ) ) {
+				return $user;
+			}
+			if ( 'login' === $field && $user->user_login === (string) $value ) {
+				return $user;
+			}
+		}
+		return false;
+	}
+}
+if ( ! function_exists( 'get_users' ) ) {
+	function get_users( $args = [] ) {
+		$users = array_values( $GLOBALS['eex_test_users'] ?? [] );
+		if ( 'ID' === ( $args['fields'] ?? '' ) ) {
+			return array_map( fn( $u ) => $u->ID, $users );
+		}
+		return $users;
+	}
+}
+if ( ! function_exists( 'get_user_meta' ) ) {
+	function get_user_meta( $user_id, $key = '', $single = false ) {
+		$value = $GLOBALS['eex_test_user_meta'][ (int) $user_id ][ $key ] ?? null;
+		if ( $single ) {
+			return null === $value ? '' : $value;
+		}
+		return null === $value ? [] : [ $value ];
+	}
+}
+if ( ! function_exists( 'update_user_meta' ) ) {
+	function update_user_meta( $user_id, $key, $value ) {
+		$GLOBALS['eex_test_user_meta'][ (int) $user_id ][ $key ] = $value;
+		return true;
+	}
+}
+if ( ! function_exists( 'delete_user_meta' ) ) {
+	function delete_user_meta( $user_id, $key, $value = '' ) {
+		unset( $GLOBALS['eex_test_user_meta'][ (int) $user_id ][ $key ] );
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_get_current_user' ) ) {
+	function wp_get_current_user() {
+		return $GLOBALS['eex_test_users'][1] ?? new WP_User( 0, 'anonymous' );
+	}
+}
+
+if ( ! function_exists( '__return_true' ) ) {
+	function __return_true() {
+		return true;
+	}
+}
+if ( ! function_exists( '__return_false' ) ) {
+	function __return_false() {
+		return false;
+	}
+}

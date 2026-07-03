@@ -452,3 +452,111 @@ server-side); with JS the rendered list filters instantly.
 | `eex_schema_suppress` (filter) | `bool, int $post_id` | Suppress schema on a view (canonical control) |
 | `eex_mylisting_meta_key` (filter) | `string $meta_key, string $field_key` | Listing field meta key mapping |
 | `eex_attendee_request` / `eex_ticket_sale_request` (filters) | request array | Correct write shapes against the live API |
+
+---
+
+# Version 3 additions: account registration rules
+
+An optional module (Settings → EEX Bridges → Account registration; a single
+enable switch until turned on, and **zero module code loads while off**)
+that registers account holders as HeySummit attendees under granular rules:
+gain an account, a role, a published listing or an entitlement on the site,
+get the right event ticket.
+
+## Rules
+
+Each rule: a trigger, conditions, a target (connection + event + ticket), a
+consent source and notes.
+
+- **Account confirmed** — the trigger point is configurable per rule,
+  honestly: *on registration* (core WordPress performs **no** email
+  verification, so this means "form submitted"), *on first login*, or *on
+  the canonical `eex_user_confirmed` action*. Shipped adapters fire that
+  action for WooCommerce account creation, MyListing registration and
+  common email-verification plugins; any plugin can fire it directly:
+  `do_action( 'eex_user_confirmed', $user_id );`
+- **Role gained** — fires on `set_user_role`/`add_user_role` for the rule's
+  roles, at registration or later. This is how "product purchase grants
+  membership" chains through to a ticket without coupling.
+- **Listing published** (shown only with the MyListing bridge active) — a
+  member whose listing of the chosen type(s) goes live gets event access.
+- Product purchases stay on the v2 WooCommerce path; the shared
+  registration ledger dedupes the two automatically.
+
+Conditions per rule: role allowlist, listing type(s), excluded roles and
+excluded user IDs.
+
+**Idempotency**: one shared registration ledger (user + event) is the lock
+across all paths — repeated role changes, overlapping rules, backfills and
+Woo purchases can never register the same user twice for the same event,
+and an "attendee already exists" API response is recorded as success, never
+an error.
+
+## Consent and suppression (hard rules)
+
+No user is ever pushed without a satisfied consent source:
+
+- **Registration checkbox** — rendered on the core WordPress and
+  WooCommerce registration forms; any form builder can set the documented
+  user meta key `eex_event_consent` (a timestamp) instead.
+- **Site terms assertion** — a deliberately worded operator setting
+  confirming the site's registration terms cover event registration and
+  event-related email, stored with who enabled it and when, displayed with
+  a plain warning about what enabling it means.
+
+A profile field ("Do not register me for events") suppresses immediately.
+The suppression list (email-hash + event pairs; populated by opt-outs,
+erasure requests and manual entries) is checked before every push — rule,
+backfill, retry or manual — and re-checked at delivery time. Every push
+records which rule, trigger and consent source justified it.
+
+## Backfill
+
+Per rule and never automatic: **dry run** (exact count and a sample of
+matched users) → explicit confirmation → queued batches of 20 with progress
+in the sync log, resumable from persisted state. The dry run and the
+confirmed run share the identical gate chain, so the counts always match.
+
+## Failure handling
+
+Queued async pushes, 3 retries with backoff, then the user is flagged with
+an admin notice, a **Push to HeySummit** row action on the Users screen
+(which also shows per-event push status), `wp eex accounts:push <user_id>`
+and `wp eex accounts:backfill <rule_id> [--dry-run]`. Registrations join
+the attribution table (source `account-rule`), the dashboard widget's
+weekly numbers and the digest.
+
+## Ticket assignment
+
+Resolved at runtime from the discovery diagnostic (see
+`docs/api-notes.md`): ticket in the create body when the API supports it,
+otherwise a zero-amount external ticket sale import, otherwise the attendee
+is registered without a ticket and a warning names the intended ticket in
+the log and diagnostics panel. No new write endpoints: the v2 allowlist
+(attendee create + ticket import) is unchanged and still enforced in code.
+
+## Plain limitations
+
+- **One-way.** WordPress email changes do **not** propagate to HeySummit
+  (`eex_user_email_changed_after_registration` fires; the change is
+  logged). Account deletion does not remove the attendee. GDPR erasure adds
+  the address to the suppression list and the eraser output states that
+  HeySummit-side removal is a manual step.
+- **No revocation.** Role loss and listing unpublish do not remove event
+  access; `eex_role_lost_after_registration` and
+  `eex_listing_unpublished_after_registration` fire for site-specific
+  handling.
+- **"Confirmed" is as strong as its trigger.** On-registration means no
+  verification at all; first-login is a weak proxy; the
+  `eex_user_confirmed` action is only as good as whatever fires it.
+
+## New hooks (v3)
+
+| Hook | Payload | Fired |
+|---|---|---|
+| `eex_user_confirmed` (action to fire) | `int $user_id` | Tell the module an account is confirmed |
+| `eex_account_pushed` | `int $user_id, string $event_hs_id, string $attendee_hs_id` | A rule registered a user |
+| `eex_role_lost_after_registration` | `int $user_id, string[] $lost_roles` | Registered user lost a role |
+| `eex_listing_unpublished_after_registration` | `int $owner_id, int $listing_id, string $type` | Registered user's listing unpublished |
+| `eex_user_email_changed_after_registration` | `int $user_id, string $old, string $new` | Registered user changed email |
+| `eex_ticket_assignment_method` (filter) | `string $method, string $connection_id` | Override the discovered assignment method |

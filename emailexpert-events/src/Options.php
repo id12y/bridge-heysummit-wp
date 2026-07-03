@@ -51,6 +51,7 @@ final class Options {
 			'utm_medium'            => 'web',
 			'purge_enabled'         => 0,
 			'digest_enabled'        => 0,
+			'accounts_enabled'      => 0,
 		];
 	}
 

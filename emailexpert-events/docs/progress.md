@@ -294,3 +294,35 @@
   verifiable (browser/live-host halves), each with manual steps.
 - Final state: 146 tests, 575 assertions, PHPCS clean, all files php -l
   clean, front-end assets ~3.7KB gzipped combined.
+
+# v3 extension run
+
+## V3 — Accounts module
+
+- Shared registration ledger (Registrations, user meta) generalising the v2
+  push record: pending-first lock, rule/trigger/consent recorded per push,
+  written by the accounts engine and the Woo pusher, cross-checked against
+  the attribution table for guest/webhook-era dedupe (D29).
+- Suppression list (hash + domain + event scope; opt-out/erasure/manual),
+  profile opt-out field, consent sources (registration checkbox for core +
+  Woo forms with documented eex_event_consent meta; operator assertion with
+  who/when and a plain warning); eraser now suppresses and states manual
+  HeySummit removal.
+- Rules engine: three triggers (confirmed with per-rule point + shipped
+  adapters, role gained, listing published), conditions and exclusions,
+  gate order trigger → exclusions → suppression/opt-out → consent →
+  idempotency, all skips logged; one push per event per user however many
+  rules match.
+- Pusher: async with 3 retries/backoff, push-time suppression/consent
+  re-check, already-exists-as-success, discovery-resolved ticket assignment
+  (create param / zero-amount import / unsupported-with-warning, D31),
+  attribution rows (account-rule) feeding dashboard and digest, users
+  flagged on terminal failure.
+- Backfill: dry-run/confirm sharing the engine's exact gate chain, batches
+  of 20 with logged progress, resumable persisted state; users screen
+  column + Push to HeySummit row action; wp eex accounts:push /
+  accounts:backfill; Bridge tab UI (master switch only until enabled).
+- Module gated by the autoloaded accounts_enabled setting: zero code and
+  zero queries while off.
+- Tests: 162 passing (16 new accounts tests covering all seven v3
+  acceptance criteria). PHPCS clean.

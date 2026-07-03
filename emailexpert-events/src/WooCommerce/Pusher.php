@@ -236,6 +236,15 @@ class Pusher {
 			)
 		);
 
+		// Shared registration ledger: the accounts rules dedupe against
+		// purchases through this record (docs/decisions.md D29).
+		\Emailexpert\Events\Registrations::record_woo_purchase(
+			(string) $order->get_billing_email(),
+			(string) $mapping['event'],
+			$attendee_hs_id,
+			$order_id
+		);
+
 		// Attribution: tag the Woo origin; HeySummit's own checkout-complete
 		// webhook for this sale then deduplicates on the attendee ID.
 		Attribution::insert(

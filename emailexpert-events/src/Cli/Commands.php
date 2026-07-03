@@ -35,6 +35,84 @@ final class Commands {
 		WP_CLI::add_command( 'eex discover', [ $this, 'discover' ] );
 		WP_CLI::add_command( 'eex webhooks:replay', [ $this, 'replay' ] );
 		WP_CLI::add_command( 'eex woo:push', [ $this, 'woo_push' ] );
+		WP_CLI::add_command( 'eex accounts:push', [ $this, 'accounts_push' ] );
+		WP_CLI::add_command( 'eex accounts:backfill', [ $this, 'accounts_backfill' ] );
+	}
+
+	/**
+	 * Manually run account registration rules for one user.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <user_id>
+	 * : The user ID.
+	 *
+	 * @param array<int,string> $args Positional args.
+	 */
+	public function accounts_push( array $args ): void {
+		if ( ! (bool) Options::setting( 'accounts_enabled' ) ) {
+			WP_CLI::error( 'The accounts module is not enabled.' );
+		}
+
+		$user_id = isset( $args[0] ) ? (int) $args[0] : 0;
+		if ( $user_id <= 0 ) {
+			WP_CLI::error( 'Provide a user ID: wp eex accounts:push <user_id>' );
+		}
+
+		$results = ( new \Emailexpert\Events\Accounts\AdminUi() )->push_user_now( $user_id );
+
+		if ( empty( $results ) ) {
+			WP_CLI::warning( 'No rule matched (or the user is suppressed, lacks consent, or is already registered).' );
+
+			return;
+		}
+
+		foreach ( $results as $event => $result ) {
+			WP_CLI::log( sprintf( 'Event %s: %s — %s', $event, $result['status'], $result['message'] ) );
+		}
+
+		WP_CLI::success( 'Done.' );
+	}
+
+	/**
+	 * Backfill a rule against existing users.
+	 *
+	 * ## OPTIONS
+	 *
+	 * <rule_id>
+	 * : The rule ID (see the Accounts tab).
+	 *
+	 * [--dry-run]
+	 * : Report the exact matched users without pushing.
+	 *
+	 * @param array<int,string>    $args       Positional args.
+	 * @param array<string,string> $assoc_args Named args.
+	 */
+	public function accounts_backfill( array $args, array $assoc_args = [] ): void {
+		if ( ! (bool) Options::setting( 'accounts_enabled' ) ) {
+			WP_CLI::error( 'The accounts module is not enabled.' );
+		}
+
+		$rule_id = isset( $args[0] ) ? (string) $args[0] : '';
+		if ( '' === $rule_id || null === \Emailexpert\Events\Accounts\Rules::get( $rule_id ) ) {
+			WP_CLI::error( 'Unknown rule ID. See the Accounts tab on the Bridge settings page.' );
+		}
+
+		$backfill = new \Emailexpert\Events\Accounts\Backfill();
+
+		if ( isset( $assoc_args['dry-run'] ) ) {
+			$dry = $backfill->dry_run( $rule_id );
+			WP_CLI::log( sprintf( '%d user(s) would be pushed.', $dry['count'] ) );
+			if ( ! empty( $dry['sample'] ) ) {
+				WP_CLI::log( 'Sample: ' . implode( ', ', $dry['sample'] ) );
+			}
+			WP_CLI::success( 'Dry run complete; nothing was pushed.' );
+
+			return;
+		}
+
+		$count = $backfill->confirm( $rule_id );
+		WP_CLI::success( sprintf( '%d user(s) queued in batches. Progress is in the sync log.', $count ) );
 	}
 
 	/**

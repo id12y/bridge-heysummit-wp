@@ -248,3 +248,47 @@ and relay URLs without secrets. Import preserves every local key and
 secret, merging by connection ID / relay URL, and re-evaluates the sync
 cron state after applying. Woo product mappings are post meta and
 deliberately do not travel (product IDs differ between sites).
+
+# v3 extension run
+
+## D29. The shared registration ledger generalises the v2 push record
+
+The canonical "is this person registered for this event" store is now user
+meta `_eex_hs_registrations` (Registrations class), written by the accounts
+engine (pending-first: the record is the lock, exactly the v2 pattern) and
+by the Woo pusher on success when the billing email matches a WP account.
+The v2 order-item record remains the per-item job lock. Cross-path dedupe
+additionally consults the attribution table (Attribution::has_completed),
+which covers guest purchases and webhook-recorded registrations from before
+the module existed; a match is copied into the ledger so later checks are
+cheap.
+
+## D30. Suppression stores hashes, not addresses
+
+Suppression entries hold the SHA-256 of the lowercased email (the same
+construction as the attribution table) plus the domain for admin
+recognisability. Matching happens at push time when the raw address is in
+hand from the user account. Unticking the profile opt-out deliberately does
+NOT clear the suppression entry: re-enabling automatic registration is a
+conscious operator action on the suppression list.
+
+## D31. Ticket assignment is resolved from discovery, defaulting to import
+
+The attendee-create body's ticket support is unverified. The resolver reads
+the OPTIONS-based write-shape snapshots: a ticket field on write:attendees
+→ ticket in the create body; otherwise a usable
+write:external-ticket-sales → zero-amount ticket import (the documented
+off-platform flow, already allowlisted — also the default when no discovery
+data exists yet); both present but unusable → register without a ticket,
+warn naming the intended ticket in the log (flagged discovery) and surface
+it in the diagnostics panel. Already-existing attendees never get a ticket
+import: their ticket state is unknown and a duplicate import is worse than
+none. Overridable via the eex_ticket_assignment_method filter.
+
+## D32. Manual pushes waive trigger matching, never gates
+
+The users-screen row action and `wp eex accounts:push` evaluate every
+enabled rule with trigger matching waived (the operator is the trigger),
+but conditions, exclusions, suppression, consent and idempotency all still
+apply — consent remains a hard rule even for manual pushes. Failed records
+are retried on the same action.

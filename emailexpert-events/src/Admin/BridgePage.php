@@ -30,6 +30,48 @@ final class BridgePage {
 		add_action( 'admin_menu', [ $this, 'add_menu' ] );
 		add_action( 'admin_post_eex_save_bridge', [ $this, 'save' ] );
 		add_action( 'admin_post_eex_project_now', [ $this, 'project_now' ] );
+		add_action( 'admin_post_eex_toggle_accounts', [ $this, 'toggle_accounts' ] );
+	}
+
+	/**
+	 * The accounts master switch. Until enabled, this is the only Accounts
+	 * UI and none of the module's code loads.
+	 */
+	private function render_accounts_toggle(): void {
+		$enabled = (bool) \Emailexpert\Events\Options::setting( 'accounts_enabled' );
+		?>
+		<h2><?php esc_html_e( 'Account registration', 'emailexpert-events' ); ?></h2>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="eex_toggle_accounts" />
+			<?php wp_nonce_field( 'eex_toggle_accounts' ); ?>
+			<p>
+				<label>
+					<input type="checkbox" name="accounts_enabled" value="1" <?php checked( $enabled ); ?> />
+					<?php esc_html_e( 'Enable account registration rules', 'emailexpert-events' ); ?>
+				</label>
+			</p>
+			<?php if ( ! $enabled ) : ?>
+				<p class="description"><?php esc_html_e( 'When enabled, granular rules can register account holders as HeySummit attendees (on confirmation, role changes or listing publication), always subject to consent and the suppression list.', 'emailexpert-events' ); ?></p>
+			<?php endif; ?>
+			<?php submit_button( __( 'Save', 'emailexpert-events' ), 'secondary', '', false ); ?>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Persist the accounts master switch.
+	 */
+	public function toggle_accounts(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'emailexpert-events' ) );
+		}
+
+		check_admin_referer( 'eex_toggle_accounts' );
+
+		\Emailexpert\Events\Options::update_settings( [ 'accounts_enabled' => empty( $_POST['accounts_enabled'] ) ? 0 : 1 ] );
+
+		wp_safe_redirect( add_query_arg( 'updated', '1', admin_url( 'options-general.php?page=' . self::SLUG ) ) );
+		exit;
 	}
 
 	/**
@@ -62,6 +104,8 @@ final class BridgePage {
 			<?php endif; ?>
 
 			<?php $this->render_mylisting_section(); ?>
+
+			<?php $this->render_accounts_toggle(); ?>
 
 			<?php
 			/**

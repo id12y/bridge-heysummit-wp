@@ -17,7 +17,9 @@ abstract class TestCase extends PHPUnitTestCase {
 	protected function setUp(): void {
 		parent::setUp();
 		\EEX_Test_State::reset();
-		$GLOBALS['eex_test_actions'] = [];
+		$GLOBALS['eex_test_actions']   = [];
+		$GLOBALS['eex_test_users']     = [];
+		$GLOBALS['eex_test_user_meta'] = [];
 
 		// Make retries instantaneous in tests.
 		add_filter( 'eex_http_retry_delay', static fn() => 0 );

@@ -73,12 +73,13 @@ procedure in the README.
 ## Hard runtime rules
 
 - **Reads everywhere, writes nowhere except the allowlist.** (Amended in
-  v2.) Sync and discovery are GET/OPTIONS only. The single write surface is
-  `HeySummitClient::post()`, which throws for any endpoint outside
-  `Api\WriteEndpoints::ALLOWLIST` (attendee create and external ticket sale
-  import, used only by the WooCommerce bridge). The v1-era API includes an
-  event archive action; a stray POST against a live event ID would archive
-  it — that path is structurally unreachable.
+  v2; unchanged in v3.) Sync and discovery are GET/OPTIONS only. The single
+  write surface is `HeySummitClient::post()`, which throws for any endpoint
+  outside `Api\WriteEndpoints::ALLOWLIST` (attendee create and external
+  ticket sale import — used only by the WooCommerce bridge and the v3
+  accounts module, which added no new endpoints). The v1-era API includes
+  an event archive action; a stray POST against a live event ID would
+  archive it — that path is structurally unreachable.
 - No API calls from any front-end request path.
 - The API key is never logged, never rendered in full (last 4 characters
   only), never present in REST responses.
@@ -102,3 +103,22 @@ schema. **No POST is ever made during discovery.** Attendee removal /
 ticket-sale reversal is NOT implemented: those endpoints are outside the
 allowlist, so refunds produce an order note, an admin notice and the
 `eex_woo_refunded` hook instead (docs/decisions.md D24).
+
+## v3: ticket assignment at attendee creation (accounts module)
+
+The accounts module uses only the two already-allowlisted write endpoints.
+How a specific (including free) ticket attaches to a new attendee is
+resolved at runtime from the discovery snapshots (`write:attendees`,
+`write:external-ticket-sales`), per `Accounts\TicketAssignment`:
+
+| Discovery finding | Method used | Notes |
+|---|---|---|
+| `write:attendees` POST schema contains `ticket`/`ticket_id`/`tickets` | `create_param` — ticket rides in the attendee-create body | Field name taken from the schema |
+| No ticket field on create, `write:external-ticket-sales` usable | `ticket_import` — zero-amount external ticket sale after creation | Also the default before any discovery data exists; a free assignment, not a sale |
+| Neither endpoint can assign | `unsupported` — attendee registered without a ticket | Warning logged (flagged `discovery`) naming the intended ticket; assign manually in HeySummit |
+
+"Attendee already exists" responses (HTTP 409, or 400 with
+already/exists/unique/duplicate in the body) are treated as success and
+recorded; no ticket import follows for a pre-existing attendee. Verify the
+resolved method in the diagnostics panel after Test connection and override
+with the `eex_ticket_assignment_method` filter if the live API differs.

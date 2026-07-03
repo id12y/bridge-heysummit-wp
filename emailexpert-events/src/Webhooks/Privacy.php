@@ -104,6 +104,10 @@ final class Privacy {
 		$hash    = self::hash( $email_address );
 		$removed = Attribution::erase_hash( $hash );
 
+		// Erasure suppresses future pushes for this address across all
+		// events, so no rule, backfill or retry can ever re-add them.
+		\Emailexpert\Events\Accounts\Suppression::add( $email_address, \Emailexpert\Events\Accounts\Suppression::ALL_EVENTS, 'erasure' );
+
 		// Log entries carry the address redacted to a 12-character hash
 		// prefix (see Logger::redact); delete rows containing it.
 		$prefix = substr( $hash, 0, 12 );
@@ -116,12 +120,21 @@ final class Privacy {
 			)
 		);
 
+		$messages = [
+			__( 'The address has been added to the plugin\'s suppression list, so it will never be re-registered automatically.', 'emailexpert-events' ),
+			__( 'Removing the attendee from HeySummit itself is a manual step: delete the registration in the HeySummit dashboard.', 'emailexpert-events' ),
+		];
+		if ( $removed > 0 ) {
+			array_unshift(
+				$messages,
+				sprintf( /* translators: %d: number of rows. */ __( '%d attribution record(s) removed.', 'emailexpert-events' ), $removed )
+			);
+		}
+
 		return [
 			'items_removed'  => $removed > 0,
 			'items_retained' => false,
-			'messages'       => $removed > 0
-				? [ sprintf( /* translators: %d: number of rows. */ __( '%d attribution record(s) removed.', 'emailexpert-events' ), $removed ) ]
-				: [],
+			'messages'       => $messages,
 			'done'           => true,
 		];
 	}

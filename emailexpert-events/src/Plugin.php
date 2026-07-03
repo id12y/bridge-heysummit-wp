@@ -85,6 +85,12 @@ final class Plugin {
 			$services[] = new Cli\Commands();
 		}
 
+		// Accounts module: gated by the master toggle in the autoloaded
+		// settings option — off means nothing in src/Accounts/ ever loads.
+		if ( (bool) Options::setting( 'accounts_enabled' ) ) {
+			Accounts\Module::register();
+		}
+
 		// Optional modules: each loads zero code unless its host announces
 		// itself (Elementor via elementor/init, WooCommerce via
 		// woocommerce_loaded, MyListing via a cheap inline theme check after
