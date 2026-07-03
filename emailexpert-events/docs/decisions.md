@@ -172,3 +172,24 @@ confirmation kicks the ordinary async sync and cron scheduling. Abandoning
 the wizard mid-way leaves a valid partial configuration and no orphaned
 state; the only wizard-specific options are the dismissible notice flag and
 a started-at timestamp used by the progress poll.
+
+## D21. MyListing detection strategy and disable-on-doubt
+
+Listing types are enumerated as `case27-listing-type` posts, fields first
+through the theme's own `\MyListing\Src\Listing_Type` API (guarded
+try/catch), then from the stored listing-type configuration JSON under
+candidate meta keys. Results are cached non-autoloaded, salted with the
+theme version, and logged flagged `discovery`. If neither path yields
+usable fields, `confident` is false and the bridge disables itself with an
+admin notice — it never guesses. The two pieces of near-stable MyListing
+convention the projector does rely on — listing values under
+underscore-prefixed meta keys and the `_case27_listing_type` type link —
+come out of the detection result and are filterable
+(`eex_mylisting_meta_key`), not hardcoded at call sites.
+
+## D22. MyListing module gating
+
+Themes load after plugins, so presence is checked on `after_setup_theme`
+with an inline class/constant check in Plugin (plus an
+`eex_mylisting_present` filter for tests); nothing in `src/MyListing/`
+loads when the theme is absent. Detection unconfidence then gates the rest.

@@ -210,3 +210,23 @@
   Elementor/MyListing/WooCommerce). Writes only the standard options.
 - Tests: 112 passing, including the acceptance-critical dry-run == import
   == most-recent-5 == scope-reduction-orphans chain.
+
+## V2-WI3 — MyListing bridge
+
+- One-way projection module (src/MyListing/): runtime detection of listing
+  types/fields with theme-API-then-config fallback, cached and logged
+  flagged discovery, bridge self-disables with a notice when unconfident.
+- Projector: per source type (events/sessions/speakers) with target listing
+  type and dropdown field mapping; unmapped fields never written; hash
+  idempotent; honours sync modes (detached freezes the listing, excluded
+  drafts it), mirrors import status and orphan drafts; reciprocal
+  _eex_mylisting_id/_eex_source_post_id linkage; runs on eex_sync_completed
+  and via Project now.
+- Canonical control: required canonical side per source type (default eex),
+  rel=canonical on the non-canonical side (core + Yoast/Rank Math filters +
+  explicit link tag for listings), schema emitted only on the canonical
+  side (eex_schema_suppress), optional listings-only noindex.
+- Bridge settings page (Settings → EEX Bridges) with the mapping UI and an
+  eex_bridge_sections hook for other modules.
+- Tests: 123 passing (11 new bridge tests: gating, mapping, idempotency,
+  modes, status mirroring, canonical both ways, discovery logging).

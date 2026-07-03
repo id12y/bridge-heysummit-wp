@@ -1058,3 +1058,24 @@ if ( ! function_exists( 'flush_rewrite_rules' ) ) {
 		$GLOBALS['eex_test_rewrites_flushed'] = true;
 	}
 }
+
+// --- theme / taxonomy helpers for module detection. ----------------------------------
+if ( ! function_exists( 'get_object_taxonomies' ) ) {
+	function get_object_taxonomies( $object_type, $output = 'names' ) {
+		return $GLOBALS['eex_test_object_taxonomies'][ is_string( $object_type ) ? $object_type : '' ] ?? [];
+	}
+}
+if ( ! function_exists( 'wp_get_theme' ) ) {
+	function wp_get_theme( $stylesheet = '', $theme_root = '' ) {
+		return new class() {
+			public function get( $header ) {
+				return 'test-theme-1.0';
+			}
+		};
+	}
+}
+if ( ! function_exists( 'is_singular' ) ) {
+	function is_singular( $post_types = '' ) {
+		return false;
+	}
+}

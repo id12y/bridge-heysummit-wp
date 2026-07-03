@@ -69,6 +69,7 @@ final class Plugin {
 		if ( is_admin() ) {
 			$services[] = new Admin\SettingsPage();
 			$services[] = new Admin\Wizard();
+			$services[] = new Admin\BridgePage();
 			$services[] = new Admin\Ajax();
 			$services[] = new Admin\Notices();
 			$services[] = new Admin\AttributionReport();
@@ -79,8 +80,20 @@ final class Plugin {
 			$services[] = new Cli\Commands();
 		}
 
-		// Elementor module: loads nothing unless Elementor announces itself.
+		// Optional modules: each loads zero code unless its host announces
+		// itself (Elementor via elementor/init, WooCommerce via
+		// woocommerce_loaded, MyListing via a cheap inline theme check after
+		// the theme has loaded).
 		add_action( 'elementor/init', [ Elementor\Module::class, 'register' ] );
+		add_action( 'woocommerce_loaded', [ WooCommerce\Module::class, 'register' ] );
+		add_action(
+			'after_setup_theme',
+			static function (): void {
+				if ( class_exists( '\MyListing\App' ) || defined( 'CASE27_THEME_DIR' ) || apply_filters( 'eex_mylisting_present', false ) ) {
+					MyListing\Module::register();
+				}
+			}
+		);
 
 		foreach ( $services as $service ) {
 			$service->register();

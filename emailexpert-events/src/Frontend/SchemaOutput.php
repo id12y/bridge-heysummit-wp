@@ -67,6 +67,18 @@ final class SchemaOutput {
 			return [];
 		}
 
+		/**
+		 * Suppress schema on this view (used by the MyListing bridge when
+		 * the projected listing is the canonical side — duplicate schema on
+		 * both sides is worse than none).
+		 *
+		 * @param bool $suppress Whether to emit nothing.
+		 * @param int  $post_id  Post being rendered.
+		 */
+		if ( apply_filters( 'eex_schema_suppress', false, $post_id ) ) {
+			return [];
+		}
+
 		if ( is_singular( PostTypes::EVENT ) && Options::setting( 'schema_event' ) ) {
 			$pieces[] = SchemaGenerator::event( $post_id );
 		} elseif ( is_singular( PostTypes::TALK ) ) {

@@ -90,6 +90,12 @@ class SyncEngine {
 		}
 
 		Cache::flush();
+
+		/**
+		 * A sync run completed. Used by the MyListing projection and the
+		 * cache purge integration.
+		 */
+		do_action( 'eex_sync_completed' );
 	}
 
 	/**
