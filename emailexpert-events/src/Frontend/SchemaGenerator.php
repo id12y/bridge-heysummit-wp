@@ -338,6 +338,110 @@ final class SchemaGenerator {
 	 * @param int                 $post_id Source post.
 	 * @return array<string,mixed>|null
 	 */
+	/**
+	 * Inline Event schema from a talk data array (Lite mode: emitted by the
+	 * rendering block itself, since no local page exists to carry it).
+	 * Follows the Google Event requirements: name + startDate required,
+	 * VirtualLocation for the online URL.
+	 *
+	 * @param array<string,mixed> $data Talk data (see Data\Repository).
+	 * @return array<string,mixed>|null
+	 */
+	public static function inline_event_from_talk( array $data ): ?array {
+		$name  = (string) ( $data['title'] ?? '' );
+		$start = (string) ( $data['starts_at'] ?? '' );
+		$url   = (string) ( ( $data['raw_event_url'] ?? '' ) ?: ( $data['permalink'] ?? '' ) );
+
+		if ( '' === $name || '' === $start ) {
+			return null; // Required fields missing: emit nothing.
+		}
+
+		$schema = [
+			'@context'            => 'https://schema.org',
+			'@type'               => 'Event',
+			'name'                => $name,
+			'startDate'           => $start,
+			'eventAttendanceMode' => 'https://schema.org/OnlineEventAttendanceMode',
+			'eventStatus'         => 'https://schema.org/EventScheduled',
+		];
+
+		if ( '' !== (string) ( $data['ends_at'] ?? '' ) ) {
+			$schema['endDate'] = (string) $data['ends_at'];
+		}
+
+		if ( '' !== $url ) {
+			$schema['location'] = [
+				'@type' => 'VirtualLocation',
+				'url'   => $url,
+			];
+		}
+
+		if ( '' !== (string) ( $data['description'] ?? '' ) ) {
+			$schema['description'] = wp_strip_all_tags( (string) $data['description'] );
+		}
+
+		$performers = [];
+		foreach ( (array) ( $data['speakers'] ?? [] ) as $speaker ) {
+			if ( '' !== (string) ( $speaker['name'] ?? '' ) ) {
+				$performers[] = [
+					'@type' => 'Person',
+					'name'  => (string) $speaker['name'],
+				];
+			}
+		}
+		if ( ! empty( $performers ) ) {
+			$schema['performer'] = $performers;
+		}
+
+		return self::filtered( $schema, 'talk', 0 );
+	}
+
+	/**
+	 * Inline Event schema from an event data array (Lite mode).
+	 *
+	 * @param array<string,mixed> $event Event data (see Data\Repository).
+	 * @return array<string,mixed>|null
+	 */
+	public static function inline_event_from_event( array $event ): ?array {
+		$name  = (string) ( $event['title'] ?? '' );
+		$start = (string) ( $event['first_talk_at'] ?? '' );
+		$url   = (string) ( ( $event['raw_event_url'] ?? '' ) ?: ( $event['event_url'] ?? '' ) );
+
+		if ( '' === $name || '' === $start ) {
+			return null;
+		}
+
+		$schema = [
+			'@context'            => 'https://schema.org',
+			'@type'               => 'Event',
+			'name'                => $name,
+			'startDate'           => $start,
+			'eventAttendanceMode' => 'https://schema.org/OnlineEventAttendanceMode',
+			'eventStatus'         => 'https://schema.org/EventScheduled',
+		];
+
+		if ( '' !== (string) ( $event['last_talk_at'] ?? '' ) ) {
+			$schema['endDate'] = (string) $event['last_talk_at'];
+		}
+
+		if ( '' !== $url ) {
+			$schema['location'] = [
+				'@type' => 'VirtualLocation',
+				'url'   => $url,
+			];
+
+			if ( ! empty( $event['open'] ) ) {
+				$schema['offers'] = [
+					'@type'        => 'Offer',
+					'url'          => $url,
+					'availability' => 'https://schema.org/InStock',
+				];
+			}
+		}
+
+		return self::filtered( $schema, 'event', 0 );
+	}
+
 	private static function filtered( array $schema, string $kind, int $post_id ): ?array {
 		/**
 		 * Filter a generated schema array before output.

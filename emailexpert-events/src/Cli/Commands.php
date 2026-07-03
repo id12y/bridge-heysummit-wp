@@ -50,8 +50,8 @@ final class Commands {
 	 * @param array<int,string> $args Positional args.
 	 */
 	public function accounts_push( array $args ): void {
-		if ( ! (bool) Options::setting( 'accounts_enabled' ) ) {
-			WP_CLI::error( 'The accounts module is not enabled.' );
+		if ( \Emailexpert\Events\Options::is_lite() || ! (bool) Options::setting( 'accounts_enabled' ) ) {
+			WP_CLI::error( 'The accounts module is not enabled (and is a Full-mode feature).' );
 		}
 
 		$user_id = isset( $args[0] ) ? (int) $args[0] : 0;
@@ -89,8 +89,8 @@ final class Commands {
 	 * @param array<string,string> $assoc_args Named args.
 	 */
 	public function accounts_backfill( array $args, array $assoc_args = [] ): void {
-		if ( ! (bool) Options::setting( 'accounts_enabled' ) ) {
-			WP_CLI::error( 'The accounts module is not enabled.' );
+		if ( \Emailexpert\Events\Options::is_lite() || ! (bool) Options::setting( 'accounts_enabled' ) ) {
+			WP_CLI::error( 'The accounts module is not enabled (and is a Full-mode feature).' );
 		}
 
 		$rule_id = isset( $args[0] ) ? (string) $args[0] : '';
@@ -165,6 +165,10 @@ final class Commands {
 	 * @param array<string,string> $assoc_args Named args.
 	 */
 	public function sync( array $args, array $assoc_args ): void {
+		if ( \Emailexpert\Events\Options::is_lite() ) {
+			WP_CLI::error( 'This command needs Full mode: Lite does not sync content. Switch modes in Settings.' );
+		}
+
 		$force = isset( $assoc_args['force'] );
 		$keys  = SyncEngine::enabled_event_keys();
 
@@ -196,6 +200,10 @@ final class Commands {
 	 * Report sync health.
 	 */
 	public function status(): void {
+		if ( \Emailexpert\Events\Options::is_lite() ) {
+			WP_CLI::error( 'This command needs Full mode: Lite does not sync content. Switch modes in Settings.' );
+		}
+
 		$status = Health::status();
 
 		WP_CLI::log( sprintf( 'Enabled events: %d', $status['enabled_count'] ) );
@@ -229,6 +237,10 @@ final class Commands {
 	 * @param array<string,string> $assoc_args Named args.
 	 */
 	public function orphans( array $args, array $assoc_args ): void {
+		if ( \Emailexpert\Events\Options::is_lite() ) {
+			WP_CLI::error( 'This command needs Full mode: Lite does not sync content. Switch modes in Settings.' );
+		}
+
 		$rows = [];
 
 		foreach ( PostTypes::SYNCED as $post_type ) {
@@ -317,6 +329,10 @@ final class Commands {
 	 * @param array<int,string> $args Positional args.
 	 */
 	public function replay( array $args ): void {
+		if ( \Emailexpert\Events\Options::is_lite() ) {
+			WP_CLI::error( 'Webhooks are a Full-mode feature; there is nothing to replay in Lite.' );
+		}
+
 		$log_id = isset( $args[0] ) ? (int) $args[0] : 0;
 
 		if ( $log_id <= 0 ) {

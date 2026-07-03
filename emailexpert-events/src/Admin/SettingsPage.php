@@ -301,6 +301,28 @@ final class SettingsPage {
 					<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=eex_flush_live' ), 'eex_flush_live' ) ); ?>"><?php esc_html_e( 'Flush live cache', 'emailexpert-events' ); ?></a>
 				</td>
 			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Sponsors', 'emailexpert-events' ); ?></th>
+				<td>
+					<p class="description"><?php esc_html_e( 'Sponsors are manual data. In Lite they live here (no posts, no media library); logos load from the URL you give. Blank the name to remove a row.', 'emailexpert-events' ); ?></p>
+					<?php
+					$sponsors   = array_slice( array_values( array_filter( (array) Options::setting( 'lite_sponsors' ), 'is_array' ) ), 0, 60 );
+					$sponsors[] = []; // One empty row to add another.
+
+					foreach ( $sponsors as $index => $sponsor ) :
+						$field = 'lite_sponsors[' . (int) $index . ']';
+						?>
+						<p class="eex-lite-sponsor">
+							<input type="text" name="<?php echo esc_attr( $field ); ?>[name]" value="<?php echo esc_attr( (string) ( $sponsor['name'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Name', 'emailexpert-events' ); ?>" />
+							<input type="url" name="<?php echo esc_attr( $field ); ?>[url]" value="<?php echo esc_attr( (string) ( $sponsor['url'] ?? '' ) ); ?>" placeholder="https://sponsor.example.com/" />
+							<input type="url" name="<?php echo esc_attr( $field ); ?>[logo_url]" value="<?php echo esc_attr( (string) ( $sponsor['logo_url'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Logo URL', 'emailexpert-events' ); ?>" />
+							<input type="text" name="<?php echo esc_attr( $field ); ?>[tier]" value="<?php echo esc_attr( (string) ( $sponsor['tier'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Tier (e.g. Gold)', 'emailexpert-events' ); ?>" size="12" />
+							<input type="number" name="<?php echo esc_attr( $field ); ?>[tier_order]" value="<?php echo esc_attr( (string) (int) ( $sponsor['tier_order'] ?? 99 ) ); ?>" min="0" max="99" size="3" aria-label="<?php esc_attr_e( 'Tier order', 'emailexpert-events' ); ?>" />
+							<input type="text" name="<?php echo esc_attr( $field ); ?>[blurb]" value="<?php echo esc_attr( (string) ( $sponsor['blurb'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'One-line blurb', 'emailexpert-events' ); ?>" size="30" />
+						</p>
+					<?php endforeach; ?>
+				</td>
+			</tr>
 		</table>
 
 		<?php
@@ -872,20 +894,44 @@ final class SettingsPage {
 	 * Persist the settings visible in Lite mode only.
 	 */
 	private function save_lite_settings(): void {
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in save(); sanitised field-by-field below.
-		$posted = isset( $_POST['settings'] ) && is_array( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : [];
+		// phpcs:disable WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in save(); sanitised field-by-field below.
+		$posted   = isset( $_POST['settings'] ) && is_array( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : [];
+		$sponsors = isset( $_POST['lite_sponsors'] ) && is_array( $_POST['lite_sponsors'] ) ? wp_unslash( $_POST['lite_sponsors'] ) : null;
+		// phpcs:enable
 
-		Options::update_settings(
-			[
-				'lite_ttl'       => max( 1, min( 1440, (int) ( $posted['lite_ttl'] ?? 15 ) ) ),
-				'date_format'    => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
-				'schema_enabled' => empty( $posted['schema_enabled'] ) ? 0 : 1,
-				'schema_event'   => empty( $posted['schema_event'] ) ? 0 : 1,
-				'utm_enabled'    => empty( $posted['utm_enabled'] ) ? 0 : 1,
-				'utm_source'     => sanitize_text_field( (string) ( $posted['utm_source'] ?? '' ) ),
-				'utm_medium'     => sanitize_text_field( (string) ( $posted['utm_medium'] ?? 'web' ) ),
-			]
-		);
+		$values = [
+			'lite_ttl'       => max( 1, min( 1440, (int) ( $posted['lite_ttl'] ?? 15 ) ) ),
+			'date_format'    => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
+			'schema_enabled' => empty( $posted['schema_enabled'] ) ? 0 : 1,
+			'schema_event'   => empty( $posted['schema_event'] ) ? 0 : 1,
+			'utm_enabled'    => empty( $posted['utm_enabled'] ) ? 0 : 1,
+			'utm_source'     => sanitize_text_field( (string) ( $posted['utm_source'] ?? '' ) ),
+			'utm_medium'     => sanitize_text_field( (string) ( $posted['utm_medium'] ?? 'web' ) ),
+		];
+
+		if ( null !== $sponsors ) {
+			$clean = [];
+			foreach ( $sponsors as $row ) {
+				if ( ! is_array( $row ) || '' === trim( (string) ( $row['name'] ?? '' ) ) ) {
+					continue; // Blank name removes the row.
+				}
+
+				$clean[] = [
+					'name'       => sanitize_text_field( (string) $row['name'] ),
+					'url'        => esc_url_raw( (string) ( $row['url'] ?? '' ) ),
+					'logo_url'   => esc_url_raw( (string) ( $row['logo_url'] ?? '' ) ),
+					'tier'       => sanitize_text_field( (string) ( $row['tier'] ?? '' ) ),
+					'tier_order' => max( 0, min( 99, (int) ( $row['tier_order'] ?? 99 ) ) ),
+					'blurb'      => sanitize_text_field( (string) ( $row['blurb'] ?? '' ) ),
+				];
+			}
+
+			// Capped and lean: the settings option must stay small.
+			$values['lite_sponsors'] = array_slice( $clean, 0, 60 );
+		}
+
+		Options::update_settings( $values );
+		\Emailexpert\Events\Frontend\Cache::flush();
 	}
 
 	/**

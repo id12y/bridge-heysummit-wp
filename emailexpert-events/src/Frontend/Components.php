@@ -9,6 +9,7 @@ namespace Emailexpert\Events\Frontend;
 
 use Emailexpert\Events\Data\Repositories;
 use Emailexpert\Events\Data\Repository;
+use Emailexpert\Events\Options;
 use Emailexpert\Events\PostTypes\PostTypes;
 use Emailexpert\Events\PostTypes\Taxonomies;
 
@@ -24,11 +25,32 @@ defined( 'ABSPATH' ) || exit;
 final class Components {
 
 	/**
+	 * Components that need local content and are therefore absent in Lite
+	 * (hidden, not greyed out): the past archives would mean unbounded live
+	 * queries, the counter needs webhook attribution, and the filter bar's
+	 * links need local category and speaker pages.
+	 */
+	public const FULL_ONLY = [ 'past-sessions', 'past-events', 'reg-counter', 'session-filter' ];
+
+	/**
+	 * Components whose Lite render emits inline Event JSON-LD for the items
+	 * they display (structured-data value despite no local pages).
+	 */
+	private const LITE_SCHEMA = [ 'upcoming-sessions', 'schedule', 'featured-talks', 'upcoming-events' ];
+
+	/**
 	 * Static per-request cache of event posts by HeySummit ID.
 	 *
 	 * @var array<string,int>
 	 */
 	private static array $event_lookup = [];
+
+	/**
+	 * Items rendered by the current component, collected for inline schema.
+	 *
+	 * @var array<int,array{type:string,data:array<string,mixed>}>
+	 */
+	private static array $schema_pool = [];
 
 	/**
 	 * The component definition table.
@@ -261,6 +283,11 @@ final class Components {
 			return '';
 		}
 
+		// Absent in Lite: nothing rendered, no clutter.
+		if ( Options::is_lite() && in_array( $name, self::FULL_ONLY, true ) ) {
+			return '';
+		}
+
 		$atts = self::sanitise_atts( $definitions[ $name ]['atts'], $atts );
 
 		Assets::mark_needed();
@@ -274,8 +301,13 @@ final class Components {
 			return $cached;
 		}
 
+		self::$schema_pool = [];
+
 		$method = 'render_' . str_replace( '-', '_', $name );
 		$html   = method_exists( self::class, $method ) ? (string) self::$method( $atts ) : '';
+
+		// Lite: the block itself carries Event JSON-LD for what it rendered.
+		$html .= self::inline_schema( $name );
 
 		$html = '<div class="eex eex-' . esc_attr( $name ) . '">' . $html . '</div>';
 
@@ -291,6 +323,61 @@ final class Components {
 		Cache::set( $name, $cache_atts, $html );
 
 		return $html;
+	}
+
+	/**
+	 * The definitions available in the current mode. Blocks, shortcodes and
+	 * Elementor widgets register only these, so Full-only components are
+	 * hidden in Lite rather than offered and empty.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	public static function available_definitions(): array {
+		$definitions = self::definitions();
+
+		if ( Options::is_lite() ) {
+			$definitions = array_diff_key( $definitions, array_flip( self::FULL_ONLY ) );
+		}
+
+		return $definitions;
+	}
+
+	/**
+	 * Inline Event JSON-LD for the items the current Lite render displayed;
+	 * '' in Full mode (single pages carry schema there) or when disabled.
+	 *
+	 * @param string $name Component name.
+	 */
+	private static function inline_schema( string $name ): string {
+		$pool              = self::$schema_pool;
+		self::$schema_pool = [];
+
+		if ( ! Options::is_lite()
+			|| empty( $pool )
+			|| ! in_array( $name, self::LITE_SCHEMA, true )
+			|| ! (bool) Options::setting( 'schema_enabled' )
+			|| ! (bool) Options::setting( 'schema_event' ) ) {
+			return '';
+		}
+
+		$graph = [];
+		foreach ( $pool as $item ) {
+			$schema = 'event' === $item['type']
+				? SchemaGenerator::inline_event_from_event( $item['data'] )
+				: SchemaGenerator::inline_event_from_talk( $item['data'] );
+
+			if ( ! empty( $schema ) ) {
+				$graph[] = $schema;
+			}
+		}
+
+		if ( empty( $graph ) ) {
+			return '';
+		}
+
+		$payload = 1 === count( $graph ) ? $graph[0] : $graph;
+
+		return '<script type="application/ld+json">' . wp_json_encode( $payload, JSON_UNESCAPED_SLASHES ) . '</script>';
 	}
 
 	/**
@@ -439,6 +526,13 @@ final class Components {
 			return self::empty_state( (string) ( $atts['empty_text'] ?? '' ) );
 		}
 
+		foreach ( $items as $item ) {
+			self::$schema_pool[] = [
+				'type' => 'talk',
+				'data' => $item,
+			];
+		}
+
 		ob_start();
 		echo '<ul class="eex-grid eex-talk-grid" role="list">';
 		foreach ( $items as $data ) {
@@ -568,6 +662,13 @@ final class Components {
 			return self::empty_state( (string) $atts['empty_text'] );
 		}
 
+		foreach ( $items as $item ) {
+			self::$schema_pool[] = [
+				'type' => 'event',
+				'data' => $item,
+			];
+		}
+
 		ob_start();
 		echo '<ul class="eex-grid eex-event-grid" role="list">';
 		foreach ( $items as $event ) {
@@ -664,6 +765,11 @@ final class Components {
 			$rows[] = [
 				'ts'   => $ts,
 				'day'  => $local->format( 'l j F Y' ),
+				'data' => $data,
+			];
+
+			self::$schema_pool[] = [
+				'type' => 'talk',
 				'data' => $data,
 			];
 		}

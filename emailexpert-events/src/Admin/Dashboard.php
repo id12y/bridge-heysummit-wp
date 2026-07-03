@@ -7,8 +7,6 @@
 
 namespace Emailexpert\Events\Admin;
 
-use Emailexpert\Events\Frontend\Components;
-use Emailexpert\Events\Frontend\Query;
 use Emailexpert\Events\Frontend\TimeFormat;
 use Emailexpert\Events\Install\Tables;
 use Emailexpert\Events\Sync\Health;
@@ -45,18 +43,18 @@ final class Dashboard {
 	}
 
 	/**
-	 * Render the widget.
+	 * Render the widget: next sessions in both modes, then attribution and
+	 * sync health (Full) or cache status (Lite).
 	 */
 	public function render(): void {
-		$next = Query::upcoming_talks( [ 'limit' => 3 ] );
+		$next = \Emailexpert\Events\Data\Repositories::current()->upcoming_talks( [ 'limit' => 3 ] );
 
 		echo '<h3>' . esc_html__( 'Next sessions', 'emailexpert-events' ) . '</h3>';
 		if ( empty( $next ) ) {
 			echo '<p class="description">' . esc_html__( 'No upcoming sessions.', 'emailexpert-events' ) . '</p>';
 		} else {
 			echo '<ul>';
-			foreach ( $next as $talk_id ) {
-				$data = Components::talk_data( $talk_id );
+			foreach ( $next as $data ) {
 				printf(
 					'<li><a href="%s">%s</a> — %s</li>',
 					esc_url( (string) $data['permalink'] ),
@@ -65,6 +63,12 @@ final class Dashboard {
 				);
 			}
 			echo '</ul>';
+		}
+
+		if ( \Emailexpert\Events\Options::is_lite() ) {
+			$this->render_lite_status();
+
+			return;
 		}
 
 		echo '<h3>' . esc_html__( 'Registrations, last 7 days', 'emailexpert-events' ) . '</h3>';
@@ -103,6 +107,34 @@ final class Dashboard {
 			esc_html__( 'Settings and Sync now', 'emailexpert-events' ),
 			esc_url( admin_url( 'options-general.php?page=emailexpert-events-log' ) ),
 			esc_html__( 'Sync log', 'emailexpert-events' )
+		);
+	}
+
+	/**
+	 * Lite tail: live cache status and quick links.
+	 */
+	private function render_lite_status(): void {
+		$status = \Emailexpert\Events\Data\LiveCache::status();
+
+		echo '<h3>' . esc_html__( 'Live cache', 'emailexpert-events' ) . '</h3>';
+		printf(
+			'<p>%s %s<br />%s %s</p>',
+			esc_html__( 'Last successful fetch:', 'emailexpert-events' ),
+			esc_html( $status['last_success'] ?: __( 'none yet', 'emailexpert-events' ) ),
+			esc_html__( 'Last failed fetch:', 'emailexpert-events' ),
+			esc_html( $status['last_failure'] ?: __( 'none', 'emailexpert-events' ) )
+		);
+
+		if ( '' !== $status['last_failure'] && $status['last_failure'] > $status['last_success'] ) {
+			echo '<p><strong>' . esc_html__( 'HeySummit was unreachable on the last attempt; pages are serving the last good copy.', 'emailexpert-events' ) . '</strong></p>';
+		}
+
+		printf(
+			'<p><a class="button" href="%s">%s</a> <a class="button" href="%s">%s</a></p>',
+			esc_url( admin_url( 'options-general.php?page=emailexpert-events' ) ),
+			esc_html__( 'Settings', 'emailexpert-events' ),
+			esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=eex_flush_live' ), 'eex_flush_live' ) ),
+			esc_html__( 'Flush live cache', 'emailexpert-events' )
 		);
 	}
 

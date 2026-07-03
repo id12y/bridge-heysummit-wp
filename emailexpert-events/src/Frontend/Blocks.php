@@ -57,7 +57,7 @@ final class Blocks {
 
 		wp_localize_script( 'eex-blocks', 'eexBlocks', [ 'definitions' => $this->editor_definitions() ] );
 
-		foreach ( Components::definitions() as $name => $definition ) {
+		foreach ( Components::available_definitions() as $name => $definition ) {
 			$attributes = [];
 			foreach ( $definition['atts'] as $key => $spec ) {
 				$attributes[ $key ] = [
@@ -91,7 +91,7 @@ final class Blocks {
 	private function editor_definitions(): array {
 		$out = [];
 
-		foreach ( Components::definitions() as $name => $definition ) {
+		foreach ( Components::available_definitions() as $name => $definition ) {
 			$out[ $name ] = [
 				'title' => (string) $definition['title'],
 				'atts'  => $definition['atts'],

@@ -28,7 +28,9 @@ final class Module {
 		add_action( 'elementor/elements/categories_registered', [ $module, 'register_category' ] );
 		add_action( 'elementor/widgets/register', [ $module, 'register_widgets' ] );
 
-		if ( self::has_pro() ) {
+		if ( self::has_pro() && ! \Emailexpert\Events\Options::is_lite() ) {
+			// Dynamic tags, Loop Grid queries and Theme Builder need local
+			// content; in Lite only the plain widgets register.
 			add_action( 'elementor/dynamic_tags/register', [ $module, 'register_tags' ] );
 			( new Queries() )->register();
 			( new ThemeBuilder() )->register();
@@ -61,7 +63,7 @@ final class Module {
 	 * @param object $widgets_manager Elementor widgets manager.
 	 */
 	public function register_widgets( $widgets_manager ): void {
-		foreach ( array_keys( \Emailexpert\Events\Frontend\Components::definitions() ) as $component ) {
+		foreach ( array_keys( \Emailexpert\Events\Frontend\Components::available_definitions() ) as $component ) {
 			$widgets_manager->register( new ComponentWidget( [], [ 'eex_component' => $component ] ) );
 		}
 	}

@@ -343,3 +343,19 @@ first 50 records): display components are limited anyway, and unbounded
 pagination in a render path would defeat the budget. In Lite the logger
 writes to a 20-entry transient ring buffer instead of creating the log
 table; a table left over from a Full period keeps working.
+
+## D37. v4: Lite hides Full-only surface, and blocks carry their own schema
+
+Full-only components (past sessions, past events, registration counter,
+session filter bar) are absent in Lite, not greyed out: they are excluded
+from block/shortcode/widget registration via
+`Components::available_definitions()` and render nothing if invoked
+directly. Elementor keeps its plain widgets in Lite; dynamic tags, Loop
+Grid queries and Theme Builder need local content and stay Full-only. In
+Lite the session and event components append one inline JSON-LD
+`<script>` per render (Google Event shape: name + startDate required,
+VirtualLocation for the online URL) — structured data survives without
+local pages. Sponsors move into the settings option (max 60 lean rows,
+external logo URLs, no media library); the per-session .ics endpoint
+resolves HeySummit talk IDs through the live repository under the same
+cache and budget as any render.

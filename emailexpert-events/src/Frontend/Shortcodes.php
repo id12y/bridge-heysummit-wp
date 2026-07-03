@@ -36,7 +36,13 @@ final class Shortcodes {
 	 * Hook up.
 	 */
 	public function register(): void {
+		$available = Components::available_definitions();
+
 		foreach ( self::MAP as $component => $tag ) {
+			if ( ! isset( $available[ $component ] ) ) {
+				continue; // Absent in the current mode.
+			}
+
 			add_shortcode(
 				$tag,
 				static function ( $atts ) use ( $component ): string {
