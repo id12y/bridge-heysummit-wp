@@ -5,8 +5,10 @@ with full Schema.org markup (the plugin's primary purpose: indexable GEO/SEO
 content), and receives HeySummit registration webhooks for a live counter,
 notifications and an attribution log.
 
-- **Read-only against HeySummit**: the plugin never writes to the HeySummit
-  API, and no front-end page load ever calls HeySummit.
+- **Read-only against HeySummit** apart from the WooCommerce bridge's two
+  allowlisted endpoints (attendee create, external ticket sale import) —
+  enforced in code, see the v2 section. No front-end page load ever calls
+  HeySummit.
 - Works with **no API key, no Elementor and the API unreachable**: all
   rendering comes from the local database.
 - WordPress 6.4+, PHP 8.1+.
@@ -15,12 +17,13 @@ notifications and an attribution log.
 
 1. Copy the `emailexpert-events/` directory into `wp-content/plugins/` (or
    symlink it) and activate **emailexpert Events**.
-2. Activation creates two tables (`{prefix}eex_log`,
-   `{prefix}eex_attribution`), generates the webhook secret and schedules
-   the sync cron.
-3. Visit **Settings → Permalinks** once (or just save) so the
-   `/events/`, `/sessions/`, `/speakers/`, `/sponsors/` and
-   `/feeds/eex/calendar.ics` rewrites flush.
+2. Activation is deliberately minimal (v2): it registers the post types,
+   seeds the fixed terms, flushes rewrites and writes one settings option.
+   Tables, cron and the webhook secret are all created on demand — the log
+   table on first sync, the attribution table when webhooks are enabled,
+   the sync cron when the first event is enabled.
+3. Follow the dismissible notice into the **setup wizard** (Settings →
+   EEX Setup), or configure manually under Settings → emailexpert Events.
 
 ### Development
 
@@ -327,3 +330,125 @@ assets/                  one CSS file, two small JS files
 tests/                   PHPUnit suite + WordPress stub layer + fixtures
 docs/                    api-notes, decisions, progress, acceptance report
 ```
+
+---
+
+# Version 2 additions
+
+## Lazy footprint
+
+Activation now creates no tables and schedules no cron: the log table
+appears on the first log write, the attribution table when webhooks are
+enabled, the sync cron only while at least one event is enabled, and the
+webhook secret on first use. `eex_settings` is the single autoloaded
+option. A front-end page with no components runs no plugin queries and
+loads no plugin assets.
+
+## Setup wizard and time-scoped imports
+
+A dismissible activation notice offers the five-step wizard (Settings →
+EEX Setup, re-runnable any time): connect and test the key with an inline
+discovery summary; choose events (title, dates, session counts); scope each
+event; preview exact import counts from a GET-only dry run that updates as
+you adjust; confirm and watch the initial sync from the log. The wizard
+writes only the standard settings.
+
+Per event (also in the main Sync settings): **future sessions** all/none
+and **past sessions** all / none / most recent N / since a date. Scope is
+rolling — evaluated on every run — and out-of-scope sessions behave exactly
+like category-filtered ones: never created, orphan-drafted if previously
+synced.
+
+## MyListing bridge (optional)
+
+With the MyListing theme active, Settings → EEX Bridges projects events,
+sessions and/or speakers into listings — one way; the `eex_` posts stay
+canonical as data. Listing types and fields are detected from the installed
+theme at runtime (never hardcoded; the bridge disables itself with a notice
+if detection is unconfident). Map source fields to listing fields per type;
+unmapped fields are never written. Sync modes, import status and orphans
+mirror through. Choose the canonical side per source type: the other side
+carries rel=canonical, schema is emitted only on the canonical side, and an
+optional "listings only" mode noindexes the plugin pages.
+
+## WooCommerce → HeySummit bridge (optional)
+
+Sell tickets in WooCommerce; each consented, completed purchase becomes a
+HeySummit attendee with an imported external ticket sale (the API's
+off-platform flow, avoiding HeySummit's transaction fee).
+
+- Map a product (or variation) on its edit screen: HeySummit tab →
+  connection → event → ticket (tickets enumerated live). Unmapped products
+  are ignored entirely.
+- Checkout gains a required consent checkbox (text configurable) whenever
+  the cart holds mapped products; the consent timestamp is stored on the
+  order. **No consent, no push** — the order is flagged instead.
+- On order completion (optionally `processing`), one async job per mapped
+  line item: attendee create → ticket sale import → attendee ID stored on
+  the item → order note → `eex_woo_pushed`. The local push record is the
+  lock, so repeated hooks can never double-push. Quantity above 1 registers
+  the purchaser and adds a prominent note that additional attendees need
+  manual registration (`eex_woo_multi_quantity`).
+- Failures retry 3 times with backoff, then flag the order with an
+  orders-list notice, a **Push to HeySummit** button on the order screen
+  and `wp eex woo:push <order_id>`.
+- Refunds: attendee removal is outside the write allowlist, so a full
+  refund adds a manual-removal note/notice and fires `eex_woo_refunded`.
+- **Write allowlist**: the client can only ever POST to
+  `attendees/` and `external-ticket-sales/` (defined once in
+  `Api\WriteEndpoints`); anything else throws. Discovery verifies both
+  write shapes via OPTIONS — nothing is created during discovery.
+- Attribution rows from Woo pushes carry the order ID and dedupe against
+  HeySummit's own checkout-complete webhook by attendee ID.
+
+## UTM auto-tagging
+
+Display settings → UTM: set a source (e.g. `emailexpert.com`) and medium;
+every register/event link the plugin outputs (blocks, shortcodes, Elementor
+tags, calendar entries, projected listings) gains
+`utm_source/utm_medium/utm_campaign`, with the campaign taken from the
+rendering page's slug (`_eex_utm_campaign` meta overrides per page).
+Together with the attribution report this shows which page produced which
+registration.
+
+## Outbound relay
+
+Settings → Webhooks → Outbound relay: forward each processed, verified
+action (checkout complete / registration started / talk added) as JSON to
+any number of URLs (n8n, Make, an ESP) with a per-URL `X-Eex-Secret`
+header, 3 retries and logged deliveries, plus a per-URL "send test payload"
+button. Attendee emails are relayed as hashes only.
+
+## Session library filter bar
+
+`eex/session-filter` block / `[eex_session_filter]` pairs with the
+past-sessions block: category and speaker links plus text search. Without
+JS everything works as links and a GET form (`?eex_q=`, filtered
+server-side); with JS the rendered list filters instantly.
+
+## Operations extras
+
+- **Dashboard widget**: next three sessions, 7-day registrations by source,
+  last sync and health, quick links.
+- **Settings export/import** (bottom of the settings page): JSON export
+  containing no API keys or secrets; import shows a diff preview before
+  applying and always preserves local keys.
+- **Cache purge integration** (off by default): fires WP Rocket, LiteSpeed,
+  W3TC and Cloudflare purge hooks after syncs and counter changes, scoped
+  to affected URLs where supported.
+- **Weekly digest** (off by default): Monday plain-text email with
+  registrations by source, session activity, upcoming sessions and sync
+  health.
+
+## New hooks (v2)
+
+| Hook | Payload | Fired |
+|---|---|---|
+| `eex_sync_completed` | — | After a sync run finishes |
+| `eex_woo_pushed` | `int $order_id, int $item_id, array $attendee` | Woo purchase pushed to HeySummit |
+| `eex_woo_multi_quantity` | `int $order_id, int $item_id, int $quantity` | Multi-quantity item pushed (purchaser only) |
+| `eex_woo_refunded` | `int $order_id` | Pushed order fully refunded (manual removal needed) |
+| `eex_cache_purged` | `string[] $urls, bool $allow_full` | After purge hooks fired |
+| `eex_schema_suppress` (filter) | `bool, int $post_id` | Suppress schema on a view (canonical control) |
+| `eex_mylisting_meta_key` (filter) | `string $meta_key, string $field_key` | Listing field meta key mapping |
+| `eex_attendee_request` / `eex_ticket_sale_request` (filters) | request array | Correct write shapes against the live API |

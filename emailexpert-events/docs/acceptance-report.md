@@ -44,3 +44,46 @@ it on the live site.
    axe run.
 7. Elementor Pro: widget parity, dynamic tags, Loop Grid query IDs, Theme
    Builder replacement.
+
+---
+
+# Acceptance report — v2 extension run
+
+Environment as before: PHP 8.4 build container, no WordPress install, no
+HeySummit key, no Elementor, no MyListing theme, no WooCommerce plugin. The
+suite now runs 146 tests / 575 assertions on the WordPress + WooCommerce
+stub layers; PHPCS passes clean; every PHP file (including both bridge
+modules) passes `php -l`.
+
+**Verdict counts (v2 criteria): 7 pass, 0 fail, 1 partially not verifiable.**
+
+| # | Criterion | Verdict | Evidence / manual step |
+|---|---|---|---|
+| 1 | All original tests and criteria still pass | **Pass** | The full v1 suite runs unmodified inside the v2 suite (146 tests, 0 failures); v1 acceptance verdicts unchanged — the lazy-init refactor is behaviour-preserving for every tested path (upgrades reconcile existing tables via dbDelta on first guarded write) |
+| 2 | Fresh activation creates no tables/cron; log table on first sync; attribution table when webhooks enabled; component-free front page runs zero plugin queries/assets | **Pass** (query count itself needs a live profiler) | `FootprintTest` (7 tests): activation writes one settings option + terms only; tables via `Install\Tables` on first write with stored schema versions; cron follows enabled events; secret on demand. Zero front-end cost is by construction: the one autoloaded option, activation-time term seeding, register-only assets. Manual: Query Monitor on a plain page — expect no eex queries beyond CPT registration |
+| 3 | Wizard dry-run counts exactly match the confirmed import; "most recent 5" imports exactly 5; reducing scope orphan-drafts the surplus | **Pass** | `ScopeFilterTest::test_dry_run_counts_match_sync_and_scope_reduction_orphans_surplus` runs the identical chain (preview 6 = import 6; past 5 exactly; reduce to 2 → surplus drafted + orphan-flagged); engine and dry run share one `ScopeFilter`, so parity is structural |
+| 4 | MyListing absent → no bridge code; active + mapped → mapping/status/modes honoured, correct rel=canonical on the non-canonical side, schema only on the canonical side | **Pass** (real theme not present here) | Presence check is inline in Plugin (no module class touched when absent — the full suite runs that way); `MyListingBridgeTest` (11 tests) covers unconfident-detection standdown, field mapping, hash idempotency, pending mirroring, detached/excluded, canonical both directions and schema suppression via a fake detection. Manual: on production, map one session type, view both singles' source for the canonical tag |
+| 5 | WooCommerce absent → no Woo code; active: exactly one attendee-create + one ticket-import per completed mapped order even with repeated hooks; unmapped = zero calls; no consent = no push + flagged; failed push retried/flagged/re-pushable; client rejects non-allowlisted writes | **Pass** | Module registers on `woocommerce_loaded` only; `WooBridgeTest` (9 tests) covers every clause including triple-fired hooks → one call pair, the allowlist throwing on `events/101/archive/`, and the retry → flag → manual re-push chain. Manual: sandbox order per the operator steps below |
+| 6 | Register links carry configured UTM parameters everywhere; campaign reflects the rendering page | **Pass** | `V2ExtrasTest`: tagging in component output, calendar entries (campaign `calendar`), per-page override, no-clobber, inactive-without-source, and cache-varies-by-campaign (two pages get differently-tagged fragments). Elementor tags and projected listings share the same helper |
+| 7 | Relay delivers each verified action to configured URLs with the shared-secret header, retries, logs; filter bar works with JS and degrades to links without it | **Pass** for relay and the no-JS path; JS behaviour needs a browser | Relay: subscription filtering, `X-Eex-Secret`, retry scheduling with advancing attempt counter, logged deliveries, secrets never logged or relayed raw. Filter bar: server-rendered category/speaker links + GET search form filtering server-side (`?eex_q=` test); the JS enhancement is code-reviewed vanilla JS. Manual: click category chips on /sessions/ with JS on |
+| 8 | Settings export contains no key or secret material; import shows a diff and applies cleanly | **Pass** | `V2ExtrasTest::test_export_contains_no_key_or_secret_material` (API key, webhook secret, relay secret all absent) and `test_import_applies_cleanly_and_preserves_local_keys` (unknown keys dropped, local keys/secrets preserved, cron state re-evaluated). The diff preview screen is rendered server-side from the same snapshot pair |
+
+## v2 manual verification checklist
+
+1. Activate on a staging copy; confirm no `eex_` tables exist until the
+   first sync and no cron entry until an event is enabled.
+2. Run the wizard end to end; compare the step-4 preview counts with the
+   post lists after import.
+3. MyListing: configure the Bridge tab, project, check both sides' source
+   for rel=canonical and single-sided schema.
+4. WooCommerce sandbox: map a product, place a test order with the consent
+   box ticked, verify the attendee + ticket sale in HeySummit, then refund
+   and confirm the manual-removal note. Also review the
+   `write:attendees` / `write:external-ticket-sales` discovery panels
+   before the first live push and adjust the request builders if shapes
+   differ.
+5. Set the UTM source, click a register link from two different pages and
+   confirm the campaigns differ.
+6. Add a relay URL pointing at a webhook.site bin, send the test payload,
+   then complete a registration and confirm delivery + header.
+7. Export settings on staging, import on production, review the diff.

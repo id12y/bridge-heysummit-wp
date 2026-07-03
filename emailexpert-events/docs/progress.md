@@ -285,3 +285,12 @@
   registrations by source, session counts, upcoming sessions and sync
   health; schedule follows the toggle.
 - Tests: 146 passing (14 new extras tests).
+
+## V2 — Completion
+
+- README reconciled with v2 behaviour and extended (wizard, scope, bridges,
+  UTM, relay, filter bar, operations extras, new hooks).
+- docs/acceptance-report.md v2 section: 7 pass / 0 fail / 1 partially not
+  verifiable (browser/live-host halves), each with manual steps.
+- Final state: 146 tests, 575 assertions, PHPCS clean, all files php -l
+  clean, front-end assets ~3.7KB gzipped combined.
