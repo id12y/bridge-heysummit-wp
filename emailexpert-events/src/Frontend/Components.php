@@ -106,6 +106,11 @@ final class Components {
 						'type'    => 'integer',
 						'default' => 1,
 					],
+					'page'       => [
+						'type'     => 'string',
+						'default'  => '',
+						'from_get' => 'eex_page',
+					],
 					'q'          => [
 						'type'     => 'string',
 						'default'  => '',
@@ -599,12 +604,11 @@ final class Components {
 	 */
 	private static function render_past_sessions( array $atts ): string {
 		$limit = max( 1, (int) $atts['limit'] );
-		$page  = 1;
 
-		if ( ! empty( $atts['paginate'] ) ) {
-			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- public pagination.
-			$page = isset( $_GET['eex_page'] ) ? max( 1, (int) $_GET['eex_page'] ) : 1;
-		}
+		// The page number is an attribute (fed from ?eex_page= via from_get)
+		// so the fragment cache keys on it — page 2 must never serve a
+		// cached page 1.
+		$page = ! empty( $atts['paginate'] ) ? max( 1, (int) ( $atts['page'] ?: 1 ) ) : 1;
 
 		$query_atts           = $atts;
 		$query_atts['offset'] = ( $page - 1 ) * $limit;

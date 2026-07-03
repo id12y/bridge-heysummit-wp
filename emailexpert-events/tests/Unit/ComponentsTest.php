@@ -163,4 +163,33 @@ final class ComponentsTest extends TestCase {
 	public function test_unknown_component_renders_nothing(): void {
 		$this->assertSame( '', Components::render( 'not-a-component', [] ) );
 	}
+
+	public function test_past_sessions_pagination_is_cache_keyed_per_page(): void {
+		$this->make_talk( 'Older talk', -2 * DAY_IN_SECONDS );
+		$this->make_talk( 'Newer talk', -1 * DAY_IN_SECONDS );
+
+		$atts = [
+			'limit'    => 1,
+			'paginate' => 1,
+		];
+
+		try {
+			$page_one = Components::render( 'past-sessions', $atts );
+			$this->assertStringContainsString( 'Newer talk', $page_one, 'newest first on page 1' );
+			$this->assertStringNotContainsString( 'Older talk', $page_one );
+
+			// Page 2 arrives via ?eex_page= on an already-cached page 1: it
+			// must render page 2, not serve the cached page-1 fragment.
+			$_GET['eex_page'] = '2';
+			$page_two         = Components::render( 'past-sessions', $atts );
+			$this->assertStringContainsString( 'Older talk', $page_two );
+			$this->assertStringNotContainsString( 'Newer talk', $page_two );
+
+			// And back: page 1 is still page 1.
+			unset( $_GET['eex_page'] );
+			$this->assertSame( $page_one, Components::render( 'past-sessions', $atts ) );
+		} finally {
+			unset( $_GET['eex_page'] );
+		}
+	}
 }
