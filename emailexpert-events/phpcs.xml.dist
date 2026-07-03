@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<ruleset name="emailexpert-events">
+	<description>Coding standards for the emailexpert Events plugin.</description>
+
+	<file>emailexpert-events.php</file>
+	<file>uninstall.php</file>
+	<file>src</file>
+	<file>templates</file>
+	<file>blocks</file>
+
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
+
+	<arg value="sp"/>
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="8"/>
+
+	<config name="minimum_wp_version" value="6.4"/>
+	<config name="testVersion" value="8.1-"/>
+
+	<rule ref="WordPress-Extra">
+		<!-- Short array syntax and modern PHP are project style. -->
+		<exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+		<exclude name="Generic.Arrays.DisallowShortArraySyntax"/>
+		<!-- PSR-4 file naming (src/ClassName.php), not class-*.php. -->
+		<exclude name="WordPress.Files.FileName"/>
+		<!-- Short ternaries are used deliberately and reviewed. -->
+		<exclude name="Universal.Operators.DisallowShortTernary"/>
+	</rule>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="emailexpert-events"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="WordPress.NamingConventions.PrefixAllGlobals">
+		<properties>
+			<property name="prefixes" type="array">
+				<element value="eex_"/>
+				<element value="EEX_"/>
+				<element value="Emailexpert\Events"/>
+			</property>
+		</properties>
+	</rule>
+</ruleset>

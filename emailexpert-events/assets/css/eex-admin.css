@@ -1,0 +1,44 @@
+/* Settings screen styles. */
+.eex-settings .eex-event-row {
+	margin: 8px 0;
+	padding: 12px;
+	max-width: 780px;
+}
+
+.eex-settings .eex-event-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px 16px;
+	margin-top: 8px;
+	align-items: center;
+}
+
+.eex-settings .eex-cat-filter {
+	flex-basis: 100%;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 16px;
+}
+
+.eex-inline-result {
+	margin-left: 8px;
+}
+
+.eex-inline-result.eex-error {
+	color: #b32d2e;
+}
+
+.eex-diagnostics {
+	margin: 16px 0;
+}
+
+.eex-diagnostics summary {
+	cursor: pointer;
+	font-weight: 600;
+}
+
+.eex-log pre {
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-width: 480px;
+}
