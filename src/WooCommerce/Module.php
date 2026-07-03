@@ -302,6 +302,17 @@ final class Module {
 		$client  = HeySummitClient::for_connection( $connection );
 		$tickets = $client->get_all( 'tickets/', [ 'event' => $event_id ] );
 
+		// Some accounts refuse the top-level route but serve tickets nested
+		// under the event (verified live; see docs/api-notes.md).
+		if ( is_wp_error( $tickets ) ) {
+			$nested = $client->get_all( 'events/' . rawurlencode( $event_id ) . '/tickets/' );
+
+			if ( ! is_wp_error( $nested ) ) {
+				\Emailexpert\Events\Api\PathStyles::remember( $client->connection_id(), 'tickets', 'nested' );
+				$tickets = $nested;
+			}
+		}
+
 		if ( is_wp_error( $tickets ) ) {
 			wp_send_json_error( [ 'message' => $tickets->get_error_message() ] );
 		}

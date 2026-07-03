@@ -57,6 +57,14 @@ class HeySummitClient {
 	}
 
 	/**
+	 * The connection this client belongs to (path-style memory is per
+	 * connection).
+	 */
+	public function connection_id(): string {
+		return $this->connection_id;
+	}
+
+	/**
 	 * Perform a GET request against a relative API path.
 	 *
 	 * Retries twice with backoff on 5xx responses and timeouts; never on 4xx.

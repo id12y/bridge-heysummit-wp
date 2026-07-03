@@ -122,3 +122,25 @@ already/exists/unique/duplicate in the body) are treated as success and
 recorded; no ticket import follows for a pre-existing attendee. Verify the
 resolved method in the diagnostics panel after Test connection and override
 with the `eex_ticket_assignment_method` filter if the live API differs.
+
+
+## Live verification findings (first real account)
+
+The first live discovery run (Lite-only install) verified:
+
+- `events/` matches the assumed shape, with extras: `url` (the record's
+  own API URL — DRF hyperlinked style), `company_name`, `logo`,
+  `logo_white`, `feature_image`, inline `categories`/`tags`, `status`,
+  and **`_is_open_for_registrations` with a leading underscore** (the
+  mappers now accept both spellings).
+- **Top-level collection routes other than `events/` answered HTTP 403**
+  (`talks/`, `speakers/`, `categories/`, `tickets/`, `attendees/`, and
+  OPTIONS on both write endpoints) even though the key is valid. The
+  same data is served nested under the event
+  (`events/<id>/talks/`, `events/<id>/tickets/`). All talk/ticket
+  fetchers now negotiate three route styles — `talks/?event=`,
+  `talks/?event_id=`, `events/<id>/talks/` — and remember the working
+  style per connection (`Api\PathStyles`); the discovery panel samples
+  the nested route before reporting an error.
+- Whether the write endpoints accept POST despite refusing OPTIONS is
+  still unverified — the first sandbox WooCommerce order will tell.

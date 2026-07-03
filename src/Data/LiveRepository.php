@@ -511,9 +511,11 @@ class LiveRepository extends BaseMapper implements Repository {
 
 		$event_hs_id = (string) $event['hs_id'];
 
+		$conn_id = (string) $event['connection'];
+
 		$collection = LiveCache::remember(
 			'talks|' . $key,
-			static function () use ( $client, $event_hs_id ) {
+			static function () use ( $client, $event_hs_id, $conn_id ) {
 				$normalise = static function ( $response ): array {
 					$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( is_array( $response ) && array_is_list( $response ) ? $response : [] );
 
@@ -531,26 +533,46 @@ class LiveRepository extends BaseMapper implements Repository {
 					return false;
 				};
 
-				// The filter parameter is unverified against the live API:
-				// try ?event= first, then ?event_id= — the same order the
-				// sync engine uses (docs/api-notes.md).
-				$response = $client->get( 'talks/', [ 'event' => $event_hs_id ], self::request_options() );
+				// Three known route styles (docs/api-notes.md): top-level
+				// filtered by ?event=, by ?event_id=, and nested under the
+				// event — live verification found accounts where only the
+				// nested route is permitted (top-level answers 403). The
+				// working style is remembered per connection so later
+				// fetches lead with it.
+				$requests = [
+					'event'    => [ 'talks/', [ 'event' => $event_hs_id ] ],
+					'event_id' => [ 'talks/', [ 'event_id' => $event_hs_id ] ],
+					'nested'   => [ 'events/' . rawurlencode( $event_hs_id ) . '/talks/', [] ],
+				];
 
-				if ( ! is_wp_error( $response ) ) {
+				$first_error = null;
+				$saw_empty   = false;
+
+				foreach ( \Emailexpert\Events\Api\PathStyles::ordered( $conn_id, 'talks', array_keys( $requests ) ) as $style ) {
+					[ $path, $args ] = $requests[ $style ];
+
+					$response = $client->get( $path, $args, self::request_options() );
+
+					if ( is_wp_error( $response ) ) {
+						$first_error = $first_error ?? $response;
+						continue;
+					}
+
 					$results = $normalise( $response );
+
 					if ( ! empty( $results ) && $usable( $results ) ) {
+						\Emailexpert\Events\Api\PathStyles::remember( $conn_id, 'talks', $style );
+
 						return $results;
 					}
+
+					$saw_empty = true;
 				}
 
-				$retry = $client->get( 'talks/', [ 'event_id' => $event_hs_id ], self::request_options() );
-
-				if ( is_wp_error( $retry ) ) {
-					// Surface the first error when both attempts failed.
-					return is_wp_error( $response ) ? $response : $retry;
-				}
-
-				return $normalise( $retry );
+				// Any style that answered successfully-but-empty means "no
+				// sessions yet" (an event with no talks is normal); only
+				// when every style errored does the reason surface.
+				return $saw_empty ? [] : ( $first_error ?? [] );
 			}
 		);
 
@@ -596,7 +618,7 @@ class LiveRepository extends BaseMapper implements Repository {
 			'first_talk_at' => self::datetime( $raw, [ 'first_talk_at', 'starts_at' ] ),
 			'last_talk_at'  => self::datetime( $raw, [ 'last_talk_at', 'ends_at' ] ),
 			'timezone'      => self::str( $raw, [ 'timezone' ] ),
-			'open'          => self::boolish( $raw, 'is_open_for_registrations' ),
+			'open'          => self::boolish( $raw, [ 'is_open_for_registrations', '_is_open_for_registrations' ] ),
 			'evergreen'     => self::boolish( $raw, 'is_evergreen' ),
 			'venue'         => self::str( $raw, [ 'venue_name', 'venue' ] ),
 			'reg_count'     => 0,

@@ -821,6 +821,99 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'Filtered by event_id', $html );
 	}
 
+	public function test_nested_talks_route_serves_accounts_that_refuse_top_level( ): void {
+		// Verified live: events/ works but top-level talks/ answers 403;
+		// the same data is served nested under the event.
+		$this->go_lite();
+		$this->mock_http(
+			function ( $url ) {
+				$this->requests[] = (string) $url;
+
+				if ( str_contains( (string) $url, 'events/101/talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'        => 501,
+									'title'     => 'Nested-route session',
+									'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + 3600 ),
+									'event'     => 101,
+								],
+							],
+						]
+					);
+				}
+
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response( [ 'detail' => 'You do not have permission to perform this action.' ], 403 );
+				}
+
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'                          => 101,
+								'title'                       => 'Hub',
+								'event_url'                   => 'https://summit.example.com/hub/',
+								'_is_open_for_registrations'  => true,
+							],
+						],
+					]
+				);
+			}
+		);
+
+		$html = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( 'Nested-route session', $html );
+
+		// The working style is remembered: after a cache flush the next
+		// fetch leads with the nested route instead of re-trying 403s.
+		$this->requests = [];
+		LiveCache::flush();
+		Cache::flush();
+		LiveCache::reset_request_state();
+		Repositories::reset();
+
+		Components::render( 'upcoming-sessions', [] );
+
+		$talk_requests = array_values( array_filter( $this->requests, static fn( $u ): bool => str_contains( (string) $u, 'talks/' ) ) );
+		$this->assertNotEmpty( $talk_requests );
+		$this->assertStringContainsString( 'events/101/talks/', (string) $talk_requests[0], 'nested route tried first once learnt' );
+		$this->assertCount( 1, $talk_requests, 'no wasted calls on refused routes' );
+	}
+
+	public function test_underscore_prefixed_open_flag_is_recognised(): void {
+		// Verified live: the events resource exposes
+		// _is_open_for_registrations (leading underscore).
+		$this->go_lite();
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [] ] );
+				}
+
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'                          => 101,
+								'title'                       => 'Evergreen hub',
+								'event_url'                   => 'https://summit.example.com/hub/',
+								'is_evergreen'                => true,
+								'_is_open_for_registrations'  => true,
+							],
+						],
+					]
+				);
+			}
+		);
+
+		$events = Repositories::current()->upcoming_events( [] );
+
+		$this->assertCount( 1, $events, 'an open evergreen event is upcoming — the underscore flag must be read' );
+		$this->assertTrue( (bool) $events[0]['open'] );
+	}
+
 	public function test_configured_event_beyond_the_first_page_is_fetched_directly(): void {
 		$this->go_lite();
 		$this->mock_http(

@@ -463,3 +463,17 @@ no keyed connection → event unfetchable → no sessions → none upcoming)
 and reports the first gap — shown on the dashboard widget and appended
 to empty components as the admin-only, uncached HTML comment. Visitors
 always keep the plain empty state.
+
+
+## D44. Routes are negotiated and remembered per connection
+
+Live verification (docs/api-notes.md) found an account where every
+top-level collection route except `events/` answers 403, with the data
+served nested under the event instead, and the open-registrations flag
+spelt `_is_open_for_registrations`. Rather than hardcoding the newly
+observed variant (other accounts may serve the original shape), the
+talk/ticket fetchers try all known route styles and `Api\PathStyles`
+remembers the working one per connection, so steady-state traffic never
+burns calls on refused routes. `boolish()` accepts candidate key lists
+for the underscore variant, and the discovery panel samples the nested
+route before reporting a top-level 403 as an error.

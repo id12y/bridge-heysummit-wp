@@ -260,50 +260,69 @@ class SyncEngine {
 	}
 
 	/**
-	 * Fetch the talks for one event, negotiating the filter parameter
-	 * (docs/decisions.md D4).
+	 * Fetch the talks for one event, negotiating the route (docs/decisions.md
+	 * D4, D44): top-level filtered by ?event= or ?event_id=, or nested under
+	 * the event — live verification found accounts where only the nested
+	 * route is permitted (top-level answers 403). The working style is
+	 * remembered per connection.
 	 *
 	 * @param HeySummitClient $client   Client.
 	 * @param string          $event_id Event ID.
 	 * @return array<int,array<string,mixed>>|\WP_Error
 	 */
 	protected function fetch_talks( HeySummitClient $client, string $event_id ) {
-		$talks = $client->get_all( 'talks/', [ 'event' => $event_id ] );
+		$requests = [
+			'event'    => [ 'talks/', [ 'event' => $event_id ] ],
+			'event_id' => [ 'talks/', [ 'event_id' => $event_id ] ],
+			'nested'   => [ 'events/' . rawurlencode( $event_id ) . '/talks/', [] ],
+		];
 
-		if ( is_wp_error( $talks ) ) {
-			return $talks;
-		}
+		$first_error = null;
+		$unfiltered  = null;
 
-		if ( $this->has_foreign_talks( $talks, $event_id ) ) {
-			$retry = $client->get_all( 'talks/', [ 'event_id' => $event_id ] );
+		foreach ( \Emailexpert\Events\Api\PathStyles::ordered( $client->connection_id(), 'talks', array_keys( $requests ) ) as $style ) {
+			[ $path, $args ] = $requests[ $style ];
 
-			if ( ! is_wp_error( $retry ) && ! $this->has_foreign_talks( $retry, $event_id ) ) {
-				return $retry;
+			$talks = $client->get_all( $path, $args );
+
+			if ( is_wp_error( $talks ) ) {
+				$first_error = $first_error ?? $talks;
+				continue;
 			}
 
-			// Client-side filtering as the last resort.
-			Logger::warning(
-				Logger::CONTEXT_SYNC,
-				'Talk collection filter parameter not honoured by the API; filtering client-side. Verify via the discovery panel.',
-				[ 'event' => $event_id ]
-			);
+			if ( ! $this->has_foreign_talks( $talks, $event_id ) ) {
+				\Emailexpert\Events\Api\PathStyles::remember( $client->connection_id(), 'talks', $style );
 
-			return array_values(
-				array_filter(
-					$talks,
-					static function ( $talk ) use ( $event_id ): bool {
-						if ( ! is_array( $talk ) ) {
-							return false;
-						}
-						$mapped = TalkMapper::map( $talk );
+				return $talks;
+			}
 
-						return null !== $mapped && ( '' === $mapped['event_hs_id'] || (string) $mapped['event_hs_id'] === $event_id );
-					}
-				)
-			);
+			$unfiltered = $unfiltered ?? $talks;
 		}
 
-		return $talks;
+		if ( null === $unfiltered ) {
+			return $first_error ?? [];
+		}
+
+		// Client-side filtering as the last resort.
+		Logger::warning(
+			Logger::CONTEXT_SYNC,
+			'Talk collection filter parameter not honoured by the API; filtering client-side. Verify via the discovery panel.',
+			[ 'event' => $event_id ]
+		);
+
+		return array_values(
+			array_filter(
+				$unfiltered,
+				static function ( $talk ) use ( $event_id ): bool {
+					if ( ! is_array( $talk ) ) {
+						return false;
+					}
+					$mapped = TalkMapper::map( $talk );
+
+					return null !== $mapped && ( '' === $mapped['event_hs_id'] || (string) $mapped['event_hs_id'] === $event_id );
+				}
+			)
+		);
 	}
 
 	/**

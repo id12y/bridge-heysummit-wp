@@ -25,41 +25,45 @@ final class Shapes {
 	 */
 	public const RESOURCES = [
 		'events'     => [
-			'id'                        => [ 'type' => 'int|string' ],
-			'title'                     => [ 'type' => 'string' ],
-			'event_url'                 => [
+			'id'                         => [ 'type' => 'int|string' ],
+			'title'                      => [ 'type' => 'string' ],
+			'event_url'                  => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'description'               => [
+			'description'                => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'timezone'                  => [
+			'timezone'                   => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'first_talk_at'             => [
+			'first_talk_at'              => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'last_talk_at'              => [
+			'last_talk_at'               => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'is_live'                   => [
+			'is_live'                    => [
 				'type'     => 'bool',
 				'optional' => true,
 			],
-			'is_archived'               => [
+			'is_archived'                => [
 				'type'     => 'bool',
 				'optional' => true,
 			],
-			'is_evergreen'              => [
+			'is_evergreen'               => [
 				'type'     => 'bool',
 				'optional' => true,
 			],
-			'is_open_for_registrations' => [
+			'is_open_for_registrations'  => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
+			'_is_open_for_registrations' => [
 				'type'     => 'bool',
 				'optional' => true,
 			],
