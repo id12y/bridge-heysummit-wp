@@ -87,3 +87,39 @@ modules) passes `php -l`.
 6. Add a relay URL pointing at a webhook.site bin, send the test payload,
    then complete a registration and confirm delivery + header.
 7. Export settings on staging, import on production, review the diff.
+
+---
+
+# Acceptance report — v3 extension run (accounts module)
+
+Environment unchanged (PHP 8.4 container, stub layers, no live hosts). The
+suite now runs 162 tests / 650 assertions; PHPCS clean; all files `php -l`
+clean.
+
+**Verdict counts (v3 criteria): 7 pass, 0 fail, 0 not verifiable** (live
+HeySummit sandbox halves are covered by the operator steps, as before).
+
+| # | Criterion | Verdict | Evidence / manual step |
+|---|---|---|---|
+| 1 | All prior tests and criteria pass; master toggle off = zero code, zero queries | **Pass** | The full v1+v2 suite runs unchanged inside the v3 suite (162 tests, 0 failures). The gate is one read of the single autoloaded settings option in Plugin::boot; `src/Accounts/` is never touched while off (`test_module_disabled_loads_zero_code` asserts the gate; the entire pre-v3 suite ran with the namespace absent) |
+| 2 | "member → hub free ticket" pushes exactly one attendee on role gain, never again on repeated changes or overlapping rules; already-exists is success | **Pass** | `test_role_gained_pushes_exactly_once_despite_repeats_and_overlapping_rules` (three trigger firings, two overlapping rules → one attendee-create; ledger records rule r1, trigger, consent); `test_already_existing_attendee_is_success_never_error` (400 "already exists" → status done, note recorded, zero retries) |
+| 3 | No push without satisfied consent; suppressed email never pushed by rule, backfill or manual; profile opt-out suppresses immediately | **Pass** | `test_no_push_without_satisfied_consent_and_skip_is_logged` (skip logged; checkbox meta then satisfies), `test_suppressed_email_is_never_pushed_by_rule_backfill_or_manual`, `test_profile_opt_out_suppresses_immediately`, plus `test_suppression_wins_even_between_queue_and_delivery` (push-time re-check) |
+| 4 | Backfill dry-run count matches the confirmed run exactly, in batches, resumable | **Pass** | `test_backfill_dry_run_matches_confirmed_run_in_batches` (25 matched of 28 users; 25 pushed across two batches; state cleared) and `test_backfill_is_resumable_from_persisted_state` (position 20/30 persisted, resume re-queues). Parity is structural: dry run and batches share Engine::run_rule |
+| 5 | MyListing active: publishing a mapped-type listing registers the owner once; unpublish fires the hook and pushes nothing | **Pass** | `test_listing_published_registers_owner_once_and_unpublish_pushes_nothing` (duplicate publish transitions → one push; unpublish → eex_listing_unpublished_after_registration, zero calls, registration retained) |
+| 6 | Client still rejects non-allowlisted writes; every push record stores rule/trigger/consent; users screen shows push status | **Pass** | The v2 allowlist test still passes (no new endpoints were added — grep: all `->post(` calls go through the two builders); ledger fields asserted in test 2; `AdminUi::users_column_value` renders per-event status + failure flag (markup verified by code path; manual: view Users screen) |
+| 7 | Erasure adds the requester to the suppression list and the eraser notes manual HeySummit removal | **Pass** | `test_erasure_suppresses_and_notes_manual_removal` plus the v2 erasure test still passing (rows removed, others retained) |
+
+## v3 manual verification (operator)
+
+1. Enable the module, define one rule against the sandbox event, choose its
+   consent source (add the registration checkbox or record the terms
+   assertion after reading the warning).
+2. Create one fresh test account (checkbox ticked) and change one existing
+   test user's role to the rule's role; confirm each appears once in
+   HeySummit with the intended ticket.
+3. Review the diagnostics panel for the ticket-assignment finding
+   (create_param / ticket_import / unsupported) after Test connection.
+4. Run `wp eex accounts:backfill <rule> --dry-run`, review the count and
+   sample, then confirm from the Accounts tab and watch the sync log.
+5. Tick "Do not register me for events" on a test profile and verify no
+   rule fires for it afterwards.
