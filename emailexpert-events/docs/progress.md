@@ -69,3 +69,36 @@
   `discover`, `webhooks:replay <log_id>`.
 - Tests: 46 passing including engine flow, filters, orphans, dedup,
   escalation. PHPCS clean.
+
+## M4 — Display
+
+- 10 components (upcoming/past sessions, upcoming/past events, countdown,
+  schedule, speaker grid, featured talks, sponsors wall, registration
+  counter) as one definition table with shared render callbacks; each ships
+  as a dynamic block (plain-JS editor script + ServerSideRender previews)
+  and a shortcode; empty states everywhere; eex_query_args and eex_card_html
+  filters; transient cache (5 min, generation-counter flush on sync/webhook/
+  editorial save).
+- Cache-safe time handling: <time datetime=UTC> with event-local fallback,
+  vanilla JS module localises to the visitor timezone and computes
+  upcoming/soon/live/past states client-side; countdown with aria-live;
+  register CTA becomes "Join now" only via JS; counter refreshes via public
+  REST read.
+- Calendar: per-session .ics download + Google Calendar links, subscribable
+  /feeds/eex/calendar.ics filterable by event/category, RFC 5545 escaping
+  and 75-octet folding (unit tested).
+- Templates: singles for all four CPTs, archives, category and series
+  taxonomy pages, all built from overridable parts (card-talk, card-event,
+  card-speaker, card-sponsor, speaker-chip, schedule-row); theme override
+  directory emailexpert-events/; speaker singles list upcoming + past
+  sessions with replays; talk singles embed YouTube/Vimeo/oEmbed replays.
+- Schema: Event/BusinessEvent with venue PostalAddress or VirtualLocation,
+  offers URL-only while registrations open, performer array; talk Event with
+  superEvent; VideoObject for past replays; Person for speakers; injected
+  into Yoast (wpseo_schema_graph) or Rank Math (rank_math/json_ld) graphs
+  when active, standalone JSON-LD + OG/Twitter fallback otherwise; per-type
+  toggles; emits nothing when required fields missing.
+- Assets: one stylesheet + one JS file, enqueued only where needed, all
+  theming via --eex-* custom properties. Combined gzipped size ~4.5KB
+  (budget 30KB).
+- Tests: 81 passing. PHPCS clean.

@@ -1,0 +1,252 @@
+/**
+ * emailexpert Events — component styles.
+ *
+ * Deliberately minimal and unopinionated: typography inherits from the
+ * theme; every colour, spacing and radius is a --eex-* custom property, so
+ * restyling means overriding variables, not editing this file.
+ */
+
+.eex {
+	--eex-gap: 1rem;
+	--eex-radius: 8px;
+	--eex-border: #d9dee3;
+	--eex-badge-bg: #eef2f5;
+	--eex-badge-fg: #1d2327;
+	--eex-accent: #0a4b78;
+	--eex-accent-fg: #ffffff;
+	--eex-live: #b32d2e;
+	--eex-muted: #50575e;
+	--eex-card-bg: transparent;
+	--eex-columns: 3;
+}
+
+/* Grids */
+.eex-grid {
+	display: grid;
+	grid-template-columns: repeat(var(--eex-columns), minmax(0, 1fr));
+	gap: var(--eex-gap);
+	list-style: none;
+	margin: 0 0 var(--eex-gap);
+	padding: 0;
+}
+
+.eex-talk-grid,
+.eex-event-grid {
+	--eex-columns: 3;
+}
+
+.eex-sponsor-grid {
+	--eex-columns: 4;
+	align-items: center;
+}
+
+@media (max-width: 900px) {
+	.eex-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 600px) {
+	.eex-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Cards */
+.eex-card {
+	border: 1px solid var(--eex-border);
+	border-radius: var(--eex-radius);
+	padding: var(--eex-gap);
+	background: var(--eex-card-bg);
+	height: 100%;
+	box-sizing: border-box;
+}
+
+.eex-card-title {
+	margin: 0 0 0.5rem;
+	font-size: 1.05em;
+	line-height: 1.3;
+}
+
+.eex-card-title a {
+	text-decoration: none;
+}
+
+.eex-card-time,
+.eex-card-venue {
+	margin: 0 0 0.5rem;
+	color: var(--eex-muted);
+	font-size: 0.9em;
+}
+
+/* Badges */
+.eex-badges {
+	margin: 0 0 0.5rem;
+}
+
+.eex-badge {
+	display: inline-block;
+	padding: 0.15em 0.6em;
+	border-radius: 999px;
+	background: var(--eex-badge-bg);
+	color: var(--eex-badge-fg);
+	font-size: 0.78em;
+	margin-right: 0.35em;
+}
+
+/* Speaker chips */
+.eex-speaker-chips {
+	margin: 0 0 0.75rem;
+}
+
+.eex-chip {
+	display: inline-block;
+	font-size: 0.85em;
+	margin-right: 0.5em;
+	text-decoration: underline;
+}
+
+/* CTAs */
+.eex-card-actions {
+	margin: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5em 1em;
+	align-items: center;
+}
+
+.eex-cta {
+	display: inline-block;
+	padding: 0.45em 1em;
+	border-radius: var(--eex-radius);
+	background: var(--eex-accent);
+	color: var(--eex-accent-fg);
+	text-decoration: none;
+}
+
+.eex-cta:focus-visible,
+.eex-cta-secondary:focus-visible,
+.eex-chip:focus-visible {
+	outline: 2px solid var(--eex-accent);
+	outline-offset: 2px;
+}
+
+.eex-cta-secondary {
+	font-size: 0.85em;
+}
+
+/* Live state (set by JS only; cached HTML never claims live) */
+.eex-live-indicator {
+	margin: 0 0 0.5rem;
+	color: var(--eex-live);
+	font-weight: 700;
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.eex-is-live .eex-cta[data-eex-cta] {
+	background: var(--eex-live);
+}
+
+/* Schedule */
+.eex-schedule-day {
+	margin-bottom: calc(var(--eex-gap) * 1.5);
+}
+
+.eex-schedule-heading {
+	margin: 0 0 0.5rem;
+}
+
+.eex-schedule-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.eex-schedule-row {
+	display: flex;
+	gap: var(--eex-gap);
+	padding: 0.6em 0;
+	border-bottom: 1px solid var(--eex-border);
+}
+
+.eex-schedule-time {
+	flex: 0 0 7em;
+	color: var(--eex-muted);
+}
+
+/* Speakers */
+.eex-speaker-photo {
+	max-width: 100%;
+	height: auto;
+	border-radius: var(--eex-radius);
+	display: block;
+	margin-bottom: 0.5rem;
+}
+
+.eex-speaker-headline,
+.eex-speaker-company {
+	margin: 0;
+	font-size: 0.9em;
+	color: var(--eex-muted);
+}
+
+/* Sponsors */
+.eex-sponsor-logo {
+	max-width: 100%;
+	height: auto;
+	display: block;
+	margin: 0 auto;
+}
+
+.eex-tier-heading {
+	margin: var(--eex-gap) 0 0.5rem;
+}
+
+/* Countdown and counter */
+.eex-countdown,
+.eex-reg-counter {
+	font-size: 1.1em;
+	margin: 0 0 var(--eex-gap);
+}
+
+.eex-tz {
+	color: var(--eex-muted);
+	font-size: 0.85em;
+}
+
+/* Empty states and pagination */
+.eex-empty {
+	color: var(--eex-muted);
+	font-style: italic;
+}
+
+.eex-pagination a {
+	display: inline-block;
+	padding: 0.3em 0.7em;
+	margin-right: 0.25em;
+	border: 1px solid var(--eex-border);
+	border-radius: var(--eex-radius);
+	text-decoration: none;
+}
+
+.eex-pagination a.eex-current {
+	background: var(--eex-accent);
+	color: var(--eex-accent-fg);
+}
+
+/* Replay embed */
+.eex-replay-embed {
+	position: relative;
+	aspect-ratio: 16 / 9;
+	margin-bottom: var(--eex-gap);
+}
+
+.eex-replay-embed iframe {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	border: 0;
+}
