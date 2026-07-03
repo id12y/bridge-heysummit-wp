@@ -286,6 +286,74 @@ class LiveRepository extends BaseMapper implements Repository {
 	}
 
 	/**
+	 * A one-line explanation of why components might be empty, for
+	 * administrators (the on-page debug note and the dashboard widget).
+	 * Walks the pipeline in order and reports the first gap; '' when data
+	 * is flowing. Uses the same caches and budget as any render.
+	 */
+	public function diagnose(): string {
+		$keys = $this->configured_keys();
+
+		if ( empty( $keys ) ) {
+			return __( 'No events are chosen to display. Go to Settings → emailexpert Events → Live display → Choose events.', 'emailexpert-events' );
+		}
+
+		$has_client = false;
+		foreach ( $keys as $key ) {
+			[ $conn_id ] = explode( '|', $key, 2 );
+			if ( null !== $this->client( (string) $conn_id ) ) {
+				$has_client = true;
+				break;
+			}
+		}
+
+		if ( ! $has_client ) {
+			return __( 'The configured events reference a connection with no API key saved. Check Settings → emailexpert Events → API.', 'emailexpert-events' );
+		}
+
+		$events = $this->configured_events();
+
+		if ( empty( $events ) ) {
+			return sprintf(
+				/* translators: %s: comma-separated configured connection|event keys. */
+				__( 'The configured event(s) %s could not be fetched from HeySummit — check the event IDs and the cache status on the dashboard widget.', 'emailexpert-events' ),
+				implode( ', ', $keys )
+			);
+		}
+
+		$total = 0;
+		$next  = 0;
+		$now   = time();
+
+		foreach ( $events as $event ) {
+			foreach ( $this->talks_for_event( $event ) as $talk ) {
+				++$total;
+				if ( (int) $talk['start_ts'] >= $now ) {
+					++$next;
+				}
+			}
+		}
+
+		if ( 0 === $total ) {
+			return sprintf(
+				/* translators: %s: comma-separated event IDs. */
+				__( 'HeySummit returned no sessions for event(s) %s (tried both ?event= and ?event_id= filters). Confirm the event has published talks.', 'emailexpert-events' ),
+				implode( ', ', array_map( static fn( array $event ): string => (string) $event['hs_id'], $events ) )
+			);
+		}
+
+		if ( 0 === $next ) {
+			return sprintf(
+				/* translators: %d: total sessions found. */
+				__( '%d session(s) were found, but none start in the future — Lite is forward-looking and shows upcoming sessions only.', 'emailexpert-events' ),
+				$total
+			);
+		}
+
+		return '';
+	}
+
+	/**
 	 * Client options for render-time fetches: short timeout, no retries.
 	 *
 	 * @return array<string,int>
@@ -343,8 +411,31 @@ class LiveRepository extends BaseMapper implements Repository {
 				}
 			);
 
+			$found = [];
+
 			foreach ( (array) $collection as $raw ) {
 				if ( is_array( $raw ) && in_array( self::id_of( $raw, [ 'id' ] ), array_map( 'strval', $event_ids ), true ) ) {
+					$found[ self::id_of( $raw, [ 'id' ] ) ] = true;
+
+					$events[] = $this->map_event( $raw, (string) $conn_id );
+				}
+			}
+
+			// A configured event beyond the first collection page still
+			// resolves: one targeted, cached fetch per missing ID.
+			foreach ( array_map( 'strval', $event_ids ) as $event_id ) {
+				if ( isset( $found[ $event_id ] ) ) {
+					continue;
+				}
+
+				$raw = LiveCache::remember(
+					'event|' . $conn_id . '|' . $event_id,
+					static function () use ( $client, $event_id ) {
+						return $client->get( 'events/' . rawurlencode( $event_id ) . '/', [], self::request_options() );
+					}
+				);
+
+				if ( is_array( $raw ) && '' !== self::id_of( $raw, [ 'id' ] ) ) {
 					$events[] = $this->map_event( $raw, (string) $conn_id );
 				}
 			}
@@ -423,15 +514,43 @@ class LiveRepository extends BaseMapper implements Repository {
 		$collection = LiveCache::remember(
 			'talks|' . $key,
 			static function () use ( $client, $event_hs_id ) {
+				$normalise = static function ( $response ): array {
+					$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( is_array( $response ) && array_is_list( $response ) ? $response : [] );
+
+					return array_values( array_filter( $results, 'is_array' ) );
+				};
+
+				$usable = static function ( array $results ) use ( $event_hs_id ): bool {
+					foreach ( $results as $raw ) {
+						$talk_event = (string) ( is_scalar( $raw['event'] ?? null ) ? $raw['event'] : ( $raw['event']['id'] ?? ( $raw['event_id'] ?? '' ) ) );
+						if ( '' === $talk_event || $talk_event === $event_hs_id ) {
+							return true; // At least one talk plausibly belongs here.
+						}
+					}
+
+					return false;
+				};
+
+				// The filter parameter is unverified against the live API:
+				// try ?event= first, then ?event_id= — the same order the
+				// sync engine uses (docs/api-notes.md).
 				$response = $client->get( 'talks/', [ 'event' => $event_hs_id ], self::request_options() );
 
-				if ( is_wp_error( $response ) ) {
-					return $response; // The reason reaches the cache status.
+				if ( ! is_wp_error( $response ) ) {
+					$results = $normalise( $response );
+					if ( ! empty( $results ) && $usable( $results ) ) {
+						return $results;
+					}
 				}
 
-				$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( array_is_list( $response ) ? $response : [] );
+				$retry = $client->get( 'talks/', [ 'event_id' => $event_hs_id ], self::request_options() );
 
-				return array_values( array_filter( $results, 'is_array' ) );
+				if ( is_wp_error( $retry ) ) {
+					// Surface the first error when both attempts failed.
+					return is_wp_error( $response ) ? $response : $retry;
+				}
+
+				return $normalise( $retry );
 			}
 		);
 

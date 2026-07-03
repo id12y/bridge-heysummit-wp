@@ -447,3 +447,19 @@ hooks were missing from the lists entirely. `Install\Cron` now holds the
 single inventory of every scheduled hook; deactivation, uninstall and the
 Lite switch clear through wp_unschedule_hook(), and the Lite switch
 deliberately keeps Woo push jobs (the bridge runs in both modes).
+
+## D43. Empty Lite components diagnose themselves
+
+The reported field failure: Lite's upcoming-sessions block rendered the
+polite empty state with no way to tell why. Three causes closed:
+(1) switching Full → Lite never populated the display list — it now
+seeds `lite_events` from the events that were enabled for sync;
+(2) two live-API assumptions made robust: a configured event missing
+from the first collection page gets a targeted cached `events/<id>/`
+fetch, and the talks filter tries `?event=` then falls back to
+`?event_id=` (the sync engine's order), detecting unfiltered responses;
+(3) `LiveRepository::diagnose()` walks the pipeline (no events chosen →
+no keyed connection → event unfetchable → no sessions → none upcoming)
+and reports the first gap — shown on the dashboard widget and appended
+to empty components as the admin-only, uncached HTML comment. Visitors
+always keep the plain empty state.

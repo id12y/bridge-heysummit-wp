@@ -116,6 +116,15 @@ final class Dashboard {
 	private function render_lite_status(): void {
 		$status = \Emailexpert\Events\Data\LiveCache::status();
 
+		// A pipeline diagnosis when components would render empty.
+		$repository = \Emailexpert\Events\Data\Repositories::current();
+		if ( $repository instanceof \Emailexpert\Events\Data\LiveRepository ) {
+			$diagnosis = $repository->diagnose();
+			if ( '' !== $diagnosis ) {
+				printf( '<p><strong>%s</strong> %s</p>', esc_html__( 'Why components are empty:', 'emailexpert-events' ), esc_html( $diagnosis ) );
+			}
+		}
+
 		echo '<h3>' . esc_html__( 'Live cache', 'emailexpert-events' ) . '</h3>';
 		printf(
 			'<p>%s %s<br />%s %s</p>',
