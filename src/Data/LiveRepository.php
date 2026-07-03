@@ -477,9 +477,87 @@ class LiveRepository extends BaseMapper implements Repository {
 	 * @param string $verdict The diagnosis sentence.
 	 */
 	protected function with_harvest( string $verdict ): string {
-		$summary = $this->harvest_summary();
+		$summary = trim( $this->harvest_summary() . ' ' . $this->event_identity() );
 
 		return '' === $summary ? $verdict : $verdict . ' ' . $summary;
+	}
+
+	/**
+	 * HeySummit's own record of each configured event's session range, plus
+	 * the other events on the same connection — because "no upcoming
+	 * sessions" is very often "the upcoming sessions belong to a different
+	 * summit on this account". Uses only the already-cached events
+	 * collection; no extra requests.
+	 */
+	protected function event_identity(): string {
+		$lines      = [];
+		$configured = [];
+
+		foreach ( $this->configured_events() as $event ) {
+			$configured[ (string) $event['connection'] ][ (string) $event['hs_id'] ] = true;
+
+			$range = '' !== (string) $event['last_talk_at']
+				? sprintf(
+					/* translators: 1: first session date, 2: last session date. */
+					__( 'sessions from %1$s to %2$s', 'emailexpert-events' ),
+					substr( (string) $event['first_talk_at'], 0, 10 ) ?: '?',
+					substr( (string) $event['last_talk_at'], 0, 10 )
+				)
+				: __( 'no session dates on record', 'emailexpert-events' );
+
+			$lines[] = sprintf(
+				/* translators: 1: event ID, 2: event title, 3: session date range, 4: flags. */
+				__( 'HeySummit\'s own record for event %1$s (\'%2$s\') says: %3$s%4$s.', 'emailexpert-events' ),
+				(string) $event['hs_id'],
+				(string) $event['title'],
+				$range,
+				( ! empty( $event['evergreen'] ) ? __( ', evergreen', 'emailexpert-events' ) : '' ) . ( ! empty( $event['open'] ) ? __( ', open for registrations', 'emailexpert-events' ) : '' )
+			);
+		}
+
+		// Unconfigured siblings, from the cached page-1 collection only.
+		$others = [];
+
+		foreach ( array_keys( $configured ) as $conn_id ) {
+			$client = $this->client( $conn_id );
+			if ( null === $client ) {
+				continue;
+			}
+
+			foreach ( array_slice( (array) $this->raw_events( $conn_id, $client ), 0, 20 ) as $raw ) {
+				if ( ! is_array( $raw ) ) {
+					continue;
+				}
+
+				$id = self::id_of( $raw, [ 'id' ] );
+
+				if ( '' === $id || isset( $configured[ $conn_id ][ $id ] ) ) {
+					continue;
+				}
+
+				$last     = self::datetime( $raw, [ 'last_talk_at', 'ends_at' ] );
+				$others[] = sprintf(
+					'%s \'%s\'%s',
+					$id,
+					self::str( $raw, [ 'title', 'name' ] ),
+					'' !== $last ? sprintf(
+						/* translators: %s: last session date. */
+						__( ' (sessions to %s)', 'emailexpert-events' ),
+						substr( $last, 0, 10 )
+					) : ''
+				);
+			}
+		}
+
+		if ( ! empty( $others ) ) {
+			$lines[] = sprintf(
+				/* translators: %s: other event IDs and titles. */
+				__( 'Other events on this connection: %s. If your upcoming sessions belong to one of these, add it under Live display → Choose events.', 'emailexpert-events' ),
+				implode( '; ', array_slice( $others, 0, 8 ) )
+			);
+		}
+
+		return implode( ' ', $lines );
 	}
 
 	/**
@@ -542,20 +620,7 @@ class LiveRepository extends BaseMapper implements Repository {
 				continue;
 			}
 
-			$collection = LiveCache::remember(
-				'events|' . $conn_id,
-				static function () use ( $client ) {
-					$response = $client->get( 'events/', [], self::request_options() );
-
-					if ( is_wp_error( $response ) ) {
-						return $response; // The reason reaches the cache status.
-					}
-
-					$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( array_is_list( $response ) ? $response : [ $response ] );
-
-					return array_values( array_filter( $results, 'is_array' ) );
-				}
-			);
+			$collection = $this->raw_events( (string) $conn_id, $client );
 
 			$found = [];
 
@@ -588,6 +653,31 @@ class LiveRepository extends BaseMapper implements Repository {
 		}
 
 		return $events;
+	}
+
+	/**
+	 * The raw events collection for one connection, via the cache.
+	 *
+	 * @param string          $conn_id Connection ID.
+	 * @param HeySummitClient $client  Keyed client.
+	 * @return array<int,array<string,mixed>>|mixed Cached collection, or
+	 *                                              null/WP_Error on failure.
+	 */
+	protected function raw_events( string $conn_id, HeySummitClient $client ) {
+		return LiveCache::remember(
+			'events|' . $conn_id,
+			static function () use ( $client ) {
+				$response = $client->get( 'events/', [], self::request_options() );
+
+				if ( is_wp_error( $response ) ) {
+					return $response; // The reason reaches the cache status.
+				}
+
+				$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( array_is_list( $response ) ? $response : [ $response ] );
+
+				return array_values( array_filter( $results, 'is_array' ) );
+			}
+		);
 	}
 
 	/**
@@ -796,7 +886,11 @@ class LiveRepository extends BaseMapper implements Repository {
 					// that fails is recorded and skipped, not a wall — deep
 					// offsets are the slowest queries on big accounts, and
 					// one timeout must not hide every upcoming session.
-					for ( $page = $last; $page >= 2 && $fetched < $budget && microtime( true ) < $deadline; $page-- ) {
+					for ( $page = $last; $page >= 2 && $fetched < $budget; $page-- ) {
+						if ( microtime( true ) >= $deadline ) {
+							break;
+						}
+
 						if ( isset( $seen[ $page ] ) ) {
 							continue;
 						}
@@ -817,9 +911,9 @@ class LiveRepository extends BaseMapper implements Repository {
 
 					// Forwards from page 1 (newest-first accounts).
 					if ( $has_future( $rows ) ) {
-						for ( $page = 2; $page <= $last && $fetched < $budget && microtime( true ) < $deadline; $page++ ) {
-							if ( isset( $seen[ $page ] ) ) {
-								break; // Met the backwards walk.
+						for ( $page = 2; $page <= $last && $fetched < $budget; $page++ ) {
+							if ( microtime( true ) >= $deadline || isset( $seen[ $page ] ) ) {
+								break; // Out of time, or met the backwards walk.
 							}
 
 							$page_rows = $read_page( $page );

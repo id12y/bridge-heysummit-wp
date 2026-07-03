@@ -893,6 +893,60 @@ final class LiteModeTest extends TestCase {
 		$this->assertSame( '', Repositories::current()->diagnose(), 'a healthy paginated pipeline has no diagnosis' );
 	}
 
+	public function test_diagnose_names_sibling_events_that_might_hold_the_sessions(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + 7 * DAY_IN_SECONDS );
+
+		// The configured event genuinely ended in 2020; the account's 2026
+		// summit is a different event. The diagnosis must say both.
+		$this->mock_http(
+			static function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( str_contains( $url, 'talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'    => 501,
+									'title' => 'Old session',
+									'date'  => '2020-12-10T16:00:00Z',
+									'event' => 101,
+								],
+							],
+						]
+					);
+				}
+
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'            => 101,
+								'title'         => 'Old summit',
+								'first_talk_at' => '2020-05-01T10:00:00Z',
+								'last_talk_at'  => '2020-12-10T16:00:00Z',
+							],
+							[
+								'id'            => 202,
+								'title'         => 'Summit 2026',
+								'last_talk_at'  => $future,
+							],
+						],
+					]
+				);
+			}
+		);
+
+		$diagnosis = Repositories::current()->diagnose();
+
+		$this->assertStringContainsString( "HeySummit's own record for event 101", $diagnosis );
+		$this->assertStringContainsString( 'sessions from 2020-05-01 to 2020-12-10', $diagnosis );
+		$this->assertStringContainsString( 'Other events on this connection', $diagnosis );
+		$this->assertStringContainsString( "202 'Summit 2026'", $diagnosis );
+	}
+
 	public function test_a_failed_deep_page_is_skipped_and_recorded_not_a_wall(): void {
 		$this->go_lite();
 

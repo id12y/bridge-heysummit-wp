@@ -576,3 +576,21 @@ record — "Event X: HeySummit reports N session(s) across P page(s);
 pages read: …; pages that failed: …" — so the Live status row states
 what actually happened on the wire instead of leaving the operator (and
 us) guessing. Version 1.2.0 so builds are tellable apart.
+
+## D51. "No upcoming sessions" names the event it checked and its siblings
+
+The full v2 reference confirmed each Event carries its own
+first_talk_at/last_talk_at, is_evergreen, is_live and
+_is_open_for_registrations. That makes the commonest cause of a
+persistent "none upcoming" — the configured event is an old summit and
+the upcoming sessions belong to a different event on the same account —
+provable from data already in the cache. Session-related diagnoses now
+append HeySummit's own record for each configured event ("sessions from
+2020-05-01 to 2020-12-10") and list unconfigured sibling events with
+their last-session dates, pointing at Choose events. No extra requests:
+it reads the cached page-1 events collection. Also from the reference:
+Ticket.prices is a string (JSON) — matching the existing json_decode
+expansion; talks/attendees/categories/speakers gained PATCH/DELETE
+routes we deliberately do not use (the write allowlist stays create +
+ticket attach); outbound webhook payloads are the four documented shapes
+the parser already infers.
