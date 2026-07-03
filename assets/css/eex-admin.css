@@ -127,6 +127,12 @@
 	border: 1px solid #f0e6aa;
 }
 
+.eex-pill-warn {
+	background: #fcf0f1;
+	color: #8a1f11;
+	border: 1px solid #f0b7b8;
+}
+
 .eex-inline-result {
 	margin-left: 8px;
 	font-weight: 600;

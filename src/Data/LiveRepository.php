@@ -324,16 +324,28 @@ class LiveRepository extends BaseMapper implements Repository {
 			);
 		}
 
-		$total = 0;
-		$next  = 0;
-		$now   = time();
+		$total   = 0;
+		$next    = 0;
+		$undated = 0;
+		$latest  = 0;
+		$now     = time();
 
 		foreach ( $events as $event ) {
 			foreach ( $this->talks_for_event( $event ) as $talk ) {
 				++$total;
-				if ( (int) $talk['start_ts'] >= $now ) {
+
+				$ts = (int) $talk['start_ts'];
+
+				if ( $ts <= 0 ) {
+					++$undated;
+					continue;
+				}
+
+				if ( $ts >= $now ) {
 					++$next;
 				}
+
+				$latest = max( $latest, $ts );
 			}
 		}
 
@@ -346,10 +358,33 @@ class LiveRepository extends BaseMapper implements Repository {
 		}
 
 		if ( 0 === $next ) {
+			if ( $undated === $total ) {
+				return sprintf(
+					/* translators: %d: total sessions found. */
+					__( '%d session(s) were found, but none of them has a date set on HeySummit, so none can be shown as upcoming. Give the sessions a date and time on HeySummit, then flush the live cache.', 'emailexpert-events' ),
+					$total
+				);
+			}
+
+			$detail = sprintf(
+				/* translators: %s: most recent session date/time, UTC. */
+				__( 'the most recent was %s UTC', 'emailexpert-events' ),
+				gmdate( 'Y-m-d H:i', $latest )
+			);
+
+			if ( $undated > 0 ) {
+				$detail .= sprintf(
+					/* translators: %d: sessions without a date. */
+					__( ', and %d of them has no date set on HeySummit', 'emailexpert-events' ),
+					$undated
+				);
+			}
+
 			return sprintf(
-				/* translators: %d: total sessions found. */
-				__( '%d session(s) were found, but none start in the future — Lite is forward-looking and shows upcoming sessions only.', 'emailexpert-events' ),
-				$total
+				/* translators: 1: total sessions found, 2: detail about the most recent session. */
+				__( '%1$d session(s) were found, but none start in the future (%2$s) — Lite is forward-looking and shows upcoming sessions only.', 'emailexpert-events' ),
+				$total,
+				$detail
 			);
 		}
 

@@ -499,3 +499,16 @@ WooCommerce order; the mapped value is a ticket PRICE id and the UI says
 so. Talks use `date` with no end time; inactive talks/speakers are
 respected; webhook actions are inferred from documented payload shapes
 when no action key travels.
+
+## D46. The live diagnosis lives where events are configured
+
+The pipeline diagnosis (`LiveRepository::diagnose()`) was only visible on
+the dashboard widget, which nobody looks at while configuring the Live
+display section. The settings section now leads with a Live status row:
+a Working pill with the upcoming-session count when the pipeline is
+healthy, or the diagnosis with the last fetch timestamps, the last error
+and the plugin version when it is not. The "none upcoming" verdict now
+distinguishes sessions with no date on HeySummit from sessions that are
+all in the past (naming the most recent date), because the operator's
+fix is different in each case. The version constant is surfaced so an
+operator can confirm which build a site is actually running.

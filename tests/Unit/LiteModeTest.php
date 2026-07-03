@@ -775,6 +775,32 @@ final class LiteModeTest extends TestCase {
 			}
 		);
 		$this->assertStringContainsString( 'none start in the future', Repositories::current()->diagnose() );
+		$this->assertStringContainsString( 'the most recent was', Repositories::current()->diagnose(), 'the past-sessions diagnosis names the most recent date' );
+
+		// Sessions exist but none has a date at all.
+		remove_all_filters( 'pre_http_request' );
+		LiveCache::flush();
+		Repositories::reset();
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'    => 502,
+									'title' => 'Undated session',
+									'event' => 101,
+								],
+							],
+						]
+					);
+				}
+
+				return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			}
+		);
+		$this->assertStringContainsString( 'none of them has a date set on HeySummit', Repositories::current()->diagnose() );
 
 		// Healthy pipeline: no diagnosis.
 		remove_all_filters( 'pre_http_request' );
