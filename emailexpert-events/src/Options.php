@@ -29,6 +29,12 @@ final class Options {
 	public static function defaults(): array {
 		return [
 			'mode'                  => 'full',
+			'mode_chosen'           => 0,
+			'lite_archive'          => 0,
+			'lite_events'           => [],
+			'lite_ttl'              => 15,
+			'lite_sponsors'         => [],
+			'flush_rewrites'        => 0,
 			'frequency'             => 'hourly',
 			'schema_enabled'        => 1,
 			'schema_event'          => 1,

@@ -551,6 +551,6 @@ final class AccountsModuleTest extends TestCase {
 		// toggle check (asserted structurally: the gate reads the single
 		// autoloaded option, so zero extra queries either way).
 		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Plugin.php' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
-		$this->assertStringContainsString( "if ( (bool) Options::setting( 'accounts_enabled' ) )", $source );
+		$this->assertStringContainsString( "if ( ! \$lite && (bool) Options::setting( 'accounts_enabled' ) )", $source, 'the gate reads the mode and the toggle, both from the single autoloaded option' );
 	}
 }

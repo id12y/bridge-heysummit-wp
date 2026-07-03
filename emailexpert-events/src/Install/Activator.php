@@ -22,8 +22,27 @@ final class Activator {
 
 	/**
 	 * Run on plugin activation.
+	 *
+	 * In Lite mode activation touches exactly one option — the settings
+	 * option — and nothing else: no post types, no terms, no rewrite flush,
+	 * no tables, no cron. A fresh install (mode not yet chosen) takes the
+	 * Full-shaped path; wizard step 0 undoes it when Lite is chosen
+	 * (docs/decisions.md D34).
 	 */
 	public static function activate(): void {
+		// The one small autoloaded settings option.
+		if ( false === get_option( Options::SETTINGS ) ) {
+			update_option( Options::SETTINGS, Options::defaults(), true );
+		}
+
+		if ( Options::is_lite() ) {
+			// Version tracking rides inside the settings option so the
+			// footprint stays at a single option.
+			Options::update_settings( [ 'version' => EEX_VERSION ] );
+
+			return;
+		}
+
 		$types = new \Emailexpert\Events\PostTypes\PostTypes();
 		$types->register_types();
 
@@ -32,11 +51,6 @@ final class Activator {
 		$taxonomies->seed_terms();
 
 		flush_rewrite_rules();
-
-		// The one small autoloaded settings option.
-		if ( false === get_option( Options::SETTINGS ) ) {
-			update_option( Options::SETTINGS, Options::defaults(), true );
-		}
 
 		// Offer (never force) the setup wizard.
 		if ( ! get_option( 'eex_wizard_done' ) ) {

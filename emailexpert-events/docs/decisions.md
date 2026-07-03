@@ -305,3 +305,25 @@ arrays (with a back-compat branch for theme overrides passing post IDs) —
 proven by the pre-existing rendering tests passing unchanged. Talk data
 gained hs_id, event_hs_id, raw_event_url, ics_ref and published keys so
 the ICS builder is a pure data function shared by both modes.
+
+## D34. v4: a fresh activation is Full-shaped until wizard step 0 answers
+
+Activation cannot know the mode the operator will choose, so a fresh
+install takes the existing Full-shaped activation (terms seeded, rewrites
+flushed, wizard offered) and wizard step 0 undoes it when Lite is chosen:
+seeded terms deleted (only when no content exists), stray options removed,
+rewrites re-flushed. Once the stored mode IS lite, activation touches
+exactly one option — the settings option (version tracking moves inside
+it) — and registers nothing. This keeps one activation code path while
+meeting the Lite footprint rule; a switch to an existing Full site with
+synced content is refused at step 0 and routed through the settings
+confirmation screen, because keep-or-trash must be an explicit decision.
+
+## D35. v4: the frozen archive keeps only the reading surface
+
+Full → Lite with "keep content" registers post types, taxonomies, meta,
+the template loader and single-page schema so kept posts stay readable and
+indexable — but sync, webhooks, feeds and every other Full service stays
+off, and the display components render live data regardless. Trashing uses
+wp_trash_post (reversible), not deletion. Lite-visible settings save only
+Lite-relevant keys so Full-mode toggles survive a round trip.

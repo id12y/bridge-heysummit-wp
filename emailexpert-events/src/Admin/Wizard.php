@@ -99,11 +99,15 @@ final class Wizard {
 	}
 
 	/**
-	 * The current step from the query string.
+	 * The current step from the query string. Step 0 (choose Full or Lite)
+	 * is the entry point until a mode has been chosen.
 	 */
 	private function step(): int {
+		$default = (bool) Options::setting( 'mode_chosen' ) ? 1 : 0;
+		$maximum = Options::is_lite() ? 3 : 5;
+
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display routing only.
-		return isset( $_GET['step'] ) ? max( 1, min( 5, (int) $_GET['step'] ) ) : 1;
+		return isset( $_GET['step'] ) ? max( 0, min( $maximum, (int) $_GET['step'] ) ) : $default;
 	}
 
 	/**
@@ -124,37 +128,162 @@ final class Wizard {
 		}
 
 		$step = $this->step();
+		$lite = Options::is_lite();
 		?>
 		<div class="wrap eex-settings eex-wizard">
 			<h1><?php esc_html_e( 'emailexpert Events setup', 'emailexpert-events' ); ?></h1>
-			<ol class="eex-wizard-steps">
+			<ol class="eex-wizard-steps" <?php echo 0 === $step ? 'start="0"' : ''; ?>>
 				<?php
-				$labels = [
-					__( 'Connect', 'emailexpert-events' ),
-					__( 'Choose events', 'emailexpert-events' ),
-					__( 'Scope', 'emailexpert-events' ),
-					__( 'Preview', 'emailexpert-events' ),
-					__( 'Import', 'emailexpert-events' ),
-				];
-				foreach ( $labels as $index => $label ) {
+				$labels = $lite
+					? [
+						__( 'Connect', 'emailexpert-events' ),
+						__( 'Choose events', 'emailexpert-events' ),
+						__( 'Done', 'emailexpert-events' ),
+					]
+					: [
+						__( 'Connect', 'emailexpert-events' ),
+						__( 'Choose events', 'emailexpert-events' ),
+						__( 'Scope', 'emailexpert-events' ),
+						__( 'Preview', 'emailexpert-events' ),
+						__( 'Import', 'emailexpert-events' ),
+					];
+
+				if ( 0 === $step ) {
+					array_unshift( $labels, __( 'Mode', 'emailexpert-events' ) );
+				}
+
+				foreach ( array_values( $labels ) as $index => $label ) {
+					$number = 0 === $step ? $index : $index + 1;
 					printf(
 						'<li %s>%s</li>',
-						$index + 1 === $step ? 'aria-current="step" class="eex-step-current"' : '',
+						$number === $step ? 'aria-current="step" class="eex-step-current"' : '',
 						esc_html( $label )
 					);
 				}
 				?>
 			</ol>
 			<?php
-			match ( $step ) {
-				2       => $this->render_choose_events(),
-				3       => $this->render_scope( false ),
-				4       => $this->render_preview(),
-				5       => $this->render_import(),
-				default => $this->render_connect(),
-			};
-		?>
+			if ( 0 === $step ) {
+				$this->render_mode_choice();
+			} elseif ( $lite ) {
+				match ( $step ) {
+					2       => $this->render_lite_events(),
+					3       => $this->render_lite_done(),
+					default => $this->render_connect(),
+				};
+			} else {
+				match ( $step ) {
+					2       => $this->render_choose_events(),
+					3       => $this->render_scope( false ),
+					4       => $this->render_preview(),
+					5       => $this->render_import(),
+					default => $this->render_connect(),
+				};
+			}
+			?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Step 0: choose the operating mode, with a plain comparison of what
+	 * Lite gives up and keeps.
+	 */
+	private function render_mode_choice(): void {
+		$this->form_open( 0 );
+		?>
+		<h2><?php esc_html_e( 'Choose how the plugin should work', 'emailexpert-events' ); ?></h2>
+
+		<p>
+			<?php
+			esc_html_e(
+				'Full mode syncs HeySummit events, sessions and speakers into WordPress as content: you get indexable local pages with Schema.org markup (SEO/GEO), a replays library, webhooks with registration attribution, the MyListing bridge and Elementor dynamic tags. Lite mode displays live HeySummit data without storing any of it: no local pages and therefore no SEO/GEO content, no replays library, no MyListing, no Elementor dynamic tags and no webhooks — but you keep the live display components, calendar downloads, inline schema on the blocks themselves, and the WooCommerce bridge. Lite suits a site that wants a live feed of the next sessions, not a mirror.',
+				'emailexpert-events'
+			);
+			?>
+		</p>
+
+		<p>
+			<label>
+				<input type="radio" name="mode" value="full" checked />
+				<strong><?php esc_html_e( 'Full — sync content into WordPress', 'emailexpert-events' ); ?></strong>
+			</label>
+		</p>
+		<p>
+			<label>
+				<input type="radio" name="mode" value="lite" />
+				<strong><?php esc_html_e( 'Lite — display live data only', 'emailexpert-events' ); ?></strong>
+			</label>
+		</p>
+
+		<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Continue', 'emailexpert-events' ); ?></button></p>
+		<p class="description"><?php esc_html_e( 'The mode can be changed later in the plugin settings.', 'emailexpert-events' ); ?></p>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Lite step 2: pick the HeySummit events the components display.
+	 */
+	private function render_lite_events(): void {
+		$connections = Options::connections();
+		$selected    = array_map( 'strval', (array) Options::setting( 'lite_events' ) );
+		?>
+		<h2><?php esc_html_e( 'Choose the HeySummit events to display', 'emailexpert-events' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Nothing is imported: the display components fetch these events live and cache the responses briefly.', 'emailexpert-events' ); ?></p>
+
+		<?php foreach ( $connections as $connection ) : ?>
+			<?php
+			$conn_id = (string) ( $connection['id'] ?? '' );
+			if ( '' === $conn_id ) {
+				continue;
+			}
+			?>
+			<p>
+				<button type="button" class="button eex-wizard-load-events" data-connection="<?php echo esc_attr( $conn_id ); ?>"><?php esc_html_e( 'Load events from HeySummit', 'emailexpert-events' ); ?></button>
+				<span class="eex-inline-result" aria-live="polite"></span>
+			</p>
+		<?php endforeach; ?>
+
+		<?php $this->form_open( 2 ); ?>
+		<div id="eex-wizard-events">
+			<?php
+			$available = (array) get_option( 'eex_available_events', [] );
+			foreach ( $connections as $connection ) {
+				$conn_id = (string) ( $connection['id'] ?? '' );
+				foreach ( (array) ( $available[ $conn_id ] ?? [] ) as $event ) {
+					$key = $conn_id . '|' . (string) $event['id'];
+					printf(
+						'<label class="eex-wizard-event"><input type="checkbox" name="lite_events[]" value="%s" %s /> <strong>%s</strong> <code>%s</code> <span class="description">%s</span></label><br />',
+						esc_attr( $key ),
+						checked( in_array( $key, $selected, true ), true, false ),
+						esc_html( (string) ( $event['title'] ?? $event['id'] ) ),
+						esc_html( (string) $event['id'] ),
+						esc_html( trim( (string) ( $event['dates'] ?? '' ) ) )
+					);
+				}
+			}
+			?>
+		</div>
+		<p><button type="submit" class="button button-primary"><?php esc_html_e( 'Finish', 'emailexpert-events' ); ?></button></p>
+		</form>
+		<?php
+	}
+
+	/**
+	 * Lite step 3: done.
+	 */
+	private function render_lite_done(): void {
+		?>
+		<h2><?php esc_html_e( 'Lite mode is ready', 'emailexpert-events' ); ?></h2>
+		<p><?php esc_html_e( 'Add the blocks or shortcodes to any page; they render live HeySummit data through a short server-side cache. Nothing has been imported and nothing will be.', 'emailexpert-events' ); ?></p>
+		<ul>
+			<li><a href="<?php echo esc_url( admin_url( 'options-general.php?page=emailexpert-events' ) ); ?>"><?php esc_html_e( 'Plugin settings', 'emailexpert-events' ); ?></a></li>
+			<li><a href="https://github.com/id12y/emailexpert-news-scout/blob/main/emailexpert-events/README.md#shortcode-and-block-reference"><?php esc_html_e( 'Shortcode and block reference', 'emailexpert-events' ); ?></a></li>
+			<?php if ( class_exists( 'WooCommerce' ) ) : ?>
+				<li><a href="<?php echo esc_url( admin_url( 'options-general.php?page=emailexpert-events-bridge' ) ); ?>"><?php esc_html_e( 'WooCommerce detected: map products to HeySummit tickets (works in Lite exactly as in Full).', 'emailexpert-events' ); ?></a></li>
+			<?php endif; ?>
+		</ul>
 		<?php
 	}
 
@@ -425,29 +554,43 @@ final class Wizard {
 
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified above; sanitised field-by-field.
 		$step = isset( $_POST['wizard_step'] ) ? (int) $_POST['wizard_step'] : 1;
+		$lite = Options::is_lite();
 
 		switch ( $step ) {
+			case 0:
+				$next = $this->save_mode_choice();
+				break;
+
 			case 1:
 				$this->save_connection();
 				$next = 1; // Stay: the operator tests the connection, then continues.
 				break;
 
 			case 2:
-				$this->save_selected_events();
-				$next = 3;
+				if ( $lite ) {
+					$this->save_lite_events();
+					$next = 3;
+				} else {
+					$this->save_selected_events();
+					$next = 3;
+				}
 				break;
 
 			case 3:
 			case 4:
+				if ( $lite ) {
+					$next = 3;
+					break;
+				}
 				$this->save_scopes();
 				$next = $step + 1;
 				break;
 
 			default:
-				$next = 5;
+				$next = $lite ? 3 : 5;
 		}
 
-		if ( 5 === $next && 4 === $step ) {
+		if ( ! $lite && 5 === $next && 4 === $step ) {
 			// Confirmed: schedule cron state and kick the initial sync.
 			Scheduler::sync_schedule_state();
 			Scheduler::dispatch_async_run( false );
@@ -459,6 +602,37 @@ final class Wizard {
 
 		wp_safe_redirect( $this->step_url( $next ) );
 		exit;
+	}
+
+	/**
+	 * Step 0 write: the mode choice. Switching an existing Full site with
+	 * synced content to Lite goes through the settings confirmation screen
+	 * instead (keep or trash must be an explicit decision).
+	 *
+	 * @return int Next step.
+	 */
+	private function save_mode_choice(): int {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in save_step().
+		$mode = isset( $_POST['mode'] ) && 'lite' === $_POST['mode'] ? 'lite' : 'full';
+
+		if ( 'lite' === $mode && ! Options::is_lite() && \Emailexpert\Events\Install\Mode::has_content() ) {
+			wp_safe_redirect( admin_url( 'options-general.php?page=emailexpert-events&eex_mode_confirm=lite' ) );
+			exit;
+		}
+
+		\Emailexpert\Events\Install\Mode::choose( $mode );
+
+		return 1;
+	}
+
+	/**
+	 * Lite step 2 write: events to display, inside the settings option.
+	 */
+	private function save_lite_events(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- verified in save_step(); sanitised below.
+		$selected = array_map( 'sanitize_text_field', (array) wp_unslash( $_POST['lite_events'] ?? [] ) );
+
+		Options::update_settings( [ 'lite_events' => array_values( array_filter( $selected ) ) ] );
 	}
 
 	/**

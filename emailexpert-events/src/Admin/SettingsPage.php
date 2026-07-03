@@ -28,7 +28,37 @@ final class SettingsPage {
 	public function register(): void {
 		add_action( 'admin_menu', [ $this, 'add_menu' ] );
 		add_action( 'admin_post_eex_save_settings', [ $this, 'save' ] );
+		add_action( 'admin_post_eex_switch_mode', [ $this, 'switch_mode' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue' ] );
+	}
+
+	/**
+	 * Apply a mode switch (nonce-checked; Full → Lite arrives from the
+	 * confirmation screen carrying the keep/trash decision).
+	 */
+	public function switch_mode(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'emailexpert-events' ) );
+		}
+
+		check_admin_referer( 'eex_switch_mode' );
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- verified above.
+		$to   = isset( $_POST['to'] ) && 'lite' === $_POST['to'] ? 'lite' : 'full';
+		$keep = ! isset( $_POST['content'] ) || 'trash' !== $_POST['content'];
+		// phpcs:enable
+
+		if ( 'lite' === $to ) {
+			\Emailexpert\Events\Install\Mode::switch_to_lite( $keep );
+			wp_safe_redirect( add_query_arg( 'updated', '1', admin_url( 'options-general.php?page=' . self::SLUG ) ) );
+			exit;
+		}
+
+		\Emailexpert\Events\Install\Mode::switch_to_full();
+
+		// Full function returns through the standard import wizard.
+		wp_safe_redirect( admin_url( 'options-general.php?page=emailexpert-events-setup&step=1' ) );
+		exit;
 	}
 
 	/**
@@ -87,7 +117,15 @@ final class SettingsPage {
 			wp_die( esc_html__( 'Insufficient permissions.', 'emailexpert-events' ) );
 		}
 
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- display routing; the action itself is nonce-checked.
+		if ( isset( $_GET['eex_mode_confirm'] ) && 'lite' === $_GET['eex_mode_confirm'] && ! Options::is_lite() ) {
+			$this->render_mode_confirm();
+
+			return;
+		}
+
 		$connections = Options::connections();
+		$lite        = Options::is_lite();
 		?>
 		<div class="wrap eex-settings">
 			<h1><?php esc_html_e( 'emailexpert Events', 'emailexpert-events' ); ?></h1>
@@ -96,14 +134,24 @@ final class SettingsPage {
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'emailexpert-events' ); ?></p></div>
 			<?php endif; ?>
 
+			<?php $this->render_mode_section(); ?>
+
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="eex_save_settings" />
 				<?php wp_nonce_field( 'eex_save_settings' ); ?>
 
 				<?php
 				$this->render_api_section( $connections );
-				$this->render_sync_section( $connections );
-				$this->render_webhooks_section();
+
+				if ( $lite ) {
+					$this->render_lite_section();
+					printf( '<h2>%s</h2><p class="description">%s</p>', esc_html__( 'Content sync', 'emailexpert-events' ), esc_html__( 'Available in Full mode.', 'emailexpert-events' ) );
+					printf( '<h2>%s</h2><p class="description">%s</p>', esc_html__( 'Webhooks', 'emailexpert-events' ), esc_html__( 'Available in Full mode.', 'emailexpert-events' ) );
+				} else {
+					$this->render_sync_section( $connections );
+					$this->render_webhooks_section();
+				}
+
 				$this->render_display_section();
 				?>
 
@@ -113,6 +161,141 @@ final class SettingsPage {
 			<?php self::render_export_import(); ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Mode section: current mode, frozen-archive label, switch actions.
+	 */
+	private function render_mode_section(): void {
+		$lite    = Options::is_lite();
+		$archive = $lite && (bool) Options::setting( 'lite_archive' );
+		?>
+		<h2><?php esc_html_e( 'Operating mode', 'emailexpert-events' ); ?></h2>
+		<p>
+			<strong><?php echo $lite ? esc_html__( 'Lite', 'emailexpert-events' ) : esc_html__( 'Full', 'emailexpert-events' ); ?></strong>
+			—
+			<?php
+			echo $lite
+				? esc_html__( 'components display live HeySummit data; nothing is stored as WordPress content.', 'emailexpert-events' )
+				: esc_html__( 'HeySummit content is synced into WordPress with local pages, schema and webhooks.', 'emailexpert-events' );
+			?>
+		</p>
+
+		<?php if ( $archive ) : ?>
+			<p class="description">
+				<strong><?php esc_html_e( 'Frozen archive:', 'emailexpert-events' ); ?></strong>
+				<?php esc_html_e( 'content synced in Full mode remains published and readable, but no longer updates.', 'emailexpert-events' ); ?>
+			</p>
+		<?php endif; ?>
+
+		<?php if ( $lite ) : ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline">
+				<input type="hidden" name="action" value="eex_switch_mode" />
+				<input type="hidden" name="to" value="full" />
+				<?php wp_nonce_field( 'eex_switch_mode' ); ?>
+				<button type="submit" class="button"><?php esc_html_e( 'Switch to Full mode (runs the import wizard)', 'emailexpert-events' ); ?></button>
+			</form>
+		<?php else : ?>
+			<a class="button" href="<?php echo esc_url( admin_url( 'options-general.php?page=' . self::SLUG . '&eex_mode_confirm=lite' ) ); ?>"><?php esc_html_e( 'Switch to Lite mode…', 'emailexpert-events' ); ?></a>
+		<?php endif; ?>
+		<?php
+	}
+
+	/**
+	 * Full → Lite confirmation screen: synced content stops updating; keep
+	 * it (frozen archive) or trash it.
+	 */
+	private function render_mode_confirm(): void {
+		$has_content = \Emailexpert\Events\Install\Mode::has_content();
+		?>
+		<div class="wrap eex-settings">
+			<h1><?php esc_html_e( 'Switch to Lite mode', 'emailexpert-events' ); ?></h1>
+
+			<p><?php esc_html_e( 'Lite mode stops all content syncing: synced events, sessions and speakers will no longer update, sync cron is unscheduled, and webhooks, feeds, the replays library and local event pages are switched off. Display components fetch live HeySummit data instead.', 'emailexpert-events' ); ?></p>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="eex_switch_mode" />
+				<input type="hidden" name="to" value="lite" />
+				<?php wp_nonce_field( 'eex_switch_mode' ); ?>
+
+				<?php if ( $has_content ) : ?>
+					<p>
+						<label>
+							<input type="radio" name="content" value="keep" checked />
+							<strong><?php esc_html_e( 'Keep the synced content', 'emailexpert-events' ); ?></strong>
+							— <?php esc_html_e( 'posts remain published and readable (a frozen archive); syncing stays stopped.', 'emailexpert-events' ); ?>
+						</label>
+					</p>
+					<p>
+						<label>
+							<input type="radio" name="content" value="trash" />
+							<strong><?php esc_html_e( 'Trash the synced content', 'emailexpert-events' ); ?></strong>
+							— <?php esc_html_e( 'all synced posts are moved to the bin.', 'emailexpert-events' ); ?>
+						</label>
+					</p>
+				<?php endif; ?>
+
+				<p>
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Switch to Lite', 'emailexpert-events' ); ?></button>
+					<a class="button" href="<?php echo esc_url( admin_url( 'options-general.php?page=' . self::SLUG ) ); ?>"><?php esc_html_e( 'Cancel', 'emailexpert-events' ); ?></a>
+				</p>
+			</form>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Lite section: display events, cache TTL, flush.
+	 */
+	private function render_lite_section(): void {
+		$selected = array_map( 'strval', (array) Options::setting( 'lite_events' ) );
+		?>
+		<h2><?php esc_html_e( 'Live display', 'emailexpert-events' ); ?></h2>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Events to display', 'emailexpert-events' ); ?></th>
+				<td>
+					<?php if ( empty( $selected ) ) : ?>
+						<p class="description"><?php esc_html_e( 'No events chosen yet.', 'emailexpert-events' ); ?></p>
+					<?php else : ?>
+						<ul>
+							<?php foreach ( $selected as $key ) : ?>
+								<li><code><?php echo esc_html( $key ); ?></code></li>
+							<?php endforeach; ?>
+						</ul>
+					<?php endif; ?>
+					<p>
+						<a class="button" href="<?php echo esc_url( admin_url( 'options-general.php?page=emailexpert-events-setup&step=2' ) ); ?>"><?php esc_html_e( 'Choose events', 'emailexpert-events' ); ?></a>
+					</p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="eex-lite-ttl"><?php esc_html_e( 'Live cache lifetime', 'emailexpert-events' ); ?></label></th>
+				<td>
+					<input type="number" id="eex-lite-ttl" min="1" max="1440" name="settings[lite_ttl]" value="<?php echo esc_attr( (string) (int) Options::setting( 'lite_ttl' ) ); ?>" size="4" />
+					<?php esc_html_e( 'minutes', 'emailexpert-events' ); ?>
+					<p class="description"><?php esc_html_e( 'How long API responses are cached. A stale last-good copy is kept for 24 hours and served whenever HeySummit is unreachable.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Live cache', 'emailexpert-events' ); ?></th>
+				<td>
+					<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=eex_flush_live' ), 'eex_flush_live' ) ); ?>"><?php esc_html_e( 'Flush live cache', 'emailexpert-events' ); ?></a>
+				</td>
+			</tr>
+		</table>
+
+		<?php
+		foreach ( [
+			__( 'Replays library', 'emailexpert-events' ),
+			__( 'MyListing bridge', 'emailexpert-events' ),
+			__( 'Accounts module', 'emailexpert-events' ),
+			__( 'Attribution and registration counter', 'emailexpert-events' ),
+			__( 'Calendar subscribe feed', 'emailexpert-events' ),
+			__( 'Weekly digest', 'emailexpert-events' ),
+		] as $feature ) {
+			printf( '<p class="description">%s — %s</p>', esc_html( $feature ), esc_html__( 'available in Full mode.', 'emailexpert-events' ) );
+		}
 	}
 
 	/**
@@ -506,6 +689,12 @@ final class SettingsPage {
 	 * Display section.
 	 */
 	private function render_display_section(): void {
+		if ( Options::is_lite() ) {
+			$this->render_lite_display_section();
+
+			return;
+		}
+
 		$colours = (array) Options::setting( 'series_colours' );
 		$series  = get_terms(
 			[
@@ -597,6 +786,42 @@ final class SettingsPage {
 	}
 
 	/**
+	 * Display section, Lite variant: only what applies without local
+	 * content. Everything else is announced as Full-mode.
+	 */
+	private function render_lite_display_section(): void {
+		?>
+		<h2><?php esc_html_e( 'Display', 'emailexpert-events' ); ?></h2>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><label for="eex-date-format"><?php esc_html_e( 'Date format override', 'emailexpert-events' ); ?></label></th>
+				<td>
+					<input type="text" id="eex-date-format" name="settings[date_format]" value="<?php echo esc_attr( (string) Options::setting( 'date_format' ) ); ?>" placeholder="<?php echo esc_attr( get_option( 'date_format' ) ); ?>" />
+					<p class="description"><?php esc_html_e( 'PHP date format for component output. Leave blank to use the site default.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Structured data', 'emailexpert-events' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="settings[schema_enabled]" value="1" <?php checked( (bool) Options::setting( 'schema_enabled' ) ); ?> /> <?php esc_html_e( 'Output Schema.org JSON-LD', 'emailexpert-events' ); ?></label><br />
+					<label><input type="checkbox" name="settings[schema_event]" value="1" <?php checked( (bool) Options::setting( 'schema_event' ) ); ?> /> <?php esc_html_e( 'Inline Event schema on the session blocks', 'emailexpert-events' ); ?></label>
+					<p class="description"><?php esc_html_e( 'Person and VideoObject schema need local pages — available in Full mode.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'UTM auto-tagging', 'emailexpert-events' ); ?></th>
+				<td>
+					<label><input type="checkbox" name="settings[utm_enabled]" value="1" <?php checked( (bool) Options::setting( 'utm_enabled' ) ); ?> /> <?php esc_html_e( 'Append UTM parameters to HeySummit register and event links (active once a source is set)', 'emailexpert-events' ); ?></label><br />
+					<label><?php esc_html_e( 'Source', 'emailexpert-events' ); ?> <input type="text" name="settings[utm_source]" value="<?php echo esc_attr( (string) Options::setting( 'utm_source' ) ); ?>" placeholder="emailexpert.com" /></label>
+					<label><?php esc_html_e( 'Medium', 'emailexpert-events' ); ?> <input type="text" name="settings[utm_medium]" value="<?php echo esc_attr( (string) Options::setting( 'utm_medium' ) ); ?>" placeholder="web" /></label>
+					<p class="description"><?php esc_html_e( 'Campaign is set automatically from the rendering page slug; override per page with the _eex_utm_campaign custom field.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+		</table>
+		<?php
+	}
+
+	/**
 	 * Persist the settings form.
 	 */
 	public function save(): void {
@@ -607,15 +832,42 @@ final class SettingsPage {
 		check_admin_referer( 'eex_save_settings' );
 
 		$this->save_connections();
-		$this->save_events();
-		$this->save_settings();
-		$this->save_relays();
 
-		// Cron on demand: reflects whether any event is enabled.
-		Scheduler::sync_schedule_state();
+		if ( Options::is_lite() ) {
+			// Only Lite-relevant keys: absent Full-mode checkboxes must not
+			// be zeroed, so a later switch back to Full keeps its settings.
+			$this->save_lite_settings();
+		} else {
+			$this->save_events();
+			$this->save_settings();
+			$this->save_relays();
+
+			// Cron on demand: reflects whether any event is enabled.
+			Scheduler::sync_schedule_state();
+		}
 
 		wp_safe_redirect( add_query_arg( 'updated', '1', admin_url( 'options-general.php?page=' . self::SLUG ) ) );
 		exit;
+	}
+
+	/**
+	 * Persist the settings visible in Lite mode only.
+	 */
+	private function save_lite_settings(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in save(); sanitised field-by-field below.
+		$posted = isset( $_POST['settings'] ) && is_array( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : [];
+
+		Options::update_settings(
+			[
+				'lite_ttl'       => max( 1, min( 1440, (int) ( $posted['lite_ttl'] ?? 15 ) ) ),
+				'date_format'    => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
+				'schema_enabled' => empty( $posted['schema_enabled'] ) ? 0 : 1,
+				'schema_event'   => empty( $posted['schema_event'] ) ? 0 : 1,
+				'utm_enabled'    => empty( $posted['utm_enabled'] ) ? 0 : 1,
+				'utm_source'     => sanitize_text_field( (string) ( $posted['utm_source'] ?? '' ) ),
+				'utm_medium'     => sanitize_text_field( (string) ( $posted['utm_medium'] ?? 'web' ) ),
+			]
+		);
 	}
 
 	/**
