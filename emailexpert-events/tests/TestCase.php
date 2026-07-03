@@ -21,6 +21,9 @@ abstract class TestCase extends PHPUnitTestCase {
 		$GLOBALS['eex_test_users']     = [];
 		$GLOBALS['eex_test_user_meta'] = [];
 
+		\Emailexpert\Events\Data\Repositories::reset();
+		\Emailexpert\Events\Data\LiveCache::reset_request_state();
+
 		// Make retries instantaneous in tests.
 		add_filter( 'eex_http_retry_delay', static fn() => 0 );
 	}

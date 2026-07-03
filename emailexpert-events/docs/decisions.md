@@ -327,3 +327,19 @@ indexable — but sync, webhooks, feeds and every other Full service stays
 off, and the display components render live data regardless. Trashing uses
 wp_trash_post (reversible), not deletion. Lite-visible settings save only
 Lite-relevant keys so Full-mode toggles survive a round trip.
+
+## D36. v4: live fetching is budgeted, locked and never trusted to be up
+
+LiveRepository fetches at render time through the existing client with a
+3-second timeout and zero transport retries. Every resource sits behind
+LiveCache: a fresh transient (lite_ttl minutes, default 15) plus a 24-hour
+last-good copy; failure order is fresh → last-good → the component's empty
+state — never a fatal, never a hung page. Cold fetches are capped at 2 per
+request (`eex_live_budget` filter) and guarded by an add_option-based
+stampede lock (an INSERT, so exactly one concurrent visitor fetches; stale
+locks are stolen after 30 seconds). Flushing bumps a generation counter —
+O(1), orphans expire by TTL. Collections use single-page GETs (roughly the
+first 50 records): display components are limited anyway, and unbounded
+pagination in a render path would defeat the budget. In Lite the logger
+writes to a 20-entry transient ring buffer instead of creating the log
+table; a table left over from a Full period keeps working.

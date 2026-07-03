@@ -33,6 +33,13 @@ final class Logger {
 	public static function log( string $context, string $level, string $message, array $data = [] ): int {
 		global $wpdb;
 
+		// Lite mode never creates the log table: entries go to a small
+		// self-expiring ring buffer instead (visible on the dashboard
+		// widget). If the table exists from a Full period, it keeps working.
+		if ( \Emailexpert\Events\Options::is_lite() && ! \Emailexpert\Events\Install\Tables::exists( 'log' ) ) {
+			return self::ring_write( $context, $level, $message, self::redact( $data ) );
+		}
+
 		\Emailexpert\Events\Install\Tables::ensure_log();
 
 		$data = self::redact( $data );
@@ -105,6 +112,40 @@ final class Logger {
 		);
 
 		return $row ?: null;
+	}
+
+	/**
+	 * Lite-mode ring buffer: the last 20 entries in one transient (12-hour
+	 * TTL), no table, nothing permanent.
+	 *
+	 * @param string              $context Context.
+	 * @param string              $level   Level.
+	 * @param string              $message Message.
+	 * @param array<string,mixed> $data    Redacted payload.
+	 * @return int Always 0 (no row ID exists).
+	 */
+	private static function ring_write( string $context, string $level, string $message, array $data ): int {
+		$ring   = (array) get_transient( 'eex_lite_log' );
+		$ring[] = [
+			'created_at' => gmdate( 'Y-m-d H:i:s' ),
+			'context'    => substr( $context, 0, 20 ),
+			'level'      => substr( $level, 0, 10 ),
+			'message'    => $message,
+			'data'       => $data,
+		];
+
+		set_transient( 'eex_lite_log', array_slice( $ring, -20 ), 12 * HOUR_IN_SECONDS );
+
+		return 0;
+	}
+
+	/**
+	 * The Lite-mode ring buffer entries, newest last.
+	 *
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function ring(): array {
+		return array_values( array_filter( (array) get_transient( 'eex_lite_log' ), 'is_array' ) );
 	}
 
 	/**

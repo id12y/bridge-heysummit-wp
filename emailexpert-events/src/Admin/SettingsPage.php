@@ -29,7 +29,25 @@ final class SettingsPage {
 		add_action( 'admin_menu', [ $this, 'add_menu' ] );
 		add_action( 'admin_post_eex_save_settings', [ $this, 'save' ] );
 		add_action( 'admin_post_eex_switch_mode', [ $this, 'switch_mode' ] );
+		add_action( 'admin_post_eex_flush_live', [ $this, 'flush_live' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue' ] );
+	}
+
+	/**
+	 * Flush the live cache (Lite mode button).
+	 */
+	public function flush_live(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'Insufficient permissions.', 'emailexpert-events' ) );
+		}
+
+		check_admin_referer( 'eex_flush_live' );
+
+		\Emailexpert\Events\Data\LiveCache::flush();
+		\Emailexpert\Events\Frontend\Cache::flush();
+
+		wp_safe_redirect( add_query_arg( 'updated', '1', admin_url( 'options-general.php?page=' . self::SLUG ) ) );
+		exit;
 	}
 
 	/**

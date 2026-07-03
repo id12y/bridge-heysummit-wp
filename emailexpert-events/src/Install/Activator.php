@@ -61,12 +61,16 @@ final class Activator {
 	}
 
 	/**
-	 * Run on plugin deactivation: unschedule everything.
+	 * Run on plugin deactivation: unschedule everything and drop the live
+	 * cache (transients are all Lite keeps).
 	 */
 	public static function deactivate(): void {
 		foreach ( [ 'eex_sync_cron', 'eex_daily_maintenance', 'eex_sync_continue', 'eex_async_sync', 'eex_weekly_digest' ] as $hook ) {
 			wp_clear_scheduled_hook( $hook );
 		}
+
+		\Emailexpert\Events\Data\LiveCache::flush();
+		delete_transient( 'eex_lite_log' );
 
 		flush_rewrite_rules();
 	}

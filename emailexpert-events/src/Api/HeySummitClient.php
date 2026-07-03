@@ -60,26 +60,31 @@ class HeySummitClient {
 	 * Perform a GET request against a relative API path.
 	 *
 	 * Retries twice with backoff on 5xx responses and timeouts; never on 4xx.
+	 * Render-time callers (the Lite live repository) pass a short timeout
+	 * and zero retries so a page never waits on the API.
 	 *
-	 * @param string              $path Relative path, e.g. 'events/'.
-	 * @param array<string,mixed> $args Query arguments.
+	 * @param string              $path    Relative path, e.g. 'events/'.
+	 * @param array<string,mixed> $args    Query arguments.
+	 * @param array<string,int>   $options timeout (seconds), retries.
 	 * @return array<string,mixed>|WP_Error Decoded body or error.
 	 */
-	public function get( string $path, array $args = [] ) {
+	public function get( string $path, array $args = [], array $options = [] ) {
 		$url = self::BASE_URL . ltrim( $path, '/' );
 		if ( ! empty( $args ) ) {
 			$url = add_query_arg( array_map( 'rawurlencode', array_map( 'strval', $args ) ), $url );
 		}
 
+		$timeout = max( 1, (int) ( $options['timeout'] ?? 15 ) );
+
 		$attempts    = 0;
-		$max_retries = 2;
+		$max_retries = max( 0, (int) ( $options['retries'] ?? 2 ) );
 
 		do {
 			$started  = microtime( true );
 			$response = wp_remote_get(
 				$url,
 				[
-					'timeout' => 15,
+					'timeout' => $timeout,
 					'headers' => [
 						'Authorization' => 'Token ' . $this->api_key,
 						'Accept'        => 'application/json',

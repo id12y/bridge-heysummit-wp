@@ -368,6 +368,34 @@ if ( ! function_exists( 'delete_transient' ) ) {
 		return true;
 	}
 }
+if ( ! function_exists( 'add_option' ) ) {
+	function add_option( $name, $value = '', $deprecated = '', $autoload = null ) {
+		if ( array_key_exists( $name, EEX_Test_State::$options ) ) {
+			return false;
+		}
+		EEX_Test_State::$options[ $name ] = $value;
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_trash_post' ) ) {
+	function wp_trash_post( $post_id ) {
+		if ( isset( EEX_Test_State::$posts[ (int) $post_id ] ) ) {
+			EEX_Test_State::$posts[ (int) $post_id ]->post_status = 'trash';
+			return EEX_Test_State::$posts[ (int) $post_id ];
+		}
+		return false;
+	}
+}
+if ( ! function_exists( 'wp_delete_term' ) ) {
+	function wp_delete_term( $term_id, $taxonomy ) {
+		foreach ( EEX_Test_State::$terms[ $taxonomy ] ?? [] as $slug => $term ) {
+			if ( (int) ( ( (array) $term )['term_id'] ?? 0 ) === (int) $term_id ) {
+				unset( EEX_Test_State::$terms[ $taxonomy ][ $slug ] );
+			}
+		}
+		return true;
+	}
+}
 
 // --- hooks. -------------------------------------------------------------------
 if ( ! function_exists( 'add_filter' ) ) {
