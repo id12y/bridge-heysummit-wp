@@ -1012,3 +1012,30 @@ if ( ! class_exists( 'WP_REST_Response' ) ) {
 if ( ! function_exists( 'nocache_headers' ) ) {
 	function nocache_headers() {}
 }
+
+// --- boot smoke support. -----------------------------------------------------------
+if ( ! function_exists( 'is_admin' ) ) {
+	function is_admin() {
+		return false;
+	}
+}
+if ( ! function_exists( 'wp_register_style' ) ) {
+	function wp_register_style( $handle, $src = '', $deps = [], $ver = false, $media = 'all' ) {
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_register_script' ) ) {
+	function wp_register_script( $handle, $src = '', $deps = [], $ver = false, $args = false ) {
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_localize_script' ) ) {
+	function wp_localize_script( $handle, $object_name, $l10n ) {
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_add_inline_style' ) ) {
+	function wp_add_inline_style( $handle, $data ) {
+		return true;
+	}
+}

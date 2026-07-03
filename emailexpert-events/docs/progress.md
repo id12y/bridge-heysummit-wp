@@ -157,3 +157,25 @@
 - Public counter read GET /eex/v1/counter/<event> with no-store headers.
 - Tests: 94 passing (secret, idempotency, verification fallback,
   abandonment, toggles, capture/replay, rate limit, privacy, counter REST).
+
+## M7 — Hardening and delivery
+
+- Security pass: no unserialise/eval anywhere; API key surfaces audited
+  (write-only UI with last-4, header-only transmission, never in
+  logs/REST/front end — covered by a regression test); all admin actions
+  nonce + capability guarded; webhook secret compared with hash_equals and
+  wrong secrets indistinguishable from a missing route.
+- uninstall.php: drops tables, clears schedules, deletes all eex_* options
+  and transients; content removed only when the opt-in setting was on.
+- Boot smoke test: every non-Elementor class loads and Plugin::boot wires
+  all services with zero side effects; Elementor module php -l checked in CI.
+- CI: .github/workflows/plugin-ci.yml (repo root) — PHP 8.1 and 8.3 matrix,
+  composer install, WPCS lint, syntax check of all PHP including the
+  Elementor module, PHPUnit.
+- README: installation, configuration, sync semantics, shortcode/block
+  reference, filter/hook/CLI/REST reference, Elementor guide, webhook
+  capture procedure, theming and privacy documentation.
+- docs/acceptance-report.md: 14 pass / 0 fail / 8 not verifiable in this
+  environment, each with the manual step that verifies it live.
+- Final state: 96 tests, 384 assertions, PHPCS clean, front-end assets
+  ~3.1KB gzipped.

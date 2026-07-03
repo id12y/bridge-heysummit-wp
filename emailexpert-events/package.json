@@ -1,0 +1,14 @@
+{
+	"name": "emailexpert-events",
+	"version": "1.0.0",
+	"description": "HeySummit connector for WordPress. Blocks are plain-JS dynamic blocks and need no build; @wordpress/scripts is provided for optional future JSX work (npm run start / build against blocks/src).",
+	"private": true,
+	"devDependencies": {
+		"@wordpress/scripts": "^27.9.0"
+	},
+	"scripts": {
+		"start": "wp-scripts start",
+		"build": "wp-scripts build",
+		"env": "wp-env"
+	}
+}
