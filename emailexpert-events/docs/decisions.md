@@ -96,3 +96,37 @@ allowed. All are style-only; security sniffs all active.
 
 Matches the minimum supported PHP so local integration testing catches
 8.1-incompatible syntax; CI runs the unit suite on 8.1 and 8.3.
+
+## D13. Replay URL: two keys, manual wins
+
+Spec 4.3 names one key `_eex_replay_url` sourced from the API but editor-
+owned with manual precedence. Two writes into one key cannot express "manual
+always wins", so the synced value lands in `_eex_replay_url_synced` and the
+meta box writes `_eex_replay_url`; every render path (cards, singles,
+VideoObject schema, dynamic tags) resolves manual ?: synced.
+
+## D14. BusinessEvent when a venue exists
+
+Spec 7.3 says "use BusinessEvent for FORUM-style conferences" without
+defining FORUM-style machine-readably. Chosen signal: an event with manual
+venue meta filled in (an in-person conference) emits `BusinessEvent`;
+venue-less (online/evergreen hub) events emit `Event`. Deterministic,
+editor-controllable, and matches the examples given.
+
+## D15. Webhook verification failure: attribution logged, counter not
+
+Spec 8.1 requires state-mutating actions to verify by re-fetching the
+attendee and to use fetched data. When verification fails (API unreachable
+or no key configured), the registration counter — public-facing state — is
+NOT incremented, and a warning is logged. The attribution row IS still
+inserted from the payload (email already hashed): attribution is an internal
+report where a flagged-in-log unverified row is more useful than a silently
+dropped signal. A later verified retry of the same delivery is deduplicated,
+so no double rows.
+
+## D16. Webhook processing queue
+
+Receipt returns 200 immediately and processing runs via
+wp_schedule_single_event + spawn_cron (a queued single event per spec 8.2).
+Dedupe happens at receipt time so HeySummit's 15-minute retries do not queue
+duplicate jobs even if processing is slow.

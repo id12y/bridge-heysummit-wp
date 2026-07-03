@@ -51,6 +51,7 @@ class EEX_Fake_WPDB {
 	public int $insert_id = 0;
 	public array $tables  = []; // table => rows.
 	public array $queries = [];
+	public string $options = 'wp_options';
 
 	public function insert( string $table, array $data, $format = null ): int {
 		$data['id']                = count( $this->tables[ $table ] ?? [] ) + 1;
@@ -64,44 +65,109 @@ class EEX_Fake_WPDB {
 			$args = $args[0];
 		}
 		foreach ( $args as $arg ) {
-			$query = preg_replace( '/%[sdf]/', is_numeric( $arg ) ? (string) $arg : "'" . addslashes( (string) $arg ) . "'", $query, 1 );
+			$query = preg_replace( '/%[sdf]/', is_int( $arg ) || is_float( $arg ) ? (string) $arg : "'" . addslashes( (string) $arg ) . "'", $query, 1 );
 		}
 		return $query;
 	}
 
+	public function esc_like( $text ): string {
+		return addcslashes( (string) $text, '_%\\' );
+	}
+
+	/**
+	 * Parse "FROM <table> [WHERE ...]" with simple AND-joined conditions:
+	 * col = 'v' | col = v | col LIKE '%v%' | col < 'v' | col >= 'v' | col != 'v'.
+	 */
+	private function match_rows( string $query ): array {
+		if ( ! preg_match( '/FROM\s+(\S+)/i', $query, $m ) ) {
+			return [ '', [] ];
+		}
+		$table = rtrim( $m[1], ';' );
+		$rows  = $this->tables[ $table ] ?? [];
+
+		if ( preg_match( '/WHERE\s+(.*?)(ORDER BY|LIMIT|$)/is', $query, $w ) ) {
+			$conditions = preg_split( '/\s+AND\s+/i', trim( $w[1] ) );
+			foreach ( $conditions as $condition ) {
+				$condition = trim( $condition );
+				if ( '' === $condition || '1=1' === str_replace( ' ', '', $condition ) ) {
+					continue;
+				}
+				if ( ! preg_match( "/^(\w+)\s*(=|!=|<>|<=|>=|<|>|LIKE)\s*'?([^']*)'?$/i", $condition, $c ) ) {
+					continue;
+				}
+				[ , $col, $op, $val ] = $c;
+				$rows = array_values( array_filter( $rows, function ( $row ) use ( $col, $op, $val ) {
+					$cell = (string) ( $row[ $col ] ?? '' );
+					switch ( strtoupper( $op ) ) {
+						case '=':
+							return $cell === $val;
+						case '!=':
+						case '<>':
+							return $cell !== $val;
+						case '<':
+							return $cell < $val;
+						case '<=':
+							return $cell <= $val;
+						case '>':
+							return $cell > $val;
+						case '>=':
+							return $cell >= $val;
+						case 'LIKE':
+							$needle = trim( $val, '%' );
+							return '' !== $needle && str_contains( $cell, $needle );
+					}
+					return true;
+				} ) );
+			}
+		}
+
+		return [ $table, $rows ];
+	}
+
 	public function query( string $query ): int {
 		$this->queries[] = $query;
+		if ( preg_match( '/^\s*DELETE\s/i', $query ) ) {
+			[ $table, $matched ] = $this->match_rows( $query );
+			if ( '' !== $table ) {
+				$ids = array_column( $matched, 'id' );
+				$before = count( $this->tables[ $table ] ?? [] );
+				$this->tables[ $table ] = array_values( array_filter(
+					$this->tables[ $table ] ?? [],
+					fn( $row ) => ! in_array( $row['id'], $ids, true )
+				) );
+				return $before - count( $this->tables[ $table ] );
+			}
+		}
 		return 0;
 	}
 
 	public function get_row( string $query, $output = OBJECT ) {
 		$this->queries[] = $query;
-		// Supports "SELECT * FROM <table> WHERE id = N".
-		if ( preg_match( '/FROM (\S+) WHERE id = (\d+)/', $query, $m ) ) {
-			foreach ( $this->tables[ $m[1] ] ?? [] as $row ) {
-				if ( (int) $row['id'] === (int) $m[2] ) {
-					return ARRAY_A === $output ? $row : (object) $row;
-				}
-			}
+		[ , $rows ] = $this->match_rows( $query );
+		if ( empty( $rows ) ) {
+			return null;
 		}
-		return null;
+		return ARRAY_A === $output ? $rows[0] : (object) $rows[0];
 	}
 
 	public function get_results( string $query, $output = OBJECT ): array {
 		$this->queries[] = $query;
-		if ( preg_match( '/FROM (\S+)/', $query, $m ) ) {
-			$rows = $this->tables[ rtrim( $m[1], ';' ) ] ?? [];
-			return ARRAY_A === $output ? $rows : array_map( fn( $r ) => (object) $r, $rows );
-		}
-		return [];
+		[ , $rows ] = $this->match_rows( $query );
+		return ARRAY_A === $output ? $rows : array_map( fn( $r ) => (object) $r, $rows );
 	}
 
 	public function get_var( string $query ) {
 		$this->queries[] = $query;
-		if ( preg_match( '/SELECT COUNT\(\*\) FROM (\S+)/', $query, $m ) ) {
-			return count( $this->tables[ rtrim( $m[1], ';' ) ] ?? [] );
+		if ( stripos( $query, 'COUNT(*)' ) !== false ) {
+			[ , $rows ] = $this->match_rows( $query );
+			return count( $rows );
 		}
 		return null;
+	}
+
+	public function get_col( string $query ): array {
+		$this->queries[] = $query;
+		return [];
 	}
 
 	public function get_charset_collate(): string {
@@ -874,4 +940,75 @@ if ( ! function_exists( 'wp_enqueue_script' ) ) {
 	function wp_enqueue_script( $handle, $src = '', $deps = [], $ver = false, $args = false ) {
 		$GLOBALS['eex_test_enqueued'][] = $handle;
 	}
+}
+
+// --- REST. ------------------------------------------------------------------------
+if ( ! function_exists( 'register_rest_route' ) ) {
+	function register_rest_route( $route_namespace, $route, $args = [], $override = false ) {
+		$GLOBALS['eex_test_rest_routes'][ $route_namespace . $route ] = $args;
+		return true;
+	}
+}
+if ( ! class_exists( 'WP_REST_Request' ) ) {
+	#[\AllowDynamicProperties]
+	class WP_REST_Request implements ArrayAccess {
+		private array $params;
+		private array $json;
+
+		public function __construct( array $params = [], array $json = [] ) {
+			$this->params = $params;
+			$this->json   = $json;
+		}
+
+		public function get_json_params() {
+			return $this->json;
+		}
+
+		#[\ReturnTypeWillChange]
+		public function offsetExists( $offset ): bool {
+			return isset( $this->params[ $offset ] );
+		}
+
+		#[\ReturnTypeWillChange]
+		public function offsetGet( $offset ) {
+			return $this->params[ $offset ] ?? null;
+		}
+
+		#[\ReturnTypeWillChange]
+		public function offsetSet( $offset, $value ): void {
+			$this->params[ $offset ] = $value;
+		}
+
+		#[\ReturnTypeWillChange]
+		public function offsetUnset( $offset ): void {
+			unset( $this->params[ $offset ] );
+		}
+	}
+}
+if ( ! class_exists( 'WP_REST_Response' ) ) {
+	class WP_REST_Response {
+		public $data;
+		public int $status;
+		public array $headers = [];
+
+		public function __construct( $data = null, int $status = 200 ) {
+			$this->data   = $data;
+			$this->status = $status;
+		}
+
+		public function header( $key, $value ) {
+			$this->headers[ $key ] = $value;
+		}
+
+		public function get_status(): int {
+			return $this->status;
+		}
+
+		public function get_data() {
+			return $this->data;
+		}
+	}
+}
+if ( ! function_exists( 'nocache_headers' ) ) {
+	function nocache_headers() {}
 }

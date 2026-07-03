@@ -129,3 +129,31 @@
 - Not runnable in this environment (no Elementor install): syntax-checked,
   logic covered indirectly via the shared component tests; flagged in the
   acceptance report for on-site verification.
+
+## M6 — Webhooks, attribution, privacy
+
+- Receiver POST /wp-json/eex/v1/heysummit/<secret>: hash_equals comparison,
+  404 (rest_no_route) on a bad secret, 60/min/IP rate limit (429), receipt
+  logged (capture mode stores full payloads flagged `capture`), 200
+  immediately, processing via queued single event; dedupe on
+  hash(action, attendee id, talk, 15-minute bucket) held 2 hours.
+- Parser: fuzzy action detection across candidate keys, attendee accepted
+  nested (attendee / data.attendee / data) or flat, string or integer IDs;
+  unrecognised payloads log a warning and do nothing.
+- Processor: per-action toggles; checkout complete verifies the attendee
+  against the API and increments _eex_registration_count only from verified
+  data (D15), inserts attribution, fires eex_checkout_complete, optional
+  admin email; registration started inserts a `started` row, fires
+  eex_registration_started, schedules the 60-minute abandonment check that
+  fires eex_registration_abandoned when no checkout followed; talk added
+  fires eex_talk_signup and logs only. eex_webhook_processed flushes the
+  component cache.
+- Attribution table writes/reads (emails as SHA-256 hashes only), admin
+  report with totals by utm_source and status, event/date filters, CSV
+  export (nonce + manage_options).
+- Privacy: personal data exporter and eraser by email hash, including log
+  rows carrying the redaction hash prefix; retention pruning already in
+  daily maintenance.
+- Public counter read GET /eex/v1/counter/<event> with no-store headers.
+- Tests: 94 passing (secret, idempotency, verification fallback,
+  abandonment, toggles, capture/replay, rate limit, privacy, counter REST).
