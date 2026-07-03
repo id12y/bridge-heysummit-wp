@@ -87,6 +87,11 @@ final class TemplateLoader {
 			return $template;
 		}
 
+		// Belt-and-braces: never displace a template a page builder resolved.
+		if ( str_contains( $template, '/elementor/' ) || str_contains( $template, '/elementor-pro/' ) ) {
+			return $template;
+		}
+
 		$located = self::locate( $candidates );
 
 		return '' !== $located ? $located : $template;

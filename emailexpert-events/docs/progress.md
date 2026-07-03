@@ -102,3 +102,30 @@
   theming via --eex-* custom properties. Combined gzipped size ~4.5KB
   (budget 30KB).
 - Tests: 81 passing. PHPCS clean.
+
+## M5 — Elementor module
+
+- All code in src/Elementor/, registered on elementor/init only; nothing
+  loads when Elementor is absent; Pro detected separately
+  (ELEMENTOR_PRO_VERSION) with Theme Builder yield, dynamic tags and Loop
+  Grid queries degrading silently on free Elementor.
+- Widgets: one parameterised ComponentWidget class instantiated per
+  component (docs/decisions.md D10), content controls mapped 1:1 to
+  component attributes (event/category selects populated from synced data,
+  switchers for flags), style controls writing --eex-* custom properties
+  scoped to {{WRAPPER}}; render() calls the shared component callback, so
+  output matches blocks/shortcodes and editor previews are real server
+  renders.
+- Theme Builder: eex_template_yield returns true when a Pro theme template's
+  conditions match our single/archive views (conditions manager queried
+  defensively), plus a belt-and-braces guard in the template loader that
+  never displaces an Elementor-resolved template.
+- Dynamic tags: session start/end (format + site/event timezone), category
+  list, live status, register/replay/event URLs, registration count, venue
+  fields, speaker name/headline/company/photo/link — all return empty when
+  data is missing.
+- Loop Grid queries: eex_upcoming_sessions, eex_past_sessions,
+  eex_event_sessions with component-identical ordering.
+- Not runnable in this environment (no Elementor install): syntax-checked,
+  logic covered indirectly via the shared component tests; flagged in the
+  acceptance report for on-site verification.
