@@ -557,3 +557,22 @@ filterable via eex_live_timeout. diagnose() now distinguishes "the
 sessions request failed" (surfacing the transport error verbatim) from
 "HeySummit returned no sessions" — a timeout is not an empty summit and
 the operator fix differs.
+
+## D50. The harvest shows its working
+
+The production site kept reporting exactly one page of sessions with no
+recorded failure, which two code-correct-looking builds could not
+explain from the outside. Two silent failure modes were possible: a
+deep-page request timing out inside the harvest (per-page errors used to
+end the walk without a trace), or a response without the next link the
+walk keyed on. Both are now closed: page failures are recorded and
+skipped (deep offsets are the slowest queries on big accounts, and one
+timeout must not hide every upcoming session), the jump trusts the
+reported count even when the next link is absent, a wall-clock deadline
+(front end 8s, admin 25s, eex_live_deadline) bounds the whole harvest,
+and every harvest records count/pages/read/failed per event
+(eex_harvest_* transients, 24h). Session-related diagnoses append that
+record — "Event X: HeySummit reports N session(s) across P page(s);
+pages read: …; pages that failed: …" — so the Live status row states
+what actually happened on the wire instead of leaving the operator (and
+us) guessing. Version 1.2.0 so builds are tellable apart.
