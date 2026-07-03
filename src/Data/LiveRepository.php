@@ -350,9 +350,24 @@ class LiveRepository extends BaseMapper implements Repository {
 		}
 
 		if ( 0 === $total ) {
+			// "No sessions" and "the sessions request failed" need different
+			// fixes — a timeout is not an empty summit. The cache records
+			// the failing key, so a talks failure is distinguishable here.
+			$status = LiveCache::status();
+
+			// Not gated on degraded(): a success and a failure in the same
+			// second (events then talks, one page view) tie on timestamps.
+			if ( '' !== $status['last_error'] && str_contains( $status['last_error'], '[talks|' ) ) {
+				return sprintf(
+					/* translators: %s: the recorded fetch error. */
+					__( 'The sessions request to HeySummit failed rather than returning empty: %s. It is retried on every admin view of this page (with a longer timeout) and on front-end views; if timeouts persist, HeySummit is responding slowly and the eex_live_timeout filter can extend the wait.', 'emailexpert-events' ),
+					$status['last_error']
+				);
+			}
+
 			return sprintf(
 				/* translators: %s: comma-separated event IDs. */
-				__( 'HeySummit returned no sessions for event(s) %s (tried both ?event= and ?event_id= filters). Confirm the event has published talks.', 'emailexpert-events' ),
+				__( 'HeySummit returned no sessions for event(s) %s (tried the nested route and both ?event= and ?event_id= filters). Confirm the event has published talks.', 'emailexpert-events' ),
 				implode( ', ', array_map( static fn( array $event ): string => (string) $event['hs_id'], $events ) )
 			);
 		}
@@ -392,14 +407,31 @@ class LiveRepository extends BaseMapper implements Repository {
 	}
 
 	/**
-	 * Client options for render-time fetches: short timeout, no retries.
+	 * Client options for live fetches.
+	 *
+	 * Front-end renders stay impatient (a slow API must never hang a
+	 * visitor's page; last-good data covers the gap), but admin screens —
+	 * the dashboard widget and the settings Live status row — are allowed
+	 * to wait and retry, because a busy account's talks endpoint can take
+	 * several seconds and an admin page view is the natural moment to warm
+	 * the cache for everyone else.
 	 *
 	 * @return array<string,int>
 	 */
 	protected static function request_options(): array {
+		$admin = function_exists( 'is_admin' ) && is_admin();
+
+		/**
+		 * Filter the per-request timeout for live fetches, in seconds.
+		 *
+		 * @param int  $timeout Seconds (default 5 on the front end, 15 in admin).
+		 * @param bool $admin   Whether this is an admin-screen fetch.
+		 */
+		$timeout = (int) apply_filters( 'eex_live_timeout', $admin ? 15 : 5, $admin );
+
 		return [
-			'timeout' => 3,
-			'retries' => 0,
+			'timeout' => max( 1, $timeout ),
+			'retries' => $admin ? 1 : 0,
 		];
 	}
 

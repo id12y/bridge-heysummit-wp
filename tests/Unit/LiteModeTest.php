@@ -810,6 +810,27 @@ final class LiteModeTest extends TestCase {
 		$this->assertSame( '', Repositories::current()->diagnose() );
 	}
 
+	public function test_diagnose_reports_a_talks_fetch_failure_as_a_failure_not_an_empty_summit(): void {
+		$this->go_lite();
+
+		// Events resolve; the sessions request times out. "Confirm the event
+		// has published talks" would send the operator to the wrong place.
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 3000 milliseconds with 0 bytes received' );
+				}
+
+				return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			}
+		);
+
+		$diagnosis = Repositories::current()->diagnose();
+
+		$this->assertStringContainsString( 'failed rather than returning empty', $diagnosis );
+		$this->assertStringContainsString( 'cURL error 28', $diagnosis, 'the underlying transport error travels into the diagnosis' );
+	}
+
 	public function test_live_talks_harvest_the_last_pages_of_a_deep_history(): void {
 		$this->go_lite();
 

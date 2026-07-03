@@ -542,3 +542,18 @@ regardless of history depth, capped by `eex_live_max_pages` (default 12
 fetches). The sync-side `get_all()` cap rose from 50 to 300 pages —
 runaway protection only, since Full mode genuinely wants the whole
 history and 50 pages silently truncated exactly the newest talks.
+
+## D49. Admin views warm the live cache with patient requests
+
+Production showed the talks endpoint on a 500+-talk account sometimes
+taking longer than the 3-second render timeout (cURL error 28, 0 bytes),
+and after a cache flush there is no last-good copy to hide behind, so
+the pipeline reported empty. Front-end fetches stay impatient (5 seconds,
+no retries — a slow API must never hang a visitor's page); admin fetches
+(the dashboard widget and the settings Live status row) wait 15 seconds
+and retry once, because an admin looking at the status page is the
+natural moment to warm the cache for everyone else. Both timeouts are
+filterable via eex_live_timeout. diagnose() now distinguishes "the
+sessions request failed" (surfacing the transport error verbatim) from
+"HeySummit returned no sessions" — a timeout is not an empty summit and
+the operator fix differs.
