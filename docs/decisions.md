@@ -397,3 +397,14 @@ for administrators only — added outside the cached fragment so it can
 never leak to visitors — turning "the block looks empty" into a
 self-explaining report. Raw API bodies still never reach non-admin
 output, and the logger's email redaction applies unchanged.
+
+## D40. The repository is the plugin (supersedes D1's subdirectory layout)
+
+D1 placed the plugin in an `emailexpert-events/` subdirectory because the
+repository then hosted an unrelated Python project. That project has been
+removed at the owner's request, and the plugin now lives at the repository
+root — installable directly as `wp-content/plugins/emailexpert-events/`.
+CI dropped its working-directory indirection and path filters; the wizard's
+documentation links point at the root README. Historical decisions and
+progress entries that mention the subdirectory are records of their time
+and stand unedited.
