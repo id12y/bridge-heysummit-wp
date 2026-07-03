@@ -810,60 +810,119 @@ final class LiteModeTest extends TestCase {
 		$this->assertSame( '', Repositories::current()->diagnose() );
 	}
 
-	public function test_live_talks_walk_every_page_of_the_collection(): void {
+	public function test_live_talks_harvest_the_last_pages_of_a_deep_history(): void {
 		$this->go_lite();
 
 		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
 
-		// Real accounts paginate talks 10 per page, oldest first: page 1 of a
-		// long-running summit is years old and the upcoming sessions sit on
-		// the last page. A page-1-only read shows nothing upcoming.
+		// Real accounts paginate talks 10 per page, oldest first, with no
+		// date filter: a summit with hundreds of past talks keeps its
+		// upcoming sessions on the LAST pages. The harvest must jump to the
+		// end via the reported count instead of walking forward from 2020.
+		// Six pages here (one talk per page); the middle must never be read.
 		$this->mock_http(
-			static function ( $url ) use ( $future ) {
+			function ( $url ) use ( $future ) {
 				$url = (string) $url;
 
-				if ( str_contains( $url, 'page=2' ) ) {
-					return self::json_response(
-						[
-							'count'   => 11,
-							'next'    => null,
-							'results' => [
-								[
-									'id'    => 602,
-									'title' => 'Fresh session',
-									'date'  => $future,
-									'event' => 101,
-								],
-							],
-						]
-					);
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 				}
 
-				if ( str_contains( $url, 'talks/' ) ) {
-					return self::json_response(
-						[
-							'count'   => 11,
-							'next'    => \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=2',
-							'results' => [
-								[
-									'id'    => 601,
-									'title' => 'Ancient session',
-									'date'  => '2020-12-10T16:00:00Z',
-									'event' => 101,
-								],
-							],
-						]
-					);
-				}
+				$this->requests[] = $url;
 
-				return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				$talk = static fn( int $id, string $title, string $date ): array => [
+					'id'    => $id,
+					'title' => $title,
+					'date'  => $date,
+					'event' => 101,
+				];
+
+				$rows = 6 === $page
+					? [ $talk( 606, 'Fresh session', $future ) ]
+					: [ $talk( 600 + $page, 'Ancient session ' . $page, '2020-12-10T16:00:00Z' ) ];
+
+				return self::json_response(
+					[
+						'count'   => 6,
+						'next'    => $page < 6 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'results' => $rows,
+					]
+				);
 			}
 		);
 
 		$titles = array_map( static fn( array $talk ): string => (string) $talk['title'], Repositories::current()->upcoming_talks( [] ) );
 
-		$this->assertSame( [ 'Fresh session' ], $titles, 'the upcoming session on page 2 is found — page 1 alone would show nothing' );
+		$this->assertSame( [ 'Fresh session' ], $titles, 'the upcoming session on the last page is found' );
+
+		$pages = array_map(
+			static function ( string $url ): int {
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+
+				return isset( $m[1] ) ? (int) $m[1] : 1;
+			},
+			$this->requests
+		);
+
+		$this->assertSame( [ 1, 6, 5 ], $pages, 'page 1, jump to the end, one step back to confirm the boundary — the deep middle is never fetched' );
 		$this->assertSame( '', Repositories::current()->diagnose(), 'a healthy paginated pipeline has no diagnosis' );
+	}
+
+	public function test_live_talks_harvest_handles_newest_first_ordering(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		// A newest-first account: upcoming sessions start on page 1 and can
+		// spill onto page 2; the old history sits at the end.
+		$this->mock_http(
+			static function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				$by_page = [
+					1 => [
+						'id'    => 701,
+						'title' => 'Soonest session',
+						'date'  => $future,
+						'event' => 101,
+					],
+					2 => [
+						'id'    => 702,
+						'title' => 'Later session',
+						'date'  => $future,
+						'event' => 101,
+					],
+					3 => [
+						'id'    => 703,
+						'title' => 'Ancient session',
+						'date'  => '2020-12-10T16:00:00Z',
+						'event' => 101,
+					],
+				];
+
+				return self::json_response(
+					[
+						'count'   => 3,
+						'next'    => $page < 3 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'results' => [ $by_page[ min( 3, $page ) ] ],
+					]
+				);
+			}
+		);
+
+		$titles = array_map( static fn( array $talk ): string => (string) $talk['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		$this->assertSame( [ 'Soonest session', 'Later session' ], $titles, 'upcoming sessions beyond page 1 of a newest-first account are found' );
 	}
 
 	public function test_talks_filter_falls_back_to_event_id_parameter(): void {

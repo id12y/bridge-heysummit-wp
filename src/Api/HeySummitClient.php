@@ -278,12 +278,14 @@ class HeySummitClient {
 	 */
 	public function get_all( string $path, array $args = [], array $options = [] ) {
 		/**
-		 * Filter the hard cap on pages followed per collection.
+		 * Filter the hard cap on pages followed per collection. Runaway
+		 * protection only — real accounts hold 500+ talks (50+ pages), so
+		 * the cap must sit far above any collection we expect to see.
 		 *
-		 * @param int    $max_pages Maximum pages (default 50).
+		 * @param int    $max_pages Maximum pages (default 300).
 		 * @param string $path      The collection path.
 		 */
-		$max_pages = (int) apply_filters( 'eex_max_pages', (int) ( $options['max_pages'] ?? 50 ), $path );
+		$max_pages = (int) apply_filters( 'eex_max_pages', (int) ( $options['max_pages'] ?? 300 ), $path );
 
 		$results = [];
 		$page    = $this->get( $path, $args, $options );

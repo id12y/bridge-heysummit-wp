@@ -193,9 +193,12 @@ is years old and the *upcoming* sessions sit on the last pages. Any
 consumer that reads a single page therefore concludes "nothing
 upcoming" while dozens of future sessions exist.
 
-Every caller must walk the `next` links: sync always has (via
-`HeySummitClient::get_all()`, capped at 50 pages by `eex_max_pages`);
-the Lite render path now does too, with short per-request timeouts and
-its own cap (20 pages by default, `eex_live_max_pages`). The walk runs
-inside one cached fetch, so it happens once per cache lifetime, not per
-visitor.
+Sync walks every `next` link (`HeySummitClient::get_all()`, capped at
+300 pages by `eex_max_pages` as runaway protection — 500+ talk accounts
+are real, so the cap must sit far above them). The Lite render path
+cannot afford a full walk at all: it reads page 1, jumps to the LAST
+page via the response's `count`, and walks backwards until a page holds
+nothing upcoming (plus a symmetric forward walk for newest-first
+accounts), merged and de-duplicated by talk id. A handful of requests
+regardless of history depth, capped by `eex_live_max_pages` (default 12
+fetches), all inside one cached fetch per cache lifetime.
