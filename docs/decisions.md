@@ -1180,3 +1180,35 @@ existed:
   from_get — and GET-sourced category values are treated like search
   strings for caching (render fresh, never mint transient rows from
   visitor-controlled input).
+
+## D85. Public-repo readiness (v1.19.1)
+
+Preparing to open the repository. The audit found no secrets, no real
+personal data and no live event data anywhere in the tree or the full
+git history — the fixtures were always example.* addresses and the docs
+reference only HeySummit's public API endpoints. What did need fixing:
+
+- **LICENSE added** (canonical GPL-2.0 text): the licence was declared
+  in three places but the grant text shipped nowhere, so GitHub could
+  not detect it and the grant was technically ambiguous.
+- **README notice** no longer says distribution is private — it is a
+  public BETA with the same as-is/no-liability warning, now pointing at
+  SECURITY.md.
+- **No brand names baked in**: activation stopped seeding the series
+  taxonomy with emailexpert's own event names (FORUM, Deliverability
+  Summit, Sender Symposium, Festival of Email). Series are
+  site-specific brands; operators create their own, or site code seeds
+  a fixed set via the new eex_seed_series_terms filter (default empty).
+  Existing installs keep any terms already created — the seed only ever
+  ran at activation and never deletes. Generic tier terms
+  (Platinum/Gold/Silver/Partner) still seed.
+- **SECURITY.md** (private reporting route plus the plugin's standing
+  security promises as researcher targets), **CONTRIBUTING.md** (the
+  load-bearing ground rules, distilled from this file) and
+  **CHANGELOG.md** (operator-view version history reconstructed from
+  the release commits).
+
+Left alone deliberately: docs/ (engineering history, nothing sensitive,
+adds credibility), commit history (rewriting 125 commits would break
+every merged PR reference), and the repository description/topics —
+those live in GitHub settings, not the tree.

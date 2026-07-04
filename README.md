@@ -7,7 +7,9 @@
 > particular purpose, no guarantee against data loss. This plugin writes
 > attendee data to a live event platform: test against a sandbox event
 > first, keep backups, and read what each bridge does before enabling it.
-> Currently distributed privately/directly to beta partners only.
+> This is BETA software under active development — expect breaking changes
+> between versions. See [SECURITY.md](SECURITY.md) for how to report
+> vulnerabilities.
 
 Made with ❤️ by [emailexpert](https://emailexpert.com/) — the community for
 the email industry — and [agency.cm](https://agency.cm/). If this plugin

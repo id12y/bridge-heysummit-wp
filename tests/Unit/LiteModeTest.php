@@ -210,9 +210,11 @@ final class LiteModeTest extends TestCase {
 	}
 
 	public function test_fresh_lite_choice_removes_the_full_shaped_activation_leftovers(): void {
-		// Fresh install: Full-shaped activation.
+		// Fresh install: Full-shaped activation. Series terms only seed
+		// when site code provides them via the filter (no brands baked in).
+		add_filter( 'eex_seed_series_terms', static fn(): array => [ 'My Summit Series' ] );
 		Activator::activate();
-		$this->assertNotEmpty( get_terms( [ 'taxonomy' => 'eex_event_series' ] ) );
+		$this->assertNotEmpty( get_terms( [ 'taxonomy' => 'eex_event_series' ] ), 'filter-provided series seeded' );
 		$this->assertSame( 1, get_option( 'eex_wizard_notice' ) );
 
 		Mode::choose( 'lite' );
