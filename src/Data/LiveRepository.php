@@ -360,7 +360,7 @@ class LiveRepository extends BaseMapper implements Repository {
 		$event = $this->event_summary( (string) ( $atts['event'] ?? '' ) );
 
 		if ( null !== $event && '' !== (string) $event['hs_id'] ) {
-			$out = Sponsors::for_display( (string) ( $event['connection'] ?? '' ), (string) $event['hs_id'] );
+			$out = Sponsors::for_display( (string) ( $event['connection'] ?? '' ), (string) $event['hs_id'], (string) ( $event['raw_event_url'] ?? '' ) );
 		}
 
 		$seen = array_map( static fn( array $sponsor ): string => strtolower( (string) $sponsor['name'] ), $out );

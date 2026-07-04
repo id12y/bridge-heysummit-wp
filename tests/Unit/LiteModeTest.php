@@ -347,6 +347,7 @@ final class LiteModeTest extends TestCase {
 									'intro_video_id'       => 'dQw4w9WgXcQ',
 									'intro_video_autoplay' => false,
 									'link_title'           => 'Try Acme free',
+									'slug'                 => 'acme',
 									'books_url'            => 'https://meet.example.com/acme',
 									'phone_number'         => '+44 20 7946 0000',
 									'sponsor_categories'   => [ 6708 ],
@@ -447,6 +448,50 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( '>Try Acme free</a>', $spotlight, 'link_title is the button label' );
 		$this->assertStringContainsString( 'meet.example.com/acme', $spotlight, 'booking link' );
 		$this->assertStringContainsString( 'tel:+442079460000', $spotlight, 'phone link normalised' );
+
+		// Link destinations, the strip marquee and the compact wall.
+		Cache::flush();
+		$hub_linked = Components::render(
+			'sponsors',
+			[
+				'group_by'     => 'none',
+				'sponsor_link' => 'hub',
+			]
+		);
+		$this->assertStringContainsString( 'summit.example.com/hub/sponsors/acme/', $hub_linked, 'hub link built from the REAL API slug' );
+		$this->assertStringContainsString( 'Beta Ltd', $hub_linked, 'slugless sponsors still render (website fallback)' );
+
+		Cache::flush();
+		$unlinked = Components::render(
+			'sponsors',
+			[
+				'group_by'     => 'none',
+				'sponsor_link' => 'none',
+			]
+		);
+		$this->assertStringNotContainsString( 'acme.example.com', $unlinked, 'no-link mode removes sponsor URLs' );
+
+		Cache::flush();
+		$strip = Components::render( 'sponsors', [ 'layout' => 'strip' ] );
+		$this->assertStringContainsString( 'eex-sponsor-strip', $strip );
+		$this->assertStringContainsString( 'eex-strip-track', $strip );
+		$this->assertSame( 2, substr_count( $strip, 'cdn.example.com/acme.png' ), 'the track is doubled for a seamless loop' );
+		$this->assertStringContainsString( 'aria-hidden="true"', $strip, 'the duplicate copy is decorative' );
+
+		Cache::flush();
+		$compact = Components::render( 'sponsors', [ 'layout' => 'compact' ] );
+		$this->assertStringContainsString( 'eex-sponsor-compact', $compact );
+
+		// The spotlight button can point at the hub page too.
+		Cache::flush();
+		$hub_spot = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'      => '1',
+				'sponsor_link' => 'hub',
+			]
+		);
+		$this->assertStringContainsString( 'summit.example.com/hub/sponsors/acme/', $hub_spot );
 
 		// Random constrained to a category: with one Gold sponsor the "random"
 		// pick is deterministic, and a category with no members is empty.

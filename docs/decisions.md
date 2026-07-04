@@ -976,3 +976,21 @@ external_url: an externally hosted session replaces BOTH buttons'
 destinations (session page and tickets) and its title link — the
 session lives elsewhere, so everything points there, ahead of even the
 per-widget external-ticketing override.
+
+## D78. Sponsors get canvases, not just a wall (v1.14.0)
+
+Sponsors fund the operation; one grid did not do them justice. The wall
+gained two more layouts for different canvases: 'strip' — a flat
+scrolling logo marquee (CSS-only animation, track doubled with the
+duplicate copy aria-hidden, pauses on hover, collapses to a static
+wrapped row under prefers-reduced-motion; edge-masked) for sidebars,
+footers and full-width bands — and 'compact', a dense chromeless logo
+grid for big canvases. Both walls and the spotlight gained
+sponsor_link: 'website' (default), 'hub' — the sponsor's page on the
+event hub, built from the REAL slug the API now provides (nothing
+reconstructed; one live click-test wanted) with website fallback for
+slugless sponsors — or 'none'. Combined with the earlier controls
+(category filter, main-only, shown-on, order, cap, columns, logo size,
+grouping, spotlight styles) a sponsor can now headline a homepage,
+scroll in a footer, sit quietly in a rail, or take a full feature
+section — each widget independently configured.
