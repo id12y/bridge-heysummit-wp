@@ -388,6 +388,59 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			return;
 		}
 
+		// Ticket pickers: dropdowns with the ticket names this site has
+		// seen (populated by any tickets fetch — the pricing table itself,
+		// the Woo picker, the wizard). Falls back to a text field before the
+		// first fetch.
+		if ( in_array( $key, [ 'tickets', 'exclude', 'featured' ], true ) && 'pricing' === $this->component ) {
+			$titles = \Emailexpert\Events\Data\Tickets::known_titles();
+
+			if ( ! empty( $titles ) ) {
+				$options = [];
+				foreach ( $titles as $ticket_id => $ticket_title ) {
+					$options[ (string) $ticket_id ] = sprintf( '%s (%s)', $ticket_title, $ticket_id );
+				}
+
+				if ( 'featured' === $key ) {
+					$this->add_control(
+						$key,
+						[
+							'label'   => (string) ( $spec['label'] ?? $key ),
+							'type'    => \Elementor\Controls_Manager::SELECT,
+							'options' => [ '' => __( 'None (use HeySummit\'s popular flag)', 'emailexpert-events' ) ] + $options,
+							'default' => '',
+						]
+					);
+				} else {
+					$this->add_control(
+						$key,
+						[
+							'label'       => (string) ( $spec['label'] ?? $key ),
+							'type'        => \Elementor\Controls_Manager::SELECT2,
+							'multiple'    => true,
+							'options'     => $options,
+							'label_block' => true,
+						]
+					);
+				}
+
+				return;
+			}
+
+			$this->add_control(
+				$key,
+				[
+					'label'       => (string) ( $spec['label'] ?? $key ),
+					'type'        => \Elementor\Controls_Manager::TEXT,
+					'default'     => (string) $spec['default'],
+					'label_block' => true,
+					'description' => __( 'Ticket names appear here as a dropdown once tickets have been loaded once (view the pricing widget or use a ticket picker).', 'emailexpert-events' ),
+				]
+			);
+
+			return;
+		}
+
 		if ( ! empty( $spec['options'] ) ) {
 			$this->add_control(
 				$key,
