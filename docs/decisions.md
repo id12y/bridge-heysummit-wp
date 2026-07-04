@@ -890,3 +890,45 @@ repositories already expose), `sponsor_category` is a dropdown of names
 seen on any sponsor fetch (remembered like ticket titles), and the
 ticket pickers already show names. Every picker degrades to a guided
 text field before its first fetch.
+
+## D72. Paid tickets sell on this site when a Woo mapping exists
+
+Live click-test verdict: HeySummit's select-tickets page ignores the
+?ticket= parameter entirely — selection is a CSRF-protected cart POST
+their own JavaScript makes, which no external link can perform. The
+parameter stays on our links (harmless, echo-confirmed, lights up if
+HeySummit ever honours it), but the real never-leaves-the-site path for
+paid tickets is the WooCommerce bridge that has existed since v2: when
+a ticket price is mapped to a Woo product (_eex_hs_ticket meta), the
+pricing table and drawer buy buttons CAN link to that local product
+page instead of HeySummit — purchase on this site, pushed to HeySummit
+by the existing bridge. Operator correction (v1.10.3): this is opt-in
+per widget via the buy_on attribute — HeySummit checkout stays the
+default even when a mapping exists. Unmapped tickets always keep the
+select-tickets link. Free tickets already register inside the drawer.
+
+## D73. Sponsor categories resolve to names; the wall becomes configurable
+
+The live wall exposed the last schema surprise: sponsor rows carry BARE
+CATEGORY IDS in sponsor_categories, so headings rendered as "6708". A
+sponsor-categories endpoint resolves them: Sponsors::categories_map()
+(same route dialect, cached, cached-empty when missing) feeds heading
+names, the category filter, and the editor dropdown; an unresolvable
+numeric ID is dropped rather than displayed — a number must never be a
+heading — with the sponsor falling back to the Partner group. The wall
+also gained the operator controls it lacked: group_by (category
+headings | one flat wall), show_names, show_blurb (off by default —
+walls are logos first), and logo_size (small/medium/large via the
+--eex-sponsor-logo variable). Cards centre their logo with the name
+beneath; logo-only walls keep the link and an aria-label on the logo.
+
+## D74. Wall ordering, cap and columns; the weight-sort bug
+
+The sponsors component gained order (weight | alphabetical | reverse |
+random — cache-stable like random speakers), a total cap (limit,
+applied after ordering so random+limit is a random sample), and a
+columns control. Building "grouped by the weight we provided" exposed
+a latent bug in my own grouping: tier keys were string-sorted, so a
+weight of 100 would have sorted before 99 — keys are now zero-padded.
+Ordering applies within each category group when grouped, or to the
+whole wall when flat.

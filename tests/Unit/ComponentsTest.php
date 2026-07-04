@@ -856,6 +856,33 @@ final class ComponentsTest extends TestCase {
 		$html = Components::render( 'pricing', [ 'event' => '101' ] );
 
 		$this->assertStringContainsString( 'checkout/select-tickets/?ticket=9001', $html );
+
+		// A ticket price mapped to a WooCommerce product can sell on THIS
+		// site — but only when the operator opts in via buy_on.
+		wp_insert_post(
+			[
+				'post_type'   => 'product',
+				'post_status' => 'publish',
+				'post_title'  => 'Associate Membership (Woo)',
+				'meta_input'  => [ '_eex_hs_ticket' => '501' ],
+			]
+		);
+		Cache::flush();
+		delete_transient( 'eex_tickets_' . md5( 'c1|101' ) );
+
+		$default = Components::render( 'pricing', [ 'event' => '101' ] );
+		$this->assertStringContainsString( 'select-tickets/?ticket=9001', $default, 'HeySummit checkout stays the default despite the mapping' );
+
+		Cache::flush();
+		$woo = Components::render(
+			'pricing',
+			[
+				'event'  => '101',
+				'buy_on' => 'woo',
+			]
+		);
+		$this->assertStringNotContainsString( 'select-tickets/?ticket=9001', $woo );
+		$this->assertStringContainsString( '?p=', $woo, 'opted in: the mapped ticket links to the local product' );
 	}
 
 	public function test_register_panel_renders_the_ticket_drawer(): void {

@@ -154,6 +154,15 @@ final class Components {
 				'panel' => __( 'Open the ticket panel (slide-over)', 'emailexpert-events' ),
 			],
 		];
+		$buy_on          = [
+			'type'    => 'string',
+			'default' => 'heysummit',
+			'label'   => __( 'Paid tickets buy on', 'emailexpert-events' ),
+			'options' => [
+				'heysummit' => __( 'The event site (HeySummit checkout)', 'emailexpert-events' ),
+				'woo'       => __( 'This site (mapped WooCommerce products)', 'emailexpert-events' ),
+			],
+		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		return [
@@ -188,6 +197,7 @@ final class Components {
 					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
+					'buy_on'          => $buy_on,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -410,6 +420,7 @@ final class Components {
 					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
+					'buy_on'          => $buy_on,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -452,6 +463,44 @@ final class Components {
 						'default' => '',
 						'label'   => __( 'Only this sponsor category (e.g. Gold)', 'emailexpert-events' ),
 					],
+					'group_by'         => [
+						'type'    => 'string',
+						'default' => 'category',
+						'label'   => __( 'Grouping', 'emailexpert-events' ),
+						'options' => [
+							'category' => __( 'Group under category headings', 'emailexpert-events' ),
+							'none'     => __( 'One flat wall, no headings', 'emailexpert-events' ),
+						],
+					],
+					'order'            => [
+						'type'    => 'string',
+						'default' => 'weight',
+						'label'   => __( 'Order (within each group)', 'emailexpert-events' ),
+						'options' => [
+							'weight'    => __( 'As weighted in HeySummit', 'emailexpert-events' ),
+							'name'      => __( 'Alphabetical', 'emailexpert-events' ),
+							'name-desc' => __( 'Reverse alphabetical', 'emailexpert-events' ),
+							'random'    => __( 'Random (reshuffles each cache refresh)', 'emailexpert-events' ),
+						],
+					],
+					'columns'          => $talk_columns,
+					'limit'            => [
+						'type'    => 'integer',
+						'default' => 0,
+						'label'   => $limit_label,
+					],
+					'show_names'       => $flag( __( 'Show sponsor names', 'emailexpert-events' ) ),
+					'show_blurb'       => $flag( __( 'Show short descriptions', 'emailexpert-events' ), 0 ),
+					'logo_size'        => [
+						'type'    => 'string',
+						'default' => 'medium',
+						'label'   => __( 'Logo size', 'emailexpert-events' ),
+						'options' => [
+							'small'  => __( 'Small', 'emailexpert-events' ),
+							'medium' => __( 'Medium', 'emailexpert-events' ),
+							'large'  => __( 'Large', 'emailexpert-events' ),
+						],
+					],
 					'empty_text'       => [
 						'type'    => 'string',
 						'default' => __( 'Sponsorship opportunities are available.', 'emailexpert-events' ),
@@ -489,6 +538,7 @@ final class Components {
 					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
+					'buy_on'          => $buy_on,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -551,6 +601,7 @@ final class Components {
 					'highlight_popular' => $flag( __( 'Highlight the popular ticket', 'emailexpert-events' ) ),
 					'register_text'     => $register_text,
 					'register_url'      => $register_url,
+					'buy_on'            => $buy_on,
 					'empty_text'        => [
 						'type'    => 'string',
 						'default' => __( 'Tickets go on sale soon.', 'emailexpert-events' ),
@@ -1093,6 +1144,7 @@ final class Components {
 	private static function register_args( array $atts ): array {
 		return [
 			'url' => trim( (string) ( $atts['register_url'] ?? '' ) ),
+			'woo' => 'woo' === (string) ( $atts['buy_on'] ?? 'heysummit' ),
 		];
 	}
 
@@ -1153,11 +1205,24 @@ final class Components {
 	 * @param array<string,string> $register Register settings (mode, url).
 	 */
 	private static function ticket_register_url( array $ticket, array $register ): string {
+		// Opt-in per widget: a ticket mapped to a WooCommerce product sells
+		// on THIS site — the only true never-leaves-the-slider path for paid
+		// tickets (verified: HeySummit's select-tickets page ignores
+		// preselect parameters). HeySummit checkout stays the default.
+		if ( ! empty( $register['woo'] ) ) {
+			foreach ( (array) ( $ticket['prices'] ?? [] ) as $price ) {
+				$product_url = \Emailexpert\Events\WooCommerce\Module::product_url_for_price( (string) ( $price['id'] ?? '' ) );
+
+				if ( '' !== $product_url ) {
+					return $product_url;
+				}
+			}
+		}
+
 		$url = self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
 
-		// Best-effort preselect on the operator-verified select-tickets page
-		// ('' external URLs are left alone). The earlier failure of this
-		// parameter was the broken /checkout/ base, not the parameter.
+		// The parameter is echo-only today; kept because it is harmless and
+		// lights up the moment HeySummit honours it.
 		if ( '' !== $url && '' === (string) ( $register['url'] ?? '' ) ) {
 			$url = add_query_arg( 'ticket', (string) $ticket['id'], $url );
 		}
@@ -1757,10 +1822,10 @@ final class Components {
 		$shown_on = (string) ( $atts['shown_on'] ?? 'any' );
 		$category = strtolower( trim( (string) ( $atts['sponsor_category'] ?? '' ) ) );
 
-		// Group by tier in tier order. Manual rows carry none of the API's
-		// flags: they pass every visibility filter (the operator typed them
-		// in on purpose) but are never "main" and have no categories.
-		$tiers = [];
+		// Filter first (manual rows carry none of the API's flags: they pass
+		// every visibility filter — the operator typed them in on purpose —
+		// but are never "main" and have no categories).
+		$rows = [];
 		foreach ( self::repo()->sponsors( $atts ) as $sponsor ) {
 			if ( ! empty( $atts['main_only'] ) && empty( $sponsor['main'] ) ) {
 				continue;
@@ -1778,26 +1843,96 @@ final class Components {
 				}
 			}
 
-			$tiers[ (int) $sponsor['tier_order'] . '|' . (string) $sponsor['tier_name'] ][] = $sponsor;
+			$rows[] = $sponsor;
 		}
 
-		if ( empty( $tiers ) ) {
+		if ( empty( $rows ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		// Order (within each group when grouped; the whole wall when flat),
+		// then cap. Random is cache-stable: the fragment cache holds each
+		// shuffle for the display TTL, exactly like random speakers.
+		switch ( (string) ( $atts['order'] ?? 'weight' ) ) {
+			case 'name':
+				usort( $rows, static fn( array $a, array $b ): int => strcasecmp( (string) $a['name'], (string) $b['name'] ) );
+				break;
+			case 'name-desc':
+				usort( $rows, static fn( array $a, array $b ): int => strcasecmp( (string) $b['name'], (string) $a['name'] ) );
+				break;
+			case 'random':
+				shuffle( $rows );
+				break;
+		}
+
+		$limit = max( 0, (int) ( $atts['limit'] ?? 0 ) );
+		if ( $limit > 0 ) {
+			$rows = array_slice( $rows, 0, $limit );
+		}
+
+		// Group by tier AFTER ordering, so each group keeps the chosen order.
+		// The weight is zero-padded: string-sorted keys would put 100 before
+		// 99 and betray the weighting the operator set.
+		$tiers = [];
+		foreach ( $rows as $sponsor ) {
+			$tiers[ sprintf( '%05d|%s', min( 99999, max( 0, (int) $sponsor['tier_order'] ) ), (string) $sponsor['tier_name'] ) ][] = $sponsor;
 		}
 
 		ksort( $tiers );
 
 		$list = 'list' === (string) ( $atts['layout'] ?? 'grid' );
+		$flat = 'none' === (string) ( $atts['group_by'] ?? 'category' );
+		$show = [
+			'names' => ! isset( $atts['show_names'] ) || ! empty( $atts['show_names'] ),
+			'blurb' => ! empty( $atts['show_blurb'] ),
+		];
+
+		$logo_sizes = [
+			'small'  => '2em',
+			'medium' => '3.25em',
+			'large'  => '5em',
+		];
+		$columns    = min( 6, max( 0, (int) ( $atts['columns'] ?? 0 ) ) );
+		$logo_style = sprintf(
+			' style="--eex-sponsor-logo:%s%s"',
+			$logo_sizes[ (string) ( $atts['logo_size'] ?? 'medium' ) ] ?? '3.25em',
+			! $list && $columns > 0 ? sprintf( ';--eex-columns:%d', $columns ) : ''
+		);
+
+		$open_list  = ( $list ? '<ul class="eex-list eex-sponsor-list" role="list"' : '<ul class="eex-grid eex-sponsor-grid" role="list"' ) . $logo_style . '>';
+		$sponsor_li = static function ( array $sponsor ) use ( $list, $show ): void {
+			echo '<li class="eex-grid-item">';
+			TemplateLoader::part(
+				$list ? 'list-sponsor' : 'card-sponsor',
+				[
+					'sponsor' => $sponsor,
+					'show'    => $show,
+				]
+			);
+			echo '</li>';
+		};
 
 		ob_start();
+
+		if ( $flat ) {
+			// One wall, no headings — order still respects the categories.
+			echo $open_list; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal markup and em values above.
+			foreach ( $tiers as $tier_sponsors ) {
+				foreach ( $tier_sponsors as $sponsor ) {
+					$sponsor_li( $sponsor );
+				}
+			}
+			echo '</ul>';
+
+			return (string) ob_get_clean();
+		}
+
 		foreach ( $tiers as $key => $tier_sponsors ) {
 			[ , $tier_name ] = explode( '|', $key, 2 );
 			echo '<section class="eex-sponsor-tier"><h3 class="eex-tier-heading">' . esc_html( $tier_name ) . '</h3>';
-			echo $list ? '<ul class="eex-list eex-sponsor-list" role="list">' : '<ul class="eex-grid eex-sponsor-grid" role="list">';
+			echo $open_list; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal markup and em values above.
 			foreach ( $tier_sponsors as $sponsor ) {
-				echo '<li class="eex-grid-item">';
-				TemplateLoader::part( $list ? 'list-sponsor' : 'card-sponsor', [ 'sponsor' => $sponsor ] );
-				echo '</li>';
+				$sponsor_li( $sponsor );
 			}
 			echo '</ul></section>';
 		}

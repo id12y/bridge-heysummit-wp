@@ -74,7 +74,6 @@ final class Sponsors {
 		);
 
 		set_transient( $key, $sponsors, 15 * MINUTE_IN_SECONDS );
-		self::remember_categories( $sponsors );
 
 		return $sponsors;
 	}
@@ -85,14 +84,12 @@ final class Sponsors {
 	 *
 	 * @param array<int,array<string,mixed>> $sponsors Raw sponsor rows.
 	 */
-	private static function remember_categories( array $sponsors ): void {
+	private static function remember_categories( array $names ): void {
 		$known = self::known_categories();
 
-		foreach ( $sponsors as $sponsor ) {
-			foreach ( self::category_names( (array) $sponsor ) as $name ) {
-				if ( ! in_array( $name, $known, true ) ) {
-					$known[] = $name;
-				}
+		foreach ( $names as $name ) {
+			if ( ! in_array( $name, $known, true ) ) {
+				$known[] = $name;
 			}
 		}
 
@@ -108,6 +105,57 @@ final class Sponsors {
 		$known = get_option( 'eex_sponsor_categories', [] );
 
 		return is_array( $known ) ? array_values( array_map( 'strval', $known ) ) : [];
+	}
+
+	/**
+	 * The event's sponsor categories (id => title): the sponsor rows carry
+	 * bare category IDs, so headings and filters need this map. Same
+	 * route dialect as sponsors; cached alongside them; empty (and cached
+	 * empty) when the endpoint is missing.
+	 *
+	 * @param string $connection_id Connection ID.
+	 * @param string $event_id      HeySummit event ID.
+	 * @return array<string,string>
+	 */
+	public static function categories_map( string $connection_id, string $event_id ): array {
+		if ( '' === $connection_id || '' === $event_id ) {
+			return [];
+		}
+
+		$key    = 'eex_sponsor_cats_' . md5( $connection_id . '|' . $event_id );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		$connection = Options::connection( $connection_id );
+		if ( null === $connection ) {
+			return [];
+		}
+
+		$client = HeySummitClient::for_connection( $connection );
+		$rows   = $client->get_all( 'sponsor-categories/', [ 'event' => $event_id ] );
+
+		if ( is_wp_error( $rows ) ) {
+			$rows = $client->get_all( 'events/' . rawurlencode( $event_id ) . '/sponsor-categories/' );
+		}
+
+		$map = [];
+
+		if ( ! is_wp_error( $rows ) ) {
+			foreach ( $rows as $row ) {
+				if ( is_array( $row ) && isset( $row['id'] ) ) {
+					$title = self::first_string( $row, [ 'title', 'name' ] );
+					if ( '' !== $title ) {
+						$map[ (string) $row['id'] ] = $title;
+					}
+				}
+			}
+		}
+
+		set_transient( $key, $map, 15 * MINUTE_IN_SECONDS );
+
+		return $map;
 	}
 
 	/**
@@ -129,6 +177,7 @@ final class Sponsors {
 		}
 
 		$out = [];
+		$map = self::categories_map( $connection_id, $event_id );
 
 		foreach ( $sponsors as $sponsor ) {
 			if ( isset( $sponsor['is_active'] ) && false === $sponsor['is_active'] ) {
@@ -141,7 +190,7 @@ final class Sponsors {
 			}
 
 			$main = ! empty( $sponsor['is_main_sponsor'] );
-			$tier = self::tier_of( $sponsor );
+			$tier = self::tier_of( $sponsor, $map );
 
 			if ( '' === $tier['name'] && $main ) {
 				$tier = [
@@ -161,7 +210,7 @@ final class Sponsors {
 				'tier_name'          => '' !== $tier['name'] ? $tier['name'] : __( 'Partner', 'emailexpert-events' ),
 				'tier_order'         => $main ? 0 : $tier['order'],
 				'main'               => $main,
-				'sponsor_categories' => self::category_names( $sponsor ),
+				'sponsor_categories' => self::category_names( $sponsor, $map ),
 				'show'               => [
 					'landing'    => ! isset( $sponsor['show_on_landing_page'] ) || ! empty( $sponsor['show_on_landing_page'] ),
 					'talks'      => ! isset( $sponsor['show_on_talk_pages'] ) || ! empty( $sponsor['show_on_talk_pages'] ),
@@ -170,6 +219,8 @@ final class Sponsors {
 				],
 			];
 		}
+
+		self::remember_categories( array_values( $map ) );
 
 		return $out;
 	}
@@ -181,14 +232,24 @@ final class Sponsors {
 	 * @param array<string,mixed> $row Raw row.
 	 * @return array<int,string>
 	 */
-	private static function category_names( array $row ): array {
+	private static function category_names( array $row, array $map = [] ): array {
 		$names = [];
 
 		foreach ( (array) ( $row['sponsor_categories'] ?? [] ) as $category ) {
+			$name = '';
+
 			if ( is_array( $category ) ) {
 				$name = self::first_string( $category, [ 'title', 'name' ] );
-			} else {
-				$name = is_scalar( $category ) ? sanitize_text_field( (string) $category ) : '';
+			} elseif ( is_scalar( $category ) ) {
+				$value = trim( (string) $category );
+
+				// The live payload sends bare category IDs; a raw number must
+				// never become a heading — resolve it or drop it.
+				if ( isset( $map[ $value ] ) ) {
+					$name = $map[ $value ];
+				} elseif ( ! ctype_digit( $value ) ) {
+					$name = sanitize_text_field( $value );
+				}
 			}
 
 			if ( '' !== $name ) {
@@ -240,10 +301,10 @@ final class Sponsors {
 	 * @param array<string,mixed> $row Raw row.
 	 * @return array{name:string,order:int}
 	 */
-	private static function tier_of( array $row ): array {
+	private static function tier_of( array $row, array $map = [] ): array {
 		foreach ( [ 'sponsor_categories', 'tier', 'tier_name', 'level', 'sponsorship_level' ] as $key ) {
 			if ( 'sponsor_categories' === $key ) {
-				$names = self::category_names( $row );
+				$names = self::category_names( $row, $map );
 
 				if ( ! empty( $names ) ) {
 					return [

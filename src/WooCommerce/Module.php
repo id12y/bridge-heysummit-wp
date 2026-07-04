@@ -86,6 +86,40 @@ final class Module {
 	}
 
 	/**
+	 * The local product page for a HeySummit ticket price, when the operator
+	 * has mapped one. The pricing table and the ticket drawer link here so a
+	 * paid purchase never has to leave this site. Empty when nothing maps
+	 * (WooCommerce inactive simply means no products exist to find).
+	 *
+	 * @param string $price_id HeySummit ticket price ID.
+	 */
+	public static function product_url_for_price( string $price_id ): string {
+		if ( '' === $price_id ) {
+			return '';
+		}
+
+		$found = get_posts(
+			[
+				'post_type'      => [ 'product', 'product_variation' ],
+				'post_status'    => 'publish',
+				'posts_per_page' => 1,
+				'no_found_rows'  => true,
+				'meta_key'       => '_eex_hs_ticket', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+				'meta_value'     => $price_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value
+			]
+		);
+
+		if ( empty( $found ) ) {
+			return '';
+		}
+
+		$post_id = is_object( $found[0] ) ? (int) $found[0]->ID : (int) $found[0];
+		$parent  = (int) wp_get_post_parent_id( $post_id );
+
+		return (string) get_permalink( $parent > 0 ? $parent : $post_id );
+	}
+
+	/**
 	 * The mapping for a product/variation: variation meta wins, product
 	 * meta is the fallback. Null when unmapped (unmapped products are
 	 * ignored entirely).

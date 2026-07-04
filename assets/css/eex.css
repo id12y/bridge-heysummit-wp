@@ -1034,3 +1034,51 @@
 	background: var(--eex-badge-bg);
 	font-weight: 600;
 }
+
+/* Sponsor wall sizing and text */
+.eex-sponsor-row .eex-sponsor-logo,
+.eex-sponsor-row-logo img {
+	height: var(--eex-sponsor-logo, 3.25em);
+	width: auto;
+	max-width: 12em;
+	object-fit: contain;
+}
+
+.eex-card-sponsor .eex-sponsor-logo {
+	max-height: calc(var(--eex-sponsor-logo, 3.25em) * 1.6);
+	width: auto;
+	max-width: 100%;
+	object-fit: contain;
+	margin: 0 auto;
+	display: block;
+}
+
+.eex-card-sponsor {
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 0.5em;
+}
+
+.eex-sponsor-card-name {
+	margin: 0;
+	font-weight: 600;
+	font-size: 0.95em;
+}
+
+.eex-sponsor-blurb {
+	display: block;
+	margin: 0;
+	color: var(--eex-muted);
+	font-size: 0.85em;
+}
+
+.eex-tier-heading {
+	margin: 0 0 0.75rem;
+	font-size: 1.1em;
+}
+
+.eex-sponsor-tier {
+	margin-bottom: var(--eex-section-gap, calc(var(--eex-gap) * 1.5));
+}

@@ -246,6 +246,25 @@ final class LiteModeTest extends TestCase {
 		$this->mock_api();
 		$this->mock_http(
 			static function ( $url ) {
+				// The live payload sends bare category IDs; names come from
+				// the sponsor-categories endpoint.
+				if ( str_contains( (string) $url, 'sponsor-categories/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'    => 6708,
+									'title' => 'Gold',
+								],
+								[
+									'id'    => 6709,
+									'title' => 'Media Partners',
+								],
+							],
+						]
+					);
+				}
+
 				if ( str_contains( (string) $url, 'sponsors/' ) ) {
 					// The live v2 sponsor schema (operator-verified).
 					return self::json_response(
@@ -257,7 +276,7 @@ final class LiteModeTest extends TestCase {
 									'url'                  => 'https://acme.example.com',
 									'logo'                 => 'https://cdn.example.com/acme.png',
 									'short_description'    => 'Deliverability tools.',
-									'sponsor_categories'   => [ [ 'title' => 'Gold' ] ],
+									'sponsor_categories'   => [ 6708 ],
 									'is_main_sponsor'      => true,
 									'show_on_landing_page' => true,
 									'is_active'            => true,
@@ -265,13 +284,19 @@ final class LiteModeTest extends TestCase {
 								[
 									'id'                   => 2,
 									'title'                => 'Beta Ltd',
-									'sponsor_categories'   => [ 'Silver' ],
+									'sponsor_categories'   => [ 6709 ],
 									'show_on_landing_page' => false,
 									'show_on_talk_pages'   => true,
 									'is_active'            => true,
 								],
 								[
-									'id'        => 3,
+									'id'                 => 3,
+									'title'              => 'Unlisted Co',
+									'sponsor_categories' => [ 999999 ],
+									'is_active'          => true,
+								],
+								[
+									'id'        => 4,
 									'title'     => 'Hidden Corp',
 									'is_active' => false,
 								],
@@ -284,17 +309,64 @@ final class LiteModeTest extends TestCase {
 			}
 		);
 
-		$html = Components::render( 'sponsors', [] );
+		$html = Components::render( 'sponsors', [ 'show_blurb' => 1 ] );
 
 		$this->assertStringContainsString( 'Acme', $html );
 		$this->assertStringContainsString( 'Beta Ltd', $html );
-		$this->assertStringContainsString( 'Gold', $html );
-		$this->assertStringContainsString( 'Silver', $html );
+		$this->assertStringContainsString( 'Gold', $html, 'category IDs resolve to real heading names' );
+		$this->assertStringContainsString( 'Media Partners', $html );
+		$this->assertStringNotContainsString( '6708', $html, 'a bare category ID never becomes a heading' );
+		$this->assertStringNotContainsString( '999999', $html, 'unresolvable IDs are dropped, not displayed' );
+		$this->assertStringContainsString( 'Unlisted Co', $html, 'the sponsor itself still renders (under Partner)' );
 		$this->assertStringContainsString( 'cdn.example.com/acme.png', $html, 'API logo URL renders' );
-		$this->assertStringContainsString( 'Deliverability tools.', $html, 'short_description is the blurb' );
+		$this->assertStringContainsString( 'Deliverability tools.', $html, 'short_description is the blurb when enabled' );
+		$this->assertStringContainsString( '--eex-sponsor-logo:3.25em', $html, 'logo size variable rides on the wall' );
 		$this->assertStringContainsString( 'Handmade Co', $html, 'manual extras stay on the wall' );
 		$this->assertStringNotContainsString( 'Hidden Corp', $html, 'inactive sponsors are skipped' );
 		$this->assertStringNotContainsString( 'MANUAL ROW', $html, 'the API row wins over a same-name manual row' );
+
+		// Element toggles and grouping.
+		Cache::flush();
+		$plain = Components::render(
+			'sponsors',
+			[
+				'group_by'   => 'none',
+				'show_blurb' => 0,
+				'logo_size'  => 'large',
+			]
+		);
+		$this->assertStringNotContainsString( 'eex-tier-heading', $plain, 'flat wall has no headings' );
+		$this->assertStringNotContainsString( 'Deliverability tools.', $plain, 'blurbs off by default' );
+		$this->assertStringContainsString( '--eex-sponsor-logo:5em', $plain );
+
+		// Columns, limit and alphabetical order.
+		Cache::flush();
+		$shaped = Components::render(
+			'sponsors',
+			[
+				'group_by' => 'none',
+				'columns'  => 5,
+				'limit'    => 2,
+				'order'    => 'name',
+			]
+		);
+		$this->assertStringContainsString( '--eex-columns:5', $shaped );
+		$this->assertStringContainsString( 'Acme', $shaped, 'alphabetically first survives the cap' );
+		$this->assertStringContainsString( 'Beta Ltd', $shaped );
+		$this->assertStringNotContainsString( 'Unlisted Co', $shaped, 'the cap trims the tail' );
+
+		// Reverse alphabetical flips who survives.
+		Cache::flush();
+		$reversed = Components::render(
+			'sponsors',
+			[
+				'group_by' => 'none',
+				'limit'    => 2,
+				'order'    => 'name-desc',
+			]
+		);
+		$this->assertStringContainsString( 'Unlisted Co', $reversed );
+		$this->assertStringNotContainsString( 'Acme', $reversed );
 
 		// Main sponsors only.
 		Cache::flush();
