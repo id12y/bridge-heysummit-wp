@@ -295,66 +295,16 @@ final class Module {
 		$event_id      = isset( $_POST['event'] ) ? sanitize_text_field( wp_unslash( $_POST['event'] ) ) : '';
 		// phpcs:enable
 
-		$connection = Options::connection( $connection_id );
-		if ( null === $connection || '' === $event_id ) {
+		if ( null === Options::connection( $connection_id ) || '' === $event_id ) {
 			wp_send_json_error( [ 'message' => __( 'Choose a connection and event first.', 'emailexpert-events' ) ], 400 );
 		}
 
-		$client  = HeySummitClient::for_connection( $connection );
-		$tickets = $client->get_all( 'tickets/', [ 'event' => $event_id ] );
+		// One shared, cached fetch serves this picker, the forms bridge and
+		// the pricing component.
+		$list = \Emailexpert\Events\Data\Tickets::price_options( $connection_id, $event_id );
 
-		// Some accounts refuse the top-level route but serve tickets nested
-		// under the event (verified live; see docs/api-notes.md).
-		if ( is_wp_error( $tickets ) ) {
-			$nested = $client->get_all( 'events/' . rawurlencode( $event_id ) . '/tickets/' );
-
-			if ( ! is_wp_error( $nested ) ) {
-				\Emailexpert\Events\Api\PathStyles::remember( $client->connection_id(), 'tickets', 'nested' );
-				$tickets = $nested;
-			}
-		}
-
-		if ( is_wp_error( $tickets ) ) {
-			wp_send_json_error( [ 'message' => $tickets->get_error_message() ] );
-		}
-
-		$list = [];
-		foreach ( $tickets as $ticket ) {
-			if ( ! is_array( $ticket ) || ! isset( $ticket['id'] ) ) {
-				continue;
-			}
-
-			// What attendee-create/attach need is a ticket PRICE id. The
-			// spec types Ticket.prices as an opaque string; expand it when
-			// it decodes to price records, otherwise fall back to the
-			// ticket row so the operator can confirm the price ID manually.
-			$prices = $ticket['prices'] ?? null;
-			if ( is_string( $prices ) ) {
-				$decoded = json_decode( $prices, true );
-				$prices  = is_array( $decoded ) ? $decoded : null;
-			}
-
-			$expanded = false;
-			if ( is_array( $prices ) ) {
-				foreach ( $prices as $price ) {
-					if ( is_array( $price ) && isset( $price['id'] ) && is_scalar( $price['id'] ) ) {
-						$expanded = true;
-						$list[]   = [
-							'id'    => (string) $price['id'],
-							'title' => trim( (string) ( $ticket['title'] ?? $ticket['id'] ) . ' — ' . (string) ( $price['title'] ?? $price['name'] ?? $price['price'] ?? $price['id'] ) ),
-						];
-					}
-				}
-			}
-
-			if ( $expanded ) {
-				continue;
-			}
-
-			$list[] = [
-				'id'    => (string) $ticket['id'],
-				'title' => sanitize_text_field( (string) ( $ticket['title'] ?? $ticket['name'] ?? $ticket['id'] ) . ' ' . __( '(confirm the ticket price ID)', 'emailexpert-events' ) ),
-			];
+		if ( is_wp_error( $list ) ) {
+			wp_send_json_error( [ 'message' => $list->get_error_message() ] );
 		}
 
 		$cache = (array) get_option( 'eex_available_tickets', [] );

@@ -132,6 +132,44 @@ class SyncedRepository implements Repository {
 	}
 
 	/**
+	 * Tickets for one event: resolved via the synced event post, fetched
+	 * live through the shared cached fetcher.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function tickets( array $atts ): array {
+		$event = $this->event_summary( (string) ( $atts['event'] ?? '' ) );
+
+		if ( null === $event || '' === (string) $event['hs_id'] ) {
+			return [];
+		}
+
+		return Tickets::for_display( (string) ( $event['connection'] ?? '' ), (string) $event['hs_id'], (string) $event['event_url'] );
+	}
+
+	/**
+	 * Every synced event with its status flags.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function all_events( array $atts ): array {
+		$posts = get_posts(
+			[
+				'post_type'      => PostTypes::EVENT,
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'orderby'        => 'meta_value',
+				'meta_key'       => '_eex_first_talk_at', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- bounded event set.
+				'order'          => 'DESC',
+			]
+		);
+
+		return array_map( [ self::class, 'event_data' ], array_map( static fn( $post ): int => (int) $post->ID, (array) $posts ) );
+	}
+
+	/**
 	 * Categories (all terms; matches the previous filter-bar behaviour).
 	 *
 	 * @param array<string,mixed> $atts Attributes.
@@ -239,6 +277,9 @@ class SyncedRepository implements Repository {
 			'timezone'      => (string) get_post_meta( $post_id, '_eex_timezone', true ),
 			'open'          => (bool) get_post_meta( $post_id, '_eex_is_open_for_registrations', true ),
 			'evergreen'     => (bool) get_post_meta( $post_id, '_eex_is_evergreen', true ),
+			'live'          => (bool) get_post_meta( $post_id, '_eex_is_live', true ),
+			'archived'      => (bool) get_post_meta( $post_id, '_eex_is_archived', true ),
+			'connection'    => (string) get_post_meta( $post_id, '_eex_connection_id', true ),
 			'venue'         => (string) get_post_meta( $post_id, '_eex_venue_name', true ),
 			'reg_count'     => (int) get_post_meta( $post_id, '_eex_registration_count', true ),
 			'series'        => $series,
