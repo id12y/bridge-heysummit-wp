@@ -631,3 +631,16 @@ page's date span as returned, rows fetched vs rows excluded (with the
 exclusion reasons counted), and a sample session from the deepest page
 as literal field=value pairs. The status row prints all of it, so the
 next screenshot is the API's own words. Version 1.4.0.
+
+## D55. When the ends are old but the count says more, sweep the middle
+
+The talks list documents no ordering and no query parameters, so its
+order cannot be assumed chronological. If it is not, upcoming sessions
+sit on MIDDLE pages and the end-jump legitimately finds old sessions at
+both ends and stops — matching production exactly (10 old sessions from
+pages 1 and 28 of 273). The harvest now falls back to a full sweep of
+the remaining pages whenever the ends contain nothing upcoming yet the
+reported count exceeds the rows read — skipped when the route echoes
+pages back. Admin views carry a 40-page budget (front end stays at 12)
+so one look at the Live status row reads a whole 28-page collection,
+caches it, and the front end serves from the cache.

@@ -848,10 +848,13 @@ class LiveRepository extends BaseMapper implements Repository {
 
 				/**
 				 * Filter the total page fetches allowed per talk harvest.
+				 * Admin views get a bigger budget: one look at the Live
+				 * status row should be able to sweep a whole collection.
 				 *
-				 * @param int $max_pages Maximum page fetches (default 12).
+				 * @param int $max_pages Maximum page fetches (default 12 on
+				 *                       the front end, 40 in admin).
 				 */
-				$budget = max( 2, (int) apply_filters( 'eex_live_max_pages', 12 ) );
+				$budget = max( 2, (int) apply_filters( 'eex_live_max_pages', ( function_exists( 'is_admin' ) && is_admin() ) ? 40 : 12 ) );
 
 				$has_future = static function ( array $rows ) use ( $now ): bool {
 					foreach ( $rows as $row ) {
@@ -1079,6 +1082,37 @@ class LiveRepository extends BaseMapper implements Repository {
 							if ( ! $has_future( $page_rows ) ) {
 								break;
 							}
+						}
+					}
+
+					// Nothing upcoming at either end, yet the API reports
+					// more rows than were read? The list may not be ordered
+					// by date at all — upcoming sessions scattered through
+					// the middle pages. Sweep the rest within budget and
+					// deadline; with the admin budget this reads the whole
+					// collection once per cache lifetime.
+					if ( ! $echoed && ! $has_future( $collected ) && count( $collected ) < (int) $meta['count'] ) {
+						for ( $page = 2; $page <= $last && $fetched < $budget; $page++ ) {
+							if ( microtime( true ) >= $deadline ) {
+								break;
+							}
+
+							if ( isset( $seen[ $page ] ) ) {
+								continue;
+							}
+
+							$page_rows = $read_page( $page );
+
+							if ( null === $page_rows ) {
+								if ( $echoed ) {
+									break;
+								}
+
+								continue;
+							}
+
+							$collected     = array_merge( $collected, $page_rows );
+							$seen[ $page ] = true;
 						}
 					}
 

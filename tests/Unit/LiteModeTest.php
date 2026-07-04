@@ -1009,6 +1009,61 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'cURL error 28', (string) $meta['failed'][6] );
 	}
 
+	public function test_a_collection_not_ordered_by_date_is_swept_in_full(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		// The API documents no ordering for the talks list. If it is not
+		// chronological, the upcoming sessions sit on MIDDLE pages: both
+		// ends are old, so the end-jump alone finds nothing. The harvest
+		// must then sweep the remaining pages rather than give up.
+		$this->mock_http(
+			function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				$this->requests[] = $url;
+
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				$rows = 3 === $page
+					? [
+						[
+							'id'    => 903,
+							'title' => 'Mid-list future session',
+							'date'  => $future,
+							'event' => 101,
+						],
+					]
+					: [
+						[
+							'id'    => 900 + $page,
+							'title' => 'Old session ' . $page,
+							'date'  => '2020-12-10T16:00:00Z',
+							'event' => 101,
+						],
+					];
+
+				return self::json_response(
+					[
+						'count'   => 4,
+						'next'    => $page < 4 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'results' => $rows,
+					]
+				);
+			}
+		);
+
+		$titles = array_map( static fn( array $talk ): string => (string) $talk['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		$this->assertSame( [ 'Mid-list future session' ], $titles, 'the sweep reaches upcoming sessions hidden mid-list' );
+	}
+
 	public function test_the_diagnosis_shows_raw_wire_evidence_spans_drops_and_a_sample(): void {
 		$this->go_lite();
 
