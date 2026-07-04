@@ -3,13 +3,17 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
-## 1.20.0
+## 1.20.0 – 1.20.1
 - **Style pass for every Elementor widget**: design presets (boxed /
   outlined / soft / chromeless / inverted), typography groups for
   Headings and Descriptions (the hero title, wall/category headings,
   spotlight name and sponsor names were previously uncontrollable),
   description colour, content alignment, a free sponsor-logo size
   slider, and logo hover treatments (greyscale/dimmed until hover).
+  Rounded out with card shadows and hover effects (lift/shadow),
+  card border width, heading spacing, session-image aspect ratios,
+  sponsor-strip scroll speed, and secondary buttons joining the button
+  typography.
 
 ## 1.19.3 – 1.19.4
 - Discovery report shows raw timestamp samples with an offset verdict.

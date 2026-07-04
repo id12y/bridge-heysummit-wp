@@ -390,6 +390,108 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			]
 		);
 
+		$this->add_group_control(
+			\Elementor\Group_Control_Box_Shadow::get_type(),
+			[
+				'name'     => 'eex_card_shadow',
+				'label'    => __( 'Card shadow', 'emailexpert-events' ),
+				'selector' => '{{WRAPPER}} .eex .eex-card, {{WRAPPER}} .eex .eex-agenda-row',
+			]
+		);
+
+		$this->add_control(
+			'eex_card_hover',
+			[
+				'label'        => __( 'Card hover effect', 'emailexpert-events' ),
+				'type'         => \Elementor\Controls_Manager::SELECT,
+				'default'      => '',
+				'options'      => [
+					''           => __( 'None', 'emailexpert-events' ),
+					'lift'       => __( 'Lift', 'emailexpert-events' ),
+					'shadow'     => __( 'Shadow', 'emailexpert-events' ),
+					'liftshadow' => __( 'Lift + shadow', 'emailexpert-events' ),
+				],
+				'prefix_class' => 'eex-hover-',
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_border_width',
+			[
+				'label'      => __( 'Card border width', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px' ],
+				'range'      => [
+					'px' => [
+						'min' => 0,
+						'max' => 6,
+					],
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-card' => 'border-width: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_heading_spacing',
+			[
+				'label'      => __( 'Heading spacing below', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'range'      => [
+					'px' => [
+						'min' => 0,
+						'max' => 64,
+					],
+				],
+				'selectors'  => [
+					$heading_selector => 'margin-bottom: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_control(
+			'eex_image_ratio',
+			[
+				'label'                => __( 'Image ratio (session images)', 'emailexpert-events' ),
+				'type'                 => \Elementor\Controls_Manager::SELECT,
+				'default'              => '',
+				'options'              => [
+					''         => __( 'Wide 16:9 (default)', 'emailexpert-events' ),
+					'classic'  => __( 'Classic 4:3', 'emailexpert-events' ),
+					'square'   => __( 'Square 1:1', 'emailexpert-events' ),
+					'cinema'   => __( 'Panoramic 21:9', 'emailexpert-events' ),
+					'portrait' => __( 'Portrait 3:4', 'emailexpert-events' ),
+				],
+				'selectors_dictionary' => [
+					'classic'  => '--eex-image-ratio: 4 / 3;',
+					'square'   => '--eex-image-ratio: 1 / 1;',
+					'cinema'   => '--eex-image-ratio: 21 / 9;',
+					'portrait' => '--eex-image-ratio: 3 / 4;',
+				],
+				'selectors'            => [
+					'{{WRAPPER}} .eex' => '{{VALUE}}',
+				],
+			]
+		);
+
+		if ( 'sponsors' === $this->component ) {
+			$this->add_control(
+				'eex_strip_speed',
+				[
+					'label'       => __( 'Strip scroll duration (seconds)', 'emailexpert-events' ),
+					'description' => __( 'One full loop of the logo strip; higher is slower. Applies to the strip layout.', 'emailexpert-events' ),
+					'type'        => \Elementor\Controls_Manager::NUMBER,
+					'min'         => 5,
+					'max'         => 240,
+					'selectors'   => [
+						'{{WRAPPER}} .eex' => '--eex-strip-speed: {{VALUE}}s;',
+					],
+				]
+			);
+		}
+
 		$this->add_control(
 			'eex_logo_effect',
 			[
@@ -462,7 +564,7 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			'eex_typo_title'   => [ __( 'Titles (cards, rows, sponsor names)', 'emailexpert-events' ), $title_selector ],
 			'eex_typo_meta'    => [ __( 'Times and meta', 'emailexpert-events' ), $meta_selector ],
 			'eex_typo_desc'    => [ __( 'Descriptions and blurbs', 'emailexpert-events' ), $desc_selector ],
-			'eex_typo_button'  => [ __( 'Buttons', 'emailexpert-events' ), '{{WRAPPER}} .eex .eex-cta' ],
+			'eex_typo_button'  => [ __( 'Buttons', 'emailexpert-events' ), '{{WRAPPER}} .eex .eex-cta, {{WRAPPER}} .eex .eex-cta-secondary' ],
 			'eex_typo_body'    => [ __( 'Body', 'emailexpert-events' ), '{{WRAPPER}} .eex' ],
 		];
 
