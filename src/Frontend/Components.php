@@ -1153,11 +1153,21 @@ final class Components {
 	 * @param array<string,string> $register Register settings (mode, url).
 	 */
 	private static function ticket_register_url( array $ticket, array $register ): string {
+		// A ticket mapped to a WooCommerce product sells on THIS site — the
+		// only true never-leaves-the-slider path for paid tickets (verified:
+		// HeySummit's select-tickets page ignores preselect parameters).
+		foreach ( (array) ( $ticket['prices'] ?? [] ) as $price ) {
+			$product_url = \Emailexpert\Events\WooCommerce\Module::product_url_for_price( (string) ( $price['id'] ?? '' ) );
+
+			if ( '' !== $product_url ) {
+				return $product_url;
+			}
+		}
+
 		$url = self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
 
-		// Best-effort preselect on the operator-verified select-tickets page
-		// ('' external URLs are left alone). The earlier failure of this
-		// parameter was the broken /checkout/ base, not the parameter.
+		// The parameter is echo-only today; kept because it is harmless and
+		// lights up the moment HeySummit honours it.
 		if ( '' !== $url && '' === (string) ( $register['url'] ?? '' ) ) {
 			$url = add_query_arg( 'ticket', (string) $ticket['id'], $url );
 		}

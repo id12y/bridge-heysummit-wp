@@ -856,6 +856,23 @@ final class ComponentsTest extends TestCase {
 		$html = Components::render( 'pricing', [ 'event' => '101' ] );
 
 		$this->assertStringContainsString( 'checkout/select-tickets/?ticket=9001', $html );
+
+		// A ticket price mapped to a WooCommerce product sells on THIS site:
+		// the buy button switches to the local product page.
+		wp_insert_post(
+			[
+				'post_type'   => 'product',
+				'post_status' => 'publish',
+				'post_title'  => 'Associate Membership (Woo)',
+				'meta_input'  => [ '_eex_hs_ticket' => '501' ],
+			]
+		);
+		Cache::flush();
+		delete_transient( 'eex_tickets_' . md5( 'c1|101' ) );
+
+		$mapped = Components::render( 'pricing', [ 'event' => '101' ] );
+		$this->assertStringNotContainsString( 'select-tickets/?ticket=9001', $mapped );
+		$this->assertStringContainsString( '?p=', $mapped, 'the mapped ticket links to the local product' );
 	}
 
 	public function test_register_panel_renders_the_ticket_drawer(): void {

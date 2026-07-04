@@ -890,3 +890,17 @@ repositories already expose), `sponsor_category` is a dropdown of names
 seen on any sponsor fetch (remembered like ticket titles), and the
 ticket pickers already show names. Every picker degrades to a guided
 text field before its first fetch.
+
+## D72. Paid tickets sell on this site when a Woo mapping exists
+
+Live click-test verdict: HeySummit's select-tickets page ignores the
+?ticket= parameter entirely — selection is a CSRF-protected cart POST
+their own JavaScript makes, which no external link can perform. The
+parameter stays on our links (harmless, echo-confirmed, lights up if
+HeySummit ever honours it), but the real never-leaves-the-site path for
+paid tickets is the WooCommerce bridge that has existed since v2: when
+a ticket price is mapped to a Woo product (_eex_hs_ticket meta), the
+pricing table and drawer buy buttons now link to that local product
+page instead of HeySummit — purchase on this site, pushed to HeySummit
+by the existing bridge. Unmapped tickets keep the select-tickets link.
+Free tickets already register inside the drawer.

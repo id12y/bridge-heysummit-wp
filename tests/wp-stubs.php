@@ -681,6 +681,12 @@ if ( ! function_exists( 'get_post_status' ) ) {
 		return $post->post_status ?? false;
 	}
 }
+if ( ! function_exists( 'wp_get_post_parent_id' ) ) {
+	function wp_get_post_parent_id( $post_id ) {
+		$post = EEX_Test_State::$posts[ (int) $post_id ] ?? null;
+		return $post ? (int) ( $post->post_parent ?? 0 ) : 0;
+	}
+}
 if ( ! function_exists( 'get_posts' ) ) {
 	function get_posts( $args = [] ) {
 		$results = [];
