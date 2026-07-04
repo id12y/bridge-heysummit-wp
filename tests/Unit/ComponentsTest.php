@@ -813,25 +813,23 @@ final class ComponentsTest extends TestCase {
 	public function test_session_buttons_offer_tickets_and_the_talk_page(): void {
 		$this->make_linked_talk();
 
-		// Default: both buttons — tickets to the event page (the one URL the
-		// API guarantees; synthesised checkout paths were wrong live),
-		// session to the talk's own landing page.
+		// Default: both buttons — tickets to the operator-verified
+		// ticket-selection page, session to the talk's own landing page.
 		$html = Components::render( 'upcoming-sessions', [] );
-		$this->assertStringNotContainsString( '/checkout/', $html, 'no invented URLs' );
-		$this->assertStringContainsString( 'href="https://summit.example.com/"', $html );
+		$this->assertStringContainsString( 'summit.example.com/checkout/select-tickets/', $html );
 		$this->assertStringContainsString( 'eex-cta-session', $html );
 		$this->assertStringContainsString( 'summit.example.com/talks/linked-session/', $html );
 
 		// Session button only.
 		Cache::flush();
 		$session = Components::render( 'upcoming-sessions', [ 'buttons' => 'session' ] );
-		$this->assertStringNotContainsString( 'href="https://summit.example.com/"', $session );
+		$this->assertStringNotContainsString( 'select-tickets', $session );
 		$this->assertStringContainsString( 'summit.example.com/talks/linked-session/', $session );
 
 		// Tickets button only.
 		Cache::flush();
 		$tickets = Components::render( 'upcoming-sessions', [ 'buttons' => 'tickets' ] );
-		$this->assertStringContainsString( 'href="https://summit.example.com/"', $tickets );
+		$this->assertStringContainsString( 'summit.example.com/checkout/select-tickets/', $tickets );
 		$this->assertStringNotContainsString( 'eex-cta-session', $tickets );
 
 		// External ticketing replaces the checkout link.
@@ -841,7 +839,7 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( '/checkout/', $external );
 	}
 
-	public function test_pricing_buttons_land_on_the_event_page(): void {
+	public function test_pricing_buttons_preselect_on_the_ticket_page(): void {
 		$this->make_linked_talk();
 		update_option(
 			'eex_connections',
@@ -857,8 +855,7 @@ final class ComponentsTest extends TestCase {
 
 		$html = Components::render( 'pricing', [ 'event' => '101' ] );
 
-		$this->assertStringContainsString( 'href="https://summit.example.com/"', $html );
-		$this->assertStringNotContainsString( '/checkout/', $html, 'no invented URLs' );
+		$this->assertStringContainsString( 'checkout/select-tickets/?ticket=9001', $html );
 	}
 
 	public function test_register_panel_renders_the_ticket_drawer(): void {

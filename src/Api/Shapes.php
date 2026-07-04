@@ -69,17 +69,57 @@ final class Shapes {
 			],
 		],
 		'sponsors'   => [
-			'id'   => [ 'type' => 'int|string' ],
-			'name' => [
+			'id'                     => [ 'type' => 'int|string' ],
+			'title'                  => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'logo' => [
+			'url'                    => [
 				'type'     => 'string',
 				'optional' => true,
 			],
-			'url'  => [
+			'logo'                   => [
 				'type'     => 'string',
+				'optional' => true,
+			],
+			'short_description'      => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'long_description'       => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'link_title'             => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'is_active'              => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
+			'is_main_sponsor'        => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
+			'sponsor_categories'     => [
+				'type'     => 'array',
+				'optional' => true,
+			],
+			'show_on_landing_page'   => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
+			'show_on_talk_pages'     => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
+			'show_on_category_pages' => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
+			'show_on_blog_posts'     => [
+				'type'     => 'bool',
 				'optional' => true,
 			],
 		],

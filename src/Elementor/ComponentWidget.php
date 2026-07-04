@@ -388,6 +388,81 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			return;
 		}
 
+		// Event picker: a dropdown of this site's actual events instead of a
+		// raw HeySummit ID box. Both repositories can list events (synced
+		// posts in Full, the cached account listing in Lite).
+		if ( 'event' === $key ) {
+			$options = [];
+			foreach ( \Emailexpert\Events\Data\Repositories::current()->all_events( [] ) as $event ) {
+				$hs_id = (string) ( $event['hs_id'] ?? '' );
+				if ( '' !== $hs_id ) {
+					$options[ $hs_id ] = sprintf( '%s (%s)', (string) ( $event['title'] ?? $hs_id ), $hs_id );
+				}
+			}
+
+			if ( ! empty( $options ) ) {
+				$this->add_control(
+					$key,
+					[
+						'label'   => __( 'Event', 'emailexpert-events' ),
+						'type'    => \Elementor\Controls_Manager::SELECT,
+						'options' => [ '' => __( 'Default event', 'emailexpert-events' ) ] + $options,
+						'default' => '',
+					]
+				);
+
+				return;
+			}
+
+			$this->add_control(
+				$key,
+				[
+					'label'       => __( 'Event (HeySummit ID, empty = default)', 'emailexpert-events' ),
+					'type'        => \Elementor\Controls_Manager::TEXT,
+					'default'     => (string) $spec['default'],
+					'description' => __( 'Event names appear here as a dropdown once the connection has loaded events.', 'emailexpert-events' ),
+				]
+			);
+
+			return;
+		}
+
+		// Sponsor category picker: names seen on any sponsor fetch.
+		if ( 'sponsor_category' === $key ) {
+			$categories = \Emailexpert\Events\Data\Sponsors::known_categories();
+
+			if ( ! empty( $categories ) ) {
+				$options = [];
+				foreach ( $categories as $category ) {
+					$options[ strtolower( $category ) ] = $category;
+				}
+
+				$this->add_control(
+					$key,
+					[
+						'label'   => (string) ( $spec['label'] ?? $key ),
+						'type'    => \Elementor\Controls_Manager::SELECT,
+						'options' => [ '' => __( 'All categories', 'emailexpert-events' ) ] + $options,
+						'default' => '',
+					]
+				);
+
+				return;
+			}
+
+			$this->add_control(
+				$key,
+				[
+					'label'       => (string) ( $spec['label'] ?? $key ),
+					'type'        => \Elementor\Controls_Manager::TEXT,
+					'default'     => (string) $spec['default'],
+					'description' => __( 'Category names appear here as a dropdown once sponsors have been loaded once (view the sponsor wall).', 'emailexpert-events' ),
+				]
+			);
+
+			return;
+		}
+
 		// Ticket pickers: dropdowns with the ticket names this site has
 		// seen (populated by any tickets fetch — the pricing table itself,
 		// the Woo picker, the wizard). Falls back to a text field before the

@@ -429,12 +429,30 @@ final class Components {
 			'sponsors'          => [
 				'title' => __( 'Sponsors wall', 'emailexpert-events' ),
 				'atts'  => [
-					'event'      => [
+					'event'            => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'layout'     => $grid_layout,
-					'empty_text' => [
+					'layout'           => $grid_layout,
+					'main_only'        => $flag( __( 'Main sponsors only', 'emailexpert-events' ), 0 ),
+					'shown_on'         => [
+						'type'    => 'string',
+						'default' => 'any',
+						'label'   => __( 'Only sponsors shown on…', 'emailexpert-events' ),
+						'options' => [
+							'any'        => __( 'Anywhere (no filter)', 'emailexpert-events' ),
+							'landing'    => __( 'The landing page', 'emailexpert-events' ),
+							'talks'      => __( 'Talk pages', 'emailexpert-events' ),
+							'categories' => __( 'Category pages', 'emailexpert-events' ),
+							'blog'       => __( 'Blog posts', 'emailexpert-events' ),
+						],
+					],
+					'sponsor_category' => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Only this sponsor category (e.g. Gold)', 'emailexpert-events' ),
+					],
+					'empty_text'       => [
 						'type'    => 'string',
 						'default' => __( 'Sponsorship opportunities are available.', 'emailexpert-events' ),
 					],
@@ -1093,12 +1111,24 @@ final class Components {
 			return $external;
 		}
 
-		// The event page is the one URL the API guarantees. Synthesised
-		// /checkout/ paths and preselect parameters were verified WRONG on
-		// the live hub — never invent URLs the platform has not documented.
 		$event_url = (string) ( $data['event_url'] ?? '' );
 
-		return '' !== $event_url ? $event_url : (string) ( $data['talk_url'] ?? '' );
+		return '' !== $event_url ? self::checkout_url( $event_url ) : (string) ( $data['talk_url'] ?? '' );
+	}
+
+	/**
+	 * The ticket-selection page under an event URL, keeping any query
+	 * string (UTM tags) intact. /checkout/select-tickets/ is the
+	 * operator-verified path on the live hub (bare /checkout/ was an error
+	 * page); filterable in case another account differs.
+	 *
+	 * @param string $event_url Event page URL, possibly already tagged.
+	 */
+	private static function checkout_url( string $event_url ): string {
+		$parts = explode( '?', $event_url, 2 );
+		$base  = trailingslashit( $parts[0] ) . (string) apply_filters( 'eex_checkout_path', 'checkout/select-tickets/' );
+
+		return isset( $parts[1] ) ? $base . '?' . $parts[1] : $base;
 	}
 
 	/**
@@ -1123,7 +1153,16 @@ final class Components {
 	 * @param array<string,string> $register Register settings (mode, url).
 	 */
 	private static function ticket_register_url( array $ticket, array $register ): string {
-		return self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
+		$url = self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
+
+		// Best-effort preselect on the operator-verified select-tickets page
+		// ('' external URLs are left alone). The earlier failure of this
+		// parameter was the broken /checkout/ base, not the parameter.
+		if ( '' !== $url && '' === (string) ( $register['url'] ?? '' ) ) {
+			$url = add_query_arg( 'ticket', (string) $ticket['id'], $url );
+		}
+
+		return $url;
 	}
 
 	/**
@@ -1715,9 +1754,30 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_sponsors( array $atts ): string {
-		// Group by tier in tier order.
+		$shown_on = (string) ( $atts['shown_on'] ?? 'any' );
+		$category = strtolower( trim( (string) ( $atts['sponsor_category'] ?? '' ) ) );
+
+		// Group by tier in tier order. Manual rows carry none of the API's
+		// flags: they pass every visibility filter (the operator typed them
+		// in on purpose) but are never "main" and have no categories.
 		$tiers = [];
 		foreach ( self::repo()->sponsors( $atts ) as $sponsor ) {
+			if ( ! empty( $atts['main_only'] ) && empty( $sponsor['main'] ) ) {
+				continue;
+			}
+
+			if ( 'any' !== $shown_on && isset( $sponsor['show'] ) && empty( $sponsor['show'][ $shown_on ] ) ) {
+				continue;
+			}
+
+			if ( '' !== $category ) {
+				$names = array_map( 'strtolower', (array) ( $sponsor['sponsor_categories'] ?? [] ) );
+
+				if ( ! in_array( $category, $names, true ) && strtolower( (string) $sponsor['tier_name'] ) !== $category ) {
+					continue;
+				}
+			}
+
 			$tiers[ (int) $sponsor['tier_order'] . '|' . (string) $sponsor['tier_name'] ][] = $sponsor;
 		}
 

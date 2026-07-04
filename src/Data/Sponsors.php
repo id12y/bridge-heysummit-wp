@@ -74,13 +74,48 @@ final class Sponsors {
 		);
 
 		set_transient( $key, $sponsors, 15 * MINUTE_IN_SECONDS );
+		self::remember_categories( $sponsors );
 
 		return $sponsors;
 	}
 
 	/**
-	 * Display-shaped sponsor rows for the wall (the same shape the manual
-	 * rows produce). Empty on any failure.
+	 * Sponsor category names seen on any fetch, for the editor's dropdown.
+	 * Non-autoloaded, capped.
+	 *
+	 * @param array<int,array<string,mixed>> $sponsors Raw sponsor rows.
+	 */
+	private static function remember_categories( array $sponsors ): void {
+		$known = self::known_categories();
+
+		foreach ( $sponsors as $sponsor ) {
+			foreach ( self::category_names( (array) $sponsor ) as $name ) {
+				if ( ! in_array( $name, $known, true ) ) {
+					$known[] = $name;
+				}
+			}
+		}
+
+		update_option( 'eex_sponsor_categories', array_slice( $known, -50 ), false );
+	}
+
+	/**
+	 * Every sponsor category name this site has seen.
+	 *
+	 * @return array<int,string>
+	 */
+	public static function known_categories(): array {
+		$known = get_option( 'eex_sponsor_categories', [] );
+
+		return is_array( $known ) ? array_values( array_map( 'strval', $known ) ) : [];
+	}
+
+	/**
+	 * Display-shaped sponsor rows for the wall, mapped from the live v2
+	 * schema (see docs/api-notes.md): title, short/long descriptions,
+	 * sponsor_categories as the tier-style grouping, is_main_sponsor, and
+	 * per-surface visibility flags the components can filter on. Empty on
+	 * any failure.
 	 *
 	 * @param string $connection_id Connection ID.
 	 * @param string $event_id      HeySummit event ID.
@@ -100,26 +135,68 @@ final class Sponsors {
 				continue;
 			}
 
-			$name = self::first_string( $sponsor, [ 'name', 'title', 'company_name' ] );
+			$name = self::first_string( $sponsor, [ 'title', 'name', 'company_name' ] );
 			if ( '' === $name ) {
 				continue;
 			}
 
+			$main = ! empty( $sponsor['is_main_sponsor'] );
 			$tier = self::tier_of( $sponsor );
 
+			if ( '' === $tier['name'] && $main ) {
+				$tier = [
+					'name'  => __( 'Main sponsor', 'emailexpert-events' ),
+					'order' => 0,
+				];
+			}
+
 			$out[] = [
-				'id'         => (int) $sponsor['id'],
-				'name'       => $name,
-				'url'        => self::first_url( $sponsor, [ 'url', 'website', 'website_url', 'link' ] ),
-				'logo_id'    => 0,
-				'logo_url'   => self::first_url( $sponsor, [ 'logo', 'logo_url', 'image', 'logo_white' ] ),
-				'blurb'      => self::first_string( $sponsor, [ 'description', 'blurb', 'about' ] ),
-				'tier_name'  => '' !== $tier['name'] ? $tier['name'] : __( 'Partner', 'emailexpert-events' ),
-				'tier_order' => $tier['order'],
+				'id'                 => (int) $sponsor['id'],
+				'name'               => $name,
+				'url'                => self::first_url( $sponsor, [ 'url', 'website', 'website_url', 'link' ] ),
+				'link_title'         => self::first_string( $sponsor, [ 'link_title' ] ),
+				'logo_id'            => 0,
+				'logo_url'           => self::first_url( $sponsor, [ 'logo', 'logo_url', 'image' ] ),
+				'blurb'              => self::first_string( $sponsor, [ 'short_description', 'description', 'blurb', 'long_description' ] ),
+				'tier_name'          => '' !== $tier['name'] ? $tier['name'] : __( 'Partner', 'emailexpert-events' ),
+				'tier_order'         => $main ? 0 : $tier['order'],
+				'main'               => $main,
+				'sponsor_categories' => self::category_names( $sponsor ),
+				'show'               => [
+					'landing'    => ! isset( $sponsor['show_on_landing_page'] ) || ! empty( $sponsor['show_on_landing_page'] ),
+					'talks'      => ! isset( $sponsor['show_on_talk_pages'] ) || ! empty( $sponsor['show_on_talk_pages'] ),
+					'categories' => ! isset( $sponsor['show_on_category_pages'] ) || ! empty( $sponsor['show_on_category_pages'] ),
+					'blog'       => ! isset( $sponsor['show_on_blog_posts'] ) || ! empty( $sponsor['show_on_blog_posts'] ),
+				],
 			];
 		}
 
 		return $out;
+	}
+
+	/**
+	 * The sponsor's category names (the "Gold" / "Media partner" style
+	 * grouping), tolerating strings or objects.
+	 *
+	 * @param array<string,mixed> $row Raw row.
+	 * @return array<int,string>
+	 */
+	private static function category_names( array $row ): array {
+		$names = [];
+
+		foreach ( (array) ( $row['sponsor_categories'] ?? [] ) as $category ) {
+			if ( is_array( $category ) ) {
+				$name = self::first_string( $category, [ 'title', 'name' ] );
+			} else {
+				$name = is_scalar( $category ) ? sanitize_text_field( (string) $category ) : '';
+			}
+
+			if ( '' !== $name ) {
+				$names[] = $name;
+			}
+		}
+
+		return $names;
 	}
 
 	/**
@@ -164,7 +241,20 @@ final class Sponsors {
 	 * @return array{name:string,order:int}
 	 */
 	private static function tier_of( array $row ): array {
-		foreach ( [ 'tier', 'tier_name', 'level', 'sponsorship_level' ] as $key ) {
+		foreach ( [ 'sponsor_categories', 'tier', 'tier_name', 'level', 'sponsorship_level' ] as $key ) {
+			if ( 'sponsor_categories' === $key ) {
+				$names = self::category_names( $row );
+
+				if ( ! empty( $names ) ) {
+					return [
+						'name'  => $names[0],
+						'order' => max( 0, (int) ( $row['tier_order'] ?? $row['order'] ?? $row['position'] ?? 99 ) ),
+					];
+				}
+
+				continue;
+			}
+
 			$value = $row[ $key ] ?? null;
 
 			if ( is_array( $value ) ) {
