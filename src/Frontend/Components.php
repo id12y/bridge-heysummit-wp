@@ -461,6 +461,11 @@ final class Components {
 							'strip'   => __( 'Logo strip (scrolling marquee)', 'emailexpert-events' ),
 						],
 					],
+					'exclude'          => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Hide these sponsors', 'emailexpert-events' ),
+					],
 					'sponsor_link'     => [
 						'type'    => 'string',
 						'default' => 'website',
@@ -570,6 +575,7 @@ final class Components {
 							'full'   => __( 'Full — banner, video and description', 'emailexpert-events' ),
 						],
 					],
+					'require_video'    => $flag( __( 'Only sponsors with an intro video', 'emailexpert-events' ), 0 ),
 					'show_banner'      => $flag( __( 'Show promo banner image', 'emailexpert-events' ) ),
 					'show_video'       => $flag( __( 'Show intro video', 'emailexpert-events' ) ),
 					'show_description' => $flag( __( 'Show full description', 'emailexpert-events' ) ),
@@ -1916,8 +1922,14 @@ final class Components {
 		// Filter first (manual rows carry none of the API's flags: they pass
 		// every visibility filter — the operator typed them in on purpose —
 		// but are never "main" and have no categories).
-		$rows = [];
+		$rows     = [];
+		$excluded = array_values( array_filter( array_map( 'trim', explode( ',', (string) ( $atts['exclude'] ?? '' ) ) ) ) );
+
 		foreach ( self::repo()->sponsors( $atts ) as $sponsor ) {
+			if ( in_array( (string) $sponsor['id'], $excluded, true ) ) {
+				continue;
+			}
+
 			if ( ! empty( $atts['main_only'] ) && empty( $sponsor['main'] ) ) {
 				continue;
 			}
@@ -2256,6 +2268,16 @@ final class Components {
 
 						return in_array( $category, $names, true ) || strtolower( (string) ( $sponsor['tier_name'] ?? '' ) ) === $category;
 					}
+				)
+			);
+		}
+
+		// A video spotlight should never draw a videoless sponsor.
+		if ( ! empty( $atts['require_video'] ) ) {
+			$sponsors = array_values(
+				array_filter(
+					$sponsors,
+					static fn( array $sponsor ): bool => '' !== self::video_embed_url( (array) ( $sponsor['video'] ?? [] ) )
 				)
 			);
 		}

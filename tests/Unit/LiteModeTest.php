@@ -504,6 +504,36 @@ final class LiteModeTest extends TestCase {
 		$empty_cat = Components::render( 'sponsor-spotlight', [ 'sponsor_category' => 'platinum' ] );
 		$this->assertStringContainsString( 'eex-empty', $empty_cat );
 
+		// A video spotlight never draws a videoless sponsor: only Acme has
+		// one, so the "random" pick is deterministic — and naming a
+		// videoless sponsor while requiring video yields the empty state.
+		Cache::flush();
+		$video_only = Components::render( 'sponsor-spotlight', [ 'require_video' => 1 ] );
+		$this->assertStringContainsString( 'Acme', $video_only );
+		$this->assertStringContainsString( 'youtube-nocookie.com', $video_only );
+
+		Cache::flush();
+		$video_missing = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'       => '2',
+				'require_video' => 1,
+			]
+		);
+		$this->assertStringContainsString( 'eex-empty', $video_missing );
+
+		// The wall can hide individual sponsors by ID.
+		Cache::flush();
+		$without_acme = Components::render(
+			'sponsors',
+			[
+				'group_by' => 'none',
+				'exclude'  => '1',
+			]
+		);
+		$this->assertStringNotContainsString( 'Acme', $without_acme );
+		$this->assertStringContainsString( 'Beta Ltd', $without_acme );
+
 		// A specific pick that does not exist falls to the empty state.
 		Cache::flush();
 		$missing = Components::render( 'sponsor-spotlight', [ 'sponsor' => '424242' ] );

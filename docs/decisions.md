@@ -994,3 +994,15 @@ slugless sponsors — or 'none'. Combined with the earlier controls
 grouping, spotlight styles) a sponsor can now headline a homepage,
 scroll in a footer, sit quietly in a rail, or take a full feature
 section — each widget independently configured.
+
+## D79. Video spotlights draw only from sponsors with video (v1.15.0)
+
+require_video on the spotlight filters the pool to sponsors whose intro
+video actually embeds (known provider + ID) before the pick — a random
+video spotlight can never land on a videoless sponsor, and naming a
+videoless sponsor while requiring video yields the empty state rather
+than a hole. The wall gained exclude (hide individual sponsors without
+touching HeySummit), with an Elementor SELECT2 of sponsor names; the
+generic ticket-picker branch is now gated to ticket-bearing components
+so the two 'exclude' fields cannot collide. Operator verified the
+sponsor hub URL convention live — the api-notes caveat is closed.

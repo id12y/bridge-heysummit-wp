@@ -275,5 +275,5 @@ what it displays; discovery keeps reporting the rest.
 Sponsor rows carry a real `slug`; the hub page is assumed at
 `<event_url>/sponsors/<slug>/` (the same convention family as speaker
 hub pages, but with an API-provided slug rather than a reconstruction).
-Click-test one sponsor hub link on the live hub; if the path segment
-differs, only Sponsors::hub_url() changes.
+VERIFIED live by the operator (v1.15.0): sponsor hub pages resolve at
+`<event_url>/sponsors/<slug>/`.

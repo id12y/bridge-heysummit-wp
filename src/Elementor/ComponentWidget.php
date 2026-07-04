@@ -503,7 +503,45 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		// seen (populated by any tickets fetch — the pricing table itself,
 		// the Woo picker, the wizard). Falls back to a text field before the
 		// first fetch.
-		if ( in_array( $key, [ 'tickets', 'exclude', 'featured' ], true ) ) {
+		// The sponsors wall's exclude field picks sponsors by NAME.
+		if ( 'exclude' === $key && 'sponsors' === $this->component ) {
+			$sponsor_names = \Emailexpert\Events\Data\Sponsors::known_names();
+
+			if ( ! empty( $sponsor_names ) ) {
+				$options = [];
+				foreach ( $sponsor_names as $sponsor_id => $sponsor_name ) {
+					$options[ (string) $sponsor_id ] = $sponsor_name;
+				}
+
+				$this->add_control(
+					$key,
+					[
+						'label'       => (string) ( $spec['label'] ?? $key ),
+						'type'        => \Elementor\Controls_Manager::SELECT2,
+						'multiple'    => true,
+						'options'     => $options,
+						'label_block' => true,
+					]
+				);
+
+				return;
+			}
+
+			$this->add_control(
+				$key,
+				[
+					'label'       => (string) ( $spec['label'] ?? $key ),
+					'type'        => \Elementor\Controls_Manager::TEXT,
+					'default'     => (string) $spec['default'],
+					'label_block' => true,
+					'description' => __( 'Sponsor names appear here as a dropdown once sponsors have been loaded once (view the sponsor wall).', 'emailexpert-events' ),
+				]
+			);
+
+			return;
+		}
+
+		if ( in_array( $key, [ 'tickets', 'exclude', 'featured' ], true ) && in_array( $this->component, [ 'pricing', 'upcoming-sessions', 'featured-talks', 'next-session' ], true ) ) {
 			$titles = \Emailexpert\Events\Data\Tickets::known_titles();
 
 			if ( ! empty( $titles ) ) {
