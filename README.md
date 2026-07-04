@@ -1,13 +1,17 @@
 # emailexpert Events — HeySummit Connector for WordPress
 
-> **⚠️ Private BETA — all rights reserved.**
-> This software is **not** released under any open-source or public licence.
-> It is available only privately and directly, for evaluation, by explicit
-> arrangement with emailexpert UK Ltd. It is provided **as is**, with **no
-> warranty of any kind and no promises or protections of liability** —
-> express or implied, including fitness for a particular purpose. It writes
-> attendee data to a live event platform: be cautious, test against a
-> sandbox event first, and do not redistribute.
+> **⚠️ BETA software — use with care.** Licensed under the
+> [GPL-2.0-or-later](https://www.gnu.org/licenses/gpl-2.0.html). As the GPL
+> states (§11–12), it is provided **as is, without warranty of any kind and
+> without any promises or protections of liability** — no fitness for a
+> particular purpose, no guarantee against data loss. This plugin writes
+> attendee data to a live event platform: test against a sandbox event
+> first, keep backups, and read what each bridge does before enabling it.
+> Currently distributed privately/directly to beta partners only.
+
+Made with ❤️ by [emailexpert](https://emailexpert.com/) — the community for
+the email industry — and [agency.cm](https://agency.cm/). If this plugin
+helps your events, come say hello.
 
 Connects WordPress to HeySummit in both directions:
 
@@ -251,8 +255,12 @@ name clashes).
 - **Spotlight** (`eex/sponsor-spotlight`): one sponsor — named, or a
   random pick from a pool filtered by category, surface and (optionally)
   only sponsors with an intro video. Styles `card | banner | full`
-  (banner + privacy-friendly video embed + full description); website,
-  booking and phone actions.
+  (banner + privacy-friendly video embed + full description). Every part
+  toggles independently — logo, name, short description, banner, video,
+  full description, website / booking / phone actions — descriptions can
+  be capped to a character count (`blurb_length`, `description_length`),
+  and the button labels are configurable (`website_text`, `books_text`)
+  beyond the call to action the sponsor set in HeySummit.
 
 ### Layouts, toggles, time handling
 

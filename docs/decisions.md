@@ -1070,3 +1070,34 @@ by what the plugin does. Two deliberate framing changes:
   liability, private BETA — be cautious. If it is ever publicly
   distributed through WordPress.org channels this must be revisited
   (that channel requires GPL compatibility).
+
+## D82. GPL after all, with the warning in plain words; spotlight fine control (v1.17.0)
+
+Licensing reversed from D81's all-rights-reserved position on the
+operator's decision: the plugin is **GPL-2.0-or-later** (header,
+composer.json and README agree again), with the README carrying a plain
+BETA warning — as-is, no warranty, no liability promises, GPL §11–12 —
+plus links back to emailexpert.com and agency.cm. Distribution remains
+private/direct to beta partners for now; the GPL simply makes the terms
+honest for whoever receives it.
+
+Sponsor spotlight grew the fine control the operator asked for:
+
+- show_logo / show_name / show_blurb toggles (all default on — existing
+  renders unchanged) alongside the earlier banner/video/description/
+  action toggles, so a spotlight can be anything from a bare logo to the
+  full feature block.
+- blurb_length and description_length character caps. Truncation breaks
+  on a word boundary with an ellipsis (shared Components::truncate()).
+  A capped FULL description deliberately renders as plain text: cutting
+  HTML at a character count risks unbalanced tags, so the cap trades
+  formatting for safety — uncapped keeps the sponsor's markup via
+  wp_kses_post as before.
+- website_text and books_text label overrides. Precedence for the
+  website button: operator's text > the sponsor's own link_title CTA
+  from HeySummit > "Visit website". The operator always wins on their
+  own site.
+
+All markup-affecting, so all component attributes (cache-keyed), and all
+surfaced automatically in the block sidebar and Elementor panel via the
+shared definitions schema.

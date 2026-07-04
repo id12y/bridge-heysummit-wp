@@ -541,21 +541,21 @@ final class Components {
 			'sponsor-spotlight' => [
 				'title' => __( 'Sponsor spotlight', 'emailexpert-events' ),
 				'atts'  => [
-					'sponsor'          => [
+					'sponsor'            => [
 						'type'    => 'string',
 						'default' => '',
 						'label'   => __( 'Sponsor (empty = random)', 'emailexpert-events' ),
 					],
-					'event'            => [
+					'event'              => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'sponsor_category' => [
+					'sponsor_category'   => [
 						'type'    => 'string',
 						'default' => '',
 						'label'   => __( 'Only from this sponsor category (random picks within it)', 'emailexpert-events' ),
 					],
-					'sponsor_link'     => [
+					'sponsor_link'       => [
 						'type'    => 'string',
 						'default' => 'website',
 						'label'   => __( 'Button links to', 'emailexpert-events' ),
@@ -565,7 +565,7 @@ final class Components {
 							'none'    => __( 'No link', 'emailexpert-events' ),
 						],
 					],
-					'shown_on'         => [
+					'shown_on'           => [
 						'type'    => 'string',
 						'default' => 'any',
 						'label'   => __( 'Only sponsors shown on…', 'emailexpert-events' ),
@@ -577,7 +577,7 @@ final class Components {
 							'blog'       => __( 'Blog posts', 'emailexpert-events' ),
 						],
 					],
-					'layout'           => [
+					'layout'             => [
 						'type'    => 'string',
 						'default' => 'card',
 						'label'   => __( 'Spotlight style', 'emailexpert-events' ),
@@ -587,14 +587,37 @@ final class Components {
 							'full'   => __( 'Full — banner, video and description', 'emailexpert-events' ),
 						],
 					],
-					'require_video'    => $flag( __( 'Only sponsors with an intro video', 'emailexpert-events' ), 0 ),
-					'show_banner'      => $flag( __( 'Show promo banner image', 'emailexpert-events' ) ),
-					'show_video'       => $flag( __( 'Show intro video', 'emailexpert-events' ) ),
-					'show_description' => $flag( __( 'Show full description', 'emailexpert-events' ) ),
-					'show_website'     => $flag( __( 'Show website button', 'emailexpert-events' ) ),
-					'show_books'       => $flag( __( 'Show booking/meeting link', 'emailexpert-events' ), 0 ),
-					'show_phone'       => $flag( __( 'Show phone number', 'emailexpert-events' ), 0 ),
-					'empty_text'       => [
+					'require_video'      => $flag( __( 'Only sponsors with an intro video', 'emailexpert-events' ), 0 ),
+					'show_logo'          => $flag( __( 'Show logo', 'emailexpert-events' ) ),
+					'show_name'          => $flag( __( 'Show sponsor name', 'emailexpert-events' ) ),
+					'show_blurb'         => $flag( __( 'Show short description', 'emailexpert-events' ) ),
+					'show_banner'        => $flag( __( 'Show promo banner image', 'emailexpert-events' ) ),
+					'show_video'         => $flag( __( 'Show intro video', 'emailexpert-events' ) ),
+					'show_description'   => $flag( __( 'Show full description', 'emailexpert-events' ) ),
+					'show_website'       => $flag( __( 'Show website button', 'emailexpert-events' ) ),
+					'show_books'         => $flag( __( 'Show booking/meeting link', 'emailexpert-events' ), 0 ),
+					'show_phone'         => $flag( __( 'Show phone number', 'emailexpert-events' ), 0 ),
+					'blurb_length'       => [
+						'type'    => 'integer',
+						'default' => 0,
+						'label'   => __( 'Short description length (characters, 0 = full)', 'emailexpert-events' ),
+					],
+					'description_length' => [
+						'type'    => 'integer',
+						'default' => 0,
+						'label'   => __( 'Full description length (characters, 0 = full text with formatting)', 'emailexpert-events' ),
+					],
+					'website_text'       => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Website button text (empty = the sponsor\'s own call to action)', 'emailexpert-events' ),
+					],
+					'books_text'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Booking button text (empty = "Book a meeting")', 'emailexpert-events' ),
+					],
+					'empty_text'         => [
 						'type'    => 'string',
 						'default' => __( 'Sponsorship opportunities are available.', 'emailexpert-events' ),
 					],
@@ -2335,9 +2358,12 @@ final class Components {
 		TemplateLoader::part(
 			'spotlight-sponsor',
 			[
-				'sponsor' => $pick,
-				'layout'  => (string) ( $atts['layout'] ?? 'card' ),
-				'show'    => [
+				'sponsor'            => $pick,
+				'layout'             => (string) ( $atts['layout'] ?? 'card' ),
+				'show'               => [
+					'logo'        => ! empty( $atts['show_logo'] ),
+					'name'        => ! empty( $atts['show_name'] ),
+					'blurb'       => ! empty( $atts['show_blurb'] ),
 					'banner'      => ! empty( $atts['show_banner'] ),
 					'video'       => ! empty( $atts['show_video'] ),
 					'description' => ! empty( $atts['show_description'] ),
@@ -2345,10 +2371,39 @@ final class Components {
 					'books'       => ! empty( $atts['show_books'] ),
 					'phone'       => ! empty( $atts['show_phone'] ),
 				],
+				'blurb_length'       => (int) ( $atts['blurb_length'] ?? 0 ),
+				'description_length' => (int) ( $atts['description_length'] ?? 0 ),
+				'website_text'       => (string) ( $atts['website_text'] ?? '' ),
+				'books_text'         => (string) ( $atts['books_text'] ?? '' ),
 			]
 		);
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Trim text to a character budget on a word boundary with an ellipsis.
+	 * 0 or negative means no limit.
+	 *
+	 * @param string $text  Plain text.
+	 * @param int    $chars Character budget.
+	 */
+	public static function truncate( string $text, int $chars ): string {
+		$text = trim( $text );
+
+		if ( $chars <= 0 || mb_strlen( $text ) <= $chars ) {
+			return $text;
+		}
+
+		$cut   = mb_substr( $text, 0, $chars );
+		$space = mb_strrpos( $cut, ' ' );
+
+		// Break at the last word unless that throws away too much.
+		if ( false !== $space && $space > (int) floor( $chars * 0.6 ) ) {
+			$cut = mb_substr( $cut, 0, $space );
+		}
+
+		return rtrim( $cut, " \t\n\r.,;:—–-" ) . '…';
 	}
 
 	/**

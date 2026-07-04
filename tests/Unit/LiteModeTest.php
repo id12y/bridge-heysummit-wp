@@ -596,6 +596,75 @@ final class LiteModeTest extends TestCase {
 		$gold = Components::render( 'sponsors', [ 'sponsor_category' => 'gold' ] );
 		$this->assertStringContainsString( 'Acme', $gold );
 		$this->assertStringNotContainsString( 'Beta Ltd', $gold );
+
+		// Spotlight identity toggles: logo, name and short description can
+		// each be hidden independently.
+		Cache::flush();
+		$logo_only = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'    => '1',
+				'show_name'  => 0,
+				'show_blurb' => 0,
+			]
+		);
+		$this->assertStringContainsString( 'cdn.example.com/acme.png', $logo_only, 'logo stays' );
+		$this->assertStringNotContainsString( 'eex-spotlight-name', $logo_only, 'name hidden' );
+		$this->assertStringNotContainsString( 'Deliverability tools.', $logo_only, 'blurb hidden' );
+
+		Cache::flush();
+		$no_logo = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'   => '1',
+				'show_logo' => 0,
+			]
+		);
+		$this->assertStringNotContainsString( 'cdn.example.com/acme.png', $no_logo, 'logo hidden' );
+		$this->assertStringContainsString( 'Acme', $no_logo, 'name stays' );
+		$this->assertStringContainsString( 'Deliverability tools.', $no_logo, 'blurb stays' );
+
+		// Character caps: the blurb trims on a word boundary with an
+		// ellipsis; a capped full description drops its markup safely.
+		Cache::flush();
+		$short = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'      => '1',
+				'blurb_length' => 15,
+			]
+		);
+		$this->assertStringNotContainsString( 'Deliverability tools.', $short );
+		$this->assertStringContainsString( 'Deliverability…', $short );
+
+		Cache::flush();
+		$capped_full = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'            => '1',
+				'layout'             => 'full',
+				'description_length' => 30,
+			]
+		);
+		$this->assertStringNotContainsString( '<strong>', $capped_full, 'capped description renders plain text (no broken tags)' );
+		$this->assertStringContainsString( '…', $capped_full );
+		$this->assertStringContainsString( 'eex-spotlight-description', $capped_full );
+
+		// Button labels: the operator's text outranks the vendor CTA, and
+		// the booking button label is configurable too.
+		Cache::flush();
+		$labelled = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'      => '1',
+				'show_books'   => 1,
+				'website_text' => 'Meet our sponsor',
+				'books_text'   => 'Grab a slot',
+			]
+		);
+		$this->assertStringContainsString( '>Meet our sponsor</a>', $labelled, 'website_text outranks link_title' );
+		$this->assertStringNotContainsString( 'Try Acme free', $labelled );
+		$this->assertStringContainsString( '>Grab a slot</a>', $labelled );
 	}
 
 	public function test_api_failure_serves_last_good_then_empty_state_never_fatal(): void {
