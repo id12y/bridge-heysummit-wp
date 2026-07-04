@@ -1322,7 +1322,7 @@ class LiveRepository extends BaseMapper implements Repository {
 	 */
 	protected function map_event( array $raw, string $conn_id ): array {
 		$url      = self::url_str( $raw, [ 'event_url', 'url', 'public_url' ] );
-		$timezone = self::str( $raw, [ 'timezone' ] );
+		$timezone = self::str( $raw, [ 'timezone', 'time_zone', 'tz' ] );
 
 		return [
 			'id'            => 0,

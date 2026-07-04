@@ -284,6 +284,40 @@ final class Discovery {
 			'missing'       => $missing,
 			'unmapped'      => $unmapped,
 			'type_mismatch' => $type_mismatch,
+			'time_samples'  => self::time_samples( $sample ),
 		];
+	}
+
+	/**
+	 * Literal timestamp samples from the record: whether the API sends a
+	 * UTC offset (and which) decides how times must be parsed, and that has
+	 * to be read off reality, not assumed (docs/decisions.md D86).
+	 * Timestamps carry no personal data, so the raw values are safe to show.
+	 *
+	 * @param array<string,mixed> $sample Sample record.
+	 * @return array<string,string> field => raw value + format verdict.
+	 */
+	private static function time_samples( array $sample ): array {
+		$out = [];
+
+		foreach ( [ 'starts_at', 'ends_at', 'date', 'first_talk_at', 'last_talk_at' ] as $field ) {
+			if ( ! isset( $sample[ $field ] ) || ! is_string( $sample[ $field ] ) || '' === $sample[ $field ] ) {
+				continue;
+			}
+
+			$value = $sample[ $field ];
+
+			if ( preg_match( '/(?:Z|[+-]\d{2}:?\d{2})\s*$/i', $value ) ) {
+				$verdict = __( 'explicit offset — parsed as sent', 'emailexpert-events' );
+			} elseif ( preg_match( '/\d:\d{2}/', $value ) ) {
+				$verdict = __( 'NO offset — parsed as event-local time', 'emailexpert-events' );
+			} else {
+				$verdict = __( 'date only', 'emailexpert-events' );
+			}
+
+			$out[ $field ] = $value . ' (' . $verdict . ')';
+		}
+
+		return $out;
 	}
 }

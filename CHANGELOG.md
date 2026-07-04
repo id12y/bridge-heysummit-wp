@@ -3,6 +3,11 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.19.3 – 1.19.4
+- Discovery report shows raw timestamp samples with an offset verdict.
+- Timezone fix hardened: Lite reads all timezone field spellings, and
+  the site's timezone stands in when an event payload omits its own.
+
 ## 1.19.2
 - **Fixed: session times shown one hour off in summer.** HeySummit sends
   timestamps without a UTC offset, in the event's timezone; they were

@@ -1239,3 +1239,24 @@ keeps the offset-less path — a one-hour skew at a scope boundary in a
 preview count is acceptable). The version bump self-flush clears every
 cached fragment and synced value re-maps on the next sync, so the
 correction is complete without manual intervention.
+
+## D87. The site timezone stands in when the event's is unknown (v1.19.4)
+
+The v1.19.2 fix verified but did not engage on the live site (page
+source still carried 18:00:00Z on plugin version 1.19.2). Two ways the
+hint could silently miss: the live events payload may omit `timezone`
+(or spell it differently — Lite's map_event read only the one key while
+the Full EventMapper accepted timezone/time_zone/tz), leaving the hint
+empty and the old UTC assumption in force. Hardened both: Lite now
+reads the same three keys, and BaseMapper::datetime() falls back to
+wp_timezone_string() when no event timezone is supplied — a bare
+HeySummit timestamp is never meant as UTC, and an operator's site
+almost always shares its events' timezone. UTC remains the last resort
+(and the exact prior behaviour for sites whose WP timezone is UTC).
+
+Still open: if the raw API value turns out to carry a misleading Z
+(event-local time stamped as UTC), no timezone hint can help — the
+parser trusts explicit offsets by design. The v1.19.3 discovery report
+prints raw timestamp samples with an offset verdict precisely to
+settle that; if confirmed, the next step is treating HeySummit's
+offsets as decoration behind a filter.

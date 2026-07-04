@@ -134,6 +134,14 @@ abstract class BaseMapper {
 			return '';
 		}
 
+		// A bare HeySummit timestamp is never meant as UTC: when the event's
+		// timezone is unknown (older payloads omit it), the site's timezone
+		// is the best available proxy — operators' sites almost always share
+		// their events' timezone. UTC remains the last resort.
+		if ( '' === $timezone && function_exists( 'wp_timezone_string' ) ) {
+			$timezone = (string) wp_timezone_string();
+		}
+
 		$zone = null;
 		if ( '' !== $timezone
 			&& preg_match( '/\d:\d{2}/', $value ) // A time component exists (a bare date has no wall clock to localise).
