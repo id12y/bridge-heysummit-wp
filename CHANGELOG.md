@@ -3,6 +3,13 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.19.2
+- **Fixed: session times shown one hour off in summer.** HeySummit sends
+  timestamps without a UTC offset, in the event's timezone; they were
+  being read as UTC. Bare timestamps are now parsed in the event's
+  timezone, correcting the hero, cards, countdowns, calendar files, the
+  feed and the live-now window in both modes.
+
 ## 1.19.1
 - Public-repo readiness: LICENSE (GPL-2.0), SECURITY.md, CONTRIBUTING.md,
   this changelog. Series terms are no longer pre-seeded with fixed brand

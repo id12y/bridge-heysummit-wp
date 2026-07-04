@@ -1212,3 +1212,30 @@ Left alone deliberately: docs/ (engineering history, nothing sensitive,
 adds credibility), commit history (rewriting 125 commits would break
 every merged PR reference), and the repository description/topics —
 those live in GitHub settings, not the tree.
+
+## D86. Bare API timestamps are event-local, not UTC (v1.19.2)
+
+Operator report: the next-session hero showed a 7 July talk at 8pm to a
+Madrid visitor while the HeySummit hub said 7:00 PM GMT+2 — exactly one
+hour late. Root cause confirmed against the live event (timezone
+Europe/London): HeySummit serialises starts_at/ends_at WITHOUT a UTC
+offset, as wall-clock time in the event's timezone. Our shared
+BaseMapper::datetime() handed such strings to DateTimeImmutable, which
+falls back to PHP's default timezone — pinned to UTC by WordPress — so
+6pm London was stamped 18:00Z instead of 17:00Z. Every consumer of that
+instant (the <time datetime> the visitor JS converts, countdowns, .ics,
+the feed, the live-now window, upcoming/past splits) inherited the
+error. The cruel part: in winter London is GMT+0, so the bug was
+invisible when most of this plugin was built and tested.
+
+Fix: datetime() takes the event's IANA timezone and uses it ONLY for
+bare values — strings carrying Z or ±hh:mm are unambiguous and ignore
+the hint, bare DATES (no wall clock) are left alone, and an unknown
+zone string falls back to the old UTC assumption rather than erroring.
+Threaded through both modes: LiveRepository (map_event, map_talk,
+talk_ends), the sync TalkMapper/EventMapper, and SyncEngine's talk pass
+(the mapper calls that only compare event IDs don't need it; DryRun
+keeps the offset-less path — a one-hour skew at a scope boundary in a
+preview count is acceptable). The version bump self-flush clears every
+cached fragment and synced value re-maps on the next sync, so the
+correction is complete without manual intervention.

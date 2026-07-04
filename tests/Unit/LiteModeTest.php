@@ -1114,6 +1114,61 @@ final class LiteModeTest extends TestCase {
 		$this->assertFalse( $feeds->should_cache( [ 'event' => '', 'category' => 'no-such-slug' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 	}
 
+	public function test_bare_api_timestamps_render_as_event_local_time_not_utc(): void {
+		// The live bug: HeySummit sends starts_at WITHOUT an offset, in the
+		// event's timezone (London). Treated as UTC, a 6pm London talk
+		// rendered 8pm to a Madrid visitor instead of 7pm — one hour late
+		// all summer. The event's timezone must disambiguate bare values.
+		$this->go_lite();
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'        => 601,
+									'title'     => 'London keynote',
+									'starts_at' => '2035-07-07T18:00:00',
+									'ends_at'   => '2035-07-07T19:00:00',
+									'event'     => 101,
+								],
+							],
+						]
+					);
+				}
+
+				if ( str_contains( (string) $url, 'events/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'        => 101,
+									'title'     => 'Live Hub',
+									'event_url' => 'https://summit.example.com/hub/',
+									'timezone'  => 'Europe/London',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$talks = Repositories::current()->upcoming_talks( [] );
+
+		$this->assertCount( 1, $talks );
+		$this->assertSame( '2035-07-07T17:00:00Z', $talks[0]['starts_at'], '6pm London BST is 5pm UTC' );
+		$this->assertSame( '2035-07-07T18:00:00Z', $talks[0]['ends_at'] );
+
+		// The rendered <time> tag carries the corrected UTC instant, so the
+		// visitor-side JS converts to the RIGHT local time everywhere.
+		$html = Components::render( 'next-session', [] );
+		$this->assertStringContainsString( 'datetime="2035-07-07T17:00:00Z"', $html );
+	}
+
 	public function test_lite_session_filter_bar_renders_live_data_with_query_links(): void {
 		$this->go_lite();
 		$this->mock_api( false, true );
