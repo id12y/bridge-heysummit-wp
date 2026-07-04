@@ -40,7 +40,50 @@ final class Cache {
 	 * @param string              $html      Rendered HTML.
 	 */
 	public static function set( string $component, array $atts, string $html ): void {
-		set_transient( self::key( $component, $atts ), $html, self::ttl() );
+		self::keep( $component, $atts, $html, false );
+	}
+
+	/**
+	 * Store a fragment and return what should actually be shown.
+	 *
+	 * Guardrails against a failure dressed up as emptiness: an empty state
+	 * is never pinned for the full display TTL (a cold or failed fetch must
+	 * retry within a minute), and when the data source is fallible (a remote
+	 * API rather than the local database) the last good fragment — kept for
+	 * six hours, surviving generation flushes — is served instead of a fresh
+	 * empty. The time module already recomputes session states on aged HTML,
+	 * so a slightly stale list degrades gracefully; a genuinely emptied
+	 * schedule shows through once the last good copy ages out.
+	 *
+	 * @param string              $component Component name.
+	 * @param array<string,mixed> $atts      Attributes.
+	 * @param string              $html      Rendered HTML.
+	 * @param bool                $fallible  Whether the source can fail (Lite mode, ticket fetches).
+	 */
+	public static function keep( string $component, array $atts, string $html, bool $fallible ): string {
+		if ( ! str_contains( $html, 'eex-empty' ) ) {
+			set_transient( self::key( $component, $atts ), $html, self::ttl() );
+
+			if ( $fallible ) {
+				set_transient( self::stale_key( $component, $atts ), $html, 6 * HOUR_IN_SECONDS );
+			}
+
+			return $html;
+		}
+
+		if ( $fallible ) {
+			$stale = get_transient( self::stale_key( $component, $atts ) );
+
+			if ( is_string( $stale ) && '' !== $stale ) {
+				set_transient( self::key( $component, $atts ), $stale, MINUTE_IN_SECONDS );
+
+				return $stale;
+			}
+		}
+
+		set_transient( self::key( $component, $atts ), $html, min( self::ttl(), MINUTE_IN_SECONDS ) );
+
+		return $html;
 	}
 
 	/**
@@ -70,5 +113,19 @@ final class Cache {
 		ksort( $atts );
 
 		return 'eex_c_' . md5( $component . '|' . wp_json_encode( $atts ) . '|' . (int) get_option( self::GENERATION, 0 ) );
+	}
+
+	/**
+	 * The last-good key: deliberately NOT generation-scoped, so the safety
+	 * copy survives flushes (a flush followed by a failed fetch is exactly
+	 * when it is needed).
+	 *
+	 * @param string              $component Component name.
+	 * @param array<string,mixed> $atts      Attributes.
+	 */
+	private static function stale_key( string $component, array $atts ): string {
+		ksort( $atts );
+
+		return 'eex_lg_' . md5( $component . '|' . wp_json_encode( $atts ) );
 	}
 }

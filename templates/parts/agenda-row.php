@@ -100,9 +100,12 @@ if ( '' === $eex_register_text ) {
 		<?php if ( 'past' === $eex_context && '' !== (string) $eex_data['replay_url'] ) : ?>
 			<a class="eex-cta eex-cta-replay" href="<?php echo esc_url( (string) $eex_data['replay_url'] ); ?>"><?php esc_html_e( 'Watch replay', 'emailexpert-events' ); ?></a>
 		<?php elseif ( 'past' !== $eex_context ) : ?>
-			<?php $eex_register_url = (string) ( $eex_data['event_url'] ?: $eex_data['talk_url'] ); ?>
+			<?php
+			$eex_register_url = Components::register_url( $eex_data, (array) ( $args['register'] ?? [] ) );
+			$eex_drawer_id    = (string) ( $args['drawer'] ?? '' );
+			?>
 			<?php if ( '' !== $eex_register_url ) : ?>
-				<a class="eex-cta eex-cta-register" data-eex-cta="1" href="<?php echo esc_url( $eex_register_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
+				<a class="eex-cta eex-cta-register" data-eex-cta="1"<?php echo '' !== $eex_drawer_id ? ' data-eex-drawer="' . esc_attr( $eex_drawer_id ) . '"' : ''; ?> href="<?php echo esc_url( $eex_register_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
 			<?php endif; ?>
 			<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
 				<?php if ( $eex_show['ics'] ) : ?>

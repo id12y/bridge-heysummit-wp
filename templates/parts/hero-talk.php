@@ -7,9 +7,12 @@
  *
  * @var array $args {
  *     @type array  $data           Talk data from Components::talk_data().
+ *     @type string $layout         Hero style: panel|banner|spotlight|minimal.
  *     @type array  $show           Display toggles (speakers, ics, google).
  *     @type bool   $show_countdown Whether to render the countdown.
  *     @type string $register_text  CTA label ('' = "Register").
+ *     @type array  $register       Register settings (mode, url).
+ *     @type string $drawer         Ticket panel element ID ('' = plain link).
  * }
  */
 
@@ -33,14 +36,33 @@ if ( empty( $eex_data['id'] ) ) {
 	return;
 }
 
+$eex_layout = (string) ( $args['layout'] ?? 'panel' );
+if ( ! in_array( $eex_layout, [ 'panel', 'banner', 'spotlight', 'minimal' ], true ) ) {
+	$eex_layout = 'panel';
+}
+
 $eex_register_text = (string) ( $args['register_text'] ?? '' );
 if ( '' === $eex_register_text ) {
 	$eex_register_text = __( 'Register', 'emailexpert-events' );
 }
 
+$eex_register_url = Components::register_url( $eex_data, (array) ( $args['register'] ?? [] ) );
+$eex_drawer_id    = (string) ( $args['drawer'] ?? '' );
+
 $eex_countdown = ! empty( $args['show_countdown'] ) && '' !== (string) $eex_data['starts_at'];
+// The panel style groups the countdown with the actions; every other style
+// keeps it beside the time.
+$eex_countdown_aside = $eex_countdown && 'panel' === $eex_layout;
+
+$eex_countdown_html = '';
+if ( $eex_countdown ) {
+	$eex_countdown_html = sprintf(
+		'<p class="eex-countdown" data-eex-countdown="%s" aria-live="polite"></p>',
+		esc_attr( gmdate( 'Y-m-d\TH:i:s\Z', (int) strtotime( (string) $eex_data['starts_at'] ) ) )
+	);
+}
 ?>
-<article class="eex-hero"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
+<article class="eex-hero eex-hero-<?php echo esc_attr( $eex_layout ); ?>"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
 	<div class="eex-hero-main">
 	<p class="eex-live-indicator" data-eex-live-slot="1" hidden aria-live="polite"></p>
 
@@ -57,8 +79,8 @@ $eex_countdown = ! empty( $args['show_countdown'] ) && '' !== (string) $eex_data
 			</p>
 		<?php endif; ?>
 
-		<?php if ( $eex_countdown ) : ?>
-			<p class="eex-countdown" data-eex-countdown="<?php echo esc_attr( gmdate( 'Y-m-d\TH:i:s\Z', (int) strtotime( (string) $eex_data['starts_at'] ) ) ); ?>" aria-live="polite"></p>
+		<?php if ( $eex_countdown && ! $eex_countdown_aside ) : ?>
+			<?php echo $eex_countdown_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?>
 		<?php endif; ?>
 	</div>
 
@@ -101,10 +123,13 @@ $eex_countdown = ! empty( $args['show_countdown'] ) && '' !== (string) $eex_data
 	</div>
 
 	<div class="eex-hero-aside">
+		<?php if ( $eex_countdown_aside ) : ?>
+			<?php echo $eex_countdown_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?>
+		<?php endif; ?>
+
 		<p class="eex-card-actions">
-			<?php $eex_register_url = (string) ( $eex_data['event_url'] ?: $eex_data['talk_url'] ); ?>
 			<?php if ( '' !== $eex_register_url ) : ?>
-				<a class="eex-cta eex-cta-register" data-eex-cta="1" href="<?php echo esc_url( $eex_register_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
+				<a class="eex-cta eex-cta-register" data-eex-cta="1"<?php echo '' !== $eex_drawer_id ? ' data-eex-drawer="' . esc_attr( $eex_drawer_id ) . '"' : ''; ?> href="<?php echo esc_url( $eex_register_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
 			<?php endif; ?>
 			<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
 				<?php if ( $eex_show['ics'] ) : ?>

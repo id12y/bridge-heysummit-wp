@@ -23,6 +23,7 @@ abstract class TestCase extends PHPUnitTestCase {
 
 		\Emailexpert\Events\Data\Repositories::reset();
 		\Emailexpert\Events\Data\LiveCache::reset_request_state();
+		\Emailexpert\Events\Frontend\Components::reset_request_state();
 
 		// Make retries instantaneous in tests.
 		add_filter( 'eex_http_retry_delay', static fn() => 0 );

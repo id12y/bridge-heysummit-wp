@@ -46,6 +46,13 @@ final class Components {
 	private static array $event_lookup = [];
 
 	/**
+	 * Drop request-scoped memos (tests and long-running processes).
+	 */
+	public static function reset_request_state(): void {
+		self::$event_lookup = [];
+	}
+
+	/**
 	 * Items rendered by the current component, collected for inline schema.
 	 *
 	 * @var array<int,array{type:string,data:array<string,mixed>}>
@@ -110,6 +117,30 @@ final class Components {
 			'default' => '',
 			'label'   => __( 'Register button text (empty = "Register")', 'emailexpert-events' ),
 		];
+		$register_link   = [
+			'type'    => 'string',
+			'default' => 'checkout',
+			'label'   => __( 'Register button destination', 'emailexpert-events' ),
+			'options' => [
+				'checkout' => __( 'Ticketing page (HeySummit checkout)', 'emailexpert-events' ),
+				'event'    => __( 'Event page', 'emailexpert-events' ),
+				'custom'   => __( 'Custom URL (external ticketing)', 'emailexpert-events' ),
+			],
+		];
+		$register_url    = [
+			'type'    => 'string',
+			'default' => '',
+			'label'   => __( 'Custom register URL (used with "Custom URL")', 'emailexpert-events' ),
+		];
+		$register_action = [
+			'type'    => 'string',
+			'default' => 'link',
+			'label'   => __( 'Register button behaviour', 'emailexpert-events' ),
+			'options' => [
+				'link'  => __( 'Follow the link', 'emailexpert-events' ),
+				'panel' => __( 'Open the ticket panel (slide-over)', 'emailexpert-events' ),
+			],
+		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		return [
@@ -140,6 +171,9 @@ final class Components {
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
 					'register_text'   => $register_text,
+					'register_link'   => $register_link,
+					'register_url'    => $register_url,
+					'register_action' => $register_action,
 					'show_subscribe'  => $flag( __( 'Show subscribe link', 'emailexpert-events' ), 0 ),
 				],
 			],
@@ -348,6 +382,9 @@ final class Components {
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
 					'register_text'   => $register_text,
+					'register_link'   => $register_link,
+					'register_url'    => $register_url,
+					'register_action' => $register_action,
 					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
@@ -371,20 +408,34 @@ final class Components {
 			'next-session'      => [
 				'title' => __( 'Next session (hero)', 'emailexpert-events' ),
 				'atts'  => [
-					'event'          => [
+					'event'           => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'category'       => [
+					'category'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'show_countdown' => $flag( __( 'Show countdown', 'emailexpert-events' ) ),
-					'show_speakers'  => $show_speakers,
-					'show_ics'       => $show_ics,
-					'show_google'    => $show_google,
-					'register_text'  => $register_text,
-					'empty_text'     => [
+					'layout'          => [
+						'type'    => 'string',
+						'default' => 'panel',
+						'label'   => __( 'Hero style', 'emailexpert-events' ),
+						'options' => [
+							'panel'     => __( 'Panel — action column on the right', 'emailexpert-events' ),
+							'banner'    => __( 'Banner — slim full-width strip', 'emailexpert-events' ),
+							'spotlight' => __( 'Spotlight — centred poster', 'emailexpert-events' ),
+							'minimal'   => __( 'Minimal — plain, no card', 'emailexpert-events' ),
+						],
+					],
+					'show_countdown'  => $flag( __( 'Show countdown', 'emailexpert-events' ) ),
+					'show_speakers'   => $show_speakers,
+					'show_ics'        => $show_ics,
+					'show_google'     => $show_google,
+					'register_text'   => $register_text,
+					'register_link'   => $register_link,
+					'register_url'    => $register_url,
+					'register_action' => $register_action,
+					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
 					],
@@ -435,6 +486,8 @@ final class Components {
 					'show_remaining'    => $flag( __( 'Show remaining quantity', 'emailexpert-events' ) ),
 					'highlight_popular' => $flag( __( 'Highlight the popular ticket', 'emailexpert-events' ) ),
 					'register_text'     => $register_text,
+					'register_link'     => $register_link,
+					'register_url'      => $register_url,
 					'empty_text'        => [
 						'type'    => 'string',
 						'default' => __( 'Tickets go on sale soon.', 'emailexpert-events' ),
@@ -611,7 +664,13 @@ final class Components {
 		$html = (string) apply_filters( 'eex_card_html', $html, $name, $atts );
 
 		if ( $cacheable ) {
-			Cache::set( $name, $cache_atts, $html );
+			// Lite data and ticket fetches come from the remote API and can
+			// fail; Cache::keep() then serves the last good fragment instead
+			// of a fresh empty. Full-mode local queries cannot fail, so their
+			// empties are authoritative.
+			$fallible = Options::is_lite() || 'pricing' === $name;
+
+			$html = Cache::keep( $name, $cache_atts, $html, $fallible );
 		}
 
 		return $html . self::admin_debug_note( $name, $html );
@@ -891,9 +950,15 @@ final class Components {
 
 		$layout = (string) ( $atts['layout'] ?? 'cards' );
 		$show   = self::show_flags( $atts );
+		$drawer = self::ticket_drawer( $atts );
+		$cta    = [
+			'register_text' => (string) ( $atts['register_text'] ?? '' ),
+			'register'      => self::register_args( $atts ),
+			'drawer'        => $drawer['id'],
+		];
 
 		if ( 'agenda' === $layout ) {
-			return self::agenda_layout( $items, $context, $show, (string) ( $atts['register_text'] ?? '' ) );
+			return self::agenda_layout( $items, $context, $show, $cta ) . $drawer['html'];
 		}
 
 		// Wrapper classes and template part per layout; unknown values were
@@ -921,18 +986,20 @@ final class Components {
 			);
 			TemplateLoader::part(
 				$part,
-				[
-					'data'          => $data,
-					'context'       => $context,
-					'show'          => $show,
-					'register_text' => (string) ( $atts['register_text'] ?? '' ),
-				]
+				array_merge(
+					[
+						'data'    => $data,
+						'context' => $context,
+						'show'    => $show,
+					],
+					$cta
+				)
 			);
 			echo '</li>';
 		}
 		echo '</ul>';
 
-		return (string) ob_get_clean();
+		return (string) ob_get_clean() . $drawer['html'];
 	}
 
 	/**
@@ -952,14 +1019,151 @@ final class Components {
 	}
 
 	/**
+	 * The register settings templates need, from component attributes.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array{mode:string,url:string}
+	 */
+	private static function register_args( array $atts ): array {
+		return [
+			'mode' => (string) ( $atts['register_link'] ?? 'checkout' ),
+			'url'  => trim( (string) ( $atts['register_url'] ?? '' ) ),
+		];
+	}
+
+	/**
+	 * Where a Register button lands. The API exposes only the event's public
+	 * page URL; HeySummit-hosted ticketing lives on its checkout page, and
+	 * events sold through an external provider need the operator's own URL
+	 * ('custom'). 'event' keeps the landing-page behaviour.
+	 *
+	 * @param array<string,mixed>  $data     Talk data (event_url/talk_url).
+	 * @param array<string,string> $register Register settings (mode, url).
+	 */
+	public static function register_url( array $data, array $register ): string {
+		$event_url = (string) ( $data['event_url'] ?? '' );
+		$fallback  = '' !== $event_url ? $event_url : (string) ( $data['talk_url'] ?? '' );
+		$mode      = (string) ( $register['mode'] ?? 'checkout' );
+
+		if ( 'custom' === $mode && '' !== (string) ( $register['url'] ?? '' ) ) {
+			return (string) $register['url'];
+		}
+
+		if ( 'checkout' === $mode && '' !== $event_url ) {
+			return self::checkout_url( $event_url );
+		}
+
+		return $fallback;
+	}
+
+	/**
+	 * The HeySummit checkout page under an event URL, keeping any query
+	 * string (UTM tags) intact.
+	 *
+	 * @param string $event_url Event page URL, possibly already tagged.
+	 */
+	private static function checkout_url( string $event_url ): string {
+		$parts = explode( '?', $event_url, 2 );
+		$base  = trailingslashit( $parts[0] ) . 'checkout/';
+
+		return isset( $parts[1] ) ? $base . '?' . $parts[1] : $base;
+	}
+
+	/**
+	 * One ticket's register URL. In checkout mode the ticket ID rides along
+	 * as a query argument — HeySummit's checkout preselects it when it
+	 * recognises the parameter and simply ignores it otherwise.
+	 *
+	 * @param array<string,mixed>  $ticket   Display-shaped ticket row.
+	 * @param array<string,string> $register Register settings (mode, url).
+	 */
+	private static function ticket_register_url( array $ticket, array $register ): string {
+		$url = self::register_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
+
+		if ( '' !== $url && 'checkout' === (string) ( $register['mode'] ?? 'checkout' ) ) {
+			$url = add_query_arg( 'ticket', (string) $ticket['id'], $url );
+		}
+
+		return $url;
+	}
+
+	/**
+	 * The slide-over ticket panel: server-rendered (and fragment-cached with
+	 * the component), revealed by eex-time.js when a Register button carries
+	 * its ID. Empty when the component keeps plain links, or when no tickets
+	 * resolve — the buttons then behave as ordinary links.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array{id:string,html:string}
+	 */
+	private static function ticket_drawer( array $atts ): array {
+		$none = [
+			'id'   => '',
+			'html' => '',
+		];
+
+		if ( 'panel' !== (string) ( $atts['register_action'] ?? 'link' ) ) {
+			return $none;
+		}
+
+		$tickets = self::repo()->tickets( $atts );
+
+		if ( empty( $tickets ) ) {
+			return $none;
+		}
+
+		$register = self::register_args( $atts );
+		$id       = 'eex-drawer-' . substr( md5( wp_json_encode( [ (string) ( $atts['event'] ?? '' ), $register ] ) ), 0, 8 );
+
+		ob_start();
+		?>
+		<div class="eex eex-drawer" id="<?php echo esc_attr( $id ); ?>" hidden>
+			<div class="eex-drawer-backdrop" data-eex-drawer-close="1"></div>
+			<div class="eex-drawer-panel" role="dialog" aria-modal="true" aria-label="<?php esc_attr_e( 'Tickets', 'emailexpert-events' ); ?>" tabindex="-1">
+				<div class="eex-drawer-head">
+					<h2 class="eex-drawer-title"><?php esc_html_e( 'Choose your ticket', 'emailexpert-events' ); ?></h2>
+					<button type="button" class="eex-drawer-close" data-eex-drawer-close="1" aria-label="<?php esc_attr_e( 'Close', 'emailexpert-events' ); ?>">&#215;</button>
+				</div>
+				<ul class="eex-list eex-pricing eex-pricing-rows eex-drawer-tickets" role="list">
+					<?php foreach ( $tickets as $ticket ) : ?>
+						<li class="eex-grid-item">
+							<?php
+							TemplateLoader::part(
+								'pricing-ticket',
+								[
+									'ticket'           => array_merge( $ticket, [ 'register_url' => self::ticket_register_url( $ticket, $register ) ] ),
+									'hero'             => false,
+									'ribbon'           => ! empty( $ticket['popular'] ) ? __( 'Most popular', 'emailexpert-events' ) : '',
+									'show_description' => true,
+									'show_covers'      => false,
+									'show_remaining'   => true,
+									'register_text'    => (string) ( $atts['register_text'] ?? '' ),
+								]
+							);
+							?>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		</div>
+		<?php
+
+		return [
+			'id'   => $id,
+			'html' => (string) ob_get_clean(),
+		];
+	}
+
+	/**
 	 * The agenda layout: sessions grouped under event-local day headings,
 	 * modelled on the site's original design but vertically compact.
 	 *
 	 * @param array<int,array<string,mixed>> $items   Talk data arrays.
 	 * @param string                         $context 'upcoming', 'past' or 'featured'.
 	 * @param array<string,bool>             $show    Display toggles.
+	 * @param array<string,mixed>            $cta     Register CTA part args.
 	 */
-	private static function agenda_layout( array $items, string $context, array $show, string $register_text = '' ): string {
+	private static function agenda_layout( array $items, string $context, array $show, array $cta = [] ): string {
 		$rows = self::group_rows_by_day( $items, 'j F Y' );
 
 		ob_start();
@@ -988,12 +1192,14 @@ final class Components {
 			);
 			TemplateLoader::part(
 				'agenda-row',
-				[
-					'data'          => $data,
-					'context'       => $context,
-					'show'          => $show,
-					'register_text' => $register_text,
-				]
+				array_merge(
+					[
+						'data'    => $data,
+						'context' => $context,
+						'show'    => $show,
+					],
+					$cta
+				)
 			);
 			echo '</li>';
 		}
@@ -1452,18 +1658,23 @@ final class Components {
 			'data' => $items[0],
 		];
 
+		$drawer = self::ticket_drawer( $atts );
+
 		ob_start();
 		TemplateLoader::part(
 			'hero-talk',
 			[
 				'data'           => $items[0],
+				'layout'         => (string) ( $atts['layout'] ?? 'panel' ),
 				'show'           => self::show_flags( $atts ),
 				'show_countdown' => ! empty( $atts['show_countdown'] ),
 				'register_text'  => (string) ( $atts['register_text'] ?? '' ),
+				'register'       => self::register_args( $atts ),
+				'drawer'         => $drawer['id'],
 			]
 		);
 
-		return (string) ob_get_clean();
+		return (string) ob_get_clean() . $drawer['html'];
 	}
 
 	/**
@@ -1519,8 +1730,9 @@ final class Components {
 			$ribbon = __( 'Most popular', 'emailexpert-events' );
 		}
 
-		$columns = min( 6, max( 0, (int) ( $atts['columns'] ?? 0 ) ) );
-		$style   = ! $rows && $columns > 0 ? sprintf( ' style="--eex-columns:%d"', $columns ) : '';
+		$columns  = min( 6, max( 0, (int) ( $atts['columns'] ?? 0 ) ) );
+		$style    = ! $rows && $columns > 0 ? sprintf( ' style="--eex-columns:%d"', $columns ) : '';
+		$register = self::register_args( $atts );
 
 		ob_start();
 		printf( '<ul class="%s" role="list"%s>', esc_attr( $rows ? 'eex-list eex-pricing eex-pricing-rows' : 'eex-grid eex-pricing' ), $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from an integer above.
@@ -1529,6 +1741,8 @@ final class Components {
 			// API's own popular flag when highlighting is on.
 			$is_hero    = '' !== $featured && (string) $ticket['id'] === $featured;
 			$has_ribbon = $is_hero || ( '' === $featured && ! empty( $atts['highlight_popular'] ) && ! empty( $ticket['popular'] ) );
+
+			$ticket['register_url'] = self::ticket_register_url( $ticket, $register );
 
 			echo '<li class="eex-grid-item">';
 			TemplateLoader::part(

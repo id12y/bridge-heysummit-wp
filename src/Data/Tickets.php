@@ -71,8 +71,36 @@ final class Tickets {
 		);
 
 		set_transient( $key, $tickets, 15 * MINUTE_IN_SECONDS );
+		self::remember_titles( $tickets );
 
 		return $tickets;
+	}
+
+	/**
+	 * Ticket titles seen on any fetch, for human-friendly editor dropdowns
+	 * (ticket ID => title). Non-autoloaded, capped.
+	 *
+	 * @param array<int,array<string,mixed>> $tickets Raw ticket rows.
+	 */
+	private static function remember_titles( array $tickets ): void {
+		$titles = self::known_titles();
+
+		foreach ( $tickets as $ticket ) {
+			$titles[ (string) $ticket['id'] ] = (string) ( $ticket['title'] ?? $ticket['name'] ?? $ticket['id'] );
+		}
+
+		update_option( 'eex_ticket_titles', array_slice( $titles, -200, null, true ), false );
+	}
+
+	/**
+	 * Every ticket title this site has seen (ticket ID => title).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function known_titles(): array {
+		$titles = get_option( 'eex_ticket_titles', [] );
+
+		return is_array( $titles ) ? array_map( 'strval', $titles ) : [];
 	}
 
 	/**
