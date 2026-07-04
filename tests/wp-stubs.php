@@ -23,8 +23,10 @@ class EEX_Test_State {
 	public static int $next_post_id = 1;
 	public static int $next_term_id = 1;
 	public static int $post_write_count = 0;
+	public static bool $user_can = true;
 
 	public static function reset(): void {
+		self::$user_can         = true;
 		self::$options          = [];
 		self::$transients       = [];
 		self::$transient_ttls   = [];
@@ -931,7 +933,7 @@ if ( ! function_exists( 'get_term_meta' ) ) {
 }
 if ( ! function_exists( 'current_user_can' ) ) {
 	function current_user_can( $capability, ...$args ) {
-		return true;
+		return \EEX_Test_State::$user_can;
 	}
 }
 if ( ! function_exists( 'wp_verify_nonce' ) ) {

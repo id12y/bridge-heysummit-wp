@@ -165,7 +165,7 @@ final class Components {
 		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
-		return [
+		$definitions = [
 			'upcoming-sessions' => [
 				'title' => __( 'Upcoming sessions', 'emailexpert-events' ),
 				'atts'  => [
@@ -522,6 +522,28 @@ final class Components {
 					],
 					'show_names'       => $flag( __( 'Show sponsor names', 'emailexpert-events' ) ),
 					'show_blurb'       => $flag( __( 'Show short descriptions', 'emailexpert-events' ), 0 ),
+					'blurb_length'     => [
+						'type'    => 'integer',
+						'default' => 0,
+						'label'   => __( 'Short description length (characters, 0 = full)', 'emailexpert-events' ),
+					],
+					'heading'          => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Heading above the wall (empty = none)', 'emailexpert-events' ),
+					],
+					'heading_level'    => [
+						'type'    => 'string',
+						'default' => '3',
+						'label'   => __( 'Category heading level (the wall heading sits one above)', 'emailexpert-events' ),
+						'options' => [
+							'2' => __( 'H2', 'emailexpert-events' ),
+							'3' => __( 'H3 (default)', 'emailexpert-events' ),
+							'4' => __( 'H4', 'emailexpert-events' ),
+						],
+					],
+					'new_tab'          => $flag( __( 'Open sponsor links in a new tab', 'emailexpert-events' ), 0 ),
+					'utm_links'        => $flag( __( 'Add the site\'s UTM parameters to sponsor links', 'emailexpert-events' ), 0 ),
 					'logo_size'        => [
 						'type'    => 'string',
 						'default' => 'medium',
@@ -617,6 +639,8 @@ final class Components {
 						'default' => '',
 						'label'   => __( 'Booking button text (empty = "Book a meeting")', 'emailexpert-events' ),
 					],
+					'new_tab'            => $flag( __( 'Open sponsor links in a new tab', 'emailexpert-events' ), 0 ),
+					'utm_links'          => $flag( __( 'Add the site\'s UTM parameters to sponsor links', 'emailexpert-events' ), 0 ),
 					'empty_text'         => [
 						'type'    => 'string',
 						'default' => __( 'Sponsorship opportunities are available.', 'emailexpert-events' ),
@@ -832,6 +856,19 @@ final class Components {
 				],
 			],
 		];
+
+		// Shared attribute: every component with a visible empty state can
+		// instead render nothing at all (sidebars, strips). Components that
+		// already suppress their own empties (live-now, reg-counter) or have
+		// no empty state (countdown, session-filter) are skipped — the
+		// toggle would be a dead switch there.
+		foreach ( $definitions as $component => $definition ) {
+			if ( isset( $definition['atts']['empty_text'] ) ) {
+				$definitions[ $component ]['atts']['hide_empty'] = $flag( __( 'Hide the widget entirely when empty', 'emailexpert-events' ), 0 );
+			}
+		}
+
+		return $definitions;
 	}
 
 	/**
@@ -870,7 +907,7 @@ final class Components {
 			$cached = Cache::get( $name, $cache_atts );
 			if ( null !== $cached ) {
 				// The debug note rides outside the cached fragment.
-				return $cached . self::admin_debug_note( $name, $cached );
+				return self::finalise( $name, $atts, $cached );
 			}
 		}
 
@@ -901,6 +938,33 @@ final class Components {
 			$fallible = Options::is_lite() || 'pricing' === $name;
 
 			$html = Cache::keep( $name, $cache_atts, $html, $fallible );
+		}
+
+		return self::finalise( $name, $atts, $html );
+	}
+
+	/**
+	 * The last step of every render: apply hide_empty and attach the admin
+	 * debug note. hide_empty strips strictly AFTER caching — the real empty
+	 * fragment stays cached under its 60-second guardrail TTL and the
+	 * last-good copy is never clobbered with '' — and a served stale
+	 * fragment contains no empty state, so it is never hidden.
+	 *
+	 * @param string              $name Component name.
+	 * @param array<string,mixed> $atts Sanitised attributes.
+	 * @param string              $html Rendered (or cached) fragment.
+	 */
+	private static function finalise( string $name, array $atts, string $html ): string {
+		if ( ! empty( $atts['hide_empty'] ) && str_contains( $html, 'eex-empty' ) ) {
+			// Admins get an explanation instead of an unexplained void.
+			if ( function_exists( 'current_user_can' ) && current_user_can( 'manage_options' ) ) {
+				return sprintf(
+					"\n<!-- emailexpert Events (visible to administrators only): the %s widget is empty and hidden by its hide_empty setting. -->",
+					esc_html( $name )
+				) . self::admin_debug_note( $name, $html );
+			}
+
+			return '';
 		}
 
 		return $html . self::admin_debug_note( $name, $html );
@@ -2027,14 +2091,32 @@ final class Components {
 		];
 
 		// Where a sponsor's link lands: their own site (default), their page
-		// on the event hub, or nowhere.
+		// on the event hub, or nowhere. UTM tagging is opt-in per widget;
+		// hub URLs arrive pre-tagged and Utm::tag() never double-tags.
 		$link_mode = (string) ( $atts['sponsor_link'] ?? 'website' );
+		$utm_links = ! empty( $atts['utm_links'] );
 		foreach ( $tiers as $tier_key => $tier_rows ) {
 			$tiers[ $tier_key ] = array_map(
-				static fn( array $sponsor ): array => self::linked_sponsor( $sponsor, $link_mode ),
+				static function ( array $sponsor ) use ( $link_mode, $utm_links ): array {
+					$sponsor = self::linked_sponsor( $sponsor, $link_mode );
+
+					if ( $utm_links && '' !== (string) ( $sponsor['url'] ?? '' ) ) {
+						$sponsor['url'] = Utm::tag( (string) $sponsor['url'] );
+					}
+
+					return $sponsor;
+				},
 				$tier_rows
 			);
 		}
+
+		// The optional wall heading tops every layout; the category headings
+		// (grouped layouts only) sit one level below it.
+		$tier_level   = min( 4, max( 2, (int) ( $atts['heading_level'] ?? 3 ) ) );
+		$heading_text = trim( (string) ( $atts['heading'] ?? '' ) );
+		$heading_html = '' !== $heading_text
+			? sprintf( '<h%1$d class="eex-wall-heading">%2$s</h%1$d>', max( 2, $tier_level - 1 ), esc_html( $heading_text ) )
+			: '';
 
 		$logo_sizes_map = [
 			'small'  => '2em',
@@ -2045,8 +2127,11 @@ final class Components {
 		// The strip is a flat scrolling marquee of logos: grouping, names and
 		// blurbs do not apply, and the track is doubled (second copy hidden
 		// from assistive tech) for a seamless CSS loop.
+		$new_tab = ! empty( $atts['new_tab'] );
+
 		if ( 'strip' === $layout ) {
 			ob_start();
+			echo $heading_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built above.
 			printf(
 				'<div class="eex-sponsor-strip" style="--eex-sponsor-logo:%s"><ul class="eex-strip-track" role="list">',
 				esc_attr( $logo_sizes_map[ (string) ( $atts['logo_size'] ?? 'medium' ) ] ?? '3.25em' )
@@ -2054,7 +2139,7 @@ final class Components {
 			foreach ( [ false, true ] as $decorative ) {
 				foreach ( $tiers as $tier_rows ) {
 					foreach ( $tier_rows as $sponsor ) {
-						self::strip_item( $sponsor, $decorative );
+						self::strip_item( $sponsor, $decorative, $new_tab );
 					}
 				}
 			}
@@ -2072,19 +2157,23 @@ final class Components {
 
 		$grid_class = 'compact' === $layout ? 'eex-grid eex-sponsor-grid eex-sponsor-compact' : 'eex-grid eex-sponsor-grid';
 		$open_list  = ( $list ? '<ul class="eex-list eex-sponsor-list" role="list"' : '<ul class="' . $grid_class . '" role="list"' ) . $logo_style . '>';
-		$sponsor_li = static function ( array $sponsor ) use ( $list, $show ): void {
+		$sponsor_li = static function ( array $sponsor ) use ( $list, $show, $new_tab, $atts ): void {
 			echo '<li class="eex-grid-item">';
 			TemplateLoader::part(
 				$list ? 'list-sponsor' : 'card-sponsor',
 				[
-					'sponsor' => $sponsor,
-					'show'    => $show,
+					'sponsor'      => $sponsor,
+					'show'         => $show,
+					'new_tab'      => $new_tab,
+					'blurb_length' => (int) ( $atts['blurb_length'] ?? 0 ),
 				]
 			);
 			echo '</li>';
 		};
 
 		ob_start();
+
+		echo $heading_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built above.
 
 		if ( $flat ) {
 			// One wall, no headings — order still respects the categories.
@@ -2101,7 +2190,7 @@ final class Components {
 
 		foreach ( $tiers as $key => $tier_sponsors ) {
 			[ , $tier_name ] = explode( '|', $key, 2 );
-			echo '<section class="eex-sponsor-tier"><h3 class="eex-tier-heading">' . esc_html( $tier_name ) . '</h3>';
+			printf( '<section class="eex-sponsor-tier"><h%1$d class="eex-tier-heading">%2$s</h%1$d>', $tier_level, esc_html( $tier_name ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- integer level, name escaped.
 			echo $open_list; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal markup and em values above.
 			foreach ( $tier_sponsors as $sponsor ) {
 				$sponsor_li( $sponsor );
@@ -2263,7 +2352,7 @@ final class Components {
 	 * @param array<string,mixed> $sponsor    Display row.
 	 * @param bool                $decorative Second copy for the seamless loop.
 	 */
-	private static function strip_item( array $sponsor, bool $decorative ): void {
+	private static function strip_item( array $sponsor, bool $decorative, bool $new_tab = false ): void {
 		$name = (string) $sponsor['name'];
 		$logo = (string) ( $sponsor['logo_url'] ?? '' );
 		$url  = (string) ( $sponsor['url'] ?? '' );
@@ -2275,7 +2364,7 @@ final class Components {
 		echo '<li class="eex-strip-item"' . ( $decorative ? ' aria-hidden="true"' : '' ) . '>';
 
 		if ( '' !== $url && ! $decorative ) {
-			echo '<a href="' . esc_url( $url ) . '" rel="sponsored noopener" aria-label="' . esc_attr( $name ) . '">' . $visual . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+			echo '<a href="' . esc_url( $url ) . '" rel="sponsored noopener"' . ( $new_tab ? ' target="_blank"' : '' ) . ' aria-label="' . esc_attr( $name ) . '">' . $visual . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 		} else {
 			echo $visual; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 		}
@@ -2354,6 +2443,10 @@ final class Components {
 
 		$pick = self::linked_sponsor( $pick, (string) ( $atts['sponsor_link'] ?? 'website' ) );
 
+		if ( ! empty( $atts['utm_links'] ) && '' !== (string) ( $pick['url'] ?? '' ) ) {
+			$pick['url'] = Utm::tag( (string) $pick['url'] );
+		}
+
 		ob_start();
 		TemplateLoader::part(
 			'spotlight-sponsor',
@@ -2375,6 +2468,7 @@ final class Components {
 				'description_length' => (int) ( $atts['description_length'] ?? 0 ),
 				'website_text'       => (string) ( $atts['website_text'] ?? '' ),
 				'books_text'         => (string) ( $atts['books_text'] ?? '' ),
+				'new_tab'            => ! empty( $atts['new_tab'] ),
 			]
 		);
 

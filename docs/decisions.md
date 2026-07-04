@@ -1101,3 +1101,44 @@ Sponsor spotlight grew the fine control the operator asked for:
 All markup-affecting, so all component attributes (cache-keyed), and all
 surfaced automatically in the block sidebar and Elementor panel via the
 shared definitions schema.
+
+## D83. No per-sponsor URL overrides; the QoL pack instead (v1.18.0)
+
+The operator asked whether sponsors' link destinations could be set
+per sponsor. Answer: they already can, the honest way — a manual sponsor
+row (Lite editor) or Sponsor post (Full) with the same name shadows the
+API sponsor via the name dedupe and carries whatever URL/logo/blurb the
+operator wants. A dedicated override table was offered and declined:
+overridden data silently drifts from what HeySummit shows on the hub,
+and the shadowing pattern covers the rare genuine need without a second
+source of truth.
+
+What shipped instead — the fine-tuning that was actually missing:
+
+- **hide_empty** on every component that has a visible empty state
+  (injected once in definitions() keyed on the presence of empty_text,
+  so components that already suppress their own empties never grow a
+  dead toggle). The rule that mattered: hiding happens strictly AFTER
+  caching, at the render return sites. Passing '' into Cache::keep()
+  would have cached the blank for the full display TTL and clobbered
+  the last-good copy — destroying both guardrails D-series decisions
+  built. The real empty fragment stays cached at ≤60s; visitors get
+  nothing; administrators get an HTML comment naming the setting so a
+  blank sidebar stays debuggable.
+- **new_tab** on the wall (grid/list/compact/strip) and spotlight:
+  target="_blank" on sponsor anchors, rel="sponsored noopener" already
+  present; the spotlight's tel: link never gets one.
+- **Wall blurb_length** (same truncate() as the spotlight) and an
+  optional **wall heading** rendered on every layout, one level above
+  the **configurable category-heading tag** (heading_level h2–h4,
+  string-typed: an integer att with options would pair a number block
+  attribute with a string enum and break the editor control).
+- **utm_links** (opt-in): sponsor website URLs pass through Utm::tag()
+  at render; hub URLs are tagged at mapping time and Utm::tag() never
+  double-tags, so hub mode composes safely. Off, sponsor links stay
+  exactly as the sponsor entered them.
+
+Known cost, accepted: new atts change every last-good cache key, so
+this deploy discards existing last-good copies once (a Lite site whose
+API is down right at upgrade time shows empty states until one fetch
+succeeds).

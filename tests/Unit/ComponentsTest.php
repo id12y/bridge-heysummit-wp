@@ -37,6 +37,16 @@ final class ComponentsTest extends TestCase {
 
 		$this->assertStringContainsString( 'eex-empty', $html );
 		$this->assertStringContainsString( 'New sessions are announced soon.', $html );
+
+		// hide_empty (Full mode): visitors get nothing at all; admins get an
+		// explanatory comment instead of an unexplained void.
+		\EEX_Test_State::$user_can = false;
+		$this->assertSame( '', Components::render( 'upcoming-sessions', [ 'hide_empty' => 1 ] ) );
+
+		\EEX_Test_State::$user_can = true;
+		$admin_view                = Components::render( 'upcoming-sessions', [ 'hide_empty' => 1 ] );
+		$this->assertStringNotContainsString( 'eex-empty', $admin_view );
+		$this->assertStringContainsString( 'hidden by its hide_empty setting', $admin_view );
 	}
 
 	public function test_custom_empty_text_is_escaped(): void {
@@ -981,6 +991,18 @@ final class ComponentsTest extends TestCase {
 
 		$this->assertNotEmpty( $ttls );
 		$this->assertLessThanOrEqual( MINUTE_IN_SECONDS, max( $ttls ), 'an empty state must be retried within a minute' );
+
+		// hide_empty changes what visitors see, never what is cached: the
+		// real empty fragment still lands under the guardrail TTL.
+		\EEX_Test_State::$user_can = false;
+		$this->assertSame( '', Components::render( 'upcoming-sessions', [ 'hide_empty' => 1 ] ) );
+
+		$hidden_fragments = array_filter(
+			\EEX_Test_State::$transients,
+			static fn( $value, $key ): bool => str_starts_with( (string) $key, 'eex_c_' ) && is_string( $value ) && str_contains( $value, 'eex-empty' ),
+			ARRAY_FILTER_USE_BOTH
+		);
+		$this->assertNotEmpty( $hidden_fragments, 'the real empty fragment is cached even when hidden' );
 	}
 
 	/**

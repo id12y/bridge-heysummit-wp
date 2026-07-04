@@ -49,6 +49,7 @@ $eex_show = array_merge(
 
 $eex_blurb_length = (int) ( $args['blurb_length'] ?? 0 );
 $eex_long_length  = (int) ( $args['description_length'] ?? 0 );
+$eex_target       = ! empty( $args['new_tab'] ) ? ' target="_blank"' : '';
 
 $eex_name   = (string) $eex_sponsor['name'];
 $eex_url    = (string) ( $eex_sponsor['url'] ?? '' );
@@ -142,10 +143,10 @@ if ( ! $eex_show['logo'] ) {
 
 		<p class="eex-card-actions">
 			<?php if ( $eex_show['website'] && '' !== $eex_url ) : ?>
-				<a class="eex-cta" href="<?php echo esc_url( $eex_url ); ?>" rel="sponsored noopener"><?php echo esc_html( $eex_link_label ); ?></a>
+				<a class="eex-cta" href="<?php echo esc_url( $eex_url ); ?>" rel="sponsored noopener"<?php echo $eex_target; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal attribute. ?>><?php echo esc_html( $eex_link_label ); ?></a>
 			<?php endif; ?>
 			<?php if ( '' !== $eex_books ) : ?>
-				<a class="eex-cta-secondary" href="<?php echo esc_url( $eex_books ); ?>" rel="sponsored noopener"><?php echo esc_html( $eex_books_label ); ?></a>
+				<a class="eex-cta-secondary" href="<?php echo esc_url( $eex_books ); ?>" rel="sponsored noopener"<?php echo $eex_target; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal attribute. ?>><?php echo esc_html( $eex_books_label ); ?></a>
 			<?php endif; ?>
 			<?php if ( '' !== $eex_phone ) : ?>
 				<a class="eex-cta-secondary" href="<?php echo esc_url( 'tel:' . preg_replace( '/[^0-9+]/', '', $eex_phone ) ); ?>"><?php echo esc_html( $eex_phone ); ?></a>

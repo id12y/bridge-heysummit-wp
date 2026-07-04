@@ -189,7 +189,10 @@ Every component is a dynamic Gutenberg block (category **emailexpert
 Events**), a shortcode and an Elementor widget sharing one render callback —
 identical output. Components are cached (flushed on sync, webhooks,
 editorial saves and **automatically on every plugin update**) and always
-render a configurable empty state rather than a blank void.
+render a configurable empty state rather than a blank void — or, per
+widget, nothing at all (`hide_empty`, useful for sidebars and strips;
+administrators still get an HTML comment explaining why, and the cache
+guardrails behave exactly as with the visible empty state).
 
 `event` accepts a HeySummit event ID, WP post ID or slug; with exactly one
 configured event it can be omitted everywhere. In Elementor, events,
@@ -250,8 +253,13 @@ name clashes).
   headings or flat; ordered by HeySummit weight, alphabetically or random;
   filters for main-only, sponsor category, and where HeySummit shows them
   (landing / talks / categories / blog); cap, columns, logo size,
-  name/blurb toggles, per-widget exclusions; logos link to the sponsor's
-  website, their event-hub page, or nowhere.
+  name/blurb toggles with a `blurb_length` character cap, per-widget
+  exclusions; logos link to the sponsor's website, their event-hub page,
+  or nowhere. An optional `heading` renders above the wall (every layout)
+  one level above the category headings, whose tag is configurable
+  (`heading_level` h2–h4). `new_tab` opens sponsor links in a new tab;
+  `utm_links` opts the sponsor's own website links into the site's UTM
+  tagging (hub links are always tagged, never double-tagged).
 - **Spotlight** (`eex/sponsor-spotlight`): one sponsor — named, or a
   random pick from a pool filtered by category, surface and (optionally)
   only sponsors with an intro video. Styles `card | banner | full`
@@ -260,7 +268,8 @@ name clashes).
   full description, website / booking / phone actions — descriptions can
   be capped to a character count (`blurb_length`, `description_length`),
   and the button labels are configurable (`website_text`, `books_text`)
-  beyond the call to action the sponsor set in HeySummit.
+  beyond the call to action the sponsor set in HeySummit. `new_tab` and
+  `utm_links` work here exactly as on the wall.
 
 ### Layouts, toggles, time handling
 
@@ -288,7 +297,9 @@ Override any template by copying it into `yourtheme/emailexpert-events/`;
 override just a card via `templates/parts/`. All plugin CSS uses `--eex-*`
 custom properties (colours, spacing, radius, columns, drawer background) —
 restyle by overriding variables, not files. Elementor style controls write
-the same variables, scoped to the widget.
+the same variables, scoped to the widget. Note: theme-overridden parts
+predate newer template arguments (e.g. the sponsor parts' `new_tab` and
+`blurb_length`) and silently ignore them until re-copied from the plugin.
 
 ## Structured data (Full mode)
 

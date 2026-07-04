@@ -36,7 +36,8 @@ $eex_name     = (string) $eex_sponsor['name'];
 $eex_url      = (string) ( $eex_sponsor['url'] ?? '' );
 $eex_logo_id  = (int) ( $eex_sponsor['logo_id'] ?? 0 );
 $eex_logo_url = (string) ( $eex_sponsor['logo_url'] ?? '' );
-$eex_blurb    = (string) ( $eex_sponsor['blurb'] ?? '' );
+$eex_blurb    = \Emailexpert\Events\Frontend\Components::truncate( (string) ( $eex_sponsor['blurb'] ?? '' ), (int) ( $args['blurb_length'] ?? 0 ) );
+$eex_target   = ! empty( $args['new_tab'] ) ? ' target="_blank"' : '';
 
 $eex_logo = '';
 if ( $eex_logo_id > 0 && function_exists( 'wp_get_attachment_image' ) ) {
@@ -61,7 +62,7 @@ $eex_visual = $eex_logo ?: '<span class="eex-sponsor-name">' . esc_html( $eex_na
 ?>
 <article class="eex-card eex-card-sponsor">
 	<?php if ( '' !== $eex_url ) : ?>
-		<a href="<?php echo esc_url( $eex_url ); ?>" rel="sponsored noopener" aria-label="<?php echo esc_attr( $eex_name ); ?>">
+		<a href="<?php echo esc_url( $eex_url ); ?>" rel="sponsored noopener"<?php echo $eex_target; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal attribute. ?> aria-label="<?php echo esc_attr( $eex_name ); ?>">
 			<?php echo $eex_visual; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- image markup escaped above or escaped name. ?>
 		</a>
 	<?php else : ?>

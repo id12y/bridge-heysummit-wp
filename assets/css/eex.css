@@ -447,6 +447,10 @@
 	margin: var(--eex-gap) 0 0.5rem;
 }
 
+.eex-wall-heading {
+	margin: 0 0 0.5rem;
+}
+
 /* Countdown and counter */
 .eex-countdown,
 .eex-reg-counter {
