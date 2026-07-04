@@ -463,13 +463,21 @@ final class ComponentsTest extends TestCase {
 		update_post_meta( $talk_id, '_eex_talk_url', 'https://summit.example.com/talk/' );
 
 		$default = Components::render( 'upcoming-sessions', [] );
-		$this->assertStringContainsString( '>Register</a>', $default );
+		$this->assertStringContainsString( '>Get tickets</a>', $default );
+		$this->assertStringContainsString( '>View session</a>', $default );
 
 		Cache::flush();
-		$custom = Components::render( 'upcoming-sessions', [ 'register_text' => 'Save my seat <script>' ] );
+		$custom = Components::render(
+			'upcoming-sessions',
+			[
+				'register_text' => 'Save my seat <script>',
+				'session_text'  => 'Talk details <script>',
+			]
+		);
 		$this->assertStringContainsString( 'Save my seat', $custom );
+		$this->assertStringContainsString( 'Talk details', $custom );
 		$this->assertStringNotContainsString( '<script>', $custom );
-		$this->assertStringNotContainsString( '>Register</a>', $custom );
+		$this->assertStringNotContainsString( '>Get tickets</a>', $custom );
 
 		Cache::flush();
 		$agenda = Components::render(
@@ -758,6 +766,7 @@ final class ComponentsTest extends TestCase {
 	private function make_linked_talk(): int {
 		$talk_id = $this->make_talk( 'Linked session', 3600 );
 		update_post_meta( $talk_id, '_eex_source_event_id', '101' );
+		update_post_meta( $talk_id, '_eex_talk_url', 'https://summit.example.com/talks/linked-session/' );
 
 		wp_insert_post(
 			[
@@ -793,29 +802,33 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'eex-hero-panel', Components::render( 'next-session', [ 'layout' => 'bogus' ] ), 'unknown styles snap to the default' );
 	}
 
-	public function test_register_buttons_deep_link_to_the_ticketing_page(): void {
+	public function test_session_buttons_offer_tickets_and_the_talk_page(): void {
 		$this->make_linked_talk();
 
-		// Default: HeySummit-hosted ticketing lives on the checkout page.
+		// Default: both buttons — tickets to the event's checkout, session to
+		// the talk's own landing page.
 		$html = Components::render( 'upcoming-sessions', [] );
 		$this->assertStringContainsString( 'summit.example.com/checkout/', $html );
+		$this->assertStringContainsString( 'eex-cta-session', $html );
+		$this->assertStringContainsString( 'summit.example.com/talks/linked-session/', $html );
 
-		// The event landing page stays available.
+		// Session button only.
 		Cache::flush();
-		$event = Components::render( 'upcoming-sessions', [ 'register_link' => 'event' ] );
-		$this->assertStringNotContainsString( '/checkout/', $event );
-		$this->assertStringContainsString( 'summit.example.com', $event );
+		$session = Components::render( 'upcoming-sessions', [ 'buttons' => 'session' ] );
+		$this->assertStringNotContainsString( '/checkout/', $session );
+		$this->assertStringContainsString( 'summit.example.com/talks/linked-session/', $session );
 
-		// External ticketing: the operator's own URL wins.
+		// Tickets button only.
 		Cache::flush();
-		$custom = Components::render(
-			'upcoming-sessions',
-			[
-				'register_link' => 'custom',
-				'register_url'  => 'https://tickets.example.org/buy',
-			]
-		);
-		$this->assertStringContainsString( 'https://tickets.example.org/buy', $custom );
+		$tickets = Components::render( 'upcoming-sessions', [ 'buttons' => 'tickets' ] );
+		$this->assertStringContainsString( 'summit.example.com/checkout/', $tickets );
+		$this->assertStringNotContainsString( 'eex-cta-session', $tickets );
+
+		// External ticketing replaces the checkout link.
+		Cache::flush();
+		$external = Components::render( 'upcoming-sessions', [ 'register_url' => 'https://tickets.example.org/buy' ] );
+		$this->assertStringContainsString( 'https://tickets.example.org/buy', $external );
+		$this->assertStringNotContainsString( '/checkout/', $external );
 	}
 
 	public function test_pricing_buttons_carry_the_ticket_into_checkout(): void {

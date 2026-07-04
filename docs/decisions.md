@@ -790,3 +790,33 @@ their empties remain authoritative and are never masked. Trade-off: in
 Lite a genuinely emptied schedule can linger up to six hours — the time
 module already marks aged sessions as past client-side, and the
 admin-only debug note keeps reporting the true fetch state underneath.
+
+## D66. Session buttons register for the session (register_link=talk)
+
+Field correction to D62: sending every per-session Register button to the
+event-wide checkout "makes no sense" — each talk has its own landing
+page on HeySummit, which is where registering for a specific session
+starts. Talk components (sessions, featured talks, the hero) therefore
+default to 'talk' (the session's landing page, falling back to the
+event URL when a talk has none); 'checkout', 'event' and 'custom'
+remain selectable. The pricing table keeps 'checkout' as its default —
+tickets are event-level commerce and a per-session destination is
+meaningless there, so its dropdown simply omits 'talk'. Inside the
+ticket drawer, per-ticket buttons always deep-link the checkout
+regardless of what the opening button does (custom external URLs
+excepted).
+
+## D67. Two buttons, not one button with four destinations
+
+Second field correction (supersedes D62/D66's enum): a session has two
+meaningful actions, and they are different buttons. The tickets button
+goes to that EVENT's ticketing — HeySummit hosts one checkout per event,
+or the operator's external ticketing URL (register_url) replaces it.
+The session button goes to the talk's own landing page (event page
+fallback). A 'buttons' attribute shows both (default on sessions,
+featured talks and the hero), or either alone. The live "Join now" swap
+targets the session button (the tickets button keeps it only when it is
+the sole button). Labels default to "Get tickets" / "View session",
+both operator-editable. The pricing table keeps checkout + external
+override; components without the attribute (past sessions, schedule
+rows) default to the session button alone.

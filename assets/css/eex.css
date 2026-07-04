@@ -160,6 +160,28 @@
 	font-size: 0.85em;
 }
 
+/* The session-page button: same shape as the filled CTA, outlined. */
+.eex .eex-cta-session,
+.eex .eex-cta-session:link,
+.eex .eex-cta-session:visited {
+	background: transparent;
+	color: var(--eex-accent);
+	box-shadow: inset 0 0 0 2px var(--eex-accent);
+}
+
+.eex .eex-cta-session:hover,
+.eex .eex-cta-session:focus {
+	background: var(--eex-accent);
+	color: var(--eex-accent-fg);
+}
+
+/* When JS marks the session live, the join swap lands on this button. */
+.eex-is-live .eex-cta-session[data-eex-cta] {
+	background: var(--eex-live);
+	color: var(--eex-accent-fg);
+	box-shadow: none;
+}
+
 /* Simple and compact lists */
 .eex-list {
 	list-style: none;

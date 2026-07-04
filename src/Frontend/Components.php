@@ -117,25 +117,38 @@ final class Components {
 			'default' => '',
 			'label'   => __( 'Register button text (empty = "Register")', 'emailexpert-events' ),
 		];
-		$register_link   = [
+		// Two possible buttons on a session: tickets (that EVENT's ticketing
+		// — its HeySummit checkout, or the external ticketing URL when the
+		// event sells elsewhere) and the session's own landing page.
+		$buttons         = [
 			'type'    => 'string',
-			'default' => 'checkout',
-			'label'   => __( 'Register button destination', 'emailexpert-events' ),
+			'default' => 'both',
+			'label'   => __( 'Buttons', 'emailexpert-events' ),
 			'options' => [
-				'checkout' => __( 'Ticketing page (HeySummit checkout)', 'emailexpert-events' ),
-				'event'    => __( 'Event page', 'emailexpert-events' ),
-				'custom'   => __( 'Custom URL (external ticketing)', 'emailexpert-events' ),
+				'both'    => __( 'Tickets + session page', 'emailexpert-events' ),
+				'tickets' => __( 'Tickets button only', 'emailexpert-events' ),
+				'session' => __( 'Session page button only', 'emailexpert-events' ),
 			],
+		];
+		$tickets_text    = [
+			'type'    => 'string',
+			'default' => '',
+			'label'   => __( 'Tickets button text (empty = "Get tickets")', 'emailexpert-events' ),
+		];
+		$session_text    = [
+			'type'    => 'string',
+			'default' => '',
+			'label'   => __( 'Session button text (empty = "View session")', 'emailexpert-events' ),
 		];
 		$register_url    = [
 			'type'    => 'string',
 			'default' => '',
-			'label'   => __( 'Custom register URL (used with "Custom URL")', 'emailexpert-events' ),
+			'label'   => __( 'External ticketing URL (empty = HeySummit checkout)', 'emailexpert-events' ),
 		];
 		$register_action = [
 			'type'    => 'string',
 			'default' => 'link',
-			'label'   => __( 'Register button behaviour', 'emailexpert-events' ),
+			'label'   => __( 'Tickets button behaviour', 'emailexpert-events' ),
 			'options' => [
 				'link'  => __( 'Follow the link', 'emailexpert-events' ),
 				'panel' => __( 'Open the ticket panel (slide-over)', 'emailexpert-events' ),
@@ -170,8 +183,9 @@ final class Components {
 					'show_categories' => $show_categories,
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
-					'register_text'   => $register_text,
-					'register_link'   => $register_link,
+					'buttons'         => $buttons,
+					'register_text'   => $tickets_text,
+					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
 					'show_subscribe'  => $flag( __( 'Show subscribe link', 'emailexpert-events' ), 0 ),
@@ -381,8 +395,9 @@ final class Components {
 					'show_categories' => $show_categories,
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
-					'register_text'   => $register_text,
-					'register_link'   => $register_link,
+					'buttons'         => $buttons,
+					'register_text'   => $tickets_text,
+					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
 					'empty_text'      => [
@@ -431,8 +446,9 @@ final class Components {
 					'show_speakers'   => $show_speakers,
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
-					'register_text'   => $register_text,
-					'register_link'   => $register_link,
+					'buttons'         => $buttons,
+					'register_text'   => $tickets_text,
+					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
 					'empty_text'      => [
@@ -486,7 +502,6 @@ final class Components {
 					'show_remaining'    => $flag( __( 'Show remaining quantity', 'emailexpert-events' ) ),
 					'highlight_popular' => $flag( __( 'Highlight the popular ticket', 'emailexpert-events' ) ),
 					'register_text'     => $register_text,
-					'register_link'     => $register_link,
 					'register_url'      => $register_url,
 					'empty_text'        => [
 						'type'    => 'string',
@@ -952,7 +967,9 @@ final class Components {
 		$show   = self::show_flags( $atts );
 		$drawer = self::ticket_drawer( $atts );
 		$cta    = [
+			'buttons'       => (string) ( $atts['buttons'] ?? 'session' ),
 			'register_text' => (string) ( $atts['register_text'] ?? '' ),
+			'session_text'  => (string) ( $atts['session_text'] ?? '' ),
 			'register'      => self::register_args( $atts ),
 			'drawer'        => $drawer['id'],
 		];
@@ -1022,38 +1039,44 @@ final class Components {
 	 * The register settings templates need, from component attributes.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
-	 * @return array{mode:string,url:string}
+	 * @return array{url:string}
 	 */
 	private static function register_args( array $atts ): array {
 		return [
-			'mode' => (string) ( $atts['register_link'] ?? 'checkout' ),
-			'url'  => trim( (string) ( $atts['register_url'] ?? '' ) ),
+			'url' => trim( (string) ( $atts['register_url'] ?? '' ) ),
 		];
 	}
 
 	/**
-	 * Where a Register button lands. The API exposes only the event's public
-	 * page URL; HeySummit-hosted ticketing lives on its checkout page, and
-	 * events sold through an external provider need the operator's own URL
-	 * ('custom'). 'event' keeps the landing-page behaviour.
+	 * The tickets button destination: the event's own ticketing. HeySummit
+	 * hosts one checkout per event; events sold through an external provider
+	 * carry the operator's URL instead (the API exposes neither).
 	 *
 	 * @param array<string,mixed>  $data     Talk data (event_url/talk_url).
-	 * @param array<string,string> $register Register settings (mode, url).
+	 * @param array<string,string> $register Register settings (url = external ticketing).
 	 */
-	public static function register_url( array $data, array $register ): string {
+	public static function ticketing_url( array $data, array $register ): string {
+		$external = (string) ( $register['url'] ?? '' );
+
+		if ( '' !== $external ) {
+			return $external;
+		}
+
 		$event_url = (string) ( $data['event_url'] ?? '' );
-		$fallback  = '' !== $event_url ? $event_url : (string) ( $data['talk_url'] ?? '' );
-		$mode      = (string) ( $register['mode'] ?? 'checkout' );
 
-		if ( 'custom' === $mode && '' !== (string) ( $register['url'] ?? '' ) ) {
-			return (string) $register['url'];
-		}
+		return '' !== $event_url ? self::checkout_url( $event_url ) : (string) ( $data['talk_url'] ?? '' );
+	}
 
-		if ( 'checkout' === $mode && '' !== $event_url ) {
-			return self::checkout_url( $event_url );
-		}
+	/**
+	 * The session button destination: every talk has its own landing page;
+	 * the event page is the fallback for the rare talk without one.
+	 *
+	 * @param array<string,mixed> $data Talk data (event_url/talk_url).
+	 */
+	public static function session_url( array $data ): string {
+		$talk_url = (string) ( $data['talk_url'] ?? '' );
 
-		return $fallback;
+		return '' !== $talk_url ? $talk_url : (string) ( $data['event_url'] ?? '' );
 	}
 
 	/**
@@ -1078,13 +1101,15 @@ final class Components {
 	 * @param array<string,string> $register Register settings (mode, url).
 	 */
 	private static function ticket_register_url( array $ticket, array $register ): string {
-		$url = self::register_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
+		$external = (string) ( $register['url'] ?? '' );
 
-		if ( '' !== $url && 'checkout' === (string) ( $register['mode'] ?? 'checkout' ) ) {
-			$url = add_query_arg( 'ticket', (string) $ticket['id'], $url );
+		if ( '' !== $external ) {
+			return $external;
 		}
 
-		return $url;
+		$url = self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
+
+		return '' !== $url ? add_query_arg( 'ticket', (string) $ticket['id'], $url ) : '';
 	}
 
 	/**
@@ -1668,7 +1693,9 @@ final class Components {
 				'layout'         => (string) ( $atts['layout'] ?? 'panel' ),
 				'show'           => self::show_flags( $atts ),
 				'show_countdown' => ! empty( $atts['show_countdown'] ),
+				'buttons'        => (string) ( $atts['buttons'] ?? 'both' ),
 				'register_text'  => (string) ( $atts['register_text'] ?? '' ),
+				'session_text'   => (string) ( $atts['session_text'] ?? '' ),
 				'register'       => self::register_args( $atts ),
 				'drawer'         => $drawer['id'],
 			]
