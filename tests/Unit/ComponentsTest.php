@@ -646,4 +646,105 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'data-eex-bar-title="Imminent session"', $html );
 		$this->assertStringContainsString( 'data-eex-session', $html );
 	}
+
+	public function test_pricing_granular_filters_and_hero_ticket(): void {
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'publish',
+				'post_title'  => 'Filtered event',
+				'meta_input'  => [
+					'_eex_heysummit_id'  => '101',
+					'_eex_connection_id' => 'c1',
+					'_eex_event_url'     => 'https://summit.example.com/',
+				],
+			]
+		);
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+
+		$this->mock_http(
+			static function ( $url ) {
+				if ( ! str_contains( (string) $url, 'tickets/' ) ) {
+					return null;
+				}
+
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'                 => 9001,
+								'title'              => 'All access',
+								'is_paid'            => 'true',
+								'prices'             => '[{"id": 501, "title": "Standard", "price": "99"}]',
+								'quantity_remaining' => '0',
+							],
+							[
+								'id'      => 9002,
+								'title'   => 'Free pass',
+								'is_paid' => 'false',
+								'prices'  => '[]',
+							],
+							[
+								'id'                 => 9003,
+								'title'              => 'VIP',
+								'is_paid'            => 'true',
+								'prices'             => '[{"id": 502, "title": "VIP", "price": "299"}]',
+								'quantity_remaining' => '5',
+							],
+						],
+					]
+				);
+			}
+		);
+
+		// Whitelist + hero + custom ribbon.
+		$html = Components::render(
+			'pricing',
+			[
+				'event'       => '101',
+				'tickets'     => '9001, 9003',
+				'featured'    => '9003',
+				'ribbon_text' => 'Best value',
+			]
+		);
+		$this->assertStringContainsString( 'All access', $html );
+		$this->assertStringContainsString( 'VIP', $html );
+		$this->assertStringNotContainsString( 'Free pass', $html );
+		$this->assertStringContainsString( 'eex-pricing-hero', $html );
+		$this->assertStringContainsString( 'Best value', $html );
+		$this->assertSame( 1, substr_count( $html, 'eex-badge-popular' ), 'only the hero carries the ribbon' );
+
+		// Exclude + hide free + hide sold out.
+		Cache::flush();
+		$html = Components::render(
+			'pricing',
+			[
+				'event'        => '101',
+				'exclude'      => '9003',
+				'show_free'    => 0,
+				'hide_soldout' => 1,
+			]
+		);
+		$this->assertStringContainsString( 'eex-empty', $html, '9001 is sold out, 9002 is free, 9003 excluded' );
+
+		// Covers toggle off removes the coverage badges.
+		Cache::flush();
+		$html = Components::render(
+			'pricing',
+			[
+				'event'       => '101',
+				'show_covers' => 0,
+			]
+		);
+		$this->assertStringNotContainsString( 'Live sessions', $html );
+	}
 }

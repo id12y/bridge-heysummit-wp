@@ -406,7 +406,32 @@ final class Components {
 							'rows'    => __( 'Rows', 'emailexpert-events' ),
 						],
 					],
+					'columns'           => $talk_columns,
+					'tickets'           => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Only these ticket IDs (comma separated)', 'emailexpert-events' ),
+					],
+					'exclude'           => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Hide these ticket IDs (comma separated)', 'emailexpert-events' ),
+					],
+					'featured'          => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Hero ticket ID (ribbon + emphasis)', 'emailexpert-events' ),
+					],
+					'ribbon_text'       => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Ribbon text (empty = "Most popular")', 'emailexpert-events' ),
+					],
+					'show_free'         => $flag( __( 'Show free tickets', 'emailexpert-events' ) ),
+					'show_paid'         => $flag( __( 'Show paid tickets', 'emailexpert-events' ) ),
+					'hide_soldout'      => $flag( __( 'Hide sold-out tickets', 'emailexpert-events' ), 0 ),
 					'show_description'  => $flag( __( 'Show ticket descriptions', 'emailexpert-events' ) ),
+					'show_covers'       => $flag( __( 'Show what each ticket covers', 'emailexpert-events' ) ),
 					'show_remaining'    => $flag( __( 'Show remaining quantity', 'emailexpert-events' ) ),
 					'highlight_popular' => $flag( __( 'Highlight the popular ticket', 'emailexpert-events' ) ),
 					'register_text'     => $register_text,
@@ -1447,26 +1472,75 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_pricing( array $atts ): string {
-		$tickets = self::repo()->tickets( $atts );
+		$csv = static fn( string $value ): array => array_values( array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
+
+		$only     = $csv( (string) ( $atts['tickets'] ?? '' ) );
+		$excluded = $csv( (string) ( $atts['exclude'] ?? '' ) );
+		$featured = trim( (string) ( $atts['featured'] ?? '' ) );
+
+		$tickets = array_values(
+			array_filter(
+				self::repo()->tickets( $atts ),
+				static function ( array $ticket ) use ( $atts, $only, $excluded ): bool {
+					$id = (string) $ticket['id'];
+
+					if ( ! empty( $only ) && ! in_array( $id, $only, true ) ) {
+						return false;
+					}
+
+					if ( in_array( $id, $excluded, true ) ) {
+						return false;
+					}
+
+					if ( empty( $atts['show_free'] ) && empty( $ticket['is_paid'] ) ) {
+						return false;
+					}
+
+					if ( empty( $atts['show_paid'] ) && ! empty( $ticket['is_paid'] ) ) {
+						return false;
+					}
+
+					if ( ! empty( $atts['hide_soldout'] ) && '0' === (string) $ticket['remaining'] ) {
+						return false;
+					}
+
+					return true;
+				}
+			)
+		);
 
 		if ( empty( $tickets ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
 		}
 
-		$rows = 'rows' === (string) ( $atts['layout'] ?? 'columns' );
+		$rows   = 'rows' === (string) ( $atts['layout'] ?? 'columns' );
+		$ribbon = (string) ( $atts['ribbon_text'] ?? '' );
+		if ( '' === $ribbon ) {
+			$ribbon = __( 'Most popular', 'emailexpert-events' );
+		}
+
+		$columns = min( 6, max( 0, (int) ( $atts['columns'] ?? 0 ) ) );
+		$style   = ! $rows && $columns > 0 ? sprintf( ' style="--eex-columns:%d"', $columns ) : '';
 
 		ob_start();
-		printf( '<ul class="%s" role="list">', esc_attr( $rows ? 'eex-list eex-pricing eex-pricing-rows' : 'eex-grid eex-pricing' ) );
+		printf( '<ul class="%s" role="list"%s>', esc_attr( $rows ? 'eex-list eex-pricing eex-pricing-rows' : 'eex-grid eex-pricing' ), $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from an integer above.
 		foreach ( $tickets as $ticket ) {
+			// The hero ticket is the explicitly chosen one; otherwise the
+			// API's own popular flag when highlighting is on.
+			$is_hero    = '' !== $featured && (string) $ticket['id'] === $featured;
+			$has_ribbon = $is_hero || ( '' === $featured && ! empty( $atts['highlight_popular'] ) && ! empty( $ticket['popular'] ) );
+
 			echo '<li class="eex-grid-item">';
 			TemplateLoader::part(
 				'pricing-ticket',
 				[
-					'ticket'            => $ticket,
-					'show_description'  => ! empty( $atts['show_description'] ),
-					'show_remaining'    => ! empty( $atts['show_remaining'] ),
-					'highlight_popular' => ! empty( $atts['highlight_popular'] ),
-					'register_text'     => (string) ( $atts['register_text'] ?? '' ),
+					'ticket'           => $ticket,
+					'hero'             => $is_hero,
+					'ribbon'           => $has_ribbon ? $ribbon : '',
+					'show_description' => ! empty( $atts['show_description'] ),
+					'show_covers'      => ! empty( $atts['show_covers'] ),
+					'show_remaining'   => ! empty( $atts['show_remaining'] ),
+					'register_text'    => (string) ( $atts['register_text'] ?? '' ),
 				]
 			);
 			echo '</li>';

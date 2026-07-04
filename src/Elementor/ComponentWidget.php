@@ -248,6 +248,31 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		);
 
 		$this->add_responsive_control(
+			'eex_actions_align',
+			[
+				'label'     => __( 'Button row alignment', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::CHOOSE,
+				'options'   => [
+					'flex-start' => [
+						'title' => __( 'Left', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-left',
+					],
+					'center'     => [
+						'title' => __( 'Centre', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-center',
+					],
+					'flex-end'   => [
+						'title' => __( 'Right', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-right',
+					],
+				],
+				'selectors' => [
+					'{{WRAPPER}} .eex' => '--eex-actions-justify: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_responsive_control(
 			'eex_button_padding',
 			[
 				'label'      => __( 'Button padding', 'emailexpert-events' ),

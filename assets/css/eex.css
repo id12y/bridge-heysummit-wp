@@ -123,6 +123,19 @@
 	flex-wrap: wrap;
 	gap: 0.5em 1em;
 	align-items: center;
+	justify-content: var(--eex-actions-justify, flex-start);
+}
+
+.eex-agenda-actions {
+	justify-content: var(--eex-actions-justify, flex-start);
+}
+
+.eex-hero .eex-card-actions {
+	margin-top: 0.75rem;
+}
+
+.eex-hero .eex-cta {
+	padding: 0.55em 1.4em;
 }
 
 .eex .eex-cta,
@@ -482,6 +495,16 @@
 .eex-pricing-popular {
 	border-color: var(--eex-accent);
 	box-shadow: 0 0 0 1px var(--eex-accent);
+}
+
+.eex-pricing-hero {
+	box-shadow: 0 0 0 2px var(--eex-accent), 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+@media (min-width: 601px) {
+	.eex-pricing-hero {
+		transform: scale(1.03);
+	}
 }
 
 .eex-badge-popular {
