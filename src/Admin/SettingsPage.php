@@ -216,7 +216,7 @@ final class SettingsPage {
 		<div class="wrap eex-settings">
 			<h1><?php esc_html_e( 'Switch to Lite mode', 'emailexpert-events' ); ?></h1>
 
-			<p><?php esc_html_e( 'Lite mode stops all content syncing: synced events, sessions and speakers will no longer update, sync cron is unscheduled, and webhooks, feeds, the replays library and local event pages are switched off. Display components fetch live HeySummit data instead.', 'emailexpert-events' ); ?></p>
+			<p><?php esc_html_e( 'Lite mode stops all content syncing: synced events, sessions and speakers will no longer update, sync cron is unscheduled, and webhooks, attribution and local event pages are switched off. Display components (including past sessions, replays and the calendar feed) fetch live HeySummit data instead.', 'emailexpert-events' ); ?></p>
 
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="eex_switch_mode" />
@@ -377,11 +377,10 @@ final class SettingsPage {
 
 		<?php
 		foreach ( [
-			__( 'Replays library', 'emailexpert-events' ),
+			__( 'Local event, session and speaker pages (SEO/GEO content)', 'emailexpert-events' ),
 			__( 'MyListing bridge', 'emailexpert-events' ),
 			__( 'Accounts module', 'emailexpert-events' ),
 			__( 'Attribution and registration counter', 'emailexpert-events' ),
-			__( 'Calendar subscribe feed', 'emailexpert-events' ),
 			__( 'Weekly digest', 'emailexpert-events' ),
 		] as $feature ) {
 			printf( '<p class="description">%s — %s</p>', esc_html( $feature ), esc_html__( 'available in Full mode.', 'emailexpert-events' ) );

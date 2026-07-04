@@ -71,11 +71,35 @@ final class LiteModeTest extends TestCase {
 	/**
 	 * Mock the API with one event and two future talks.
 	 *
-	 * @param bool $fail Simulate an unreachable API.
+	 * @param bool $fail      Simulate an unreachable API.
+	 * @param bool $with_past Add two past talks (505 with a replay, 506 older).
 	 */
-	private function mock_api( bool $fail = false ): void {
+	private function mock_api( bool $fail = false, bool $with_past = false ): void {
+		$past = ! $with_past ? [] : [
+			[
+				'id'         => 505,
+				'title'      => 'Yesterday keynote',
+				'starts_at'  => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS ),
+				'ends_at'    => gmdate( 'Y-m-d\TH:i:s\Z', time() - DAY_IN_SECONDS + 3600 ),
+				'event'      => 101,
+				'replay_url' => 'https://replay.example.com/keynote',
+				'categories' => [
+					[
+						'id'    => 3,
+						'title' => 'Deliverability',
+					],
+				],
+			],
+			[
+				'id'        => 506,
+				'title'     => 'Old workshop',
+				'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() - 2 * DAY_IN_SECONDS ),
+				'event'     => 101,
+			],
+		];
+
 		$this->mock_http(
-			function ( $url ) use ( $fail ) {
+			function ( $url ) use ( $fail, $past ) {
 				$this->requests[] = (string) $url;
 
 				if ( $fail ) {
@@ -85,7 +109,7 @@ final class LiteModeTest extends TestCase {
 				if ( str_contains( (string) $url, 'talks/' ) ) {
 					return self::json_response(
 						[
-							'results' => [
+							'results' => array_merge( $past, [
 								[
 									'id'        => 501,
 									'title'     => 'Live session one',
@@ -128,7 +152,7 @@ final class LiteModeTest extends TestCase {
 									'event'          => 101,
 									'talk_cancelled' => true,
 								],
-							],
+							] ),
 						]
 					);
 				}
@@ -963,14 +987,142 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'data-eex-session', $lite_html );
 	}
 
-	public function test_lite_hides_past_components_rather_than_erroring(): void {
+	public function test_lite_past_sessions_work_but_past_events_stay_hidden(): void {
+		$this->go_lite();
+		$this->mock_api( false, true );
+
+		$repo = Repositories::current();
+
+		// Past SESSIONS surface from the same cached harvest, newest first.
+		$past = $repo->past_talks( [] );
+		$this->assertCount( 2, $past );
+		$this->assertSame( 'Yesterday keynote', $past[0]['title'] );
+		$this->assertSame( 'Old workshop', $past[1]['title'] );
+		$this->assertSame( 2, $repo->past_talks_total( [ 'limit' => 1 ] ), 'total ignores limit' );
+
+		// Past EVENTS remain empty: no live archive worth chasing.
+		$this->assertSame( [], $repo->past_events( [] ) );
+	}
+
+	public function test_lite_past_sessions_render_newest_first_with_replay_cta(): void {
+		$this->go_lite();
+		$this->mock_api( false, true );
+
+		$html = Components::render( 'past-sessions', [] );
+
+		$this->assertStringContainsString( 'Yesterday keynote', $html );
+		$this->assertStringContainsString( 'Old workshop', $html );
+		$this->assertLessThan(
+			strpos( $html, 'Old workshop' ),
+			strpos( $html, 'Yesterday keynote' ),
+			'newest first'
+		);
+		$this->assertStringContainsString( 'eex-cta-replay', $html );
+		$this->assertStringContainsString( 'https://replay.example.com/keynote', $html );
+		$this->assertStringNotContainsString( 'Live session one', $html, 'upcoming sessions stay out of the archive' );
+	}
+
+	public function test_lite_past_sessions_paginate_and_search(): void {
+		$this->go_lite();
+		$this->mock_api( false, true );
+
+		// Page 2 at one per page shows the older talk.
+		try {
+			$_GET['eex_page'] = '2';
+			$page_two         = Components::render(
+				'past-sessions',
+				[
+					'limit'    => 1,
+					'paginate' => 1,
+				]
+			);
+		} finally {
+			unset( $_GET['eex_page'] );
+		}
+
+		$this->assertStringContainsString( 'Old workshop', $page_two );
+		$this->assertStringNotContainsString( 'Yesterday keynote', $page_two );
+
+		// Text search filters and never mints cache rows.
+		$fragments = static fn(): int => count(
+			array_filter( array_keys( \EEX_Test_State::$transients ), static fn( $k ): bool => str_starts_with( (string) $k, 'eex_c_' ) )
+		);
+		$before    = $fragments();
+
+		try {
+			$_GET['eex_q'] = 'keynote';
+			$searched      = Components::render( 'past-sessions', [] );
+		} finally {
+			unset( $_GET['eex_q'] );
+		}
+
+		$this->assertStringContainsString( 'Yesterday keynote', $searched );
+		$this->assertStringNotContainsString( 'Old workshop', $searched );
+		$this->assertSame( $before, $fragments(), 'searches never cache' );
+
+		// The filter bar's no-JS category link filters server-side too,
+		// without minting a cache row for the visitor-controlled value.
+		$before = $fragments();
+		try {
+			$_GET['eex_cat'] = 'deliverability';
+			$by_category     = Components::render( 'past-sessions', [] );
+		} finally {
+			unset( $_GET['eex_cat'] );
+		}
+
+		$this->assertStringContainsString( 'Yesterday keynote', $by_category );
+		$this->assertStringNotContainsString( 'Old workshop', $by_category, 'uncategorised talk filtered out' );
+		$this->assertSame( $before, $fragments(), 'GET-sourced category renders fresh' );
+	}
+
+	public function test_lite_feed_serves_from_live_data_without_rewrites(): void {
 		$this->go_lite();
 		$this->mock_api();
 
-		$repo = Repositories::current();
-		$this->assertSame( [], $repo->past_talks( [] ) );
-		$this->assertSame( [], $repo->past_events( [] ) );
-		$this->assertSame( 0, $repo->past_talks_total( [] ) );
+		$feeds = new \Emailexpert\Events\Frontend\Feeds();
+
+		// No rewrite rules in Lite; the query-var URL is the subscribe URL.
+		$GLOBALS['eex_test_rewrites'] = [];
+		$feeds->add_rewrite();
+		$this->assertSame( [], $GLOBALS['eex_test_rewrites'] );
+		$this->assertStringContainsString( '?eex_feed=calendar', \Emailexpert\Events\Frontend\Feeds::url() );
+
+		// The subscribe link on listings uses that URL.
+		$listing = Components::render( 'upcoming-sessions', [ 'show_subscribe' => 1 ] );
+		$this->assertStringContainsString( 'eex_feed=calendar', $listing );
+
+		// The feed body builds from the live repository's data arrays.
+		$ics = $feeds->build(
+			[
+				'event'    => '',
+				'category' => '',
+				'limit'    => 0,
+			]
+		);
+		$this->assertStringContainsString( 'BEGIN:VCALENDAR', $ics );
+		$this->assertStringContainsString( 'SUMMARY:Live session one', $ics );
+		$this->assertStringContainsString( 'SUMMARY:External masterclass', $ics );
+
+		// Cache guard: configured events and live category slugs are
+		// cacheable; junk never mints rows.
+		$this->assertTrue( $feeds->should_cache( [ 'event' => '', 'category' => '' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertTrue( $feeds->should_cache( [ 'event' => '101', 'category' => '' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertTrue( $feeds->should_cache( [ 'event' => '', 'category' => 'deliverability' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertFalse( $feeds->should_cache( [ 'event' => 'junk-4711', 'category' => '' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertFalse( $feeds->should_cache( [ 'event' => '', 'category' => 'no-such-slug' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+	}
+
+	public function test_lite_session_filter_bar_renders_live_data_with_query_links(): void {
+		$this->go_lite();
+		$this->mock_api( false, true );
+
+		$html = Components::render( 'session-filter', [ 'show_search' => 1 ] );
+
+		$this->assertStringContainsString( 'data-eex-filter="1"', $html );
+		$this->assertStringContainsString( 'data-eex-filter-cat="deliverability"', $html );
+		$this->assertStringContainsString( 'eex_cat=deliverability', $html, 'URL-less live categories fall back to query-arg links' );
+		$this->assertStringContainsString( 'Ada Speaker', $html );
+		$this->assertStringContainsString( 'name="eex_q"', $html );
 	}
 
 	// -- Criterion 7: switching. ----------------------------------------------
@@ -1220,9 +1372,13 @@ final class LiteModeTest extends TestCase {
 
 		$GLOBALS['eex_test_shortcodes'] = [];
 		( new \Emailexpert\Events\Frontend\Shortcodes() )->register();
-		$this->assertArrayNotHasKey( 'eex_past_sessions', $GLOBALS['eex_test_shortcodes'] ?? [] );
+		$this->assertArrayNotHasKey( 'eex_past_events', $GLOBALS['eex_test_shortcodes'] ?? [] );
 		$this->assertArrayNotHasKey( 'eex_reg_counter', $GLOBALS['eex_test_shortcodes'] ?? [] );
 		$this->assertArrayHasKey( 'eex_upcoming_sessions', $GLOBALS['eex_test_shortcodes'] ?? [] );
+
+		// Past sessions and the filter bar joined Lite (v1.19.0).
+		$this->assertArrayHasKey( 'eex_past_sessions', $GLOBALS['eex_test_shortcodes'] ?? [] );
+		$this->assertArrayHasKey( 'eex_session_filter', $GLOBALS['eex_test_shortcodes'] ?? [] );
 	}
 
 	public function test_hostile_api_urls_never_reach_lite_markup(): void {

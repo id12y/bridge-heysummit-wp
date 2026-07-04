@@ -1142,3 +1142,41 @@ Known cost, accepted: new atts change every last-good cache key, so
 this deploy discards existing last-good copies once (a Lite site whose
 API is down right at upgrade time shows empty states until one fetch
 succeeds).
+
+## D84. Lite grows up: past sessions, the calendar feed and the filter bar (v1.19.0)
+
+Asked "which 3 features would you check or add in Lite", the honest
+answer started with a check that failed: a live registration counter is
+NOT buildable — the events serializer exposes no attendee/registration
+count and Full's counter is fed by verified webhooks, which Lite gives
+up. Added to the HeySummit ask list: an aggregate registration_count on
+the events serializer would make social proof work API-only.
+
+The three that shipped, each cheaper than it looks because the plumbing
+existed:
+
+- **Past sessions + replays.** The bounded talk harvest was already
+  fetching past sessions and throwing them away — past_talks() was a
+  hard stub with an outdated "unbounded queries" rationale (the harvest
+  has had page budgets since V4). Un-stubbed: newest first, replay CTAs
+  (replay_url/replay_planned were already mapped), pagination, search.
+  Past EVENTS remain Full-only — no live archive worth chasing. Side
+  effect accepted: Lite's schedule component now shows past sessions
+  (Full parity).
+- **Calendar subscribe feed.** Feeds moved to both modes; in Lite it
+  skips add_rewrite_rule (the no-rewrites promise holds) and serves at
+  /?eex_feed=calendar, building through Ics::calendar_from_data() from
+  the live repository — the exact path the per-session download proved.
+  should_cache() gained a Lite branch validating ?event=/?category=
+  against the configured events and live category slugs (bounded sets;
+  junk params still get a fresh-built response, never a transient).
+  Fixed a latent bug: the subscribe link on listings was hardcoded to
+  the pretty URL and 404'd in Lite — Feeds::url() now serves both.
+- **Session filter bar.** Categories and speakers already aggregated
+  correctly in Lite; the JS filter works on the shared card markup
+  unchanged. The no-JS story needed one addition: Lite categories have
+  no archive pages, so URL-less category badges link back to the
+  current page as ?eex_cat=, which past-sessions now accepts via
+  from_get — and GET-sourced category values are treated like search
+  strings for caching (render fresh, never mint transient rows from
+  visitor-controlled input).

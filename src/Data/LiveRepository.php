@@ -23,8 +23,11 @@ defined( 'ABSPATH' ) || exit;
  * Extends BaseMapper only for the defensive field extractors the sync
  * mappers use, so live parsing tolerates the same shape drift.
  *
- * Lite is forward-looking: past sessions and past events return empty (an
- * unbounded past would mean unbounded live queries).
+ * Past sessions surface whatever the bounded talk harvest fetched — the
+ * harvest walks the collection from both ends within a fixed page budget,
+ * so no query is ever unbounded; very large archives show their most
+ * recent sessions. Past EVENTS remain empty (the events collection offers
+ * no archive pagination worth chasing live).
  */
 class LiveRepository extends BaseMapper implements Repository {
 
@@ -62,22 +65,35 @@ class LiveRepository extends BaseMapper implements Repository {
 	}
 
 	/**
-	 * Past talks: none in Lite (forward-looking).
+	 * Past talks across the configured events, newest first. Same cached
+	 * collections as upcoming_talks — the harvest already fetched these
+	 * rows; this surfaces the other side of the now() split (replays
+	 * library, past-sessions archive).
 	 *
 	 * @param array<string,mixed> $atts Attributes.
 	 * @return array<int,array<string,mixed>>
 	 */
 	public function past_talks( array $atts ): array {
-		return [];
+		$now   = time();
+		$talks = array_filter(
+			$this->talks_matching( $atts ),
+			static fn( array $talk ): bool => $talk['start_ts'] > 0 && $talk['start_ts'] < $now
+		);
+
+		usort( $talks, static fn( array $a, array $b ): int => $b['start_ts'] <=> $a['start_ts'] );
+
+		return $this->limit( array_values( $talks ), $atts );
 	}
 
 	/**
-	 * Past talk count: none in Lite.
+	 * Total past talks, ignoring limit/offset (pagination totals).
 	 *
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	public function past_talks_total( array $atts ): int {
-		return 0;
+		unset( $atts['limit'], $atts['offset'] );
+
+		return count( $this->past_talks( $atts ) );
 	}
 
 	/**
@@ -255,10 +271,10 @@ class LiveRepository extends BaseMapper implements Repository {
 	}
 
 	/**
-	 * Currently-running plus next sessions: Lite keeps no past data, so
-	 * "current" means sessions that started within the last six hours —
-	 * long enough for any live webinar, cheap to compute from the cached
-	 * collections. The JS decides actual live state.
+	 * Currently-running plus next sessions: "current" means sessions that
+	 * started within the last six hours — long enough for any live
+	 * webinar, cheap to compute from the cached collections. The JS
+	 * decides actual live state.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
 	 * @return array<int,array<string,mixed>>
@@ -505,7 +521,7 @@ class LiveRepository extends BaseMapper implements Repository {
 			return $this->with_harvest(
 				sprintf(
 				/* translators: 1: total sessions found, 2: detail about the most recent session. */
-					__( '%1$d session(s) were found, but none start in the future (%2$s) — Lite is forward-looking and shows upcoming sessions only.', 'emailexpert-events' ),
+					__( '%1$d session(s) were found, but none start in the future (%2$s) — this component shows upcoming sessions only; the past-sessions component shows the rest.', 'emailexpert-events' ),
 					$total,
 					$detail
 				)

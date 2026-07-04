@@ -26,11 +26,12 @@ final class Components {
 
 	/**
 	 * Components that need local content and are therefore absent in Lite
-	 * (hidden, not greyed out): the past archives would mean unbounded live
-	 * queries, the counter needs webhook attribution, and the filter bar's
-	 * links need local category and speaker pages.
+	 * (hidden, not greyed out): past events have no live archive worth
+	 * chasing, and the counter needs webhook attribution. Past SESSIONS and
+	 * the filter bar work in Lite — the talk harvest already fetches past
+	 * sessions, and the bar filters via JS with query-arg fallbacks.
 	 */
-	public const FULL_ONLY = [ 'past-sessions', 'past-events', 'reg-counter', 'session-filter' ];
+	public const FULL_ONLY = [ 'past-events', 'reg-counter' ];
 
 	/**
 	 * Components whose Lite render emits inline Event JSON-LD for the items
@@ -221,8 +222,9 @@ final class Components {
 						'default' => '',
 					],
 					'category'        => [
-						'type'    => 'string',
-						'default' => '',
+						'type'     => 'string',
+						'default'  => '',
+						'from_get' => 'eex_cat', // The filter bar's no-JS category links.
 					],
 					'layout'          => $talk_layout,
 					'columns'         => $talk_columns,
@@ -898,10 +900,12 @@ final class Components {
 		// campaign-tagged URLs derived from the rendering page.
 		$cache_atts = $atts + [ '_ctx' => Utm::cache_context() ];
 
-		// Visitor-typed search strings never mint cache entries: every
-		// unique ?eex_q= would otherwise write a transient row (unbounded,
-		// unauthenticated). Searches render fresh instead.
-		$cacheable = '' === (string) ( $atts['q'] ?? '' );
+		// Visitor-typed filter strings never mint cache entries: every
+		// unique ?eex_q= (or ?eex_cat= where the component sources category
+		// from GET) would otherwise write a transient row (unbounded,
+		// unauthenticated). Filtered views render fresh instead.
+		$cacheable = '' === (string) ( $atts['q'] ?? '' )
+			&& ! ( isset( $_GET['eex_cat'] ) && 'eex_cat' === (string) ( $definitions[ $name ]['atts']['category']['from_get'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only cache decision.
 
 		if ( $cacheable ) {
 			$cached = Cache::get( $name, $cache_atts );
@@ -1664,7 +1668,7 @@ final class Components {
 		$html = self::talk_cards( self::repo()->upcoming_talks( $atts ), $atts, 'upcoming' );
 
 		if ( ! empty( $atts['show_subscribe'] ) ) {
-			$feed_url = home_url( '/feeds/eex/calendar.ics' );
+			$feed_url = Feeds::url();
 			$params   = array_filter(
 				[
 					'event'    => (string) $atts['event'],
@@ -2735,9 +2739,16 @@ final class Components {
 		if ( ! empty( $categories ) ) {
 			echo '<nav class="eex-filter-categories" aria-label="' . esc_attr__( 'Filter by category', 'emailexpert-events' ) . '">';
 			foreach ( $categories as $category ) {
+				// Lite categories have no local archive page: the no-JS
+				// fallback filters the sessions list on the current page
+				// instead (?eex_cat= feeds the category att via from_get).
+				$category_url = '' !== (string) $category['url']
+					? (string) $category['url']
+					: add_query_arg( 'eex_cat', (string) $category['slug'] );
+
 				printf(
 					'<a class="eex-badge" href="%s" data-eex-filter-cat="%s">%s</a> ',
-					esc_url( (string) $category['url'] ),
+					esc_url( $category_url ),
 					esc_attr( (string) $category['slug'] ),
 					esc_html( (string) $category['name'] )
 				);
