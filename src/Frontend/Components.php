@@ -463,6 +463,27 @@ final class Components {
 						'default' => '',
 						'label'   => __( 'Only this sponsor category (e.g. Gold)', 'emailexpert-events' ),
 					],
+					'group_by'         => [
+						'type'    => 'string',
+						'default' => 'category',
+						'label'   => __( 'Grouping', 'emailexpert-events' ),
+						'options' => [
+							'category' => __( 'Group under category headings', 'emailexpert-events' ),
+							'none'     => __( 'One flat wall, no headings', 'emailexpert-events' ),
+						],
+					],
+					'show_names'       => $flag( __( 'Show sponsor names', 'emailexpert-events' ) ),
+					'show_blurb'       => $flag( __( 'Show short descriptions', 'emailexpert-events' ), 0 ),
+					'logo_size'        => [
+						'type'    => 'string',
+						'default' => 'medium',
+						'label'   => __( 'Logo size', 'emailexpert-events' ),
+						'options' => [
+							'small'  => __( 'Small', 'emailexpert-events' ),
+							'medium' => __( 'Medium', 'emailexpert-events' ),
+							'large'  => __( 'Large', 'emailexpert-events' ),
+						],
+					],
 					'empty_text'       => [
 						'type'    => 'string',
 						'default' => __( 'Sponsorship opportunities are available.', 'emailexpert-events' ),
@@ -1815,16 +1836,53 @@ final class Components {
 		ksort( $tiers );
 
 		$list = 'list' === (string) ( $atts['layout'] ?? 'grid' );
+		$flat = 'none' === (string) ( $atts['group_by'] ?? 'category' );
+		$show = [
+			'names' => ! isset( $atts['show_names'] ) || ! empty( $atts['show_names'] ),
+			'blurb' => ! empty( $atts['show_blurb'] ),
+		];
+
+		$logo_sizes = [
+			'small'  => '2em',
+			'medium' => '3.25em',
+			'large'  => '5em',
+		];
+		$logo_style = sprintf( ' style="--eex-sponsor-logo:%s"', $logo_sizes[ (string) ( $atts['logo_size'] ?? 'medium' ) ] ?? '3.25em' );
+
+		$open_list  = ( $list ? '<ul class="eex-list eex-sponsor-list" role="list"' : '<ul class="eex-grid eex-sponsor-grid" role="list"' ) . $logo_style . '>';
+		$sponsor_li = static function ( array $sponsor ) use ( $list, $show ): void {
+			echo '<li class="eex-grid-item">';
+			TemplateLoader::part(
+				$list ? 'list-sponsor' : 'card-sponsor',
+				[
+					'sponsor' => $sponsor,
+					'show'    => $show,
+				]
+			);
+			echo '</li>';
+		};
 
 		ob_start();
+
+		if ( $flat ) {
+			// One wall, no headings — order still respects the categories.
+			echo $open_list; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal markup and em values above.
+			foreach ( $tiers as $tier_sponsors ) {
+				foreach ( $tier_sponsors as $sponsor ) {
+					$sponsor_li( $sponsor );
+				}
+			}
+			echo '</ul>';
+
+			return (string) ob_get_clean();
+		}
+
 		foreach ( $tiers as $key => $tier_sponsors ) {
 			[ , $tier_name ] = explode( '|', $key, 2 );
 			echo '<section class="eex-sponsor-tier"><h3 class="eex-tier-heading">' . esc_html( $tier_name ) . '</h3>';
-			echo $list ? '<ul class="eex-list eex-sponsor-list" role="list">' : '<ul class="eex-grid eex-sponsor-grid" role="list">';
+			echo $open_list; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal markup and em values above.
 			foreach ( $tier_sponsors as $sponsor ) {
-				echo '<li class="eex-grid-item">';
-				TemplateLoader::part( $list ? 'list-sponsor' : 'card-sponsor', [ 'sponsor' => $sponsor ] );
-				echo '</li>';
+				$sponsor_li( $sponsor );
 			}
 			echo '</ul></section>';
 		}
