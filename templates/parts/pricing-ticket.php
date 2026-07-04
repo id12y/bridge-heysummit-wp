@@ -54,8 +54,15 @@ $eex_covers = array_keys(
 	<?php if ( ! empty( $eex_ticket['prices'] ) ) : ?>
 		<p class="eex-pricing-prices">
 			<?php foreach ( (array) $eex_ticket['prices'] as $eex_price ) : ?>
+				<?php
+				$eex_amount = (string) ( $eex_price['amount'] ?: $eex_price['title'] );
+				// "0.00" is not a price anyone wants to read.
+				if ( is_numeric( $eex_amount ) && 0.0 === (float) $eex_amount ) {
+					$eex_amount = __( 'Free', 'emailexpert-events' );
+				}
+				?>
 				<span class="eex-pricing-price">
-					<span class="eex-pricing-amount"><?php echo esc_html( (string) ( $eex_price['amount'] ?: $eex_price['title'] ) ); ?></span>
+					<span class="eex-pricing-amount"><?php echo esc_html( $eex_amount ); ?></span>
 					<?php if ( '' !== (string) $eex_price['title'] && '' !== (string) $eex_price['amount'] ) : ?>
 						<span class="eex-pricing-price-label"><?php echo esc_html( (string) $eex_price['title'] ); ?></span>
 					<?php endif; ?>
@@ -67,7 +74,9 @@ $eex_covers = array_keys(
 	<?php endif; ?>
 
 	<?php if ( ! empty( $args['show_description'] ) && '' !== (string) $eex_ticket['description'] ) : ?>
-		<p class="eex-pricing-description"><?php echo esc_html( (string) $eex_ticket['description'] ); ?></p>
+		<div class="eex-pricing-description">
+			<?php echo wp_kses_post( (string) $eex_ticket['description'] ); // HeySummit descriptions carry their own markup. ?>
+		</div>
 	<?php endif; ?>
 
 	<?php if ( ! empty( $eex_covers ) ) : ?>

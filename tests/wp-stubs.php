@@ -280,7 +280,8 @@ if ( ! function_exists( 'esc_html_e' ) ) {
 }
 if ( ! function_exists( 'wp_kses_post' ) ) {
 	function wp_kses_post( $text ) {
-		return (string) $text;
+		// Approximation of core: drop the dangerous elements outright.
+		return (string) preg_replace( '#<(script|style|iframe|object|embed|form)\\b[^>]*>.*?</\\1>#is', '', (string) $text );
 	}
 }
 
