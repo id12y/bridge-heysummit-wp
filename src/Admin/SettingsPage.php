@@ -360,12 +360,17 @@ final class SettingsPage {
 						<p class="eex-lite-sponsor">
 							<input type="text" name="<?php echo esc_attr( $field ); ?>[name]" value="<?php echo esc_attr( (string) ( $sponsor['name'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Name', 'emailexpert-events' ); ?>" />
 							<input type="url" name="<?php echo esc_attr( $field ); ?>[url]" value="<?php echo esc_attr( (string) ( $sponsor['url'] ?? '' ) ); ?>" placeholder="https://sponsor.example.com/" />
-							<input type="url" name="<?php echo esc_attr( $field ); ?>[logo_url]" value="<?php echo esc_attr( (string) ( $sponsor['logo_url'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Logo URL', 'emailexpert-events' ); ?>" />
+							<input type="text" name="<?php echo esc_attr( $field ); ?>[logo_url]" value="<?php echo esc_attr( (string) ( ! empty( $sponsor['logo_id'] ) ? $sponsor['logo_id'] : ( $sponsor['logo_url'] ?? '' ) ) ); ?>" placeholder="<?php esc_attr_e( 'Logo URL or media ID', 'emailexpert-events' ); ?>" />
 							<input type="text" name="<?php echo esc_attr( $field ); ?>[tier]" value="<?php echo esc_attr( (string) ( $sponsor['tier'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Tier (e.g. Gold)', 'emailexpert-events' ); ?>" size="12" />
 							<input type="number" name="<?php echo esc_attr( $field ); ?>[tier_order]" value="<?php echo esc_attr( (string) (int) ( $sponsor['tier_order'] ?? 99 ) ); ?>" min="0" max="99" size="3" aria-label="<?php esc_attr_e( 'Tier order', 'emailexpert-events' ); ?>" />
 							<input type="text" name="<?php echo esc_attr( $field ); ?>[blurb]" value="<?php echo esc_attr( (string) ( $sponsor['blurb'] ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'One-line blurb', 'emailexpert-events' ); ?>" size="30" />
 						</p>
 					<?php endforeach; ?>
+					<p class="description" style="margin-top: 1em;">
+						<label for="eex-sponsor-csv"><strong><?php esc_html_e( 'Bulk import (CSV)', 'emailexpert-events' ); ?></strong></label><br />
+						<?php esc_html_e( 'One sponsor per line: Name, URL, Logo URL or media ID, Tier, Tier order, Blurb. Imported rows are added to the list above on save. HeySummit\'s API does not expose hub sponsors, so this list is the source of truth.', 'emailexpert-events' ); ?>
+					</p>
+					<textarea id="eex-sponsor-csv" name="lite_sponsors_csv" rows="4" class="large-text code" placeholder="<?php esc_attr_e( 'Acme Corp, https://acme.example.com/, https://cdn.example.com/acme.png, Gold, 1, Inbox specialists', 'emailexpert-events' ); ?>"></textarea>
 				</td>
 			</tr>
 		</table>
@@ -978,14 +983,14 @@ final class SettingsPage {
 					continue; // Blank name removes the row.
 				}
 
-				$clean[] = [
-					'name'       => sanitize_text_field( (string) $row['name'] ),
-					'url'        => esc_url_raw( (string) ( $row['url'] ?? '' ) ),
-					'logo_url'   => esc_url_raw( (string) ( $row['logo_url'] ?? '' ) ),
-					'tier'       => sanitize_text_field( (string) ( $row['tier'] ?? '' ) ),
-					'tier_order' => max( 0, min( 99, (int) ( $row['tier_order'] ?? 99 ) ) ),
-					'blurb'      => sanitize_text_field( (string) ( $row['blurb'] ?? '' ) ),
-				];
+				$clean[] = self::clean_sponsor_row( $row );
+			}
+
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in save(); parsed field-by-field below.
+			$csv = isset( $_POST['lite_sponsors_csv'] ) ? trim( (string) wp_unslash( $_POST['lite_sponsors_csv'] ) ) : '';
+
+			foreach ( self::parse_sponsor_csv( $csv ) as $row ) {
+				$clean[] = $row;
 			}
 
 			// Capped and lean: the settings option must stay small.
@@ -994,6 +999,59 @@ final class SettingsPage {
 
 		Options::update_settings( $values );
 		\Emailexpert\Events\Frontend\Cache::flush();
+	}
+
+	/**
+	 * Sanitise one sponsor row. The logo field accepts a URL or a media
+	 * library attachment ID.
+	 *
+	 * @param array<string,mixed> $row Raw row.
+	 * @return array<string,mixed>
+	 */
+	public static function clean_sponsor_row( array $row ): array {
+		$logo = trim( (string) ( $row['logo_url'] ?? '' ) );
+
+		return [
+			'name'       => sanitize_text_field( (string) ( $row['name'] ?? '' ) ),
+			'url'        => esc_url_raw( (string) ( $row['url'] ?? '' ) ),
+			'logo_id'    => ctype_digit( $logo ) ? (int) $logo : 0,
+			'logo_url'   => ctype_digit( $logo ) ? '' : esc_url_raw( $logo ),
+			'tier'       => sanitize_text_field( (string) ( $row['tier'] ?? '' ) ),
+			'tier_order' => max( 0, min( 99, (int) ( $row['tier_order'] ?? 99 ) ) ),
+			'blurb'      => sanitize_text_field( (string) ( $row['blurb'] ?? '' ) ),
+		];
+	}
+
+	/**
+	 * Parse the bulk-import textarea: one sponsor per CSV line —
+	 * Name, URL, Logo URL or media ID, Tier, Tier order, Blurb.
+	 *
+	 * @param string $csv Raw textarea content.
+	 * @return array<int,array<string,mixed>> Clean sponsor rows.
+	 */
+	public static function parse_sponsor_csv( string $csv ): array {
+		$rows = [];
+
+		foreach ( preg_split( '/\r\n|\r|\n/', $csv ) as $line ) {
+			$cols = array_map( static fn( $col ): string => trim( (string) $col ), str_getcsv( (string) $line, ',', '"', '\\' ) );
+
+			if ( '' === (string) ( $cols[0] ?? '' ) ) {
+				continue;
+			}
+
+			$rows[] = self::clean_sponsor_row(
+				[
+					'name'       => $cols[0],
+					'url'        => $cols[1] ?? '',
+					'logo_url'   => $cols[2] ?? '',
+					'tier'       => $cols[3] ?? '',
+					'tier_order' => is_numeric( $cols[4] ?? '' ) ? (int) $cols[4] : 99,
+					'blurb'      => $cols[5] ?? '',
+				]
+			);
+		}
+
+		return $rows;
 	}
 
 	/**

@@ -1601,4 +1601,57 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'SUMMARY:Live session one', $ics );
 		$this->assertStringContainsString( 'DTSTART:', $ics );
 	}
+
+	public function test_lite_sponsor_rows_render_on_the_wall(): void {
+		$this->go_lite();
+		Options::update_settings(
+			[
+				'lite_sponsors' => [
+					[
+						'name'       => 'Acme Deliverability',
+						'url'        => 'https://acme.example.com/',
+						'logo_url'   => 'https://cdn.example.com/acme.png',
+						'tier'       => 'Gold',
+						'tier_order' => 1,
+						'blurb'      => 'Inbox specialists.',
+					],
+				],
+			]
+		);
+
+		$html = Components::render( 'sponsors', [] );
+
+		$this->assertStringContainsString( 'Acme Deliverability', $html );
+		$this->assertStringContainsString( 'Gold', $html );
+		$this->assertStringContainsString( 'acme.png', $html );
+	}
+
+	public function test_sponsor_csv_import_and_media_id_logos(): void {
+		$rows = \Emailexpert\Events\Admin\SettingsPage::parse_sponsor_csv(
+			"Acme Corp, https://acme.example.com/, https://cdn.example.com/acme.png, Gold, 1, Inbox specialists\n" .
+			"\"Send, Deliver\", https://send.example.com/, 4321, Silver, 2\n" .
+			"\n" .
+			"Name Only"
+		);
+
+		$this->assertCount( 3, $rows );
+		$this->assertSame( 'Acme Corp', $rows[0]['name'] );
+		$this->assertSame( 'https://cdn.example.com/acme.png', $rows[0]['logo_url'] );
+		$this->assertSame( 0, $rows[0]['logo_id'] );
+		$this->assertSame( 'Send, Deliver', $rows[1]['name'], 'quoted commas survive' );
+		$this->assertSame( 4321, $rows[1]['logo_id'], 'a numeric logo value is a media attachment ID' );
+		$this->assertSame( '', $rows[1]['logo_url'] );
+		$this->assertSame( 'Name Only', $rows[2]['name'] );
+		$this->assertSame( 99, $rows[2]['tier_order'] );
+	}
+
+	public function test_empty_sponsor_wall_explains_itself_to_admins(): void {
+		$this->go_lite();
+
+		$html = Components::render( 'sponsors', [] );
+
+		$this->assertStringContainsString( 'eex-empty', $html );
+		$this->assertStringContainsString( 'sponsors are manual data', $html );
+		$this->assertStringContainsString( 'CSV import', $html );
+	}
 }

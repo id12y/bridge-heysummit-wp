@@ -364,7 +364,7 @@ class LiveRepository extends BaseMapper implements Repository {
 				'id'         => $index + 1,
 				'name'       => (string) $sponsor['name'],
 				'url'        => (string) ( $sponsor['url'] ?? '' ),
-				'logo_id'    => 0,
+				'logo_id'    => (int) ( $sponsor['logo_id'] ?? 0 ),
 				'logo_url'   => (string) ( $sponsor['logo_url'] ?? '' ),
 				'blurb'      => (string) ( $sponsor['blurb'] ?? '' ),
 				'tier_name'  => '' !== (string) ( $sponsor['tier'] ?? '' ) ? (string) $sponsor['tier'] : __( 'Partner', 'emailexpert-events' ),
