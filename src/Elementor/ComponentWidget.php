@@ -126,16 +126,21 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		];
 
 		foreach ( $colour_props as $prop => $label ) {
-			$this->add_control(
-				'eex_colour_' . str_replace( '-', '_', $prop ),
-				[
-					'label'     => $label,
-					'type'      => \Elementor\Controls_Manager::COLOR,
-					'selectors' => [
-						'{{WRAPPER}} .eex' => '--eex-' . $prop . ': {{VALUE}};',
-					],
-				]
-			);
+			$args = [
+				'label'     => $label,
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => [
+					'{{WRAPPER}} .eex' => '--eex-' . $prop . ': {{VALUE}};',
+				],
+			];
+
+			// The accent foreground must stay readable on the accent
+			// background whatever the theme's link colour does.
+			if ( 'accent-fg' === $prop ) {
+				$args['default'] = '#ffffff';
+			}
+
+			$this->add_control( 'eex_colour_' . str_replace( '-', '_', $prop ), $args );
 		}
 
 		$this->add_control(
