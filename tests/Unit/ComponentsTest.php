@@ -813,23 +813,25 @@ final class ComponentsTest extends TestCase {
 	public function test_session_buttons_offer_tickets_and_the_talk_page(): void {
 		$this->make_linked_talk();
 
-		// Default: both buttons — tickets to the event's checkout, session to
-		// the talk's own landing page.
+		// Default: both buttons — tickets to the event page (the one URL the
+		// API guarantees; synthesised checkout paths were wrong live),
+		// session to the talk's own landing page.
 		$html = Components::render( 'upcoming-sessions', [] );
-		$this->assertStringContainsString( 'summit.example.com/checkout/?talk=777', $html, 'checkout preselects the talk' );
+		$this->assertStringNotContainsString( '/checkout/', $html, 'no invented URLs' );
+		$this->assertStringContainsString( 'href="https://summit.example.com/"', $html );
 		$this->assertStringContainsString( 'eex-cta-session', $html );
 		$this->assertStringContainsString( 'summit.example.com/talks/linked-session/', $html );
 
 		// Session button only.
 		Cache::flush();
 		$session = Components::render( 'upcoming-sessions', [ 'buttons' => 'session' ] );
-		$this->assertStringNotContainsString( '/checkout/', $session );
+		$this->assertStringNotContainsString( 'href="https://summit.example.com/"', $session );
 		$this->assertStringContainsString( 'summit.example.com/talks/linked-session/', $session );
 
 		// Tickets button only.
 		Cache::flush();
 		$tickets = Components::render( 'upcoming-sessions', [ 'buttons' => 'tickets' ] );
-		$this->assertStringContainsString( 'summit.example.com/checkout/', $tickets );
+		$this->assertStringContainsString( 'href="https://summit.example.com/"', $tickets );
 		$this->assertStringNotContainsString( 'eex-cta-session', $tickets );
 
 		// External ticketing replaces the checkout link.
@@ -839,7 +841,7 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( '/checkout/', $external );
 	}
 
-	public function test_pricing_buttons_carry_the_ticket_into_checkout(): void {
+	public function test_pricing_buttons_land_on_the_event_page(): void {
 		$this->make_linked_talk();
 		update_option(
 			'eex_connections',
@@ -855,7 +857,8 @@ final class ComponentsTest extends TestCase {
 
 		$html = Components::render( 'pricing', [ 'event' => '101' ] );
 
-		$this->assertStringContainsString( 'checkout/?ticket=9001', $html );
+		$this->assertStringContainsString( 'href="https://summit.example.com/"', $html );
+		$this->assertStringNotContainsString( '/checkout/', $html, 'no invented URLs' );
 	}
 
 	public function test_register_panel_renders_the_ticket_drawer(): void {
@@ -884,6 +887,25 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'eex-drawer-panel', $html );
 		$this->assertStringContainsString( 'role="dialog"', $html );
 		$this->assertStringContainsString( 'All access', $html, 'the drawer lists the tickets' );
+
+		// The free ticket registers in the drawer; the paid one links out.
+		$this->assertStringContainsString( 'data-eex-reg="1"', $html, 'free ticket gets the in-drawer form' );
+		$this->assertStringContainsString( 'name="consent"', $html );
+		$this->assertStringContainsString( 'name="website"', $html, 'honeypot present' );
+		$this->assertSame( 1, substr_count( $html, 'data-eex-reg="1"' ), 'only the free ticket gets a form' );
+
+		// The drawer honours the ticket filters.
+		Cache::flush();
+		$filtered = Components::render(
+			'upcoming-sessions',
+			[
+				'register_action' => 'panel',
+				'event'           => '101',
+				'exclude'         => '9002',
+			]
+		);
+		$this->assertStringContainsString( 'All access', $filtered );
+		$this->assertStringNotContainsString( 'Free pass', $filtered, 'excluded tickets stay out of the panel' );
 
 		// Plain links by default: no drawer markup at all.
 		Cache::flush();

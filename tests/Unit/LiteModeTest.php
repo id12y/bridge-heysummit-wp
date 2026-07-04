@@ -221,8 +221,10 @@ final class LiteModeTest extends TestCase {
 		// generic event page.
 		$this->assertStringContainsString( 'summit.example.com/hub/talks/live-session-one/', $html );
 
-		// The tickets button deep-links the event checkout with this talk.
-		$this->assertStringContainsString( 'hub/checkout/?talk=501', $html );
+		// The tickets button lands on the event page — the one URL the API
+		// guarantees (synthesised checkout paths were wrong on the live hub).
+		$this->assertStringContainsString( 'href="https://summit.example.com/hub/"', $html );
+		$this->assertStringNotContainsString( '/checkout/', $html );
 	}
 
 	public function test_sponsor_wall_reads_the_api_and_keeps_manual_extras(): void {

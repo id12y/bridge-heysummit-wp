@@ -838,3 +838,28 @@ a hand-tuned entry never doubles an API one. Inserts/updates/deletes
 are deliberately NOT wired: the write allowlist stays attendee-only
 until a real workflow needs sponsor writes, per the standing rule that
 every write endpoint must be explicitly allowlisted and justified.
+
+## D69. The drawer registers people itself; invented URLs are dead
+
+Live verification killed the URL synthesis: /checkout/ paths and
+?ticket=/?talk= preselect parameters all produced error pages on the
+hub. Rule reaffirmed the hard way — never invent URLs the platform has
+not documented. Tickets buttons now land on the event page (the one URL
+the API guarantees), with the external-ticketing override unchanged.
+
+The journey the operator actually wanted — ticketing inside the
+slide-over — runs through the plugin's own write path instead: free
+tickets render a name/email/consent form in the drawer, POSTed to
+/eex/v1/register, which calls the allowlisted events/<id>/attendees/
+create with the ticket's own price ID. Guard rails in order: honeypot
+(silent fake success), consent required, email validation, five
+attempts per IP per ten minutes, the event must be one this site is
+configured for (the client never picks a connection), the ticket must
+exist on that event and be genuinely free (a claimed price ID is only
+accepted if it belongs to the ticket — a paid price cannot be smuggled
+onto a free registration), and suppression is honoured indistinguishably
+from success. Paid tickets link out — payment can only happen on the
+platform (the WooCommerce bridge remains the paid-in-WordPress path).
+The drawer components gained the pricing table's tickets/exclude
+filters (with the same name dropdowns in Elementor) so the operator
+chooses exactly what the hero offers.

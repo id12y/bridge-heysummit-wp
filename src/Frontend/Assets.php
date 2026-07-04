@@ -47,6 +47,9 @@ final class Assets {
 					'days'         => __( 'days', 'emailexpert-events' ),
 					'hours'        => __( 'hours', 'emailexpert-events' ),
 					'minutes'      => __( 'minutes', 'emailexpert-events' ),
+					'regDone'      => __( "You're registered — check your inbox for the confirmation.", 'emailexpert-events' ),
+					'regAlready'   => __( "You're already registered for this event — check your inbox.", 'emailexpert-events' ),
+					'regError'     => __( 'Something went wrong — please try again.', 'emailexpert-events' ),
 				],
 			]
 		);

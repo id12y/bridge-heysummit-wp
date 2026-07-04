@@ -63,6 +63,7 @@ final class Plugin {
 			new Frontend\Blocks(),
 			new Frontend\Shortcodes(),
 			new Frontend\IcsDownload(),
+			new Rest\RegisterController(), // The ticket drawer's free-ticket form, both modes.
 			new Logging\Retention(), // Handler only; the cron exists only once a table does.
 		];
 

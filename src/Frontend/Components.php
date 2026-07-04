@@ -188,6 +188,16 @@ final class Components {
 					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
+					'tickets'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Panel: only these tickets (comma separated IDs)', 'emailexpert-events' ),
+					],
+					'exclude'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Panel: hide these tickets (comma separated IDs)', 'emailexpert-events' ),
+					],
 					'show_subscribe'  => $flag( __( 'Show subscribe link', 'emailexpert-events' ), 0 ),
 				],
 			],
@@ -400,6 +410,16 @@ final class Components {
 					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
+					'tickets'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Panel: only these tickets (comma separated IDs)', 'emailexpert-events' ),
+					],
+					'exclude'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Panel: hide these tickets (comma separated IDs)', 'emailexpert-events' ),
+					],
 					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
@@ -451,6 +471,16 @@ final class Components {
 					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
+					'tickets'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Panel: only these tickets (comma separated IDs)', 'emailexpert-events' ),
+					],
+					'exclude'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Panel: hide these tickets (comma separated IDs)', 'emailexpert-events' ),
+					],
 					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
@@ -1063,19 +1093,12 @@ final class Components {
 			return $external;
 		}
 
+		// The event page is the one URL the API guarantees. Synthesised
+		// /checkout/ paths and preselect parameters were verified WRONG on
+		// the live hub — never invent URLs the platform has not documented.
 		$event_url = (string) ( $data['event_url'] ?? '' );
 
-		if ( '' === $event_url ) {
-			return (string) ( $data['talk_url'] ?? '' );
-		}
-
-		$url = self::checkout_url( $event_url );
-
-		// Best-effort deep link from a session row: checkout preselects a
-		// recognised talk and simply ignores the parameter otherwise.
-		$talk_id = (string) ( $data['hs_id'] ?? '' );
-
-		return '' !== $talk_id ? add_query_arg( 'talk', rawurlencode( $talk_id ), $url ) : $url;
+		return '' !== $event_url ? $event_url : (string) ( $data['talk_url'] ?? '' );
 	}
 
 	/**
@@ -1090,18 +1113,6 @@ final class Components {
 		return '' !== $talk_url ? $talk_url : (string) ( $data['event_url'] ?? '' );
 	}
 
-	/**
-	 * The HeySummit checkout page under an event URL, keeping any query
-	 * string (UTM tags) intact.
-	 *
-	 * @param string $event_url Event page URL, possibly already tagged.
-	 */
-	private static function checkout_url( string $event_url ): string {
-		$parts = explode( '?', $event_url, 2 );
-		$base  = trailingslashit( $parts[0] ) . 'checkout/';
-
-		return isset( $parts[1] ) ? $base . '?' . $parts[1] : $base;
-	}
 
 	/**
 	 * One ticket's register URL. In checkout mode the ticket ID rides along
@@ -1112,22 +1123,18 @@ final class Components {
 	 * @param array<string,string> $register Register settings (mode, url).
 	 */
 	private static function ticket_register_url( array $ticket, array $register ): string {
-		$external = (string) ( $register['url'] ?? '' );
-
-		if ( '' !== $external ) {
-			return $external;
-		}
-
-		$url = self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
-
-		return '' !== $url ? add_query_arg( 'ticket', (string) $ticket['id'], $url ) : '';
+		return self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
 	}
 
 	/**
 	 * The slide-over ticket panel: server-rendered (and fragment-cached with
 	 * the component), revealed by eex-time.js when a Register button carries
-	 * its ID. Empty when the component keeps plain links, or when no tickets
-	 * resolve — the buttons then behave as ordinary links.
+	 * its ID. Free tickets register right here through the plugin's own
+	 * allowlisted attendee-create call; paid tickets link to the event page
+	 * (payment can only happen on the platform). The component's tickets/
+	 * exclude attributes filter what is offered. Empty when the component
+	 * keeps plain links or no tickets resolve — buttons then behave as
+	 * ordinary links.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
 	 * @return array{id:string,html:string}
@@ -1142,14 +1149,29 @@ final class Components {
 			return $none;
 		}
 
-		$tickets = self::repo()->tickets( $atts );
+		$csv      = static fn( string $value ): array => array_values( array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
+		$only     = $csv( (string) ( $atts['tickets'] ?? '' ) );
+		$excluded = $csv( (string) ( $atts['exclude'] ?? '' ) );
+
+		$tickets = array_values(
+			array_filter(
+				self::repo()->tickets( $atts ),
+				static function ( array $ticket ) use ( $only, $excluded ): bool {
+					$id = (string) $ticket['id'];
+
+					return ( empty( $only ) || in_array( $id, $only, true ) ) && ! in_array( $id, $excluded, true );
+				}
+			)
+		);
 
 		if ( empty( $tickets ) ) {
 			return $none;
 		}
 
 		$register = self::register_args( $atts );
-		$id       = 'eex-drawer-' . substr( md5( wp_json_encode( [ (string) ( $atts['event'] ?? '' ), $register ] ) ), 0, 8 );
+		$event    = self::repo()->event_summary( (string) ( $atts['event'] ?? '' ) );
+		$event_id = null !== $event ? (string) $event['hs_id'] : '';
+		$id       = 'eex-drawer-' . substr( md5( wp_json_encode( [ $event_id, $register, $only, $excluded ] ) ), 0, 8 );
 
 		ob_start();
 		?>
@@ -1162,12 +1184,26 @@ final class Components {
 				</div>
 				<ul class="eex-list eex-pricing eex-pricing-rows eex-drawer-tickets" role="list">
 					<?php foreach ( $tickets as $ticket ) : ?>
+						<?php
+						$is_free  = empty( $ticket['is_paid'] );
+						$price_id = '';
+						foreach ( (array) $ticket['prices'] as $price ) {
+							if ( '' !== (string) ( $price['id'] ?? '' ) ) {
+								$price_id = (string) $price['id'];
+								break;
+							}
+						}
+						?>
 						<li class="eex-grid-item">
 							<?php
 							TemplateLoader::part(
 								'pricing-ticket',
 								[
-									'ticket'           => array_merge( $ticket, [ 'register_url' => self::ticket_register_url( $ticket, $register ) ] ),
+									'ticket'           => array_merge(
+										$ticket,
+										// Free tickets register in the form below, not via a link.
+										[ 'register_url' => $is_free ? '' : self::ticket_register_url( $ticket, $register ) ]
+									),
 									'hero'             => false,
 									'ribbon'           => ! empty( $ticket['popular'] ) ? __( 'Most popular', 'emailexpert-events' ) : '',
 									'show_description' => true,
@@ -1177,6 +1213,38 @@ final class Components {
 								]
 							);
 							?>
+							<?php if ( $is_free && '' !== $event_id ) : ?>
+								<button type="button" class="eex-cta eex-reg-toggle" data-eex-reg-toggle="1"><?php esc_html_e( 'Register free', 'emailexpert-events' ); ?></button>
+								<form class="eex-reg-form" data-eex-reg="1" hidden>
+									<input type="hidden" name="event" value="<?php echo esc_attr( $event_id ); ?>" />
+									<input type="hidden" name="ticket" value="<?php echo esc_attr( (string) $ticket['id'] ); ?>" />
+									<input type="hidden" name="price" value="<?php echo esc_attr( $price_id ); ?>" />
+									<p class="eex-reg-hp" aria-hidden="true">
+										<label><?php esc_html_e( 'Leave this field empty', 'emailexpert-events' ); ?><input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+									</p>
+									<p class="eex-reg-field">
+										<label><?php esc_html_e( 'Name', 'emailexpert-events' ); ?><input type="text" name="name" required autocomplete="name" /></label>
+									</p>
+									<p class="eex-reg-field">
+										<label><?php esc_html_e( 'Email', 'emailexpert-events' ); ?><input type="email" name="email" required autocomplete="email" /></label>
+									</p>
+									<p class="eex-reg-consent">
+										<label>
+											<input type="checkbox" name="consent" value="1" required />
+											<?php
+											echo esc_html(
+												(string) apply_filters(
+													'eex_register_consent_text',
+													__( 'Register me for this event; the organiser may email me about it.', 'emailexpert-events' )
+												)
+											);
+											?>
+										</label>
+									</p>
+									<button type="submit" class="eex-cta"><?php esc_html_e( 'Complete registration', 'emailexpert-events' ); ?></button>
+									<p class="eex-reg-msg" aria-live="polite"></p>
+								</form>
+							<?php endif; ?>
 						</li>
 					<?php endforeach; ?>
 				</ul>
