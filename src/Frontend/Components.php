@@ -507,6 +507,45 @@ final class Components {
 					],
 				],
 			],
+			'sponsor-spotlight' => [
+				'title' => __( 'Sponsor spotlight', 'emailexpert-events' ),
+				'atts'  => [
+					'sponsor'          => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Sponsor (empty = random)', 'emailexpert-events' ),
+					],
+					'event'            => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'sponsor_category' => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Only from this sponsor category (random picks within it)', 'emailexpert-events' ),
+					],
+					'layout'           => [
+						'type'    => 'string',
+						'default' => 'card',
+						'label'   => __( 'Spotlight style', 'emailexpert-events' ),
+						'options' => [
+							'card'   => __( 'Card — logo, blurb, actions', 'emailexpert-events' ),
+							'banner' => __( 'Banner — promo image with logo overlaid', 'emailexpert-events' ),
+							'full'   => __( 'Full — banner, video and description', 'emailexpert-events' ),
+						],
+					],
+					'show_banner'      => $flag( __( 'Show promo banner image', 'emailexpert-events' ) ),
+					'show_video'       => $flag( __( 'Show intro video', 'emailexpert-events' ) ),
+					'show_description' => $flag( __( 'Show full description', 'emailexpert-events' ) ),
+					'show_website'     => $flag( __( 'Show website button', 'emailexpert-events' ) ),
+					'show_books'       => $flag( __( 'Show booking/meeting link', 'emailexpert-events' ), 0 ),
+					'show_phone'       => $flag( __( 'Show phone number', 'emailexpert-events' ), 0 ),
+					'empty_text'       => [
+						'type'    => 'string',
+						'default' => __( 'Sponsorship opportunities are available.', 'emailexpert-events' ),
+					],
+				],
+			],
 			'next-session'      => [
 				'title' => __( 'Next session (hero)', 'emailexpert-events' ),
 				'atts'  => [
@@ -2063,6 +2102,100 @@ final class Components {
 		echo '</ul>';
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * One sponsor, prominently: banner, video, description and actions from
+	 * the fields the wall has no room for. Chosen by ID, or a cache-stable
+	 * random pick (rotates each cache refresh).
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_sponsor_spotlight( array $atts ): string {
+		$sponsors = self::repo()->sponsors( $atts );
+		$category = strtolower( trim( (string) ( $atts['sponsor_category'] ?? '' ) ) );
+
+		if ( '' !== $category ) {
+			$sponsors = array_values(
+				array_filter(
+					$sponsors,
+					static function ( array $sponsor ) use ( $category ): bool {
+						$names = array_map( 'strtolower', (array) ( $sponsor['sponsor_categories'] ?? [] ) );
+
+						return in_array( $category, $names, true ) || strtolower( (string) ( $sponsor['tier_name'] ?? '' ) ) === $category;
+					}
+				)
+			);
+		}
+
+		if ( empty( $sponsors ) ) {
+			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		$pick = null;
+		$ref  = (string) ( $atts['sponsor'] ?? '' );
+
+		if ( '' !== $ref ) {
+			foreach ( $sponsors as $sponsor ) {
+				if ( (string) $sponsor['id'] === $ref ) {
+					$pick = $sponsor;
+					break;
+				}
+			}
+		} else {
+			$pick = $sponsors[ array_rand( $sponsors ) ];
+		}
+
+		if ( null === $pick ) {
+			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		ob_start();
+		TemplateLoader::part(
+			'spotlight-sponsor',
+			[
+				'sponsor' => $pick,
+				'layout'  => (string) ( $atts['layout'] ?? 'card' ),
+				'show'    => [
+					'banner'      => ! empty( $atts['show_banner'] ),
+					'video'       => ! empty( $atts['show_video'] ),
+					'description' => ! empty( $atts['show_description'] ),
+					'website'     => ! empty( $atts['show_website'] ),
+					'books'       => ! empty( $atts['show_books'] ),
+					'phone'       => ! empty( $atts['show_phone'] ),
+				],
+			]
+		);
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * A privacy-friendly embed URL for a sponsor intro video. Only known
+	 * providers embed; anything else returns '' and the template skips it.
+	 * Autoplay is muted — browsers refuse it otherwise.
+	 *
+	 * @param array<string,mixed> $video type, id, autoplay.
+	 */
+	public static function video_embed_url( array $video ): string {
+		$id = preg_replace( '/[^A-Za-z0-9_-]/', '', (string) ( $video['id'] ?? '' ) );
+
+		if ( '' === $id ) {
+			return '';
+		}
+
+		$autoplay = ! empty( $video['autoplay'] ) ? 1 : 0;
+
+		switch ( (string) ( $video['type'] ?? '' ) ) {
+			case 'youtube':
+				return sprintf( 'https://www.youtube-nocookie.com/embed/%s?rel=0&autoplay=%d&mute=%d', $id, $autoplay, $autoplay );
+			case 'vimeo':
+				return sprintf( 'https://player.vimeo.com/video/%s?autoplay=%d&muted=%d', $id, $autoplay, $autoplay );
+			case 'wistia':
+				return sprintf( 'https://fast.wistia.net/embed/iframe/%s?autoPlay=%s&muted=true', $id, $autoplay ? 'true' : 'false' );
+		}
+
+		return '';
 	}
 
 	/**

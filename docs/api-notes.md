@@ -258,3 +258,14 @@ earlier failure was the broken base path, not the parameter. Pending
 live click-tests: (1) a tickets button reaches select-tickets, (2) a
 per-ticket button preselects; if (2) errors again, strip only the
 parameter.
+
+## Serializer expansion (v1.12.0 observations)
+
+Talks now expose slug, url, external_url, date_localised,
+broadcast_duration_mins, description_short/long, stage, inperson_venue,
+custom_promo_image_primary/primary_image, brand_logo fields,
+is_open_access/is_public_access, replay_planned, talk_cancelled,
+agenda_item fields. Sponsors expose the spotlight set (promo_banner,
+intro_source_type/intro_video_id/intro_video_autoplay, long_description,
+link_title, books_url, phone_number, booth_enabled). The plugin maps
+what it displays; discovery keeps reporting the rest.

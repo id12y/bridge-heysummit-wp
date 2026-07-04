@@ -276,6 +276,14 @@ final class LiteModeTest extends TestCase {
 									'url'                  => 'https://acme.example.com',
 									'logo'                 => 'https://cdn.example.com/acme.png',
 									'short_description'    => 'Deliverability tools.',
+									'long_description'     => '<p>Acme has shipped <strong>deliverability</strong> tools since 1999.</p><script>alert(1)</script>',
+									'promo_banner'         => 'https://cdn.example.com/acme-banner.jpg',
+									'intro_source_type'    => 'YouTube',
+									'intro_video_id'       => 'dQw4w9WgXcQ',
+									'intro_video_autoplay' => false,
+									'link_title'           => 'Try Acme free',
+									'books_url'            => 'https://meet.example.com/acme',
+									'phone_number'         => '+44 20 7946 0000',
 									'sponsor_categories'   => [ 6708 ],
 									'is_main_sponsor'      => true,
 									'show_on_landing_page' => true,
@@ -354,6 +362,42 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'Acme', $shaped, 'alphabetically first survives the cap' );
 		$this->assertStringContainsString( 'Beta Ltd', $shaped );
 		$this->assertStringNotContainsString( 'Unlisted Co', $shaped, 'the cap trims the tail' );
+
+		// The spotlight uses the rich fields the wall has no room for.
+		Cache::flush();
+		$spotlight = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'    => '1',
+				'layout'     => 'full',
+				'show_books' => 1,
+				'show_phone' => 1,
+			]
+		);
+		$this->assertStringContainsString( 'eex-sponsor-spotlight-full', $spotlight );
+		$this->assertStringContainsString( 'cdn.example.com/acme-banner.jpg', $spotlight, 'promo banner renders' );
+		$this->assertStringContainsString( 'youtube-nocookie.com/embed/dQw4w9WgXcQ', $spotlight, 'intro video embeds privacy-friendly' );
+		$this->assertStringContainsString( '<strong>deliverability</strong>', $spotlight, 'long description keeps safe markup' );
+		$this->assertStringNotContainsString( '<script>', $spotlight );
+		$this->assertStringContainsString( '>Try Acme free</a>', $spotlight, 'link_title is the button label' );
+		$this->assertStringContainsString( 'meet.example.com/acme', $spotlight, 'booking link' );
+		$this->assertStringContainsString( 'tel:+442079460000', $spotlight, 'phone link normalised' );
+
+		// Random constrained to a category: with one Gold sponsor the "random"
+		// pick is deterministic, and a category with no members is empty.
+		Cache::flush();
+		$gold_only = Components::render( 'sponsor-spotlight', [ 'sponsor_category' => 'gold' ] );
+		$this->assertStringContainsString( 'Acme', $gold_only );
+		$this->assertStringNotContainsString( 'Beta Ltd', $gold_only );
+
+		Cache::flush();
+		$empty_cat = Components::render( 'sponsor-spotlight', [ 'sponsor_category' => 'platinum' ] );
+		$this->assertStringContainsString( 'eex-empty', $empty_cat );
+
+		// A specific pick that does not exist falls to the empty state.
+		Cache::flush();
+		$missing = Components::render( 'sponsor-spotlight', [ 'sponsor' => '424242' ] );
+		$this->assertStringContainsString( 'eex-empty', $missing );
 
 		// Reverse alphabetical flips who survives.
 		Cache::flush();

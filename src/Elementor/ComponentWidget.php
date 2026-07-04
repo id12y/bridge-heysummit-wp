@@ -427,6 +427,42 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			return;
 		}
 
+		// Sponsor picker for the spotlight: names seen on any sponsor fetch.
+		if ( 'sponsor' === $key && 'sponsor-spotlight' === $this->component ) {
+			$names = \Emailexpert\Events\Data\Sponsors::known_names();
+
+			if ( ! empty( $names ) ) {
+				$options = [];
+				foreach ( $names as $sponsor_id => $sponsor_name ) {
+					$options[ (string) $sponsor_id ] = $sponsor_name;
+				}
+
+				$this->add_control(
+					$key,
+					[
+						'label'   => __( 'Sponsor', 'emailexpert-events' ),
+						'type'    => \Elementor\Controls_Manager::SELECT,
+						'options' => [ '' => __( 'Random (rotates each cache refresh)', 'emailexpert-events' ) ] + $options,
+						'default' => '',
+					]
+				);
+
+				return;
+			}
+
+			$this->add_control(
+				$key,
+				[
+					'label'       => (string) ( $spec['label'] ?? $key ),
+					'type'        => \Elementor\Controls_Manager::TEXT,
+					'default'     => '',
+					'description' => __( 'Sponsor names appear here as a dropdown once sponsors have been loaded once (view the sponsor wall).', 'emailexpert-events' ),
+				]
+			);
+
+			return;
+		}
+
 		// Sponsor category picker: names seen on any sponsor fetch.
 		if ( 'sponsor_category' === $key ) {
 			$categories = \Emailexpert\Events\Data\Sponsors::known_categories();

@@ -932,3 +932,32 @@ a latent bug in my own grouping: tier keys were string-sorted, so a
 weight of 100 would have sorted before 99 — keys are now zero-padded.
 Ordering applies within each category group when grouped, or to the
 whole wall when flat.
+
+## D75. Sponsor spotlight uses the fields the wall has no room for
+
+The discovery report showed the sponsor serializer's depth going unused
+(promo_banner, page_header_graphic, intro video fields, long_description,
+link_title, books_url, phone_number, booth flags). A sponsor-spotlight
+component now uses them: one sponsor — picked by name from a dropdown,
+or a cache-stable random rotation — in three styles (card, banner with
+the logo card overlapping the promo image, full with video and long
+description). Videos embed privacy-friendly (youtube-nocookie / Vimeo
+DNT-style player / Wistia; unknown providers render nothing) with
+autoplay muted per browser policy; the long description passes through
+wp_kses_post; the website button uses the sponsor's own link_title;
+booking link and phone are opt-in toggles. Booth links are NOT
+reconstructed — no hub URL convention is documented for them (the
+never-invent-URLs rule).
+
+## D76. The talks serializer grew — banked wins
+
+The same report showed talks now carrying slug, url, external_url,
+broadcast_duration_mins, description_short/long, images, stage/venue
+and cancellation flags. Banked immediately: real end times from
+broadcast_duration_mins (live-state accuracy no longer leans on the
+one-hour default) and richer descriptions; the existing url/slug
+candidates now pick up the real values, retiring title-derived talk
+links wherever the API provides them. Still unused and noted for next:
+primary_image/custom_promo_image_primary (session card imagery),
+stage/inperson_venue (venue display), talk_cancelled/is_open_access
+badges, and event feature_image/company_name on the portfolio.

@@ -33,6 +33,7 @@ final class Shortcodes {
 		'next-session'      => 'eex_next_session',
 		'pricing'           => 'eex_pricing',
 		'speaker-spotlight' => 'eex_speaker_spotlight',
+		'sponsor-spotlight' => 'eex_sponsor_spotlight',
 		'events-portfolio'  => 'eex_events_portfolio',
 		'live-now'          => 'eex_live_now',
 	];

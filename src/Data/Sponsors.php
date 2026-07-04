@@ -211,6 +211,17 @@ final class Sponsors {
 				'tier_order'         => $main ? 0 : $tier['order'],
 				'main'               => $main,
 				'sponsor_categories' => self::category_names( $sponsor, $map ),
+				'slug'               => sanitize_title( self::first_string( $sponsor, [ 'slug' ] ) ),
+				'banner'             => self::first_url( $sponsor, [ 'promo_banner', 'custom_promo_image_primary', 'page_header_graphic' ] ),
+				'long_blurb'         => self::first_html( $sponsor, [ 'long_description' ] ),
+				'video'              => [
+					'type'     => strtolower( self::first_string( $sponsor, [ 'intro_source_type' ] ) ),
+					'id'       => self::first_string( $sponsor, [ 'intro_video_id' ] ),
+					'autoplay' => ! empty( $sponsor['intro_video_autoplay'] ),
+				],
+				'books_url'          => self::first_url( $sponsor, [ 'books_url' ] ),
+				'phone'              => self::first_string( $sponsor, [ 'phone_number' ] ),
+				'booth'              => ! empty( $sponsor['booth_enabled'] ),
 				'show'               => [
 					'landing'    => ! isset( $sponsor['show_on_landing_page'] ) || ! empty( $sponsor['show_on_landing_page'] ),
 					'talks'      => ! isset( $sponsor['show_on_talk_pages'] ) || ! empty( $sponsor['show_on_talk_pages'] ),
@@ -221,8 +232,53 @@ final class Sponsors {
 		}
 
 		self::remember_categories( array_values( $map ) );
+		self::remember_names( $out );
 
 		return $out;
+	}
+
+	/**
+	 * Sponsor names seen on any fetch (id => name), for the editor's
+	 * spotlight picker. Non-autoloaded, capped.
+	 *
+	 * @param array<int,array<string,mixed>> $rows Display-shaped rows.
+	 */
+	private static function remember_names( array $rows ): void {
+		$names = self::known_names();
+
+		foreach ( $rows as $row ) {
+			$names[ (string) $row['id'] ] = (string) $row['name'];
+		}
+
+		update_option( 'eex_sponsor_names', array_slice( $names, -100, null, true ), false );
+	}
+
+	/**
+	 * Every sponsor this site has seen (id => name).
+	 *
+	 * @return array<string,string>
+	 */
+	public static function known_names(): array {
+		$names = get_option( 'eex_sponsor_names', [] );
+
+		return is_array( $names ) ? array_map( 'strval', $names ) : [];
+	}
+
+	/**
+	 * The first non-empty value among candidate keys, keeping its HTML for
+	 * a later wp_kses_post at output (long descriptions carry markup).
+	 *
+	 * @param array<string,mixed> $row  Raw row.
+	 * @param array<int,string>   $keys Candidate keys.
+	 */
+	private static function first_html( array $row, array $keys ): string {
+		foreach ( $keys as $key ) {
+			if ( isset( $row[ $key ] ) && is_string( $row[ $key ] ) && '' !== trim( $row[ $key ] ) ) {
+				return trim( $row[ $key ] );
+			}
+		}
+
+		return '';
 	}
 
 	/**
