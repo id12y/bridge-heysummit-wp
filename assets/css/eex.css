@@ -441,6 +441,22 @@
 	height: auto;
 	display: block;
 	margin: 0 auto;
+	filter: var(--eex-logo-filter, none);
+	opacity: var(--eex-logo-opacity, 1);
+	transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+.eex a:hover .eex-sponsor-logo,
+.eex a:focus-visible .eex-sponsor-logo {
+	filter: none;
+	opacity: 1;
+}
+
+/* Widget-level content alignment (Elementor style control). */
+.eex .eex-card,
+.eex .eex-list-main,
+.eex .eex-spotlight-body {
+	text-align: var(--eex-content-align, inherit);
 }
 
 .eex-tier-heading {
