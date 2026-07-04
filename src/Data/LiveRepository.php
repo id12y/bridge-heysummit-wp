@@ -1398,9 +1398,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			'hs_id'         => $hs_id,
 			'title'         => self::str( $raw, [ 'title', 'name' ] ),
 			'permalink'     => Utm::tag( $talk_url ) ?: $event_url,
-			'description'   => self::str( $raw, [ 'description' ] ),
+			'description'   => self::str( $raw, [ 'description', 'description_short', 'description_long' ] ),
 			'starts_at'     => self::datetime( $raw, [ 'starts_at', 'date' ] ),
-			'ends_at'       => self::datetime( $raw, [ 'ends_at' ] ),
+			'ends_at'       => self::talk_ends( $raw ),
 			'start_ts'      => (int) strtotime( self::datetime( $raw, [ 'starts_at', 'date' ] ) ),
 			'talk_url'      => Utm::tag( $talk_url ),
 			'replay_url'    => self::url_of( $raw['replay_url'] ?? '' ),
@@ -1415,6 +1415,31 @@ class LiveRepository extends BaseMapper implements Repository {
 			'ics_ref'       => (int) $hs_id,
 			'published'     => true,
 		];
+	}
+
+	/**
+	 * A talk's end time: the explicit field when present, otherwise the
+	 * start plus broadcast_duration_mins (the serializer provides real
+	 * durations; the old blanket one-hour default remains the last resort
+	 * for consumers that need an end).
+	 *
+	 * @param array<string,mixed> $raw Raw talk record.
+	 */
+	private static function talk_ends( array $raw ): string {
+		$ends = self::datetime( $raw, [ 'ends_at' ] );
+
+		if ( '' !== $ends ) {
+			return $ends;
+		}
+
+		$mins  = (int) ( $raw['broadcast_duration_mins'] ?? 0 );
+		$start = self::datetime( $raw, [ 'starts_at', 'date' ] );
+
+		if ( $mins > 0 && '' !== $start ) {
+			return gmdate( 'Y-m-d\TH:i:s\Z', (int) strtotime( $start ) + $mins * MINUTE_IN_SECONDS );
+		}
+
+		return '';
 	}
 
 	/**
