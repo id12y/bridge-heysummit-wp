@@ -172,16 +172,37 @@ comma-separated slugs.
 
 | Block | Shortcode | Key attributes |
 |---|---|---|
-| `eex/upcoming-sessions` | `[eex_upcoming_sessions category="" limit="6" show_subscribe="1"]` | Soonest first; card shows title, local time, category badge, speaker chips, register CTA, add-to-calendar links; `show_subscribe` adds the calendar-feed link |
-| `eex/past-sessions` | `[eex_past_sessions category="" limit="12" paginate="1"]` | Newest first, paginated (`?eex_page=N`); replay CTA when a replay URL exists |
-| `eex/upcoming-events` | `[eex_upcoming_events limit="3" series=""]` | Evergreen events with open registrations always count as upcoming |
-| `eex/past-events` | `[eex_past_events]` | Newest first; evergreen events never appear |
+| `eex/upcoming-sessions` | `[eex_upcoming_sessions category="" layout="cards" limit="6" show_subscribe="1"]` | Soonest first; `limit` = number to show; `layout` and `show_*` toggles below; `show_subscribe` adds the calendar-feed link |
+| `eex/past-sessions` | `[eex_past_sessions category="" layout="cards" limit="12" paginate="1"]` | Newest first, paginated (`?eex_page=N`); replay CTA when a replay URL exists |
+| `eex/upcoming-events` | `[eex_upcoming_events layout="grid" limit="3" series=""]` | Evergreen events with open registrations always count as upcoming; `layout="list"` for rows |
+| `eex/past-events` | `[eex_past_events layout="grid"]` | Newest first; evergreen events never appear |
 | `eex/countdown` | `[eex_countdown event="" talk=""]` | Counts to a session or an event's next/first session; vanilla JS with a text fallback |
-| `eex/schedule` | `[eex_schedule event="" category=""]` | Grouped by day in event-local time with timezone label |
-| `eex/speakers` | `[eex_speakers event="" category="" columns="4"]` | Speakers with at least one session matching the filters |
-| `eex/featured-talks` | `[eex_featured_talks ids="9001,9002"]` | Manual selection (HeySummit or post IDs) |
-| `eex/sponsors` | `[eex_sponsors event=""]` | Grouped by tier in tier order; logos link out `rel="sponsored noopener"` |
+| `eex/schedule` | `[eex_schedule event="" category="" show_speakers="1" show_categories="1"]` | Grouped by day in event-local time with timezone label |
+| `eex/speakers` | `[eex_speakers event="" category="" layout="grid" columns="4" photo_shape="rounded" paginate="0"]` | Speakers with at least one session matching the filters; paginates on `?eex_speaker_page=N` when `paginate="1"` and `limit` > 0 |
+| `eex/featured-talks` | `[eex_featured_talks ids="9001,9002" layout="cards"]` | Manual selection (HeySummit or post IDs) |
+| `eex/sponsors` | `[eex_sponsors event="" layout="grid"]` | Grouped by tier in tier order; logos link out `rel="sponsored noopener"` |
 | `eex/reg-counter` | `[eex_reg_counter event="" threshold="50"]` | Hidden below the threshold; refreshes via REST so cached pages stay current |
+
+### Layouts and display toggles
+
+Session listings (`upcoming-sessions`, `past-sessions`, `featured-talks`)
+accept `layout="cards|list|agenda|compact"`:
+
+- **cards** — the default responsive card grid (`columns="1-6"` overrides the
+  column count; `0` leaves it to CSS or the Elementor responsive control).
+- **list** — bordered rows: time, title, speakers, actions.
+- **agenda** — sessions grouped under day headings ("7 July 2026") with time,
+  an Online badge, speaker photo and role, and a prominent register action.
+- **compact** — one line per session: time and title.
+
+Events and sponsors accept `layout="grid|list"`. Speakers accept
+`layout="grid|list"` plus `photo_shape="rounded|circle|square"`.
+
+Display toggles on session listings and the schedule (all default on):
+`show_speakers`, `show_categories`, `show_ics` (the .ics link) and
+`show_google` (the Google Calendar link). Every layout keeps the live-state
+and filter-bar data attributes, so the countdown, live badges and session
+filter keep working.
 
 ### Time handling and cache safety
 

@@ -85,6 +85,18 @@ final class ComponentsTest extends TestCase {
 		$via_component = Components::render( 'upcoming-sessions', [ 'limit' => 6 ] );
 
 		$this->assertSame( $via_component, $via_shortcode );
+
+		// The new layout and toggle attributes travel identically.
+		$atts          = [
+			'layout'   => 'agenda',
+			'show_ics' => 0,
+		];
+		$via_shortcode = $shortcode_callback( $atts );
+		$via_component = Components::render( 'upcoming-sessions', $atts );
+
+		$this->assertSame( $via_component, $via_shortcode );
+		$this->assertStringContainsString( 'eex-agenda-day', $via_shortcode );
+		$this->assertStringNotContainsString( 'eex_ics=', $via_shortcode );
 	}
 
 	public function test_render_uses_cache_until_flush(): void {

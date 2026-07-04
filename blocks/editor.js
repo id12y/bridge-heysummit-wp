@@ -15,6 +15,8 @@
 	var InspectorControls = wp.blockEditor.InspectorControls;
 	var PanelBody = wp.components.PanelBody;
 	var TextControl = wp.components.TextControl;
+	var SelectControl = wp.components.SelectControl;
+	var ToggleControl = wp.components.ToggleControl;
 	var ServerSideRender = wp.serverSideRender;
 	var __ = wp.i18n.__;
 
@@ -44,10 +46,43 @@
 				var controls = Object.keys( definition.atts ).map( function ( key ) {
 					var spec = definition.atts[ key ];
 					var isNumber = 'integer' === spec.type;
+					var label = spec.label || labels[ key ] || key;
+
+					// Enum attributes: a select built from the schema's
+					// (pre-translated) options.
+					if ( spec.options ) {
+						return el( SelectControl, {
+							key: key,
+							label: label,
+							value: props.attributes[ key ],
+							options: Object.keys( spec.options ).map( function ( value ) {
+								return { value: value, label: spec.options[ value ] };
+							} ),
+							onChange: function ( value ) {
+								var update = {};
+								update[ key ] = value;
+								props.setAttributes( update );
+							}
+						} );
+					}
+
+					// Boolean flags: a toggle storing 1/0.
+					if ( spec.flag ) {
+						return el( ToggleControl, {
+							key: key,
+							label: label,
+							checked: !! props.attributes[ key ],
+							onChange: function ( value ) {
+								var update = {};
+								update[ key ] = value ? 1 : 0;
+								props.setAttributes( update );
+							}
+						} );
+					}
 
 					return el( TextControl, {
 						key: key,
-						label: labels[ key ] || key,
+						label: label,
 						type: isNumber ? 'number' : 'text',
 						value: props.attributes[ key ],
 						onChange: function ( value ) {

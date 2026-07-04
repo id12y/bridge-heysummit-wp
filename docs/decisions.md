@@ -644,3 +644,27 @@ reported count exceeds the rows read — skipped when the route echoes
 pages back. Admin views carry a 40-page budget (front end stays at 12)
 so one look at the Live status row reads a whole 28-page collection,
 caches it, and the front end serves from the cache.
+
+## D56. Layouts are attributes; styling is CSS; the schema drives all three surfaces
+
+The v5 display work splits cleanly along the cache boundary. Anything
+that changes markup — the layout variants (cards/list/agenda/compact
+for session listings, grid/list elsewhere), the photo shape, the
+show_speakers/show_categories/show_ics/show_google toggles, speaker
+pagination — is a component attribute: it joins the fragment cache key
+automatically and travels identically through blocks, shortcodes and
+Elementor. Anything that only restyles — colours, typography, spacing,
+responsive columns — is CSS (custom properties or Elementor-scoped
+rules) and deliberately not cache-keyed. The attribute schema gained
+options/flag/label keys so one definition lights up a select control
+in Elementor, a SelectControl in the block editor, an enum on the
+block attribute, and a sanitise_atts whitelist. Text/title/heading/
+link colour controls write direct color properties instead of custom
+properties: an always-on rule consuming an unset variable computes as
+inherit and would silently override theme colours on untouched pages.
+Speakers paginate on their own query var (eex_speaker_page) so a page
+can host both paginated components. The agenda layout reuses the
+schedule's day-grouping via a shared helper; the schedule's output is
+unchanged and test-guarded. The Elementor widget remains a thin,
+untested mapping layer — every branch it maps to lives in Components,
+where the test suite covers it.
