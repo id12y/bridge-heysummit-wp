@@ -13,7 +13,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Activation does the minimum: register CPTs and taxonomies (so rewrites
- * flush correctly), seed the fixed terms, write the single autoloaded
+ * flush correctly), seed the tier terms, write the single autoloaded
  * settings option, and offer the setup wizard via a dismissible notice.
  * No tables (created on demand, see Tables), no cron (scheduled when the
  * first event is enabled), no redirect.

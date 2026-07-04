@@ -82,13 +82,20 @@ final class Taxonomies {
 	}
 
 	/**
-	 * Seed the fixed series and tier terms. Runs at activation only (never
-	 * per request); idempotent via term_exists.
+	 * Seed the tier terms (and any filter-provided series). Runs at
+	 * activation only (never per request); idempotent via term_exists.
 	 */
 	public function seed_terms(): void {
-		$series = [ 'FORUM', 'Deliverability Summit', 'Sender Symposium', 'Festival of Email' ];
+		/**
+		 * Series terms to create at activation. Empty by default — event
+		 * series are site-specific brands, so operators create their own
+		 * (or hook this filter in site code to seed a fixed set).
+		 *
+		 * @param string[] $series Term names.
+		 */
+		$series = (array) apply_filters( 'eex_seed_series_terms', [] );
 		foreach ( $series as $name ) {
-			if ( ! term_exists( $name, self::SERIES ) ) {
+			if ( is_string( $name ) && '' !== $name && ! term_exists( $name, self::SERIES ) ) {
 				wp_insert_term( $name, self::SERIES );
 			}
 		}

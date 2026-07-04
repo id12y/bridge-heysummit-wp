@@ -39,9 +39,12 @@ final class FootprintTest extends TestCase {
 		$this->assertArrayNotHasKey( 'wp_eex_attribution', $wpdb->tables );
 		$this->assertSame( [], \EEX_Test_State::$scheduled, 'no cron at activation' );
 
-		// The minimum it does do: settings option, seeded terms, rewrites, wizard offer.
+		// The minimum it does do: settings option, tier terms, rewrites,
+		// wizard offer. Series terms are site-specific brands and are NOT
+		// seeded unless the eex_seed_series_terms filter provides them.
 		$this->assertIsArray( get_option( Options::SETTINGS ) );
-		$this->assertNotEmpty( get_terms( [ 'taxonomy' => 'eex_event_series' ] ) );
+		$this->assertSame( [], get_terms( [ 'taxonomy' => 'eex_event_series' ] ), 'no brand names baked in' );
+		$this->assertNotEmpty( get_terms( [ 'taxonomy' => 'eex_sponsor_tier' ] ), 'generic tier terms still seed' );
 		$this->assertTrue( $GLOBALS['eex_test_rewrites_flushed'] ?? false );
 		$this->assertSame( 1, get_option( 'eex_wizard_notice' ) );
 	}

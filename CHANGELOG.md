@@ -1,0 +1,73 @@
+# Changelog
+
+Notable changes per released version. Design reasoning lives in
+[docs/decisions.md](docs/decisions.md); this file is the operator's view.
+
+## 1.19.1
+- Public-repo readiness: LICENSE (GPL-2.0), SECURITY.md, CONTRIBUTING.md,
+  this changelog. Series terms are no longer pre-seeded with fixed brand
+  names — operators create their own (or seed via the new
+  `eex_seed_series_terms` filter).
+
+## 1.19.0
+- Lite mode grows up: the past-sessions archive and replay library, the
+  calendar subscribe feed (`/?eex_feed=calendar`) and the session filter
+  bar all work in Lite now. Fixed the subscribe link 404ing in Lite.
+
+## 1.18.0
+- `hide_empty` on every component with an empty state (visitors see
+  nothing; admins get an explanatory comment). Sponsor links can open in a
+  new tab and opt into UTM tagging; the wall gains a blurb length cap, an
+  optional heading and configurable heading levels.
+
+## 1.17.0
+- Sponsor spotlight fine control: logo/name/blurb toggles, description
+  character caps, configurable button labels. Licence set to
+  GPL-2.0-or-later.
+
+## 1.16.0 – 1.16.1
+- **Forms bridge**: Elementor Pro Forms, Gravity Forms, WPForms and Fluent
+  Forms submissions become HeySummit attendees — explicit field mappings,
+  consent required, suppression checked twice, queued with retries.
+  Registration-question answers ride in the attendee-create call. README
+  restructured by capability.
+
+## 1.13.0 – 1.15.1
+- Sessions gained imagery, venue/stage lines, status badges, brand logos
+  and the external-URL rule (a talk's external URL outranks all buttons).
+- Sponsor ecosystem completed: live sponsors API with real category
+  headings, wall layouts (grid/list/compact/scrolling strip), ordering,
+  caps, link modes with verified hub URLs, video-capable sponsor
+  spotlight, and name-based pickers throughout Elementor.
+
+## 1.10.0 – 1.12.1
+- Sponsor wall reads the live sponsors API (manual rows remain as
+  extras); spotlight component; wall filters and controls; Woo-mapped
+  tickets can sell on-site (opt-in per widget, never the default).
+
+## 1.9.0
+- Free tickets register inside the ticket panel via the plugin's own REST
+  endpoint (honeypot, consent, rate limits, free-only guarantee,
+  suppression honoured). Removed all undocumented HeySummit URLs.
+
+## 1.8.0
+- Ticket panel (slide-over) register experience; sponsors API adopted.
+
+## 1.7.x
+- Update self-flush (a version change clears caches itself), Lite talk
+  links, discovery staleness warnings, drawer polish.
+
+## 1.5.0 – 1.6.x
+- Attribute schema drives the block editor and Elementor controls; talk
+  layouts (cards/list/agenda/compact); display pack (pricing table,
+  next-session hero with 4 styles, speaker spotlight, events portfolio,
+  live-now bar); serve-stale cache guardrails.
+
+## Earlier (1.0 – 1.4)
+- Core connector: read-only HeySummit client with runtime shape discovery,
+  sync engine with editor-owned fields and orphan handling, display
+  components as blocks + shortcodes + Elementor widgets, Schema.org
+  output, webhooks with attribution and privacy tooling, WooCommerce
+  bridge with the two-endpoint write allowlist, MyListing bridge, accounts
+  module, setup wizard, and Lite mode (live display with near-zero
+  footprint).
