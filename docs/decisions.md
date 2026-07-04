@@ -618,3 +618,29 @@ after an update, the status row could keep showing the pre-update
 harvest and read as "nothing changed". Harvest records now carry the
 generation in their key, exactly like every other live transient, so a
 flush restarts the diagnostics with the pipeline. Version 1.3.1.
+
+## D54. The status row shows the wire, not our interpretation of it
+
+v1.3.1 on production: a fresh harvest still counted 10 sessions while
+the API reports 273, page 28 read successfully with no echo and no
+failure — so the deep rows exist, differ from page 1, and either carry
+dates we misread or fall to the display filters (inactive /
+other-event). Rather than infer a fourth time, the harvest record now
+carries the raw evidence: the paging dialect actually used, each read
+page's date span as returned, rows fetched vs rows excluded (with the
+exclusion reasons counted), and a sample session from the deepest page
+as literal field=value pairs. The status row prints all of it, so the
+next screenshot is the API's own words. Version 1.4.0.
+
+## D55. When the ends are old but the count says more, sweep the middle
+
+The talks list documents no ordering and no query parameters, so its
+order cannot be assumed chronological. If it is not, upcoming sessions
+sit on MIDDLE pages and the end-jump legitimately finds old sessions at
+both ends and stops — matching production exactly (10 old sessions from
+pages 1 and 28 of 273). The harvest now falls back to a full sweep of
+the remaining pages whenever the ends contain nothing upcoming yet the
+reported count exceeds the rows read — skipped when the route echoes
+pages back. Admin views carry a 40-page budget (front end stays at 12)
+so one look at the Live status row reads a whole 28-page collection,
+caches it, and the front end serves from the cache.
