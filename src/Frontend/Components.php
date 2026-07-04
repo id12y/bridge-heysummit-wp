@@ -105,6 +105,11 @@ final class Components {
 		$show_categories = $flag( __( 'Show category badges', 'emailexpert-events' ) );
 		$show_ics        = $flag( __( 'Show "Add to calendar (.ics)" link', 'emailexpert-events' ) );
 		$show_google     = $flag( __( 'Show Google Calendar link', 'emailexpert-events' ) );
+		$register_text   = [
+			'type'    => 'string',
+			'default' => '',
+			'label'   => __( 'Register button text (empty = "Register")', 'emailexpert-events' ),
+		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		return [
@@ -134,6 +139,7 @@ final class Components {
 					'show_categories' => $show_categories,
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
+					'register_text'   => $register_text,
 					'show_subscribe'  => $flag( __( 'Show subscribe link', 'emailexpert-events' ), 0 ),
 				],
 			],
@@ -154,6 +160,7 @@ final class Components {
 					'show_categories' => $show_categories,
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
+					'register_text'   => $register_text,
 					'limit'           => [
 						'type'    => 'integer',
 						'default' => 12,
@@ -179,17 +186,18 @@ final class Components {
 			'upcoming-events'   => [
 				'title' => __( 'Upcoming events', 'emailexpert-events' ),
 				'atts'  => [
-					'layout'     => $grid_layout,
-					'limit'      => [
+					'layout'        => $grid_layout,
+					'register_text' => $register_text,
+					'limit'         => [
 						'type'    => 'integer',
 						'default' => 3,
 						'label'   => $limit_label,
 					],
-					'series'     => [
+					'series'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'empty_text' => [
+					'empty_text'    => [
 						'type'    => 'string',
 						'default' => $empty_events,
 					],
@@ -198,17 +206,18 @@ final class Components {
 			'past-events'       => [
 				'title' => __( 'Past events', 'emailexpert-events' ),
 				'atts'  => [
-					'layout'     => $grid_layout,
-					'limit'      => [
+					'layout'        => $grid_layout,
+					'register_text' => $register_text,
+					'limit'         => [
 						'type'    => 'integer',
 						'default' => 0,
 						'label'   => $limit_label,
 					],
-					'series'     => [
+					'series'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'empty_text' => [
+					'empty_text'    => [
 						'type'    => 'string',
 						'default' => __( 'Past events appear here.', 'emailexpert-events' ),
 					],
@@ -328,6 +337,7 @@ final class Components {
 					'show_categories' => $show_categories,
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
+					'register_text'   => $register_text,
 					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
@@ -714,7 +724,7 @@ final class Components {
 		$show   = self::show_flags( $atts );
 
 		if ( 'agenda' === $layout ) {
-			return self::agenda_layout( $items, $context, $show );
+			return self::agenda_layout( $items, $context, $show, (string) ( $atts['register_text'] ?? '' ) );
 		}
 
 		// Wrapper classes and template part per layout; unknown values were
@@ -743,9 +753,10 @@ final class Components {
 			TemplateLoader::part(
 				$part,
 				[
-					'data'    => $data,
-					'context' => $context,
-					'show'    => $show,
+					'data'          => $data,
+					'context'       => $context,
+					'show'          => $show,
+					'register_text' => (string) ( $atts['register_text'] ?? '' ),
 				]
 			);
 			echo '</li>';
@@ -779,7 +790,7 @@ final class Components {
 	 * @param string                         $context 'upcoming', 'past' or 'featured'.
 	 * @param array<string,bool>             $show    Display toggles.
 	 */
-	private static function agenda_layout( array $items, string $context, array $show ): string {
+	private static function agenda_layout( array $items, string $context, array $show, string $register_text = '' ): string {
 		$rows = self::group_rows_by_day( $items, 'j F Y' );
 
 		ob_start();
@@ -809,9 +820,10 @@ final class Components {
 			TemplateLoader::part(
 				'agenda-row',
 				[
-					'data'    => $data,
-					'context' => $context,
-					'show'    => $show,
+					'data'          => $data,
+					'context'       => $context,
+					'show'          => $show,
+					'register_text' => $register_text,
 				]
 			);
 			echo '</li>';
@@ -975,8 +987,9 @@ final class Components {
 			TemplateLoader::part(
 				$list ? 'list-event' : 'card-event',
 				[
-					'event'   => $event,
-					'context' => $context,
+					'event'         => $event,
+					'context'       => $context,
+					'register_text' => (string) ( $atts['register_text'] ?? '' ),
 				]
 			);
 			echo '</li>';

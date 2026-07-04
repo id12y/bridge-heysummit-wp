@@ -173,9 +173,16 @@
 .eex-list-time,
 .eex-compact-time {
 	flex: 0 0 auto;
+	max-width: 14em;
 	color: var(--eex-muted);
 	font-size: 0.9em;
-	white-space: nowrap;
+}
+
+/* Long timezone names (Europe/Madrid) sit under the date instead of
+   stretching the time column and shoving the actions onto a new line. */
+.eex-list-time .eex-tz,
+.eex-compact-time .eex-tz {
+	display: block;
 }
 
 .eex-list-main {
@@ -197,6 +204,7 @@
 	flex-wrap: wrap;
 	gap: 0.35em 0.75em;
 	align-items: center;
+	margin-left: auto;
 }
 
 .eex-talk-compact .eex-compact-row {

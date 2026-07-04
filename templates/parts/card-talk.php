@@ -32,6 +32,11 @@ $eex_show    = array_merge(
 if ( empty( $eex_data['id'] ) ) {
 	return;
 }
+
+$eex_register_text = (string) ( $args['register_text'] ?? '' );
+if ( '' === $eex_register_text ) {
+	$eex_register_text = __( 'Register', 'emailexpert-events' );
+}
 ?>
 <article class="eex-card eex-card-talk eex-context-<?php echo esc_attr( $eex_context ); ?>"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
 	<p class="eex-live-indicator" data-eex-live-slot="1" hidden aria-live="polite"></p>
@@ -68,7 +73,7 @@ if ( empty( $eex_data['id'] ) ) {
 		<?php elseif ( 'past' !== $eex_context ) : ?>
 			<?php $eex_register_url = (string) ( $eex_data['event_url'] ?: $eex_data['talk_url'] ); ?>
 			<?php if ( '' !== $eex_register_url ) : ?>
-				<a class="eex-cta eex-cta-register" data-eex-cta="1" href="<?php echo esc_url( $eex_register_url ); ?>"><?php esc_html_e( 'Register', 'emailexpert-events' ); ?></a>
+				<a class="eex-cta eex-cta-register" data-eex-cta="1" href="<?php echo esc_url( $eex_register_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
 			<?php endif; ?>
 			<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
 				<?php if ( $eex_show['ics'] ) : ?>

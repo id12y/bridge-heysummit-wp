@@ -115,8 +115,8 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		);
 
 		$colour_props = [
-			'accent'    => __( 'Accent colour', 'emailexpert-events' ),
-			'accent-fg' => __( 'Accent text colour', 'emailexpert-events' ),
+			'accent'    => __( 'Button / accent background', 'emailexpert-events' ),
+			'accent-fg' => __( 'Button / accent text', 'emailexpert-events' ),
 			'badge-bg'  => __( 'Badge background', 'emailexpert-events' ),
 			'badge-fg'  => __( 'Badge text', 'emailexpert-events' ),
 			'border'    => __( 'Border colour', 'emailexpert-events' ),
@@ -247,6 +247,18 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			]
 		);
 
+		$this->add_responsive_control(
+			'eex_button_padding',
+			[
+				'label'      => __( 'Button padding', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-cta' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
+
 		// Per-device grid columns. Set from Elementor's breakpoints (tablet
 		// 1024px by default) but consumed by this plugin's own 900/600px
 		// media queries — the variable is simply defined a little earlier
@@ -292,9 +304,10 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		$meta_selector = '{{WRAPPER}} .eex .eex-card-time, {{WRAPPER}} .eex .eex-card-venue, {{WRAPPER}} .eex .eex-list-time, {{WRAPPER}} .eex .eex-compact-time, {{WRAPPER}} .eex .eex-agenda-time, {{WRAPPER}} .eex .eex-schedule-time, {{WRAPPER}} .eex .eex-speaker-headline, {{WRAPPER}} .eex .eex-speaker-company, {{WRAPPER}} .eex .eex-agenda-speaker-role, {{WRAPPER}} .eex .eex-tz';
 
 		$typography = [
-			'eex_typo_title' => [ __( 'Titles', 'emailexpert-events' ), $title_selector ],
-			'eex_typo_meta'  => [ __( 'Times and meta', 'emailexpert-events' ), $meta_selector ],
-			'eex_typo_body'  => [ __( 'Body', 'emailexpert-events' ), '{{WRAPPER}} .eex' ],
+			'eex_typo_title'  => [ __( 'Titles', 'emailexpert-events' ), $title_selector ],
+			'eex_typo_meta'   => [ __( 'Times and meta', 'emailexpert-events' ), $meta_selector ],
+			'eex_typo_button' => [ __( 'Buttons', 'emailexpert-events' ), '{{WRAPPER}} .eex .eex-cta' ],
+			'eex_typo_body'   => [ __( 'Body', 'emailexpert-events' ), '{{WRAPPER}} .eex' ],
 		];
 
 		foreach ( $typography as $id => [ $label, $selector ] ) {

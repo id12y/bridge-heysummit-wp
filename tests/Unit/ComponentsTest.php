@@ -456,4 +456,28 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'View all speakers', $with_link );
 		$this->assertStringNotContainsString( '<script>', $with_link );
 	}
+
+	public function test_register_text_is_customisable_and_escaped(): void {
+		$talk_id = $this->make_talk( 'CTA session', 3600 );
+		update_post_meta( $talk_id, '_eex_talk_url', 'https://summit.example.com/talk/' );
+
+		$default = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( '>Register</a>', $default );
+
+		Cache::flush();
+		$custom = Components::render( 'upcoming-sessions', [ 'register_text' => 'Save my seat <script>' ] );
+		$this->assertStringContainsString( 'Save my seat', $custom );
+		$this->assertStringNotContainsString( '<script>', $custom );
+		$this->assertStringNotContainsString( '>Register</a>', $custom );
+
+		Cache::flush();
+		$agenda = Components::render(
+			'upcoming-sessions',
+			[
+				'layout'        => 'agenda',
+				'register_text' => 'Join us',
+			]
+		);
+		$this->assertStringContainsString( '>Join us</a>', $agenda );
+	}
 }
