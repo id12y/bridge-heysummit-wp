@@ -665,6 +665,128 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( '>Meet our sponsor</a>', $labelled, 'website_text outranks link_title' );
 		$this->assertStringNotContainsString( 'Try Acme free', $labelled );
 		$this->assertStringContainsString( '>Grab a slot</a>', $labelled );
+
+		// The wall's short descriptions can be capped like the spotlight's.
+		Cache::flush();
+		$capped_wall = Components::render(
+			'sponsors',
+			[
+				'group_by'     => 'none',
+				'show_blurb'   => 1,
+				'blurb_length' => 15,
+			]
+		);
+		$this->assertStringNotContainsString( 'Deliverability tools.', $capped_wall );
+		$this->assertStringContainsString( 'Deliverability…', $capped_wall );
+
+		// A custom wall heading tops the wall one level above the category
+		// headings, whose tag is itself configurable.
+		Cache::flush();
+		$headed = Components::render(
+			'sponsors',
+			[
+				'heading'       => 'Our sponsors',
+				'heading_level' => '3',
+			]
+		);
+		$this->assertStringContainsString( '<h2 class="eex-wall-heading">Our sponsors</h2>', $headed );
+		$this->assertStringContainsString( '<h3 class="eex-tier-heading">', $headed );
+
+		Cache::flush();
+		$headed_strip = Components::render(
+			'sponsors',
+			[
+				'layout'        => 'strip',
+				'heading'       => 'Partners',
+				'heading_level' => '4',
+			]
+		);
+		$this->assertStringContainsString( '<h3 class="eex-wall-heading">Partners</h3>', $headed_strip, 'strip and flat walls get the heading too' );
+
+		Cache::flush();
+		$level_two = Components::render(
+			'sponsors',
+			[
+				'heading'       => 'Top',
+				'heading_level' => '2',
+			]
+		);
+		$this->assertStringContainsString( '<h2 class="eex-wall-heading">Top</h2>', $level_two, 'the wall heading never rises above h2' );
+		$this->assertStringContainsString( '<h2 class="eex-tier-heading">', $level_two );
+
+		// new_tab adds target="_blank" to sponsor anchors; default does not,
+		// and the spotlight's tel: link never gets one.
+		Cache::flush();
+		$same_tab = Components::render( 'sponsors', [ 'group_by' => 'none' ] );
+		$this->assertStringNotContainsString( 'target="_blank"', $same_tab );
+
+		Cache::flush();
+		$tabbed = Components::render(
+			'sponsors',
+			[
+				'group_by' => 'none',
+				'new_tab'  => 1,
+			]
+		);
+		$this->assertStringContainsString( 'target="_blank"', $tabbed );
+		$this->assertStringContainsString( 'rel="sponsored noopener"', $tabbed, 'noopener retained' );
+
+		Cache::flush();
+		$tabbed_strip = Components::render(
+			'sponsors',
+			[
+				'layout'  => 'strip',
+				'new_tab' => 1,
+			]
+		);
+		$this->assertStringContainsString( 'target="_blank"', $tabbed_strip );
+
+		Cache::flush();
+		$tabbed_spot = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'    => '1',
+				'show_books' => 1,
+				'show_phone' => 1,
+				'new_tab'    => 1,
+			]
+		);
+		$this->assertSame( 2, substr_count( $tabbed_spot, 'target="_blank"' ), 'website and booking buttons only — never the tel: link' );
+
+		// UTM on sponsor links is opt-in per widget; hub links arrive
+		// pre-tagged and are never double-tagged.
+		Options::update_settings(
+			[
+				'utm_enabled' => 1,
+				'utm_source'  => 'example-site',
+				'utm_medium'  => 'events',
+			]
+		);
+
+		Cache::flush();
+		$untagged = Components::render( 'sponsors', [ 'group_by' => 'none' ] );
+		$this->assertStringNotContainsString( 'acme.example.com?utm_source', $untagged, 'sponsor website links stay clean by default' );
+
+		Cache::flush();
+		$tagged = Components::render(
+			'sponsors',
+			[
+				'group_by'  => 'none',
+				'utm_links' => 1,
+			]
+		);
+		$this->assertStringContainsString( 'acme.example.com?utm_source=example-site', $tagged );
+
+		Cache::flush();
+		$hub_tagged = Components::render(
+			'sponsors',
+			[
+				'group_by'     => 'none',
+				'sponsor_link' => 'hub',
+				'utm_links'    => 1,
+			]
+		);
+		$this->assertSame( 1, substr_count( $hub_tagged, 'sponsors/acme/?utm_source=' ), 'hub URL tagged exactly once' );
 	}
 
 	public function test_api_failure_serves_last_good_then_empty_state_never_fatal(): void {
@@ -701,6 +823,52 @@ final class LiteModeTest extends TestCase {
 		$empty = Components::render( 'upcoming-sessions', [] );
 		$this->assertStringContainsString( 'eex-empty', $empty );
 		$this->assertStringContainsString( 'New sessions are announced soon.', $empty );
+
+		// hide_empty: with the API still dead and no last-good copy, a
+		// visitor gets nothing at all — while an admin gets the explanation.
+		Cache::flush();
+		LiveCache::reset_request_state();
+		\EEX_Test_State::$user_can = false;
+		$hidden                    = Components::render( 'upcoming-sessions', [ 'hide_empty' => 1 ] );
+		$this->assertSame( '', $hidden, 'visitors see nothing, never an unexplained empty box' );
+
+		Cache::flush();
+		LiveCache::reset_request_state();
+		\EEX_Test_State::$user_can = true;
+		$admin_view                = Components::render( 'upcoming-sessions', [ 'hide_empty' => 1 ] );
+		$this->assertStringNotContainsString( 'eex-empty', $admin_view );
+		$this->assertStringContainsString( 'hidden by its hide_empty setting', $admin_view );
+	}
+
+	public function test_hide_empty_never_caches_the_blank(): void {
+		$this->go_lite();
+		$this->mock_api( true ); // Every fetch fails: guaranteed empty state.
+
+		\EEX_Test_State::$user_can = false;
+		$html                      = Components::render( 'upcoming-sessions', [ 'hide_empty' => 1 ] );
+		$this->assertSame( '', $html );
+
+		// The cache holds the REAL empty fragment under the 60-second
+		// guardrail TTL — never '' and never the full display TTL — so the
+		// serve-stale safety net and the empty-retry guardrail both survive.
+		$cached = array_filter(
+			\EEX_Test_State::$transients,
+			static fn( $value, $key ): bool => str_starts_with( (string) $key, 'eex_c_' ) && is_string( $value ),
+			ARRAY_FILTER_USE_BOTH
+		);
+		$this->assertNotEmpty( $cached, 'the fragment was cached despite being hidden' );
+
+		foreach ( $cached as $key => $value ) {
+			$this->assertStringContainsString( 'eex-empty', $value, 'the real empty fragment is cached, not the stripped blank' );
+			$this->assertLessThanOrEqual( 60, \EEX_Test_State::$transient_ttls[ $key ] ?? 0, 'empty fragments keep the guardrail TTL' );
+		}
+
+		// The last-good slot was not clobbered with a blank.
+		foreach ( \EEX_Test_State::$transients as $key => $value ) {
+			if ( str_starts_with( (string) $key, 'eex_lg_' ) ) {
+				$this->assertNotSame( '', $value, 'last-good copies are never blank' );
+			}
+		}
 	}
 
 	public function test_budget_caps_cold_fetches_per_request(): void {
@@ -2110,5 +2278,13 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'eex-empty', $html );
 		$this->assertStringContainsString( 'no sponsors came back from the HeySummit API', $html );
 		$this->assertStringContainsString( 'CSV import', $html );
+
+		// With hide_empty, the visible empty state disappears but the admin
+		// explanation survives — a blank sidebar stays debuggable.
+		Cache::flush();
+		$hidden = Components::render( 'sponsors', [ 'hide_empty' => 1 ] );
+		$this->assertStringNotContainsString( 'eex-empty', $hidden );
+		$this->assertStringContainsString( 'hidden by its hide_empty setting', $hidden );
+		$this->assertStringContainsString( 'no sponsors came back from the HeySummit API', $hidden, 'the diagnosis rides along' );
 	}
 }
