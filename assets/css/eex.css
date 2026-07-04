@@ -441,6 +441,48 @@
 	height: auto;
 	display: block;
 	margin: 0 auto;
+	filter: var(--eex-logo-filter, none);
+	opacity: var(--eex-logo-opacity, 1);
+	transition: filter 0.25s ease, opacity 0.25s ease;
+}
+
+.eex a:hover .eex-sponsor-logo,
+.eex a:focus-visible .eex-sponsor-logo {
+	filter: none;
+	opacity: 1;
+}
+
+/* Widget-level content alignment (Elementor style control). */
+.eex .eex-card,
+.eex .eex-list-main,
+.eex .eex-spotlight-body {
+	text-align: var(--eex-content-align, inherit);
+}
+
+/* Card hover effects (Elementor style control adds the wrapper class). */
+.eex .eex-card {
+	transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.eex-hover-lift .eex .eex-card:hover,
+.eex-hover-liftshadow .eex .eex-card:hover {
+	transform: translateY(-4px);
+}
+
+.eex-hover-shadow .eex .eex-card:hover,
+.eex-hover-liftshadow .eex .eex-card:hover {
+	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.eex .eex-card {
+		transition: none;
+	}
+
+	.eex-hover-lift .eex .eex-card:hover,
+	.eex-hover-liftshadow .eex .eex-card:hover {
+		transform: none;
+	}
 }
 
 .eex-tier-heading {
@@ -1165,7 +1207,7 @@
 	display: block;
 	width: 100%;
 	height: auto;
-	aspect-ratio: 16 / 9;
+	aspect-ratio: var(--eex-image-ratio, 16 / 9);
 	object-fit: cover;
 }
 
@@ -1212,7 +1254,7 @@
 	list-style: none;
 	margin: 0;
 	padding: 0;
-	animation: eex-strip-scroll 40s linear infinite;
+	animation: eex-strip-scroll var(--eex-strip-speed, 40s) linear infinite;
 }
 
 .eex-sponsor-strip:hover .eex-strip-track {

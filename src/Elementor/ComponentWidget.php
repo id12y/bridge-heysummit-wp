@@ -114,6 +114,35 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			]
 		);
 
+		// A starting point, not a straitjacket: each preset writes a bundle
+		// of the same variables the individual controls below fine-tune.
+		$this->add_control(
+			'eex_skin',
+			[
+				'label'                => __( 'Design preset', 'emailexpert-events' ),
+				'type'                 => \Elementor\Controls_Manager::SELECT,
+				'default'              => '',
+				'options'              => [
+					''           => __( 'Theme default', 'emailexpert-events' ),
+					'boxed'      => __( 'Boxed — subtle background and border', 'emailexpert-events' ),
+					'outlined'   => __( 'Outlined — border only', 'emailexpert-events' ),
+					'soft'       => __( 'Soft — tinted, borderless, rounded', 'emailexpert-events' ),
+					'chromeless' => __( 'Chromeless — no card styling at all', 'emailexpert-events' ),
+					'inverted'   => __( 'Inverted — dark panels', 'emailexpert-events' ),
+				],
+				'selectors_dictionary' => [
+					'boxed'      => '--eex-card-bg: rgba(127, 127, 127, 0.06); --eex-border: rgba(127, 127, 127, 0.25);',
+					'outlined'   => '--eex-card-bg: transparent; --eex-border: rgba(127, 127, 127, 0.45);',
+					'soft'       => '--eex-card-bg: rgba(127, 127, 127, 0.09); --eex-border: transparent; --eex-radius: 14px;',
+					'chromeless' => '--eex-card-bg: transparent; --eex-border: transparent;',
+					'inverted'   => '--eex-card-bg: #1a1d23; --eex-border: #2d323b; --eex-muted: #a7aeba; color: #f2f4f7;',
+				],
+				'selectors'            => [
+					'{{WRAPPER}} .eex' => '{{VALUE}}',
+				],
+			]
+		);
+
 		$colour_props = [
 			'accent'    => __( 'Button / accent background', 'emailexpert-events' ),
 			'accent-fg' => __( 'Button / accent text', 'emailexpert-events' ),
@@ -148,13 +177,15 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		// as inherit and would silently override theme heading and link
 		// colours on pages that never touch these controls. A direct
 		// property only exists once the user sets a value.
-		$title_selector   = '{{WRAPPER}} .eex .eex-card-title, {{WRAPPER}} .eex .eex-card-title a, {{WRAPPER}} .eex .eex-list-title, {{WRAPPER}} .eex .eex-agenda-title, {{WRAPPER}} .eex .eex-agenda-title a, {{WRAPPER}} .eex .eex-schedule-title, {{WRAPPER}} .eex .eex-compact-title';
-		$heading_selector = '{{WRAPPER}} .eex .eex-schedule-heading, {{WRAPPER}} .eex .eex-agenda-heading, {{WRAPPER}} .eex .eex-tier-heading';
+		$title_selector   = '{{WRAPPER}} .eex .eex-card-title, {{WRAPPER}} .eex .eex-card-title a, {{WRAPPER}} .eex .eex-list-title, {{WRAPPER}} .eex .eex-agenda-title, {{WRAPPER}} .eex .eex-agenda-title a, {{WRAPPER}} .eex .eex-schedule-title, {{WRAPPER}} .eex .eex-compact-title, {{WRAPPER}} .eex .eex-sponsor-card-name, {{WRAPPER}} .eex .eex-sponsor-name';
+		$heading_selector = '{{WRAPPER}} .eex .eex-schedule-heading, {{WRAPPER}} .eex .eex-agenda-heading, {{WRAPPER}} .eex .eex-tier-heading, {{WRAPPER}} .eex .eex-wall-heading, {{WRAPPER}} .eex .eex-spotlight-name, {{WRAPPER}} .eex .eex-hero-title';
+		$desc_selector    = '{{WRAPPER}} .eex .eex-sponsor-blurb, {{WRAPPER}} .eex .eex-spotlight-description, {{WRAPPER}} .eex .eex-spotlight-bio, {{WRAPPER}} .eex .eex-pricing-description';
 
 		$text_colours = [
 			'eex_colour_text'    => [ __( 'Text colour', 'emailexpert-events' ), '{{WRAPPER}} .eex' ],
 			'eex_colour_title'   => [ __( 'Title colour', 'emailexpert-events' ), $title_selector ],
 			'eex_colour_heading' => [ __( 'Heading colour', 'emailexpert-events' ), $heading_selector ],
+			'eex_colour_desc'    => [ __( 'Description colour', 'emailexpert-events' ), $desc_selector ],
 			'eex_colour_link'    => [ __( 'Link colour', 'emailexpert-events' ), '{{WRAPPER}} .eex a' ],
 		];
 
@@ -310,6 +341,180 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			]
 		);
 
+		$this->add_responsive_control(
+			'eex_content_align',
+			[
+				'label'     => __( 'Content alignment', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::CHOOSE,
+				'options'   => [
+					'left'   => [
+						'title' => __( 'Left', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-left',
+					],
+					'center' => [
+						'title' => __( 'Centre', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-center',
+					],
+					'right'  => [
+						'title' => __( 'Right', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-right',
+					],
+				],
+				'selectors' => [
+					'{{WRAPPER}} .eex' => '--eex-content-align: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_logo_height',
+			[
+				'label'      => __( 'Sponsor logo size', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px', 'em' ],
+				'range'      => [
+					'px' => [
+						'min' => 16,
+						'max' => 200,
+					],
+					'em' => [
+						'min'  => 1,
+						'max'  => 12,
+						'step' => 0.25,
+					],
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-sponsor-row .eex-sponsor-logo, {{WRAPPER}} .eex .eex-sponsor-row-logo img, {{WRAPPER}} .eex .eex-strip-item .eex-sponsor-logo' => 'height: {{SIZE}}{{UNIT}};',
+					'{{WRAPPER}} .eex .eex-card-sponsor .eex-sponsor-logo' => 'max-height: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Box_Shadow::get_type(),
+			[
+				'name'     => 'eex_card_shadow',
+				'label'    => __( 'Card shadow', 'emailexpert-events' ),
+				'selector' => '{{WRAPPER}} .eex .eex-card, {{WRAPPER}} .eex .eex-agenda-row',
+			]
+		);
+
+		$this->add_control(
+			'eex_card_hover',
+			[
+				'label'        => __( 'Card hover effect', 'emailexpert-events' ),
+				'type'         => \Elementor\Controls_Manager::SELECT,
+				'default'      => '',
+				'options'      => [
+					''           => __( 'None', 'emailexpert-events' ),
+					'lift'       => __( 'Lift', 'emailexpert-events' ),
+					'shadow'     => __( 'Shadow', 'emailexpert-events' ),
+					'liftshadow' => __( 'Lift + shadow', 'emailexpert-events' ),
+				],
+				'prefix_class' => 'eex-hover-',
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_border_width',
+			[
+				'label'      => __( 'Card border width', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px' ],
+				'range'      => [
+					'px' => [
+						'min' => 0,
+						'max' => 6,
+					],
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-card' => 'border-width: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_heading_spacing',
+			[
+				'label'      => __( 'Heading spacing below', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'range'      => [
+					'px' => [
+						'min' => 0,
+						'max' => 64,
+					],
+				],
+				'selectors'  => [
+					$heading_selector => 'margin-bottom: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_control(
+			'eex_image_ratio',
+			[
+				'label'                => __( 'Image ratio (session images)', 'emailexpert-events' ),
+				'type'                 => \Elementor\Controls_Manager::SELECT,
+				'default'              => '',
+				'options'              => [
+					''         => __( 'Wide 16:9 (default)', 'emailexpert-events' ),
+					'classic'  => __( 'Classic 4:3', 'emailexpert-events' ),
+					'square'   => __( 'Square 1:1', 'emailexpert-events' ),
+					'cinema'   => __( 'Panoramic 21:9', 'emailexpert-events' ),
+					'portrait' => __( 'Portrait 3:4', 'emailexpert-events' ),
+				],
+				'selectors_dictionary' => [
+					'classic'  => '--eex-image-ratio: 4 / 3;',
+					'square'   => '--eex-image-ratio: 1 / 1;',
+					'cinema'   => '--eex-image-ratio: 21 / 9;',
+					'portrait' => '--eex-image-ratio: 3 / 4;',
+				],
+				'selectors'            => [
+					'{{WRAPPER}} .eex' => '{{VALUE}}',
+				],
+			]
+		);
+
+		if ( 'sponsors' === $this->component ) {
+			$this->add_control(
+				'eex_strip_speed',
+				[
+					'label'       => __( 'Strip scroll duration (seconds)', 'emailexpert-events' ),
+					'description' => __( 'One full loop of the logo strip; higher is slower. Applies to the strip layout.', 'emailexpert-events' ),
+					'type'        => \Elementor\Controls_Manager::NUMBER,
+					'min'         => 5,
+					'max'         => 240,
+					'selectors'   => [
+						'{{WRAPPER}} .eex' => '--eex-strip-speed: {{VALUE}}s;',
+					],
+				]
+			);
+		}
+
+		$this->add_control(
+			'eex_logo_effect',
+			[
+				'label'                => __( 'Logo treatment', 'emailexpert-events' ),
+				'type'                 => \Elementor\Controls_Manager::SELECT,
+				'default'              => '',
+				'options'              => [
+					''        => __( 'Full colour', 'emailexpert-events' ),
+					'grey'    => __( 'Greyscale until hover', 'emailexpert-events' ),
+					'dim'     => __( 'Dimmed until hover', 'emailexpert-events' ),
+					'greydim' => __( 'Greyscale + dimmed until hover', 'emailexpert-events' ),
+				],
+				'selectors_dictionary' => [
+					'grey'    => '--eex-logo-filter: grayscale(1);',
+					'dim'     => '--eex-logo-opacity: 0.6;',
+					'greydim' => '--eex-logo-filter: grayscale(1); --eex-logo-opacity: 0.6;',
+				],
+				'selectors'            => [
+					'{{WRAPPER}} .eex' => '{{VALUE}}',
+				],
+			]
+		);
+
 		// Per-device grid columns. Set from Elementor's breakpoints (tablet
 		// 1024px by default) but consumed by this plugin's own 900/600px
 		// media queries — the variable is simply defined a little earlier
@@ -355,10 +560,12 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		$meta_selector = '{{WRAPPER}} .eex .eex-card-time, {{WRAPPER}} .eex .eex-card-venue, {{WRAPPER}} .eex .eex-list-time, {{WRAPPER}} .eex .eex-compact-time, {{WRAPPER}} .eex .eex-agenda-time, {{WRAPPER}} .eex .eex-schedule-time, {{WRAPPER}} .eex .eex-speaker-headline, {{WRAPPER}} .eex .eex-speaker-company, {{WRAPPER}} .eex .eex-agenda-speaker-role, {{WRAPPER}} .eex .eex-tz';
 
 		$typography = [
-			'eex_typo_title'  => [ __( 'Titles', 'emailexpert-events' ), $title_selector ],
-			'eex_typo_meta'   => [ __( 'Times and meta', 'emailexpert-events' ), $meta_selector ],
-			'eex_typo_button' => [ __( 'Buttons', 'emailexpert-events' ), '{{WRAPPER}} .eex .eex-cta' ],
-			'eex_typo_body'   => [ __( 'Body', 'emailexpert-events' ), '{{WRAPPER}} .eex' ],
+			'eex_typo_heading' => [ __( 'Headings (hero title, category and wall headings, spotlight name)', 'emailexpert-events' ), $heading_selector ],
+			'eex_typo_title'   => [ __( 'Titles (cards, rows, sponsor names)', 'emailexpert-events' ), $title_selector ],
+			'eex_typo_meta'    => [ __( 'Times and meta', 'emailexpert-events' ), $meta_selector ],
+			'eex_typo_desc'    => [ __( 'Descriptions and blurbs', 'emailexpert-events' ), $desc_selector ],
+			'eex_typo_button'  => [ __( 'Buttons', 'emailexpert-events' ), '{{WRAPPER}} .eex .eex-cta, {{WRAPPER}} .eex .eex-cta-secondary' ],
+			'eex_typo_body'    => [ __( 'Body', 'emailexpert-events' ), '{{WRAPPER}} .eex' ],
 		];
 
 		foreach ( $typography as $id => [ $label, $selector ] ) {

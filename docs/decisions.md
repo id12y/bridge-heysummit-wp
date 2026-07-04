@@ -1260,3 +1260,27 @@ parser trusts explicit offsets by design. The v1.19.3 discovery report
 prints raw timestamp samples with an offset verdict precisely to
 settle that; if confirmed, the next step is treating HeySummit's
 offsets as decoration behind a filter.
+
+## D88. The Style tab catches up with the components (v1.20.0)
+
+Operator feedback: the sponsor wall "does not offer nearly the levels
+of controls or pre designed templates I would like... no way to change
+the size of the headline or font styling". The audit agreed and found
+it was not sponsor-specific: the shared Style tab had typography groups
+for titles/meta/buttons/body but NONE for headings, and the selector
+lists predated the newer components — .eex-wall-heading,
+.eex-spotlight-name, .eex-hero-title and the sponsor name classes
+appeared in no control at all. Once markup outruns the style selectors,
+whole components become unstyleable without custom CSS.
+
+Added for every widget (one shared Style tab): a Design preset select
+(boxed/outlined/soft/chromeless/inverted — bundles of the same CSS
+variables the individual controls fine-tune, so presets are starting
+points, not modes), Headings and Descriptions typography groups,
+description colour, responsive content alignment, a free sponsor-logo
+size slider (direct height/max-height so it beats the content-tab
+preset's inline variable), and logo hover treatments (greyscale/dimmed
+until hover — style-only, so a CSS variable pair consumed in eex.css
+with hover/focus reset). Rule reaffirmed for future components: when a
+template introduces a new text class, it must join the Style tab's
+selector lists in the same change.
