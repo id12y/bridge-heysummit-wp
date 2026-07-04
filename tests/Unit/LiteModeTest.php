@@ -1009,6 +1009,65 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'cURL error 28', (string) $meta['failed'][6] );
 	}
 
+	public function test_the_diagnosis_shows_raw_wire_evidence_spans_drops_and_a_sample(): void {
+		$this->go_lite();
+
+		// Page 1: an old active session. Page 2 (the deepest): one session
+		// marked inactive and dated in the future — fetched, then excluded.
+		// The diagnosis must show the date spans, the exclusion count and a
+		// raw sample so nobody has to infer what the API returned.
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		$this->mock_http(
+			static function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				$rows = 2 === $page
+					? [
+						[
+							'id'        => 802,
+							'title'     => 'Hidden future session',
+							'date'      => $future,
+							'event'     => 101,
+							'is_active' => false,
+						],
+					]
+					: [
+						[
+							'id'    => 801,
+							'title' => 'Old session',
+							'date'  => '2020-12-10T16:00:00Z',
+							'event' => 101,
+						],
+					];
+
+				return self::json_response(
+					[
+						'count'   => 2,
+						'next'    => $page < 2 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=2' : null,
+						'results' => $rows,
+					]
+				);
+			}
+		);
+
+		$diagnosis = Repositories::current()->diagnose();
+
+		$this->assertStringContainsString( 'paged by page', $diagnosis );
+		$this->assertStringContainsString( 'dates 2020-12-10..2020-12-10', $diagnosis, 'page date spans are shown' );
+		$this->assertStringContainsString( '2 row(s) fetched', $diagnosis );
+		$this->assertStringContainsString( '1 marked inactive on HeySummit', $diagnosis, 'exclusions are counted with reasons' );
+		$this->assertStringContainsString( 'Sample session from the deepest page read', $diagnosis );
+		$this->assertStringContainsString( 'is_active=false', $diagnosis, 'the raw sample shows the wire fields' );
+	}
+
 	public function test_flush_live_cache_also_resets_the_harvest_record(): void {
 		$this->go_lite();
 		$this->mock_api();

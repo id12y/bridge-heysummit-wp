@@ -36,6 +36,14 @@ class LiveRepository extends BaseMapper implements Repository {
 	private array $talks_memo = [];
 
 	/**
+	 * Per-request mapping drop counters per event key (rows fetched from the
+	 * API but excluded from display, and why).
+	 *
+	 * @var array<string,array<string,int>>
+	 */
+	private array $drop_stats = [];
+
+	/**
 	 * Upcoming talks across the configured events, soonest first.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
@@ -454,14 +462,50 @@ class LiveRepository extends BaseMapper implements Repository {
 
 			[ , $event_id ] = array_pad( explode( '|', $key, 2 ), 2, '' );
 
+			$spans = (array) ( $meta['spans'] ?? [] );
+			$pages = [];
+			foreach ( (array) ( $meta['read'] ?? [] ) as $page_no ) {
+				$pages[] = isset( $spans[ $page_no ] ) ? sprintf( '%d (dates %s)', (int) $page_no, (string) $spans[ $page_no ] ) : (string) $page_no;
+			}
+
 			$line = sprintf(
-				/* translators: 1: event ID, 2: sessions reported by the API, 3: page count, 4: pages read. */
-				__( 'Event %1$s: HeySummit reports %2$d session(s) across %3$d page(s); pages read: %4$s', 'emailexpert-events' ),
+				/* translators: 1: event ID, 2: sessions reported by the API, 3: page count, 4: paging dialect, 5: pages read with their date spans. */
+				__( 'Event %1$s: HeySummit reports %2$d session(s) across %3$d page(s), paged by %4$s; pages read: %5$s', 'emailexpert-events' ),
 				$event_id,
 				(int) ( $meta['count'] ?? 0 ),
 				(int) ( $meta['pages'] ?? 1 ),
-				implode( ', ', array_map( 'strval', (array) ( $meta['read'] ?? [] ) ) )
+				(string) ( $meta['dialect'] ?? 'page' ),
+				implode( ', ', $pages )
 			);
+
+			if ( isset( $meta['collected'] ) ) {
+				$line .= sprintf(
+					/* translators: %d: rows fetched from the API. */
+					__( '; %d row(s) fetched', 'emailexpert-events' ),
+					(int) $meta['collected']
+				);
+			}
+
+			$drops   = (array) ( $this->drop_stats[ $key ] ?? [] );
+			$dropped = [];
+
+			if ( ! empty( $drops['other_event'] ) ) {
+				/* translators: %d: rows excluded for belonging to another event. */
+				$dropped[] = sprintf( __( '%d for another event', 'emailexpert-events' ), (int) $drops['other_event'] );
+			}
+
+			if ( ! empty( $drops['inactive'] ) ) {
+				/* translators: %d: rows excluded for being inactive. */
+				$dropped[] = sprintf( __( '%d marked inactive on HeySummit', 'emailexpert-events' ), (int) $drops['inactive'] );
+			}
+
+			if ( ! empty( $dropped ) ) {
+				$line .= sprintf(
+					/* translators: %s: drop reasons with counts. */
+					__( '; excluded from display: %s', 'emailexpert-events' ),
+					implode( ', ', $dropped )
+				);
+			}
 
 			if ( ! empty( $meta['failed'] ) ) {
 				$failures = [];
@@ -477,6 +521,14 @@ class LiveRepository extends BaseMapper implements Repository {
 			}
 
 			$lines[] = $line . '.';
+
+			if ( ! empty( $meta['sample'] ) ) {
+				$lines[] = sprintf(
+					/* translators: %s: raw field=value pairs of one session from the deepest page read. */
+					__( 'Sample session from the deepest page read: [%s].', 'emailexpert-events' ),
+					(string) $meta['sample']
+				);
+			}
 		}
 
 		return implode( ' ', $lines );
@@ -873,8 +925,48 @@ class LiveRepository extends BaseMapper implements Repository {
 					$per  = isset( $next_query['limit'] ) ? max( 1, (int) $next_query['limit'] ) : $size;
 					$last = (int) ceil( max( 0, $count ) / $per );
 
-					$meta['count'] = $count > 0 ? $count : count( $rows );
-					$meta['pages'] = max( 1, $last );
+					$meta['count']   = $count > 0 ? $count : count( $rows );
+					$meta['pages']   = max( 1, $last );
+					$meta['dialect'] = ( isset( $next_query['offset'] ) || isset( $next_query['limit'] ) ) ? 'limit/offset' : 'page';
+
+					// Raw evidence per page: the date span of what the API
+					// actually returned, and a sample row from the deepest
+					// page — so the status row shows the wire truth instead
+					// of another round of inference.
+					$span_of = static function ( array $page_rows ): string {
+						$dates = [];
+						foreach ( $page_rows as $row ) {
+							foreach ( [ 'starts_at', 'date' ] as $field ) {
+								if ( isset( $row[ $field ] ) && is_string( $row[ $field ] ) && '' !== $row[ $field ] ) {
+									$dates[] = substr( $row[ $field ], 0, 10 );
+									break;
+								}
+							}
+						}
+
+						if ( empty( $dates ) ) {
+							return 'no dates';
+						}
+
+						sort( $dates );
+
+						return $dates[0] . '..' . end( $dates );
+					};
+
+					$sample_of = static function ( array $row ): string {
+						$bits = [];
+						foreach ( $row as $field => $value ) {
+							if ( null === $value || is_scalar( $value ) ) {
+								$printable = null === $value ? 'null' : ( is_bool( $value ) ? ( $value ? 'true' : 'false' ) : substr( (string) $value, 0, 60 ) );
+								$bits[]    = $field . '=' . $printable;
+							}
+						}
+
+						return implode( ', ', array_slice( $bits, 0, 12 ) );
+					};
+
+					$meta['spans'][1] = $span_of( $rows );
+					$meta['sample']   = isset( $rows[0] ) && is_array( $rows[0] ) ? $sample_of( $rows[0] ) : '';
 
 					// The count is trusted even when the next link is absent
 					// (some routes omit it); the next link is trusted even
@@ -905,7 +997,7 @@ class LiveRepository extends BaseMapper implements Repository {
 
 					$first_id = isset( $rows[0]['id'] ) && is_scalar( $rows[0]['id'] ) ? (string) $rows[0]['id'] : '';
 
-					$read_page = static function ( int $page ) use ( $client, $path, $args, $options, $normalise, $page_args, $first_id, &$meta, &$fetched, &$echoed ) {
+					$read_page = static function ( int $page ) use ( $client, $path, $args, $options, $normalise, $page_args, $first_id, $span_of, $sample_of, &$meta, &$fetched, &$echoed ) {
 						$response = $client->get( $path, $page_args( $page ) + $args, $options );
 						++$fetched;
 
@@ -927,7 +1019,12 @@ class LiveRepository extends BaseMapper implements Repository {
 							return null;
 						}
 
-						$meta['read'][] = $page;
+						$meta['read'][]         = $page;
+						$meta['spans'][ $page ] = $span_of( $page_rows );
+
+						if ( isset( $page_rows[0] ) && is_array( $page_rows[0] ) ) {
+							$meta['sample'] = $sample_of( $page_rows[0] );
+						}
 
 						return $page_rows;
 					};
@@ -998,6 +1095,8 @@ class LiveRepository extends BaseMapper implements Repository {
 						$unique[ 'id-' . $rid ] = $row;
 					}
 
+					$meta['collected'] = count( $unique );
+
 					return array_values( $unique );
 				};
 
@@ -1033,6 +1132,11 @@ class LiveRepository extends BaseMapper implements Repository {
 		);
 
 		$talks = [];
+		$drops = [
+			'other_event' => 0,
+			'inactive'    => 0,
+		];
+
 		foreach ( (array) $collection as $raw ) {
 			if ( ! is_array( $raw ) ) {
 				continue;
@@ -1042,17 +1146,21 @@ class LiveRepository extends BaseMapper implements Repository {
 			// different event.
 			$talk_event = self::id_of( $raw, [ 'event', 'event_id' ] );
 			if ( '' !== $talk_event && $talk_event !== $event_hs_id ) {
+				++$drops['other_event'];
 				continue;
 			}
 
 			// "Mark this talk as inactive if you want to remove it from the
 			// site" (spec) — respect it.
 			if ( isset( $raw['is_active'] ) && false === $raw['is_active'] ) {
+				++$drops['inactive'];
 				continue;
 			}
 
 			$talks[] = $this->map_talk( $raw, $event );
 		}
+
+		$this->drop_stats[ $key ] = $drops;
 
 		$this->talks_memo[ $key ] = $talks;
 
