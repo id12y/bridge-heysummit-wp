@@ -776,3 +776,17 @@ key the fragment cache and travel through the one schema, giving every
 surface (shortcode, block, Elementor) the same dropdown for free.
 Panel is the new default: countdown pill and actions grouped in a
 tinted right-hand column, replacing the floating lone button.
+
+## D65. A failed refetch serves the last good fragment (serve-stale)
+
+The reported sequence: a widget renders fine, its fragment expires, the
+refetch hits the API during a cold or throttled moment, and visitors see
+"no upcoming sessions" where there were sessions a minute ago. When the
+data source is fallible (Lite mode, and ticket fetches in either mode),
+Cache::keep() stores every non-empty fragment a second time under a
+six-hour, non-generation-scoped key; a fresh render that comes back
+empty serves that copy instead. Full-mode local queries cannot fail, so
+their empties remain authoritative and are never masked. Trade-off: in
+Lite a genuinely emptied schedule can linger up to six hours — the time
+module already marks aged sessions as past client-side, and the
+admin-only debug note keeps reporting the true fetch state underneath.

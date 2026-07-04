@@ -870,6 +870,37 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( 'eex-drawer', $plain );
 	}
 
+	public function test_a_failed_refetch_serves_the_last_good_fragment(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_ticket_endpoint();
+
+		$good = Components::render( 'pricing', [ 'event' => '101' ] );
+		$this->assertStringContainsString( 'All access', $good );
+
+		// The display cache is flushed, the ticket cache has expired, and
+		// the API is now down: the last good fragment must be served, not a
+		// fresh empty state.
+		Cache::flush();
+		delete_transient( 'eex_tickets_' . md5( 'c1|101' ) );
+		\EEX_Test_State::$filters['pre_http_request'] = [];
+		$this->mock_http( static fn() => new \WP_Error( 'http_request_failed', 'timed out' ) );
+
+		$again = Components::render( 'pricing', [ 'event' => '101' ] );
+
+		$this->assertStringContainsString( 'All access', $again, 'the last good fragment survives the failure' );
+		$this->assertStringNotContainsString( 'eex-empty', $again );
+	}
+
 	public function test_empty_states_are_never_cached_for_the_full_display_ttl(): void {
 		Options::update_settings( [ 'cache_ttl' => 1440 ] );
 

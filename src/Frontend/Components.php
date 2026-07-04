@@ -664,7 +664,13 @@ final class Components {
 		$html = (string) apply_filters( 'eex_card_html', $html, $name, $atts );
 
 		if ( $cacheable ) {
-			Cache::set( $name, $cache_atts, $html );
+			// Lite data and ticket fetches come from the remote API and can
+			// fail; Cache::keep() then serves the last good fragment instead
+			// of a fresh empty. Full-mode local queries cannot fail, so their
+			// empties are authoritative.
+			$fallible = Options::is_lite() || 'pricing' === $name;
+
+			$html = Cache::keep( $name, $cache_atts, $html, $fallible );
 		}
 
 		return $html . self::admin_debug_note( $name, $html );
