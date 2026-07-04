@@ -1111,12 +1111,24 @@ final class Components {
 			return $external;
 		}
 
-		// The event page is the one URL the API guarantees. Synthesised
-		// /checkout/ paths and preselect parameters were verified WRONG on
-		// the live hub — never invent URLs the platform has not documented.
 		$event_url = (string) ( $data['event_url'] ?? '' );
 
-		return '' !== $event_url ? $event_url : (string) ( $data['talk_url'] ?? '' );
+		return '' !== $event_url ? self::checkout_url( $event_url ) : (string) ( $data['talk_url'] ?? '' );
+	}
+
+	/**
+	 * The ticket-selection page under an event URL, keeping any query
+	 * string (UTM tags) intact. /checkout/select-tickets/ is the
+	 * operator-verified path on the live hub (bare /checkout/ was an error
+	 * page); filterable in case another account differs.
+	 *
+	 * @param string $event_url Event page URL, possibly already tagged.
+	 */
+	private static function checkout_url( string $event_url ): string {
+		$parts = explode( '?', $event_url, 2 );
+		$base  = trailingslashit( $parts[0] ) . (string) apply_filters( 'eex_checkout_path', 'checkout/select-tickets/' );
+
+		return isset( $parts[1] ) ? $base . '?' . $parts[1] : $base;
 	}
 
 	/**
@@ -1141,7 +1153,16 @@ final class Components {
 	 * @param array<string,string> $register Register settings (mode, url).
 	 */
 	private static function ticket_register_url( array $ticket, array $register ): string {
-		return self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
+		$url = self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
+
+		// Best-effort preselect on the operator-verified select-tickets page
+		// ('' external URLs are left alone). The earlier failure of this
+		// parameter was the broken /checkout/ base, not the parameter.
+		if ( '' !== $url && '' === (string) ( $register['url'] ?? '' ) ) {
+			$url = add_query_arg( 'ticket', (string) $ticket['id'], $url );
+		}
+
+		return $url;
 	}
 
 	/**

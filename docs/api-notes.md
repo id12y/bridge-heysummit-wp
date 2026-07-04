@@ -246,3 +246,15 @@ in-slider registration for free tickets goes through the plugin's own
 allowlisted `events/<id>/attendees/` create (POST /eex/v1/register).
 Talk landing page reconstruction (`/talks/<slug>/`) remains in use —
 verify separately.
+
+## Correction (v1.10.1): the checkout path is /checkout/select-tickets/
+
+Operator-supplied: the ticket-selection page on the hub is
+`<event_url>/checkout/select-tickets/` — bare `/checkout/` was an error
+page, which is why v1.9.0 retreated to the event page. Tickets buttons
+now land on select-tickets (path filterable via `eex_checkout_path`),
+and per-ticket buttons re-add `?ticket=<id>` there — the parameter's
+earlier failure was the broken base path, not the parameter. Pending
+live click-tests: (1) a tickets button reaches select-tickets, (2) a
+per-ticket button preselects; if (2) errors again, strip only the
+parameter.
