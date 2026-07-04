@@ -776,6 +776,7 @@ final class LiteModeTest extends TestCase {
 		);
 		$this->assertStringContainsString( 'none start in the future', Repositories::current()->diagnose() );
 		$this->assertStringContainsString( 'the most recent was', Repositories::current()->diagnose(), 'the past-sessions diagnosis names the most recent date' );
+		$this->assertStringContainsString( 'pages read', Repositories::current()->diagnose(), 'the diagnosis carries the harvest account' );
 
 		// Sessions exist but none has a date at all.
 		remove_all_filters( 'pre_http_request' );
@@ -890,6 +891,168 @@ final class LiteModeTest extends TestCase {
 
 		$this->assertSame( [ 1, 6, 5 ], $pages, 'page 1, jump to the end, one step back to confirm the boundary — the deep middle is never fetched' );
 		$this->assertSame( '', Repositories::current()->diagnose(), 'a healthy paginated pipeline has no diagnosis' );
+	}
+
+	public function test_diagnose_names_sibling_events_that_might_hold_the_sessions(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + 7 * DAY_IN_SECONDS );
+
+		// The configured event genuinely ended in 2020; the account's 2026
+		// summit is a different event. The diagnosis must say both.
+		$this->mock_http(
+			static function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( str_contains( $url, 'talks/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'    => 501,
+									'title' => 'Old session',
+									'date'  => '2020-12-10T16:00:00Z',
+									'event' => 101,
+								],
+							],
+						]
+					);
+				}
+
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'            => 101,
+								'title'         => 'Old summit',
+								'first_talk_at' => '2020-05-01T10:00:00Z',
+								'last_talk_at'  => '2020-12-10T16:00:00Z',
+							],
+							[
+								'id'            => 202,
+								'title'         => 'Summit 2026',
+								'last_talk_at'  => $future,
+							],
+						],
+					]
+				);
+			}
+		);
+
+		$diagnosis = Repositories::current()->diagnose();
+
+		$this->assertStringContainsString( "HeySummit's own record for event 101", $diagnosis );
+		$this->assertStringContainsString( 'sessions from 2020-05-01 to 2020-12-10', $diagnosis );
+		$this->assertStringContainsString( 'Other events on this connection', $diagnosis );
+		$this->assertStringContainsString( "202 'Summit 2026'", $diagnosis );
+	}
+
+	public function test_a_failed_deep_page_is_skipped_and_recorded_not_a_wall(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		// Deep offsets are the slowest queries on a big account: the last
+		// page times out here, but the one before it holds the upcoming
+		// session. One timeout must not hide every upcoming session, and
+		// the harvest record must name the failed page.
+		$this->mock_http(
+			static function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				if ( 6 === $page ) {
+					return new \WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out' );
+				}
+
+				$rows = 5 === $page
+					? [
+						[
+							'id'    => 605,
+							'title' => 'Fresh session',
+							'date'  => $future,
+							'event' => 101,
+						],
+					]
+					: [
+						[
+							'id'    => 600 + $page,
+							'title' => 'Ancient session ' . $page,
+							'date'  => '2020-12-10T16:00:00Z',
+							'event' => 101,
+						],
+					];
+
+				return self::json_response(
+					[
+						'count'   => 6,
+						'next'    => $page < 6 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'results' => $rows,
+					]
+				);
+			}
+		);
+
+		$titles = array_map( static fn( array $talk ): string => (string) $talk['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		$this->assertSame( [ 'Fresh session' ], $titles, 'the upcoming session survives a timeout on the page after it' );
+
+		$meta = LiveRepository::harvest_meta( 'c1|101' );
+		$this->assertSame( 6, $meta['count'] );
+		$this->assertArrayHasKey( 6, $meta['failed'], 'the failed page is named in the harvest record' );
+		$this->assertStringContainsString( 'cURL error 28', (string) $meta['failed'][6] );
+	}
+
+	public function test_the_count_is_trusted_when_the_next_link_is_absent(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		// Some routes report a count but omit the next link; the jump to the
+		// last page must still happen.
+		$this->mock_http(
+			static function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				return self::json_response(
+					[
+						'count'   => 2,
+						'results' => [
+							2 === $page
+								? [
+									'id'    => 612,
+									'title' => 'Fresh session',
+									'date'  => $future,
+									'event' => 101,
+								]
+								: [
+									'id'    => 611,
+									'title' => 'Ancient session',
+									'date'  => '2020-12-10T16:00:00Z',
+									'event' => 101,
+								],
+						],
+					]
+				);
+			}
+		);
+
+		$titles = array_map( static fn( array $talk ): string => (string) $talk['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		$this->assertSame( [ 'Fresh session' ], $titles, 'the harvest jumps by count even without a next link' );
 	}
 
 	public function test_live_talks_harvest_handles_newest_first_ordering(): void {

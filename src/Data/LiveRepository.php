@@ -358,26 +358,32 @@ class LiveRepository extends BaseMapper implements Repository {
 			// Not gated on degraded(): a success and a failure in the same
 			// second (events then talks, one page view) tie on timestamps.
 			if ( '' !== $status['last_error'] && str_contains( $status['last_error'], '[talks|' ) ) {
-				return sprintf(
+				return $this->with_harvest(
+					sprintf(
 					/* translators: %s: the recorded fetch error. */
-					__( 'The sessions request to HeySummit failed rather than returning empty: %s. It is retried on every admin view of this page (with a longer timeout) and on front-end views; if timeouts persist, HeySummit is responding slowly and the eex_live_timeout filter can extend the wait.', 'emailexpert-events' ),
-					$status['last_error']
+						__( 'The sessions request to HeySummit failed rather than returning empty: %s. It is retried on every admin view of this page (with a longer timeout) and on front-end views; if timeouts persist, HeySummit is responding slowly and the eex_live_timeout filter can extend the wait.', 'emailexpert-events' ),
+						$status['last_error']
+					)
 				);
 			}
 
-			return sprintf(
+			return $this->with_harvest(
+				sprintf(
 				/* translators: %s: comma-separated event IDs. */
-				__( 'HeySummit returned no sessions for event(s) %s (tried the nested route and both ?event= and ?event_id= filters). Confirm the event has published talks.', 'emailexpert-events' ),
-				implode( ', ', array_map( static fn( array $event ): string => (string) $event['hs_id'], $events ) )
+					__( 'HeySummit returned no sessions for event(s) %s (tried the nested route and both ?event= and ?event_id= filters). Confirm the event has published talks.', 'emailexpert-events' ),
+					implode( ', ', array_map( static fn( array $event ): string => (string) $event['hs_id'], $events ) )
+				)
 			);
 		}
 
 		if ( 0 === $next ) {
 			if ( $undated === $total ) {
-				return sprintf(
+				return $this->with_harvest(
+					sprintf(
 					/* translators: %d: total sessions found. */
-					__( '%d session(s) were found, but none of them has a date set on HeySummit, so none can be shown as upcoming. Give the sessions a date and time on HeySummit, then flush the live cache.', 'emailexpert-events' ),
-					$total
+						__( '%d session(s) were found, but none of them has a date set on HeySummit, so none can be shown as upcoming. Give the sessions a date and time on HeySummit, then flush the live cache.', 'emailexpert-events' ),
+						$total
+					)
 				);
 			}
 
@@ -395,15 +401,163 @@ class LiveRepository extends BaseMapper implements Repository {
 				);
 			}
 
-			return sprintf(
+			return $this->with_harvest(
+				sprintf(
 				/* translators: 1: total sessions found, 2: detail about the most recent session. */
-				__( '%1$d session(s) were found, but none start in the future (%2$s) — Lite is forward-looking and shows upcoming sessions only.', 'emailexpert-events' ),
-				$total,
-				$detail
+					__( '%1$d session(s) were found, but none start in the future (%2$s) — Lite is forward-looking and shows upcoming sessions only.', 'emailexpert-events' ),
+					$total,
+					$detail
+				)
 			);
 		}
 
 		return '';
+	}
+
+	/**
+	 * The recorded page harvest for one configured "connection|event" key.
+	 *
+	 * @param string $key Configured key.
+	 * @return array<string,mixed> count/pages/read/failed/style, or empty.
+	 */
+	public static function harvest_meta( string $key ): array {
+		$meta = get_transient( 'eex_harvest_' . md5( $key ) );
+
+		return is_array( $meta ) ? $meta : [];
+	}
+
+	/**
+	 * A one-line account of the last talk harvest per configured event:
+	 * what HeySummit reported, which pages were read, which failed and why.
+	 * Empty until a harvest has run.
+	 */
+	protected function harvest_summary(): string {
+		$lines = [];
+
+		foreach ( $this->configured_keys() as $key ) {
+			$meta = self::harvest_meta( $key );
+
+			if ( empty( $meta ) ) {
+				continue;
+			}
+
+			[ , $event_id ] = array_pad( explode( '|', $key, 2 ), 2, '' );
+
+			$line = sprintf(
+				/* translators: 1: event ID, 2: sessions reported by the API, 3: page count, 4: pages read. */
+				__( 'Event %1$s: HeySummit reports %2$d session(s) across %3$d page(s); pages read: %4$s', 'emailexpert-events' ),
+				$event_id,
+				(int) ( $meta['count'] ?? 0 ),
+				(int) ( $meta['pages'] ?? 1 ),
+				implode( ', ', array_map( 'strval', (array) ( $meta['read'] ?? [] ) ) )
+			);
+
+			if ( ! empty( $meta['failed'] ) ) {
+				$failures = [];
+				foreach ( (array) $meta['failed'] as $page => $why ) {
+					$failures[] = sprintf( '%d (%s)', (int) $page, (string) $why );
+				}
+
+				$line .= sprintf(
+					/* translators: %s: failed pages with reasons. */
+					__( '; pages that failed: %s', 'emailexpert-events' ),
+					implode( ', ', $failures )
+				);
+			}
+
+			$lines[] = $line . '.';
+		}
+
+		return implode( ' ', $lines );
+	}
+
+	/**
+	 * Append the harvest account to a session-related diagnosis.
+	 *
+	 * @param string $verdict The diagnosis sentence.
+	 */
+	protected function with_harvest( string $verdict ): string {
+		$summary = trim( $this->harvest_summary() . ' ' . $this->event_identity() );
+
+		return '' === $summary ? $verdict : $verdict . ' ' . $summary;
+	}
+
+	/**
+	 * HeySummit's own record of each configured event's session range, plus
+	 * the other events on the same connection — because "no upcoming
+	 * sessions" is very often "the upcoming sessions belong to a different
+	 * summit on this account". Uses only the already-cached events
+	 * collection; no extra requests.
+	 */
+	protected function event_identity(): string {
+		$lines      = [];
+		$configured = [];
+
+		foreach ( $this->configured_events() as $event ) {
+			$configured[ (string) $event['connection'] ][ (string) $event['hs_id'] ] = true;
+
+			$range = '' !== (string) $event['last_talk_at']
+				? sprintf(
+					/* translators: 1: first session date, 2: last session date. */
+					__( 'sessions from %1$s to %2$s', 'emailexpert-events' ),
+					substr( (string) $event['first_talk_at'], 0, 10 ) ?: '?',
+					substr( (string) $event['last_talk_at'], 0, 10 )
+				)
+				: __( 'no session dates on record', 'emailexpert-events' );
+
+			$lines[] = sprintf(
+				/* translators: 1: event ID, 2: event title, 3: session date range, 4: flags. */
+				__( 'HeySummit\'s own record for event %1$s (\'%2$s\') says: %3$s%4$s.', 'emailexpert-events' ),
+				(string) $event['hs_id'],
+				(string) $event['title'],
+				$range,
+				( ! empty( $event['evergreen'] ) ? __( ', evergreen', 'emailexpert-events' ) : '' ) . ( ! empty( $event['open'] ) ? __( ', open for registrations', 'emailexpert-events' ) : '' )
+			);
+		}
+
+		// Unconfigured siblings, from the cached page-1 collection only.
+		$others = [];
+
+		foreach ( array_keys( $configured ) as $conn_id ) {
+			$client = $this->client( $conn_id );
+			if ( null === $client ) {
+				continue;
+			}
+
+			foreach ( array_slice( (array) $this->raw_events( $conn_id, $client ), 0, 20 ) as $raw ) {
+				if ( ! is_array( $raw ) ) {
+					continue;
+				}
+
+				$id = self::id_of( $raw, [ 'id' ] );
+
+				if ( '' === $id || isset( $configured[ $conn_id ][ $id ] ) ) {
+					continue;
+				}
+
+				$last     = self::datetime( $raw, [ 'last_talk_at', 'ends_at' ] );
+				$others[] = sprintf(
+					'%s \'%s\'%s',
+					$id,
+					self::str( $raw, [ 'title', 'name' ] ),
+					'' !== $last ? sprintf(
+						/* translators: %s: last session date. */
+						__( ' (sessions to %s)', 'emailexpert-events' ),
+						substr( $last, 0, 10 )
+					) : ''
+				);
+			}
+		}
+
+		if ( ! empty( $others ) ) {
+			$lines[] = sprintf(
+				/* translators: %s: other event IDs and titles. */
+				__( 'Other events on this connection: %s. If your upcoming sessions belong to one of these, add it under Live display → Choose events.', 'emailexpert-events' ),
+				implode( '; ', array_slice( $others, 0, 8 ) )
+			);
+		}
+
+		return implode( ' ', $lines );
 	}
 
 	/**
@@ -466,20 +620,7 @@ class LiveRepository extends BaseMapper implements Repository {
 				continue;
 			}
 
-			$collection = LiveCache::remember(
-				'events|' . $conn_id,
-				static function () use ( $client ) {
-					$response = $client->get( 'events/', [], self::request_options() );
-
-					if ( is_wp_error( $response ) ) {
-						return $response; // The reason reaches the cache status.
-					}
-
-					$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( array_is_list( $response ) ? $response : [ $response ] );
-
-					return array_values( array_filter( $results, 'is_array' ) );
-				}
-			);
+			$collection = $this->raw_events( (string) $conn_id, $client );
 
 			$found = [];
 
@@ -512,6 +653,31 @@ class LiveRepository extends BaseMapper implements Repository {
 		}
 
 		return $events;
+	}
+
+	/**
+	 * The raw events collection for one connection, via the cache.
+	 *
+	 * @param string          $conn_id Connection ID.
+	 * @param HeySummitClient $client  Keyed client.
+	 * @return array<int,array<string,mixed>>|mixed Cached collection, or
+	 *                                              null/WP_Error on failure.
+	 */
+	protected function raw_events( string $conn_id, HeySummitClient $client ) {
+		return LiveCache::remember(
+			'events|' . $conn_id,
+			static function () use ( $client ) {
+				$response = $client->get( 'events/', [], self::request_options() );
+
+				if ( is_wp_error( $response ) ) {
+					return $response; // The reason reaches the cache status.
+				}
+
+				$results = isset( $response['results'] ) && is_array( $response['results'] ) ? $response['results'] : ( array_is_list( $response ) ? $response : [ $response ] );
+
+				return array_values( array_filter( $results, 'is_array' ) );
+			}
+		);
 	}
 
 	/**
@@ -636,6 +802,20 @@ class LiveRepository extends BaseMapper implements Repository {
 					return false;
 				};
 
+				// A wall-clock stop for the whole harvest: a slow API must
+				// degrade to partial data, never hang the page.
+				$deadline = microtime( true ) + max(
+					2.0,
+					/**
+					 * Filter the total seconds a talk harvest may spend.
+					 *
+					 * @param int $seconds Default 8 on the front end, 25 in admin.
+					 */
+					(float) apply_filters( 'eex_live_deadline', ( function_exists( 'is_admin' ) && is_admin() ) ? 25 : 8 )
+				);
+
+				$meta = [];
+
 				// The collection is paginated (10 per page) with no date
 				// filter, and real accounts order it oldest-first — a summit
 				// with 500 past talks keeps its upcoming sessions on the LAST
@@ -644,41 +824,85 @@ class LiveRepository extends BaseMapper implements Repository {
 				// accounts), then jump to the last page via the reported
 				// count and walk towards the middle until a page contains
 				// nothing upcoming. Cost stays a handful of requests no
-				// matter how much history the summit has.
-				$harvest = static function ( string $path, array $args ) use ( $client, $options, $normalise, $has_future, $budget ) {
+				// matter how much history the summit has. Every page read or
+				// failed is recorded so the Live status row can show the
+				// harvest instead of leaving the operator guessing.
+				$harvest = static function ( string $path, array $args ) use ( $client, $options, $normalise, $has_future, $budget, $deadline, &$meta ) {
+					$meta = [
+						'count'  => 0,
+						'pages'  => 1,
+						'read'   => [],
+						'failed' => [],
+					];
+
 					$first = $client->get( $path, $args, $options );
 
 					if ( is_wp_error( $first ) ) {
 						return $first;
 					}
 
-					$rows = $normalise( $first );
-					$next = isset( $first['next'] ) && is_string( $first['next'] ) ? $first['next'] : '';
+					$rows           = $normalise( $first );
+					$meta['read'][] = 1;
 
-					if ( '' === $next ) {
+					$size  = max( 1, count( $rows ) );
+					$count = (int) ( $first['count'] ?? 0 );
+					$next  = isset( $first['next'] ) && is_string( $first['next'] ) ? $first['next'] : '';
+					$last  = (int) ceil( max( 0, $count ) / $size );
+
+					$meta['count'] = $count > 0 ? $count : count( $rows );
+					$meta['pages'] = max( 1, $last );
+
+					// The count is trusted even when the next link is absent
+					// (some routes omit it); the next link is trusted even
+					// when the count is absent.
+					if ( $last <= 1 && '' === $next ) {
 						return $rows; // Single page: nothing more to walk.
 					}
 
-					$size = max( 1, count( $rows ) );
-					$last = (int) ceil( max( 0, (int) ( $first['count'] ?? 0 ) ) / $size );
+					if ( $last <= 1 ) {
+						$last = $budget; // A next link but no count: walk forward blind.
+					}
 
 					$fetched   = 1;
 					$collected = $rows;
 					$seen      = [ 1 => true ];
 
-					// Backwards from the end (oldest-first accounts).
-					for ( $page = $last; $page >= 2 && $fetched < $budget; $page-- ) {
+					$read_page = static function ( int $page ) use ( $client, $path, $args, $options, $normalise, &$meta, &$fetched ) {
 						$response = $client->get( $path, [ 'page' => $page ] + $args, $options );
+						++$fetched;
 
 						if ( is_wp_error( $response ) ) {
+							$meta['failed'][ $page ] = $response->get_error_message();
+
+							return null;
+						}
+
+						$meta['read'][] = $page;
+
+						return $normalise( $response );
+					};
+
+					// Backwards from the end (oldest-first accounts). A page
+					// that fails is recorded and skipped, not a wall — deep
+					// offsets are the slowest queries on big accounts, and
+					// one timeout must not hide every upcoming session.
+					for ( $page = $last; $page >= 2 && $fetched < $budget; $page-- ) {
+						if ( microtime( true ) >= $deadline ) {
 							break;
 						}
 
-						$page_rows = $normalise( $response );
-						$collected = array_merge( $collected, $page_rows );
+						if ( isset( $seen[ $page ] ) ) {
+							continue;
+						}
 
+						$page_rows = $read_page( $page );
+
+						if ( null === $page_rows ) {
+							continue;
+						}
+
+						$collected     = array_merge( $collected, $page_rows );
 						$seen[ $page ] = true;
-						++$fetched;
 
 						if ( ! $has_future( $page_rows ) ) {
 							break; // Everything from here back is older still.
@@ -687,22 +911,19 @@ class LiveRepository extends BaseMapper implements Repository {
 
 					// Forwards from page 1 (newest-first accounts).
 					if ( $has_future( $rows ) ) {
-						$bound = $last >= 2 ? $last : $budget;
-
-						for ( $page = 2; $page <= $bound && $fetched < $budget; $page++ ) {
-							if ( isset( $seen[ $page ] ) ) {
-								break; // Met the backwards walk.
+						for ( $page = 2; $page <= $last && $fetched < $budget; $page++ ) {
+							if ( microtime( true ) >= $deadline || isset( $seen[ $page ] ) ) {
+								break; // Out of time, or met the backwards walk.
 							}
 
-							$response = $client->get( $path, [ 'page' => $page ] + $args, $options );
+							$page_rows = $read_page( $page );
 
-							if ( is_wp_error( $response ) ) {
+							if ( null === $page_rows ) {
 								break;
 							}
 
-							$page_rows = $normalise( $response );
-							$collected = array_merge( $collected, $page_rows );
-							++$fetched;
+							$collected     = array_merge( $collected, $page_rows );
+							$seen[ $page ] = true;
 
 							if ( ! $has_future( $page_rows ) ) {
 								break;
@@ -740,6 +961,9 @@ class LiveRepository extends BaseMapper implements Repository {
 
 					if ( ! empty( $results ) && $usable( $results ) ) {
 						\Emailexpert\Events\Api\PathStyles::remember( $conn_id, 'talks', $style );
+
+						$meta['style'] = $style;
+						set_transient( 'eex_harvest_' . md5( $conn_id . '|' . $event_hs_id ), $meta, DAY_IN_SECONDS );
 
 						return $results;
 					}

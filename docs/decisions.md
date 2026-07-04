@@ -557,3 +557,40 @@ filterable via eex_live_timeout. diagnose() now distinguishes "the
 sessions request failed" (surfacing the transport error verbatim) from
 "HeySummit returned no sessions" — a timeout is not an empty summit and
 the operator fix differs.
+
+## D50. The harvest shows its working
+
+The production site kept reporting exactly one page of sessions with no
+recorded failure, which two code-correct-looking builds could not
+explain from the outside. Two silent failure modes were possible: a
+deep-page request timing out inside the harvest (per-page errors used to
+end the walk without a trace), or a response without the next link the
+walk keyed on. Both are now closed: page failures are recorded and
+skipped (deep offsets are the slowest queries on big accounts, and one
+timeout must not hide every upcoming session), the jump trusts the
+reported count even when the next link is absent, a wall-clock deadline
+(front end 8s, admin 25s, eex_live_deadline) bounds the whole harvest,
+and every harvest records count/pages/read/failed per event
+(eex_harvest_* transients, 24h). Session-related diagnoses append that
+record — "Event X: HeySummit reports N session(s) across P page(s);
+pages read: …; pages that failed: …" — so the Live status row states
+what actually happened on the wire instead of leaving the operator (and
+us) guessing. Version 1.2.0 so builds are tellable apart.
+
+## D51. "No upcoming sessions" names the event it checked and its siblings
+
+The full v2 reference confirmed each Event carries its own
+first_talk_at/last_talk_at, is_evergreen, is_live and
+_is_open_for_registrations. That makes the commonest cause of a
+persistent "none upcoming" — the configured event is an old summit and
+the upcoming sessions belong to a different event on the same account —
+provable from data already in the cache. Session-related diagnoses now
+append HeySummit's own record for each configured event ("sessions from
+2020-05-01 to 2020-12-10") and list unconfigured sibling events with
+their last-session dates, pointing at Choose events. No extra requests:
+it reads the cached page-1 events collection. Also from the reference:
+Ticket.prices is a string (JSON) — matching the existing json_decode
+expansion; talks/attendees/categories/speakers gained PATCH/DELETE
+routes we deliberately do not use (the write allowlist stays create +
+ticket attach); outbound webhook payloads are the four documented shapes
+the parser already infers.
