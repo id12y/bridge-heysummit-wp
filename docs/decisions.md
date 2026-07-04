@@ -805,3 +805,18 @@ meaningless there, so its dropdown simply omits 'talk'. Inside the
 ticket drawer, per-ticket buttons always deep-link the checkout
 regardless of what the opening button does (custom external URLs
 excepted).
+
+## D67. Two buttons, not one button with four destinations
+
+Second field correction (supersedes D62/D66's enum): a session has two
+meaningful actions, and they are different buttons. The tickets button
+goes to that EVENT's ticketing — HeySummit hosts one checkout per event,
+or the operator's external ticketing URL (register_url) replaces it.
+The session button goes to the talk's own landing page (event page
+fallback). A 'buttons' attribute shows both (default on sessions,
+featured talks and the hero), or either alone. The live "Join now" swap
+targets the session button (the tickets button keeps it only when it is
+the sole button). Labels default to "Get tickets" / "View session",
+both operator-editable. The pricing table keeps checkout + external
+override; components without the attribute (past sessions, schedule
+rows) default to the session button alone.

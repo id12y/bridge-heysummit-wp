@@ -38,7 +38,7 @@ if ( empty( $eex_data['id'] ) ) {
 
 $eex_register_text = (string) ( $args['register_text'] ?? '' );
 if ( '' === $eex_register_text ) {
-	$eex_register_text = __( 'Register', 'emailexpert-events' );
+	$eex_register_text = __( 'Get tickets', 'emailexpert-events' );
 }
 ?>
 <article class="eex-agenda-row"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
@@ -101,11 +101,21 @@ if ( '' === $eex_register_text ) {
 			<a class="eex-cta eex-cta-replay" href="<?php echo esc_url( (string) $eex_data['replay_url'] ); ?>"><?php esc_html_e( 'Watch replay', 'emailexpert-events' ); ?></a>
 		<?php elseif ( 'past' !== $eex_context ) : ?>
 			<?php
-			$eex_register_url = Components::register_url( $eex_data, (array) ( $args['register'] ?? [] ) );
-			$eex_drawer_id    = (string) ( $args['drawer'] ?? '' );
+			$eex_buttons     = (string) ( $args['buttons'] ?? 'session' );
+			$eex_tickets_url = 'session' === $eex_buttons ? '' : Components::ticketing_url( $eex_data, (array) ( $args['register'] ?? [] ) );
+			$eex_session_url = 'tickets' === $eex_buttons ? '' : Components::session_url( $eex_data );
+			$eex_drawer_id   = (string) ( $args['drawer'] ?? '' );
+
+			$eex_session_text = (string) ( $args['session_text'] ?? '' );
+			if ( '' === $eex_session_text ) {
+				$eex_session_text = __( 'View session', 'emailexpert-events' );
+			}
 			?>
-			<?php if ( '' !== $eex_register_url ) : ?>
-				<a class="eex-cta eex-cta-register" data-eex-cta="1"<?php echo '' !== $eex_drawer_id ? ' data-eex-drawer="' . esc_attr( $eex_drawer_id ) . '"' : ''; ?> href="<?php echo esc_url( $eex_register_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
+			<?php if ( '' !== $eex_tickets_url ) : ?>
+				<a class="eex-cta eex-cta-register"<?php echo '' === $eex_session_url ? ' data-eex-cta="1"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal. ?><?php echo '' !== $eex_drawer_id ? ' data-eex-drawer="' . esc_attr( $eex_drawer_id ) . '"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?> href="<?php echo esc_url( $eex_tickets_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
+			<?php endif; ?>
+			<?php if ( '' !== $eex_session_url ) : ?>
+				<a class="eex-cta eex-cta-session" data-eex-cta="1" href="<?php echo esc_url( $eex_session_url ); ?>"><?php echo esc_html( $eex_session_text ); ?></a>
 			<?php endif; ?>
 			<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
 				<?php if ( $eex_show['ics'] ) : ?>
