@@ -51,6 +51,10 @@ final class Plugin {
 	 * where the post types remain registered so kept content stays readable.
 	 */
 	private function register_services(): void {
+		// A version change means new templates/CSS/JS: drop cached fragments
+		// (and stale live data) so the new build shows immediately.
+		Install\Upgrade::check();
+
 		$lite = Options::is_lite();
 
 		// Shared by both modes: the display components and their delivery.
