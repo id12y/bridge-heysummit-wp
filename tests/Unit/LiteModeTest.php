@@ -249,29 +249,32 @@ final class LiteModeTest extends TestCase {
 		$this->mock_http(
 			static function ( $url ) {
 				if ( str_contains( (string) $url, 'sponsors/' ) ) {
+					// The live v2 sponsor schema (operator-verified).
 					return self::json_response(
 						[
 							'results' => [
 								[
-									'id'      => 1,
-									'name'    => 'Acme',
-									'website' => 'https://acme.example.com',
-									'logo'    => 'https://cdn.example.com/acme.png',
-									'tier'    => [
-										'title' => 'Gold',
-										'order' => 1,
-									],
+									'id'                   => 1,
+									'title'                => 'Acme',
+									'url'                  => 'https://acme.example.com',
+									'logo'                 => 'https://cdn.example.com/acme.png',
+									'short_description'    => 'Deliverability tools.',
+									'sponsor_categories'   => [ [ 'title' => 'Gold' ] ],
+									'is_main_sponsor'      => true,
+									'show_on_landing_page' => true,
+									'is_active'            => true,
 								],
 								[
-									'id'        => 2,
-									'title'     => 'Beta Ltd',
-									'level'     => 'Silver',
-									'order'     => 2,
-									'is_active' => true,
+									'id'                   => 2,
+									'title'                => 'Beta Ltd',
+									'sponsor_categories'   => [ 'Silver' ],
+									'show_on_landing_page' => false,
+									'show_on_talk_pages'   => true,
+									'is_active'            => true,
 								],
 								[
 									'id'        => 3,
-									'name'      => 'Hidden Corp',
+									'title'     => 'Hidden Corp',
 									'is_active' => false,
 								],
 							],
@@ -286,13 +289,34 @@ final class LiteModeTest extends TestCase {
 		$html = Components::render( 'sponsors', [] );
 
 		$this->assertStringContainsString( 'Acme', $html );
-		$this->assertStringContainsString( 'Beta Ltd', $html, 'title/level/order spellings map too' );
+		$this->assertStringContainsString( 'Beta Ltd', $html );
 		$this->assertStringContainsString( 'Gold', $html );
 		$this->assertStringContainsString( 'Silver', $html );
 		$this->assertStringContainsString( 'cdn.example.com/acme.png', $html, 'API logo URL renders' );
+		$this->assertStringContainsString( 'Deliverability tools.', $html, 'short_description is the blurb' );
 		$this->assertStringContainsString( 'Handmade Co', $html, 'manual extras stay on the wall' );
 		$this->assertStringNotContainsString( 'Hidden Corp', $html, 'inactive sponsors are skipped' );
 		$this->assertStringNotContainsString( 'MANUAL ROW', $html, 'the API row wins over a same-name manual row' );
+
+		// Main sponsors only.
+		Cache::flush();
+		$main = Components::render( 'sponsors', [ 'main_only' => 1 ] );
+		$this->assertStringContainsString( 'Acme', $main );
+		$this->assertStringNotContainsString( 'Beta Ltd', $main );
+		$this->assertStringNotContainsString( 'Handmade Co', $main, 'manual rows are never main' );
+
+		// Only sponsors flagged for the landing page.
+		Cache::flush();
+		$landing = Components::render( 'sponsors', [ 'shown_on' => 'landing' ] );
+		$this->assertStringContainsString( 'Acme', $landing );
+		$this->assertStringNotContainsString( 'Beta Ltd', $landing, 'hidden-from-landing sponsors filtered out' );
+		$this->assertStringContainsString( 'Handmade Co', $landing, 'manual rows pass visibility filters' );
+
+		// One sponsor category.
+		Cache::flush();
+		$gold = Components::render( 'sponsors', [ 'sponsor_category' => 'gold' ] );
+		$this->assertStringContainsString( 'Acme', $gold );
+		$this->assertStringNotContainsString( 'Beta Ltd', $gold );
 	}
 
 	public function test_api_failure_serves_last_good_then_empty_state_never_fatal(): void {

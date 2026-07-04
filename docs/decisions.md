@@ -863,3 +863,30 @@ platform (the WooCommerce bridge remains the paid-in-WordPress path).
 The drawer components gained the pricing table's tickets/exclude
 filters (with the same name dropdowns in Elementor) so the operator
 chooses exactly what the hero offers.
+
+## D70. Sponsors mapped to the live schema; the wall filters on it
+
+The operator supplied the real sponsor schema from discovery (v1.9.0
+report). Corrections and gains over the defensive guesses: the display
+name is `title`; the blurb is `short_description` (falling back to
+`long_description`); the tier-style grouping is `sponsor_categories`
+(strings or objects, first one becomes the wall's tier heading);
+`is_main_sponsor` pins a sponsor to the top (tier "Main sponsor" when
+uncategorised); the per-surface `show_on_*` flags are respected. The
+sponsors component gained the requested filters — main_only, shown_on
+(landing/talks/categories/blog) and sponsor_category — with manual rows
+passing visibility filters (typed in on purpose) but never counting as
+main. Discovery's expected shape now matches the live schema so the
+"unmapped" column stops shouting. Fields noted but not yet surfaced:
+promo_banner, page_header_graphic, intro_video_*, booth_*, books_url,
+phone_number — a sponsor-spotlight component could use them next.
+
+## D71. IDs never face the operator (event + sponsor-category pickers)
+
+Raw HeySummit ID boxes are hostile to site managers. In Elementor, the
+`event` attribute on every component is now a dropdown of the site's
+actual events ("Title (ID)", from the same cached account listing both
+repositories already expose), `sponsor_category` is a dropdown of names
+seen on any sponsor fetch (remembered like ticket titles), and the
+ticket pickers already show names. Every picker degrades to a guided
+text field before its first fetch.
