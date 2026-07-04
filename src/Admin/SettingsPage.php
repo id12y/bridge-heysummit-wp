@@ -538,6 +538,12 @@ final class SettingsPage {
 									if ( ! empty( $row['note'] ) ) {
 										printf( '<br /><em>%s</em>', esc_html( (string) $row['note'] ) );
 									}
+
+									// Raw timestamp samples: the offset (or its
+									// absence) decides how times are parsed.
+									foreach ( (array) ( $row['time_samples'] ?? [] ) as $time_field => $time_sample ) {
+										printf( '<br /><em>%s: %s</em>', esc_html( (string) $time_field ), esc_html( (string) $time_sample ) );
+									}
 									?>
 								</td>
 								<td><?php echo esc_html( implode( ', ', (array) ( $row['missing'] ?? [] ) ) ); ?></td>
