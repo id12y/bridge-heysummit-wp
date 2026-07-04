@@ -392,7 +392,7 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		// seen (populated by any tickets fetch — the pricing table itself,
 		// the Woo picker, the wizard). Falls back to a text field before the
 		// first fetch.
-		if ( in_array( $key, [ 'tickets', 'exclude', 'featured' ], true ) && 'pricing' === $this->component ) {
+		if ( in_array( $key, [ 'tickets', 'exclude', 'featured' ], true ) ) {
 			$titles = \Emailexpert\Events\Data\Tickets::known_titles();
 
 			if ( ! empty( $titles ) ) {

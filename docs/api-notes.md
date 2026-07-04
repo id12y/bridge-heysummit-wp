@@ -235,3 +235,14 @@ title-derived slug is not a shortcut but the only possible source.
 Duplicate-titled talks are the known weak spot: HeySummit will have
 suffixed one of the slugs, and the reconstructed link for the later
 one will land on the wrong talk (or 404) until retitled.
+
+## Correction (v1.9.0): no synthesised checkout or preselect URLs
+
+Live testing on the hub invalidated the v1.7.x URL conventions:
+`<event_url>/checkout/` and the `?ticket=` / `?talk=` preselect
+parameters all produced error pages. Tickets buttons now use
+`event_url` verbatim (external ticketing override unchanged), and
+in-slider registration for free tickets goes through the plugin's own
+allowlisted `events/<id>/attendees/` create (POST /eex/v1/register).
+Talk landing page reconstruction (`/talks/<slug>/`) remains in use —
+verify separately.

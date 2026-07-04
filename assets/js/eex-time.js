@@ -255,6 +255,21 @@
 			return;
 		}
 
+		var toggle = event.target.closest( '[data-eex-reg-toggle]' );
+		if ( toggle ) {
+			var form = toggle.parentNode.querySelector( '[data-eex-reg]' );
+			if ( form ) {
+				form.hidden = ! form.hidden;
+				if ( ! form.hidden ) {
+					var first = form.querySelector( 'input[name="name"]' );
+					if ( first ) {
+						first.focus();
+					}
+				}
+			}
+			return;
+		}
+
 		var close = event.target.closest( '[data-eex-drawer-close]' );
 		if ( close ) {
 			var open = close.closest( '.eex-drawer' );
@@ -262,6 +277,76 @@
 				closeDrawer( open );
 			}
 		}
+	} );
+
+	// The free-ticket registration form: this site's own REST endpoint does
+	// the HeySummit call server-side; the drawer shows the outcome inline.
+	document.addEventListener( 'submit', function ( event ) {
+		var form = event.target.closest( '[data-eex-reg]' );
+		if ( ! form ) {
+			return;
+		}
+
+		event.preventDefault();
+
+		var config = window.eexTime || { i18n: {} };
+		var msg = form.querySelector( '.eex-reg-msg' );
+		var submit = form.querySelector( 'button[type="submit"]' );
+
+		if ( ! config.restBase || ! window.fetch ) {
+			if ( msg ) {
+				msg.textContent = config.i18n.regError || 'Something went wrong — please try again.';
+			}
+			return;
+		}
+
+		if ( submit ) {
+			submit.disabled = true;
+		}
+
+		var data = {};
+		new window.FormData( form ).forEach( function ( value, key ) {
+			data[ key ] = value;
+		} );
+
+		window
+			.fetch( config.restBase + 'register', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify( data )
+			} )
+			.then( function ( response ) {
+				return response.json().then( function ( json ) {
+					return { ok: response.ok, json: json };
+				} );
+			} )
+			.then( function ( result ) {
+				if ( result.ok ) {
+					var done = document.createElement( 'p' );
+					done.className = 'eex-reg-done';
+					done.setAttribute( 'role', 'status' );
+					done.textContent = 'already' === ( result.json && result.json.status )
+						? ( config.i18n.regAlready || 'You are already registered.' )
+						: ( config.i18n.regDone || 'You are registered.' );
+					form.replaceWith( done );
+					return;
+				}
+
+				if ( msg ) {
+					msg.textContent = ( result.json && result.json.message ) || config.i18n.regError || 'Something went wrong — please try again.';
+				}
+				if ( submit ) {
+					submit.disabled = false;
+				}
+			} )
+			.catch( function () {
+				if ( msg ) {
+					msg.textContent = config.i18n.regError || 'Something went wrong — please try again.';
+				}
+				if ( submit ) {
+					submit.disabled = false;
+				}
+			} );
 	} );
 
 	document.addEventListener( 'keydown', function ( event ) {

@@ -975,3 +975,62 @@
 		animation: none;
 	}
 }
+
+/* In-drawer free-ticket registration */
+.eex-reg-toggle {
+	margin-top: 0.5em;
+}
+
+.eex-reg-form {
+	margin-top: 0.75em;
+	padding-top: 0.75em;
+	border-top: 1px solid var(--eex-border);
+}
+
+/* Honeypot: visually gone, still in the DOM for bots to fill. */
+.eex-reg-hp {
+	position: absolute;
+	left: -9999px;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+}
+
+.eex-reg-field label {
+	display: block;
+	font-size: 0.9em;
+	font-weight: 600;
+}
+
+.eex-reg-field input {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	margin-top: 0.25em;
+	padding: 0.5em 0.6em;
+	border: 1px solid var(--eex-border);
+	border-radius: calc(var(--eex-radius) * 0.5);
+	font: inherit;
+}
+
+.eex-reg-consent {
+	font-size: 0.85em;
+}
+
+.eex-reg-consent input {
+	margin-right: 0.4em;
+}
+
+.eex-reg-msg {
+	margin: 0.5em 0 0;
+	font-size: 0.9em;
+	color: var(--eex-live);
+}
+
+.eex-reg-done {
+	margin: 0.75em 0 0;
+	padding: 0.75em;
+	border-radius: calc(var(--eex-radius) * 0.5);
+	background: var(--eex-badge-bg);
+	font-weight: 600;
+}
