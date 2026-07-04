@@ -131,8 +131,10 @@ final class MappersTest extends TestCase {
 		);
 		$this->assertSame( '2027-07-07T17:00:00Z', $offset['starts_at'] );
 
-		// No timezone known, or an unknown zone string: the old UTC
-		// assumption stands rather than erroring.
+		// No event timezone known: the SITE's timezone stands in — a bare
+		// HeySummit timestamp is never meant as UTC, and operators' sites
+		// almost always share their events' timezone. (The stub site
+		// timezone is UTC, so with a UTC site the value passes through.)
 		$no_zone = TalkMapper::map(
 			[
 				'id'        => 9014,
@@ -140,6 +142,16 @@ final class MappersTest extends TestCase {
 			]
 		);
 		$this->assertSame( '2027-07-07T18:00:00Z', $no_zone['starts_at'] );
+
+		\EEX_Test_State::$site_timezone = 'Europe/London';
+		$site_zone                      = TalkMapper::map(
+			[
+				'id'        => 9016,
+				'starts_at' => '2027-07-07T18:00:00',
+			]
+		);
+		\EEX_Test_State::$site_timezone = 'UTC';
+		$this->assertSame( '2027-07-07T17:00:00Z', $site_zone['starts_at'], 'a London site rescues events whose payload omits the timezone' );
 
 		$bad_zone = TalkMapper::map(
 			[

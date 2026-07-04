@@ -24,9 +24,11 @@ class EEX_Test_State {
 	public static int $next_term_id = 1;
 	public static int $post_write_count = 0;
 	public static bool $user_can = true;
+	public static string $site_timezone = 'UTC';
 
 	public static function reset(): void {
 		self::$user_can         = true;
+		self::$site_timezone    = 'UTC';
 		self::$options          = [];
 		self::$transients       = [];
 		self::$transient_ttls   = [];
@@ -1135,6 +1137,11 @@ if ( ! function_exists( 'flush_rewrite_rules' ) ) {
 if ( ! function_exists( 'add_rewrite_rule' ) ) {
 	function add_rewrite_rule( $regex, $query, $after = 'bottom' ) {
 		$GLOBALS['eex_test_rewrites'][] = (string) $regex;
+	}
+}
+if ( ! function_exists( 'wp_timezone_string' ) ) {
+	function wp_timezone_string() {
+		return \EEX_Test_State::$site_timezone;
 	}
 }
 
