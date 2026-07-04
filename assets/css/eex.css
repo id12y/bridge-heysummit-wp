@@ -37,7 +37,13 @@
 
 .eex-sponsor-grid {
 	--eex-columns: 4;
-	align-items: center;
+	/* Stretch, never centre: a card whose name wraps to two lines must not
+	   push its whole row out of alignment. */
+	align-items: stretch;
+}
+
+.eex-sponsor-grid .eex-grid-item {
+	display: flex;
 }
 
 @media (max-width: 900px) {
@@ -1103,8 +1109,21 @@
 	text-align: center;
 	display: flex;
 	flex-direction: column;
-	justify-content: center;
+	justify-content: flex-start;
 	gap: 0.5em;
+	width: 100%;
+}
+
+/* Every logo occupies the same fixed zone, so logos and names line up
+   across the row no matter how many lines each sponsor's name needs. */
+.eex-card-sponsor > a,
+.eex-card-sponsor > .eex-sponsor-logo,
+.eex-card-sponsor > .eex-sponsor-name {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: calc(var(--eex-sponsor-logo, 3.25em) * 1.7);
+	margin: 0;
 }
 
 .eex-sponsor-card-name {

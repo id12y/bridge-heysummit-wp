@@ -3,7 +3,7 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
-## 1.20.0 – 1.20.1
+## 1.20.0 – 1.20.2
 - **Style pass for every Elementor widget**: design presets (boxed /
   outlined / soft / chromeless / inverted), typography groups for
   Headings and Descriptions (the hero title, wall/category headings,
@@ -14,6 +14,9 @@ Notable changes per released version. Design reasoning lives in
   card border width, heading spacing, session-image aspect ratios,
   sponsor-strip scroll speed, and secondary buttons joining the button
   typography.
+- **Fixed: ragged sponsor wall rows.** Cards now stretch to equal
+  height and every logo occupies a fixed zone, so a sponsor whose name
+  wraps to two lines no longer knocks its whole row out of alignment.
 
 ## 1.19.3 – 1.19.4
 - Discovery report shows raw timestamp samples with an offset verdict.
