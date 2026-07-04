@@ -421,9 +421,20 @@ class LiveRepository extends BaseMapper implements Repository {
 	 * @return array<string,mixed> count/pages/read/failed/style, or empty.
 	 */
 	public static function harvest_meta( string $key ): array {
-		$meta = get_transient( 'eex_harvest_' . md5( $key ) );
+		$meta = get_transient( self::harvest_key( $key ) );
 
 		return is_array( $meta ) ? $meta : [];
+	}
+
+	/**
+	 * Generation-scoped transient name for a harvest record, so Flush live
+	 * cache resets the diagnostics along with the data — a stale harvest
+	 * record surviving a flush reads as "nothing changed" after an update.
+	 *
+	 * @param string $key Configured "connection|event" key.
+	 */
+	public static function harvest_key( string $key ): string {
+		return 'eex_harvest_' . md5( $key . '|' . (int) get_option( 'eex_live_generation', 0 ) );
 	}
 
 	/**
@@ -1006,7 +1017,7 @@ class LiveRepository extends BaseMapper implements Repository {
 						\Emailexpert\Events\Api\PathStyles::remember( $conn_id, 'talks', $style );
 
 						$meta['style'] = $style;
-						set_transient( 'eex_harvest_' . md5( $conn_id . '|' . $event_hs_id ), $meta, DAY_IN_SECONDS );
+						set_transient( self::harvest_key( $conn_id . '|' . $event_hs_id ), $meta, DAY_IN_SECONDS );
 
 						return $results;
 					}

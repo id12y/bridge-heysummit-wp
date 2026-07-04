@@ -1009,6 +1009,18 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'cURL error 28', (string) $meta['failed'][6] );
 	}
 
+	public function test_flush_live_cache_also_resets_the_harvest_record(): void {
+		$this->go_lite();
+		$this->mock_api();
+
+		Repositories::current()->upcoming_talks( [] );
+		$this->assertNotEmpty( LiveRepository::harvest_meta( 'c1|101' ), 'a harvest record exists after a fetch' );
+
+		LiveCache::flush();
+
+		$this->assertSame( [], LiveRepository::harvest_meta( 'c1|101' ), 'Flush live cache resets the diagnostics with the data' );
+	}
+
 	public function test_the_paging_scheme_is_learned_from_the_routes_own_next_link(): void {
 		$this->go_lite();
 
