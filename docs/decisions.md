@@ -668,3 +668,18 @@ schedule's day-grouping via a shared helper; the schedule's output is
 unchanged and test-guarded. The Elementor widget remains a thin,
 untested mapping layer — every branch it maps to lives in Components,
 where the test suite covers it.
+
+
+## D57. Random display order lives inside the cached fragment
+
+The speakers component gains order = name | name-desc | random. Random
+shuffles the full (unpaged) speaker set at render time and slices to the
+limit; because the shuffled HTML is fragment-cached, the selection stays
+stable for one cache lifetime and reshuffles on refresh — the requested
+behaviour with zero extra queries and no session state. Pagination is
+deliberately disabled under random order (a random sample has no stable
+pages). The fragment cache lifetime itself became a setting (cache_ttl,
+1-1440 minutes, default unchanged at 5) shown in both modes, since it now
+has a user-visible effect beyond staleness; sync/webhook/editorial
+flushes still apply immediately. A "View all speakers" link (all_url /
+all_text attributes) renders after the grid when configured.

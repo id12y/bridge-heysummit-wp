@@ -421,6 +421,10 @@
 	font-size: 0.85em;
 }
 
+.eex-view-all {
+	margin: 0.5rem 0 0;
+}
+
 /* Empty states and pagination */
 .eex-empty {
 	color: var(--eex-muted);

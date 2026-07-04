@@ -259,6 +259,16 @@ final class Components {
 						'default' => '',
 					],
 					'layout'      => $grid_layout,
+					'order'       => [
+						'type'    => 'string',
+						'default' => 'name',
+						'label'   => __( 'Order', 'emailexpert-events' ),
+						'options' => [
+							'name'      => __( 'Alphabetical', 'emailexpert-events' ),
+							'name-desc' => __( 'Reverse alphabetical', 'emailexpert-events' ),
+							'random'    => __( 'Random (reshuffles when the cache refreshes)', 'emailexpert-events' ),
+						],
+					],
 					'photo_shape' => [
 						'type'    => 'string',
 						'default' => 'rounded',
@@ -284,6 +294,16 @@ final class Components {
 						'type'     => 'string',
 						'default'  => '',
 						'from_get' => 'eex_speaker_page',
+					],
+					'all_url'     => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( '"View all" link URL (empty = hidden)', 'emailexpert-events' ),
+					],
+					'all_text'    => [
+						'type'    => 'string',
+						'default' => __( 'View all speakers', 'emailexpert-events' ),
+						'label'   => __( '"View all" link text', 'emailexpert-events' ),
 					],
 					'empty_text'  => [
 						'type'    => 'string',
@@ -1086,12 +1106,40 @@ final class Components {
 		$paginate = ! empty( $atts['paginate'] ) && $limit > 0;
 		$page     = $paginate ? max( 1, (int) ( $atts['page'] ?: 1 ) ) : 1;
 
-		$query_atts = $atts;
-		if ( $paginate ) {
-			$query_atts['offset'] = ( $page - 1 ) * $limit;
-		}
+		$order = (string) ( $atts['order'] ?? 'name' );
 
-		$items = self::repo()->speakers( $query_atts );
+		if ( 'name' === $order ) {
+			$query_atts = $atts;
+			if ( $paginate ) {
+				$query_atts['offset'] = ( $page - 1 ) * $limit;
+			}
+
+			$items = self::repo()->speakers( $query_atts );
+		} else {
+			// Non-default orders need the whole set before slicing.
+			$all = self::repo()->speakers(
+				array_merge(
+					$atts,
+					[
+						'limit'  => 0,
+						'offset' => 0,
+					]
+				)
+			);
+
+			if ( 'random' === $order ) {
+				// The shuffled fragment is cached, so the selection stays
+				// stable until the display cache refreshes — then reshuffles.
+				// A random sample has no stable pages.
+				$paginate = false;
+				shuffle( $all );
+			} else {
+				$all = array_reverse( $all );
+			}
+
+			$offset = $paginate ? ( $page - 1 ) * $limit : 0;
+			$items  = $limit > 0 ? array_slice( $all, $offset, $limit ) : $all;
+		}
 
 		if ( empty( $items ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
@@ -1137,6 +1185,14 @@ final class Components {
 				}
 				$html .= '</nav>';
 			}
+		}
+
+		if ( '' !== (string) $atts['all_url'] ) {
+			$html .= sprintf(
+				'<p class="eex-view-all"><a class="eex-cta-secondary" href="%s">%s</a></p>',
+				esc_url( (string) $atts['all_url'] ),
+				esc_html( (string) $atts['all_text'] )
+			);
 		}
 
 		return $html;

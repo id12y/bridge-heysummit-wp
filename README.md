@@ -178,7 +178,7 @@ comma-separated slugs.
 | `eex/past-events` | `[eex_past_events layout="grid"]` | Newest first; evergreen events never appear |
 | `eex/countdown` | `[eex_countdown event="" talk=""]` | Counts to a session or an event's next/first session; vanilla JS with a text fallback |
 | `eex/schedule` | `[eex_schedule event="" category="" show_speakers="1" show_categories="1"]` | Grouped by day in event-local time with timezone label |
-| `eex/speakers` | `[eex_speakers event="" category="" layout="grid" columns="4" photo_shape="rounded" paginate="0"]` | Speakers with at least one session matching the filters; paginates on `?eex_speaker_page=N` when `paginate="1"` and `limit` > 0 |
+| `eex/speakers` | `[eex_speakers event="" category="" layout="grid" columns="4" photo_shape="rounded" order="name" paginate="0" all_url=""]` | Speakers with at least one session matching the filters; `order="name\|name-desc\|random"` (random picks `limit` speakers afresh each cache refresh and disables pagination); `all_url`/`all_text` add a "View all speakers" link; paginates on `?eex_speaker_page=N` when `paginate="1"` and `limit` > 0 |
 | `eex/featured-talks` | `[eex_featured_talks ids="9001,9002" layout="cards"]` | Manual selection (HeySummit or post IDs) |
 | `eex/sponsors` | `[eex_sponsors event="" layout="grid"]` | Grouped by tier in tier order; logos link out `rel="sponsored noopener"` |
 | `eex/reg-counter` | `[eex_reg_counter event="" threshold="50"]` | Hidden below the threshold; refreshes via REST so cached pages stay current |
@@ -197,6 +197,11 @@ accept `layout="cards|list|agenda|compact"`:
 
 Events and sponsors accept `layout="grid|list"`. Speakers accept
 `layout="grid|list"` plus `photo_shape="rounded|circle|square"`.
+
+The rendered-fragment cache lifetime is a setting (**Display cache
+lifetime**, 1–1440 minutes, default 5) — it also controls how often random
+speaker selections reshuffle. In Lite, the separate **Live cache lifetime**
+governs how often the underlying HeySummit data refreshes.
 
 Display toggles on session listings and the schedule (all default on):
 `show_speakers`, `show_categories`, `show_ics` (the .ics link) and

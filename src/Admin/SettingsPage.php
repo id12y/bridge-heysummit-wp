@@ -814,6 +814,14 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><label for="eex-cache-ttl"><?php esc_html_e( 'Display cache lifetime', 'emailexpert-events' ); ?></label></th>
+				<td>
+					<input type="number" id="eex-cache-ttl" min="1" max="1440" name="settings[cache_ttl]" value="<?php echo esc_attr( (string) (int) Options::setting( 'cache_ttl' ) ); ?>" size="4" />
+					<?php esc_html_e( 'minutes', 'emailexpert-events' ); ?>
+					<p class="description"><?php esc_html_e( 'How long rendered components are cached, including random speaker selections (which reshuffle when it expires). Sync completion, webhooks and editorial saves still refresh immediately. 60 = hourly, 1440 = daily.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><?php esc_html_e( 'Structured data', 'emailexpert-events' ); ?></th>
 				<td>
 					<label><input type="checkbox" name="settings[schema_enabled]" value="1" <?php checked( (bool) Options::setting( 'schema_enabled' ) ); ?> /> <?php esc_html_e( 'Output Schema.org JSON-LD', 'emailexpert-events' ); ?></label><br />
@@ -886,6 +894,14 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><label for="eex-cache-ttl"><?php esc_html_e( 'Display cache lifetime', 'emailexpert-events' ); ?></label></th>
+				<td>
+					<input type="number" id="eex-cache-ttl" min="1" max="1440" name="settings[cache_ttl]" value="<?php echo esc_attr( (string) (int) Options::setting( 'cache_ttl' ) ); ?>" size="4" />
+					<?php esc_html_e( 'minutes', 'emailexpert-events' ); ?>
+					<p class="description"><?php esc_html_e( 'How long rendered components are cached, including random speaker selections (which reshuffle when it expires). Sync completion, webhooks and editorial saves still refresh immediately. 60 = hourly, 1440 = daily.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><?php esc_html_e( 'Structured data', 'emailexpert-events' ); ?></th>
 				<td>
 					<label><input type="checkbox" name="settings[schema_enabled]" value="1" <?php checked( (bool) Options::setting( 'schema_enabled' ) ); ?> /> <?php esc_html_e( 'Output Schema.org JSON-LD', 'emailexpert-events' ); ?></label><br />
@@ -947,6 +963,7 @@ final class SettingsPage {
 		$values = [
 			'lite_ttl'       => max( 1, min( 1440, (int) ( $posted['lite_ttl'] ?? 15 ) ) ),
 			'date_format'    => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
+			'cache_ttl'      => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
 			'schema_enabled' => empty( $posted['schema_enabled'] ) ? 0 : 1,
 			'schema_event'   => empty( $posted['schema_event'] ) ? 0 : 1,
 			'utm_enabled'    => empty( $posted['utm_enabled'] ) ? 0 : 1,
@@ -1079,6 +1096,7 @@ final class SettingsPage {
 			[
 				'frequency'             => $frequency,
 				'date_format'           => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
+				'cache_ttl'             => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
 				'series_colours'        => $colours,
 				'schema_enabled'        => empty( $posted['schema_enabled'] ) ? 0 : 1,
 				'schema_event'          => empty( $posted['schema_event'] ) ? 0 : 1,

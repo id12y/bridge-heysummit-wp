@@ -33,6 +33,7 @@ final class Options {
 			'lite_archive'          => 0,
 			'lite_events'           => [],
 			'lite_ttl'              => 15,
+			'cache_ttl'             => 5,
 			'lite_sponsors'         => [],
 			'flush_rewrites'        => 0,
 			'frequency'             => 'hourly',

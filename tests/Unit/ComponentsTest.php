@@ -399,4 +399,61 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'Listed event', $html );
 		$this->assertStringNotContainsString( 'eex-event-grid', $html );
 	}
+
+	public function test_speaker_order_options_and_view_all_link(): void {
+		$talk_id = $this->make_talk( 'Order host session', 3600 );
+		update_post_meta(
+			$talk_id,
+			'_eex_speaker_ids',
+			[
+				$this->make_speaker( 'Alpha Speaker' ),
+				$this->make_speaker( 'Beta Speaker' ),
+				$this->make_speaker( 'Gamma Speaker' ),
+			]
+		);
+
+		// Reverse alphabetical.
+		$desc = Components::render( 'speakers', [ 'order' => 'name-desc' ] );
+		$this->assertGreaterThan(
+			strpos( $desc, 'Gamma Speaker' ),
+			strpos( $desc, 'Alpha Speaker' ),
+			'reverse alphabetical renders Gamma before Alpha'
+		);
+
+		// Random respects the limit, disables pagination, and is stable
+		// within one cache lifetime.
+		Cache::flush();
+		$atts   = [
+			'order'    => 'random',
+			'limit'    => 2,
+			'paginate' => 1,
+		];
+		$random = Components::render( 'speakers', $atts );
+		$this->assertSame( 2, substr_count( $random, 'eex-card-speaker' ), 'random shows exactly the limit' );
+		$this->assertStringNotContainsString( 'eex-pagination', $random, 'a random sample has no stable pages' );
+		$this->assertSame( $random, Components::render( 'speakers', $atts ), 'the selection is cache-stable until a refresh' );
+
+		// Unknown order snaps back to alphabetical.
+		Cache::flush();
+		$bogus = Components::render( 'speakers', [ 'order' => 'bogus' ] );
+		$this->assertLessThan(
+			strpos( $bogus, 'Gamma Speaker' ),
+			strpos( $bogus, 'Alpha Speaker' ),
+			'an unknown order falls back to alphabetical'
+		);
+
+		// View-all link: hidden by default, escaped when set.
+		$this->assertStringNotContainsString( 'eex-view-all', $bogus );
+		Cache::flush();
+		$with_link = Components::render(
+			'speakers',
+			[
+				'all_url'  => 'https://example.test/speakers/"><script>',
+				'all_text' => 'View all speakers',
+			]
+		);
+		$this->assertStringContainsString( 'eex-view-all', $with_link );
+		$this->assertStringContainsString( 'View all speakers', $with_link );
+		$this->assertStringNotContainsString( '<script>', $with_link );
+	}
 }
