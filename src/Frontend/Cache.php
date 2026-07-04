@@ -40,7 +40,16 @@ final class Cache {
 	 * @param string              $html      Rendered HTML.
 	 */
 	public static function set( string $component, array $atts, string $html ): void {
-		set_transient( self::key( $component, $atts ), $html, self::ttl() );
+		$ttl = self::ttl();
+
+		// Guardrail: an empty state may just mean the API was unreachable or
+		// cold for one request. Never pin it for the full display TTL — let
+		// the next minute's visitor re-render with real data.
+		if ( str_contains( $html, 'eex-empty' ) ) {
+			$ttl = min( $ttl, MINUTE_IN_SECONDS );
+		}
+
+		set_transient( self::key( $component, $atts ), $html, $ttl );
 	}
 
 	/**
