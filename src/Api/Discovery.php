@@ -45,6 +45,13 @@ final class Discovery {
 			$report['write:attendees'] = self::inspect_write_shape( $client, 'events/' . rawurlencode( $sample_event ) . '/attendees/' );
 		}
 
+		// Stamp the report: a stale report from an older build reads like a
+		// live failure (and has sent operators chasing their API key).
+		$report['_meta'] = [
+			'version' => EEX_VERSION,
+			'ran_at'  => gmdate( 'Y-m-d H:i' ) . ' UTC',
+		];
+
 		update_option( 'eex_discovery_' . sanitize_key( $connection_id ), $report, false );
 
 		$has_missing = array_filter( $report, static fn( $r ) => ! empty( $r['missing'] ) || ! empty( $r['type_mismatch'] ) );
@@ -136,7 +143,7 @@ final class Discovery {
 		// Some accounts refuse top-level collection routes (403) but serve
 		// the same resources nested under an event (DRF hyperlinked style,
 		// verified live). Sample the nested route before reporting an error.
-		if ( is_wp_error( $response ) && in_array( $resource_slug, [ 'talks', 'speakers', 'categories', 'tickets' ], true ) ) {
+		if ( is_wp_error( $response ) && in_array( $resource_slug, [ 'talks', 'speakers', 'categories', 'tickets', 'attendees' ], true ) ) {
 			$event_id = self::sample_event_id( $client );
 
 			if ( '' !== $event_id ) {
@@ -147,6 +154,14 @@ final class Discovery {
 					$report['note'] = sprintf( 'Top-level %1$s/ refused (%2$s); served nested under events/<id>/%1$s/ instead — the plugin uses the nested route on this connection.', $resource_slug, $response->get_error_message() );
 					return $report;
 				}
+
+				return [
+					'error'         => sprintf( 'Both routes failed: top-level %1$s/ (%2$s) and events/%3$s/%1$s/ (%4$s). If other resources work, this is a route/permission quirk on the account, not a bad key.', $resource_slug, $response->get_error_message(), $event_id, $nested->get_error_message() ),
+					'found'         => [],
+					'missing'       => [],
+					'unmapped'      => [],
+					'type_mismatch' => [],
+				];
 			}
 		}
 
