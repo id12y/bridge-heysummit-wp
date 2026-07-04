@@ -217,3 +217,21 @@ API too: operators handle them with `register_link=custom` +
 `register_url`, or fall back to `register_link=event`. Verify the
 checkout path on the live hub after deploying; it is a HeySummit URL
 convention, not a documented API field.
+
+## Talk landing pages are reconstructed too (v1.7.1)
+
+Confirmed against the live v2 Event schema (operator-supplied): the
+Event object carries `event_url` only — its `url` field is the API
+self-link — and the Talk object carries no public URL at all. Yet every
+talk has a landing page at `<event site>/talks/<slug>/`. Lite mode now
+reconstructs it (payload `slug`/`talk_slug` when present, else
+`sanitize_title(title)`) exactly like speaker hub links; talk permalinks
+and the session button both use it. Session-row tickets buttons append
+`?talk=<id>` to the checkout — preselected when HeySummit recognises
+it, ignored otherwise. Both conventions want a live spot-check. For the record, the v2 Talk
+schema is exactly: `id, title, date, event, speakers, categories,
+is_active, is_featured` — no slug and no URL of any kind, so the
+title-derived slug is not a shortcut but the only possible source.
+Duplicate-titled talks are the known weak spot: HeySummit will have
+suffixed one of the slugs, and the reconstructed link for the later
+one will land on the wrong talk (or 404) until retitled.

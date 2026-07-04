@@ -1064,7 +1064,17 @@ final class Components {
 
 		$event_url = (string) ( $data['event_url'] ?? '' );
 
-		return '' !== $event_url ? self::checkout_url( $event_url ) : (string) ( $data['talk_url'] ?? '' );
+		if ( '' === $event_url ) {
+			return (string) ( $data['talk_url'] ?? '' );
+		}
+
+		$url = self::checkout_url( $event_url );
+
+		// Best-effort deep link from a session row: checkout preselects a
+		// recognised talk and simply ignores the parameter otherwise.
+		$talk_id = (string) ( $data['hs_id'] ?? '' );
+
+		return '' !== $talk_id ? add_query_arg( 'talk', rawurlencode( $talk_id ), $url ) : $url;
 	}
 
 	/**

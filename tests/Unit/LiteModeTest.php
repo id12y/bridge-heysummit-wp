@@ -210,6 +210,21 @@ final class LiteModeTest extends TestCase {
 		$this->assertCount( 0, $this->requests, 'no API calls within TTL' );
 	}
 
+	public function test_lite_sessions_link_to_their_own_talk_pages(): void {
+		$this->go_lite();
+		$this->mock_api();
+
+		$html = Components::render( 'upcoming-sessions', [] );
+
+		// The payload exposes no public talk URL: reconstructed from the
+		// event site + the talk title, so buttons stop landing on the
+		// generic event page.
+		$this->assertStringContainsString( 'summit.example.com/hub/talks/live-session-one/', $html );
+
+		// The tickets button deep-links the event checkout with this talk.
+		$this->assertStringContainsString( 'hub/checkout/?talk=501', $html );
+	}
+
 	public function test_api_failure_serves_last_good_then_empty_state_never_fatal(): void {
 		$this->go_lite();
 		$this->mock_api();
