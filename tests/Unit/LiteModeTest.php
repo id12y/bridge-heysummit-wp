@@ -504,6 +504,31 @@ final class LiteModeTest extends TestCase {
 		$empty_cat = Components::render( 'sponsor-spotlight', [ 'sponsor_category' => 'platinum' ] );
 		$this->assertStringContainsString( 'eex-empty', $empty_cat );
 
+		// The spotlight pool can be scoped by surface, composing with the
+		// category filter: Gold + landing = Acme alone (deterministic), and
+		// a named sponsor hidden from the chosen surface yields the empty
+		// state (Beta is flagged off the landing page).
+		Cache::flush();
+		$landing_spot = Components::render(
+			'sponsor-spotlight',
+			[
+				'shown_on'         => 'landing',
+				'sponsor_category' => 'gold',
+			]
+		);
+		$this->assertStringContainsString( 'Acme', $landing_spot );
+		$this->assertStringNotContainsString( 'Beta Ltd', $landing_spot );
+
+		Cache::flush();
+		$hidden_spot = Components::render(
+			'sponsor-spotlight',
+			[
+				'sponsor'  => '2',
+				'shown_on' => 'landing',
+			]
+		);
+		$this->assertStringContainsString( 'eex-empty', $hidden_spot, 'Beta is flagged off the landing page' );
+
 		// A video spotlight never draws a videoless sponsor: only Acme has
 		// one, so the "random" pick is deterministic — and naming a
 		// videoless sponsor while requiring video yields the empty state.

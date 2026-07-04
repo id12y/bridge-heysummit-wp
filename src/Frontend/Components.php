@@ -565,6 +565,18 @@ final class Components {
 							'none'    => __( 'No link', 'emailexpert-events' ),
 						],
 					],
+					'shown_on'         => [
+						'type'    => 'string',
+						'default' => 'any',
+						'label'   => __( 'Only sponsors shown on…', 'emailexpert-events' ),
+						'options' => [
+							'any'        => __( 'Anywhere (no filter)', 'emailexpert-events' ),
+							'landing'    => __( 'The landing page', 'emailexpert-events' ),
+							'talks'      => __( 'Talk pages', 'emailexpert-events' ),
+							'categories' => __( 'Category pages', 'emailexpert-events' ),
+							'blog'       => __( 'Blog posts', 'emailexpert-events' ),
+						],
+					],
 					'layout'           => [
 						'type'    => 'string',
 						'default' => 'card',
@@ -2258,6 +2270,19 @@ final class Components {
 	private static function render_sponsor_spotlight( array $atts ): string {
 		$sponsors = self::repo()->sponsors( $atts );
 		$category = strtolower( trim( (string) ( $atts['sponsor_category'] ?? '' ) ) );
+		$shown_on = (string) ( $atts['shown_on'] ?? 'any' );
+
+		// Surface filter first: "a random sponsor from those shown on the
+		// blog" is a pool definition, exactly like the category filter.
+		// Manual rows carry no flags and pass (typed in on purpose).
+		if ( 'any' !== $shown_on ) {
+			$sponsors = array_values(
+				array_filter(
+					$sponsors,
+					static fn( array $sponsor ): bool => ! isset( $sponsor['show'] ) || ! empty( $sponsor['show'][ $shown_on ] )
+				)
+			);
+		}
 
 		if ( '' !== $category ) {
 			$sponsors = array_values(
