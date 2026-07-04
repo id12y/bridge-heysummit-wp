@@ -169,7 +169,7 @@ final class Sponsors {
 	 * @param string $event_id      HeySummit event ID.
 	 * @return array<int,array<string,mixed>>
 	 */
-	public static function for_display( string $connection_id, string $event_id ): array {
+	public static function for_display( string $connection_id, string $event_id, string $event_url = '' ): array {
 		$sponsors = self::raw( $connection_id, $event_id );
 
 		if ( is_wp_error( $sponsors ) ) {
@@ -212,6 +212,7 @@ final class Sponsors {
 				'main'               => $main,
 				'sponsor_categories' => self::category_names( $sponsor, $map ),
 				'slug'               => sanitize_title( self::first_string( $sponsor, [ 'slug' ] ) ),
+				'hub_url'            => self::hub_url( $event_url, self::first_string( $sponsor, [ 'slug' ] ) ),
 				'banner'             => self::first_url( $sponsor, [ 'promo_banner', 'custom_promo_image_primary', 'page_header_graphic' ] ),
 				'long_blurb'         => self::first_html( $sponsor, [ 'long_description' ] ),
 				'video'              => [
@@ -279,6 +280,22 @@ final class Sponsors {
 		}
 
 		return '';
+	}
+
+	/**
+	 * The sponsor's page on the HeySummit hub, from its REAL slug (the API
+	 * provides it — nothing reconstructed) under the event site's /sponsors/
+	 * path. Verify once on the live hub; '' when either part is missing.
+	 *
+	 * @param string $event_url Raw event URL.
+	 * @param string $slug      Sponsor slug from the API.
+	 */
+	private static function hub_url( string $event_url, string $slug ): string {
+		if ( '' === $event_url || '' === $slug ) {
+			return '';
+		}
+
+		return \Emailexpert\Events\Frontend\Utm::tag( trailingslashit( $event_url ) . 'sponsors/' . rawurlencode( sanitize_title( $slug ) ) . '/' );
 	}
 
 	/**

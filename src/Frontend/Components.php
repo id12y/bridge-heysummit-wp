@@ -450,7 +450,32 @@ final class Components {
 						'type'    => 'string',
 						'default' => '',
 					],
-					'layout'           => $grid_layout,
+					'layout'           => [
+						'type'    => 'string',
+						'default' => 'grid',
+						'label'   => __( 'Layout', 'emailexpert-events' ),
+						'options' => [
+							'grid'    => __( 'Grid of cards', 'emailexpert-events' ),
+							'list'    => __( 'List rows', 'emailexpert-events' ),
+							'compact' => __( 'Compact logo grid (no card chrome)', 'emailexpert-events' ),
+							'strip'   => __( 'Logo strip (scrolling marquee)', 'emailexpert-events' ),
+						],
+					],
+					'exclude'          => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Hide these sponsors', 'emailexpert-events' ),
+					],
+					'sponsor_link'     => [
+						'type'    => 'string',
+						'default' => 'website',
+						'label'   => __( 'Sponsors link to', 'emailexpert-events' ),
+						'options' => [
+							'website' => __( 'Their own website', 'emailexpert-events' ),
+							'hub'     => __( 'Their page on the event hub', 'emailexpert-events' ),
+							'none'    => __( 'No link', 'emailexpert-events' ),
+						],
+					],
 					'main_only'        => $flag( __( 'Main sponsors only', 'emailexpert-events' ), 0 ),
 					'shown_on'         => [
 						'type'    => 'string',
@@ -530,6 +555,16 @@ final class Components {
 						'default' => '',
 						'label'   => __( 'Only from this sponsor category (random picks within it)', 'emailexpert-events' ),
 					],
+					'sponsor_link'     => [
+						'type'    => 'string',
+						'default' => 'website',
+						'label'   => __( 'Button links to', 'emailexpert-events' ),
+						'options' => [
+							'website' => __( 'Their own website', 'emailexpert-events' ),
+							'hub'     => __( 'Their page on the event hub', 'emailexpert-events' ),
+							'none'    => __( 'No link', 'emailexpert-events' ),
+						],
+					],
 					'layout'           => [
 						'type'    => 'string',
 						'default' => 'card',
@@ -540,6 +575,7 @@ final class Components {
 							'full'   => __( 'Full — banner, video and description', 'emailexpert-events' ),
 						],
 					],
+					'require_video'    => $flag( __( 'Only sponsors with an intro video', 'emailexpert-events' ), 0 ),
 					'show_banner'      => $flag( __( 'Show promo banner image', 'emailexpert-events' ) ),
 					'show_video'       => $flag( __( 'Show intro video', 'emailexpert-events' ) ),
 					'show_description' => $flag( __( 'Show full description', 'emailexpert-events' ) ),
@@ -1886,8 +1922,14 @@ final class Components {
 		// Filter first (manual rows carry none of the API's flags: they pass
 		// every visibility filter — the operator typed them in on purpose —
 		// but are never "main" and have no categories).
-		$rows = [];
+		$rows     = [];
+		$excluded = array_values( array_filter( array_map( 'trim', explode( ',', (string) ( $atts['exclude'] ?? '' ) ) ) ) );
+
 		foreach ( self::repo()->sponsors( $atts ) as $sponsor ) {
+			if ( in_array( (string) $sponsor['id'], $excluded, true ) ) {
+				continue;
+			}
+
 			if ( ! empty( $atts['main_only'] ) && empty( $sponsor['main'] ) ) {
 				continue;
 			}
@@ -1941,26 +1983,60 @@ final class Components {
 
 		ksort( $tiers );
 
-		$list = 'list' === (string) ( $atts['layout'] ?? 'grid' );
-		$flat = 'none' === (string) ( $atts['group_by'] ?? 'category' );
-		$show = [
+		$layout = (string) ( $atts['layout'] ?? 'grid' );
+		$list   = 'list' === $layout;
+		$flat   = 'none' === (string) ( $atts['group_by'] ?? 'category' );
+		$show   = [
 			'names' => ! isset( $atts['show_names'] ) || ! empty( $atts['show_names'] ),
 			'blurb' => ! empty( $atts['show_blurb'] ),
 		];
 
-		$logo_sizes = [
+		// Where a sponsor's link lands: their own site (default), their page
+		// on the event hub, or nowhere.
+		$link_mode = (string) ( $atts['sponsor_link'] ?? 'website' );
+		foreach ( $tiers as $tier_key => $tier_rows ) {
+			$tiers[ $tier_key ] = array_map(
+				static fn( array $sponsor ): array => self::linked_sponsor( $sponsor, $link_mode ),
+				$tier_rows
+			);
+		}
+
+		$logo_sizes_map = [
 			'small'  => '2em',
 			'medium' => '3.25em',
 			'large'  => '5em',
 		];
+
+		// The strip is a flat scrolling marquee of logos: grouping, names and
+		// blurbs do not apply, and the track is doubled (second copy hidden
+		// from assistive tech) for a seamless CSS loop.
+		if ( 'strip' === $layout ) {
+			ob_start();
+			printf(
+				'<div class="eex-sponsor-strip" style="--eex-sponsor-logo:%s"><ul class="eex-strip-track" role="list">',
+				esc_attr( $logo_sizes_map[ (string) ( $atts['logo_size'] ?? 'medium' ) ] ?? '3.25em' )
+			);
+			foreach ( [ false, true ] as $decorative ) {
+				foreach ( $tiers as $tier_rows ) {
+					foreach ( $tier_rows as $sponsor ) {
+						self::strip_item( $sponsor, $decorative );
+					}
+				}
+			}
+			echo '</ul></div>';
+
+			return (string) ob_get_clean();
+		}
+
 		$columns    = min( 6, max( 0, (int) ( $atts['columns'] ?? 0 ) ) );
 		$logo_style = sprintf(
 			' style="--eex-sponsor-logo:%s%s"',
-			$logo_sizes[ (string) ( $atts['logo_size'] ?? 'medium' ) ] ?? '3.25em',
+			$logo_sizes_map[ (string) ( $atts['logo_size'] ?? 'medium' ) ] ?? '3.25em',
 			! $list && $columns > 0 ? sprintf( ';--eex-columns:%d', $columns ) : ''
 		);
 
-		$open_list  = ( $list ? '<ul class="eex-list eex-sponsor-list" role="list"' : '<ul class="eex-grid eex-sponsor-grid" role="list"' ) . $logo_style . '>';
+		$grid_class = 'compact' === $layout ? 'eex-grid eex-sponsor-grid eex-sponsor-compact' : 'eex-grid eex-sponsor-grid';
+		$open_list  = ( $list ? '<ul class="eex-list eex-sponsor-list" role="list"' : '<ul class="' . $grid_class . '" role="list"' ) . $logo_style . '>';
 		$sponsor_li = static function ( array $sponsor ) use ( $list, $show ): void {
 			echo '<li class="eex-grid-item">';
 			TemplateLoader::part(
@@ -2127,6 +2203,52 @@ final class Components {
 	}
 
 	/**
+	 * A sponsor row with its link resolved to the chosen destination:
+	 * 'website' keeps the sponsor's own URL, 'hub' prefers their page on
+	 * the event hub (falling back to the website when the API gave no
+	 * slug), 'none' removes the link.
+	 *
+	 * @param array<string,mixed> $sponsor Display row.
+	 * @param string              $mode    website|hub|none.
+	 */
+	private static function linked_sponsor( array $sponsor, string $mode ): array {
+		if ( 'none' === $mode ) {
+			$sponsor['url'] = '';
+		} elseif ( 'hub' === $mode && '' !== (string) ( $sponsor['hub_url'] ?? '' ) ) {
+			$sponsor['url'] = (string) $sponsor['hub_url'];
+		}
+
+		return $sponsor;
+	}
+
+	/**
+	 * One marquee item: the logo (or the name when there is none), linked
+	 * unless the wall says otherwise. The duplicate loop copy is decorative.
+	 *
+	 * @param array<string,mixed> $sponsor    Display row.
+	 * @param bool                $decorative Second copy for the seamless loop.
+	 */
+	private static function strip_item( array $sponsor, bool $decorative ): void {
+		$name = (string) $sponsor['name'];
+		$logo = (string) ( $sponsor['logo_url'] ?? '' );
+		$url  = (string) ( $sponsor['url'] ?? '' );
+
+		$visual = '' !== $logo
+			? '<img class="eex-sponsor-logo" loading="lazy" src="' . esc_url( $logo ) . '" alt="' . esc_attr( $decorative ? '' : $name ) . '" />'
+			: '<span class="eex-sponsor-name">' . esc_html( $name ) . '</span>';
+
+		echo '<li class="eex-strip-item"' . ( $decorative ? ' aria-hidden="true"' : '' ) . '>';
+
+		if ( '' !== $url && ! $decorative ) {
+			echo '<a href="' . esc_url( $url ) . '" rel="sponsored noopener" aria-label="' . esc_attr( $name ) . '">' . $visual . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+		} else {
+			echo $visual; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+		}
+
+		echo '</li>';
+	}
+
+	/**
 	 * One sponsor, prominently: banner, video, description and actions from
 	 * the fields the wall has no room for. Chosen by ID, or a cache-stable
 	 * random pick (rotates each cache refresh).
@@ -2146,6 +2268,16 @@ final class Components {
 
 						return in_array( $category, $names, true ) || strtolower( (string) ( $sponsor['tier_name'] ?? '' ) ) === $category;
 					}
+				)
+			);
+		}
+
+		// A video spotlight should never draw a videoless sponsor.
+		if ( ! empty( $atts['require_video'] ) ) {
+			$sponsors = array_values(
+				array_filter(
+					$sponsors,
+					static fn( array $sponsor ): bool => '' !== self::video_embed_url( (array) ( $sponsor['video'] ?? [] ) )
 				)
 			);
 		}
@@ -2171,6 +2303,8 @@ final class Components {
 		if ( null === $pick ) {
 			return self::empty_state( (string) $atts['empty_text'] );
 		}
+
+		$pick = self::linked_sponsor( $pick, (string) ( $atts['sponsor_link'] ?? 'website' ) );
 
 		ob_start();
 		TemplateLoader::part(

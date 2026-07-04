@@ -269,3 +269,11 @@ agenda_item fields. Sponsors expose the spotlight set (promo_banner,
 intro_source_type/intro_video_id/intro_video_autoplay, long_description,
 link_title, books_url, phone_number, booth_enabled). The plugin maps
 what it displays; discovery keeps reporting the rest.
+
+## Sponsor hub pages (v1.14.0)
+
+Sponsor rows carry a real `slug`; the hub page is assumed at
+`<event_url>/sponsors/<slug>/` (the same convention family as speaker
+hub pages, but with an API-provided slug rather than a reconstruction).
+VERIFIED live by the operator (v1.15.0): sponsor hub pages resolve at
+`<event_url>/sponsors/<slug>/`.

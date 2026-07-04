@@ -976,3 +976,33 @@ external_url: an externally hosted session replaces BOTH buttons'
 destinations (session page and tickets) and its title link — the
 session lives elsewhere, so everything points there, ahead of even the
 per-widget external-ticketing override.
+
+## D78. Sponsors get canvases, not just a wall (v1.14.0)
+
+Sponsors fund the operation; one grid did not do them justice. The wall
+gained two more layouts for different canvases: 'strip' — a flat
+scrolling logo marquee (CSS-only animation, track doubled with the
+duplicate copy aria-hidden, pauses on hover, collapses to a static
+wrapped row under prefers-reduced-motion; edge-masked) for sidebars,
+footers and full-width bands — and 'compact', a dense chromeless logo
+grid for big canvases. Both walls and the spotlight gained
+sponsor_link: 'website' (default), 'hub' — the sponsor's page on the
+event hub, built from the REAL slug the API now provides (nothing
+reconstructed; one live click-test wanted) with website fallback for
+slugless sponsors — or 'none'. Combined with the earlier controls
+(category filter, main-only, shown-on, order, cap, columns, logo size,
+grouping, spotlight styles) a sponsor can now headline a homepage,
+scroll in a footer, sit quietly in a rail, or take a full feature
+section — each widget independently configured.
+
+## D79. Video spotlights draw only from sponsors with video (v1.15.0)
+
+require_video on the spotlight filters the pool to sponsors whose intro
+video actually embeds (known provider + ID) before the pick — a random
+video spotlight can never land on a videoless sponsor, and naming a
+videoless sponsor while requiring video yields the empty state rather
+than a hole. The wall gained exclude (hide individual sponsors without
+touching HeySummit), with an Elementor SELECT2 of sponsor names; the
+generic ticket-picker branch is now gated to ticket-bearing components
+so the two 'exclude' fields cannot collide. Operator verified the
+sponsor hub URL convention live — the api-notes caveat is closed.

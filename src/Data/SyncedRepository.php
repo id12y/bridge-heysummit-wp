@@ -268,7 +268,7 @@ class SyncedRepository implements Repository {
 		if ( null !== $event && '' !== (string) $event['hs_id'] ) {
 			$seen = array_map( static fn( array $sponsor ): string => strtolower( (string) $sponsor['name'] ), $out );
 
-			foreach ( Sponsors::for_display( (string) ( $event['connection'] ?? '' ), (string) $event['hs_id'] ) as $sponsor ) {
+			foreach ( Sponsors::for_display( (string) ( $event['connection'] ?? '' ), (string) $event['hs_id'], (string) ( $event['raw_event_url'] ?? '' ) ) as $sponsor ) {
 				if ( ! in_array( strtolower( (string) $sponsor['name'] ), $seen, true ) ) {
 					$out[] = $sponsor;
 				}
