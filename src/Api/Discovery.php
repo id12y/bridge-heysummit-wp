@@ -151,7 +151,7 @@ final class Discovery {
 
 				if ( ! is_wp_error( $nested ) ) {
 					$report         = self::compare_sample( $nested, $expected );
-					$report['note'] = sprintf( 'Top-level %1$s/ refused (%2$s); served nested under events/<id>/%1$s/ instead — the plugin uses the nested route on this connection.', $resource_slug, $response->get_error_message() );
+					$report['note'] = sprintf( 'Top-level %1$s/ refused (%2$s — normal for this account shape, not a key problem); served nested under events/<id>/%1$s/ instead, which is the route the plugin uses on this connection.', $resource_slug, self::short_error( $response ) );
 					return $report;
 				}
 
@@ -190,9 +190,39 @@ final class Discovery {
 			return '';
 		}
 
-		$first = isset( $events['results'][0] ) && is_array( $events['results'][0] ) ? $events['results'][0] : null;
+		$fallback = '';
 
-		return null !== $first && isset( $first['id'] ) && is_scalar( $first['id'] ) ? (string) $first['id'] : '';
+		foreach ( (array) ( $events['results'] ?? [] ) as $event ) {
+			if ( ! is_array( $event ) || ! isset( $event['id'] ) || ! is_scalar( $event['id'] ) ) {
+				continue;
+			}
+
+			if ( '' === $fallback ) {
+				$fallback = (string) $event['id'];
+			}
+
+			// Prefer an event that has sessions, so the talks and speakers
+			// samples have records to inspect instead of "no records".
+			if ( ! empty( $event['first_talk_at'] ) ) {
+				return (string) $event['id'];
+			}
+		}
+
+		return $fallback;
+	}
+
+	/**
+	 * An error reduced to its HTTP status for inline notes (the full message
+	 * speculates about causes, which reads wrong inside a reassurance).
+	 *
+	 * @param \WP_Error $error Error.
+	 */
+	private static function short_error( \WP_Error $error ): string {
+		if ( preg_match( '/HTTP \\d{3}/', (string) $error->get_error_message(), $m ) ) {
+			return $m[0];
+		}
+
+		return $error->get_error_message();
 	}
 
 	/**
