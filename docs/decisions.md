@@ -1047,3 +1047,26 @@ Decisions that matter:
   action class is only autoloaded behind a class_exists guard on its
   parent, so sites without Elementor Pro never load it (BootSmokeTest
   exempts it the same way as the Elementor module).
+
+## D81. README restructured by capability; licence stated as proprietary BETA (v1.16.1)
+
+The README no longer reads as a changelog ("Version 2 additions",
+"Version 3", "v4") — history lives in this file; the README is organised
+by what the plugin does. Two deliberate framing changes:
+
+- **Lite mode is presented as a first-class way to run the plugin**, not
+  an appendix. The old intro declared indexable GEO/SEO content "the
+  plugin's primary purpose", which is untrue in Lite — where the full
+  display and registration experience (all components, the ticket panel,
+  in-page free registration, the Woo and forms bridges) runs straight off
+  the API with near-zero WordPress footprint. The modes section now leads,
+  and the capability split is stated per mode instead of burying Lite's
+  strengths under Full-mode assumptions.
+- **Licensing corrected to reality.** The plugin header and composer.json
+  claimed GPL-2.0-or-later boilerplate; the software is in fact
+  distributed only privately/directly as a BETA. All three places
+  (README banner, plugin header, composer.json) now state: proprietary,
+  all rights reserved, no warranty, no promises or protections of
+  liability, private BETA — be cautious. If it is ever publicly
+  distributed through WordPress.org channels this must be revisited
+  (that channel requires GPL compatibility).

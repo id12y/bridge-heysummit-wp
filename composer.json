@@ -2,7 +2,7 @@
     "name": "emailexpert/emailexpert-events",
     "description": "HeySummit connector for WordPress: syncs events, sessions and speakers, renders them with Schema.org markup, and receives registration webhooks.",
     "type": "wordpress-plugin",
-    "license": "GPL-2.0-or-later",
+    "license": "proprietary",
     "require": {
         "php": ">=8.1"
     },
