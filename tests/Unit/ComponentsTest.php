@@ -9,6 +9,7 @@ namespace Emailexpert\Events\Tests\Unit;
 
 use Emailexpert\Events\Frontend\Cache;
 use Emailexpert\Events\Frontend\Components;
+use Emailexpert\Events\Options;
 use Emailexpert\Events\Frontend\Shortcodes;
 use Emailexpert\Events\Tests\TestCase;
 
@@ -748,5 +749,173 @@ final class ComponentsTest extends TestCase {
 			]
 		);
 		$this->assertStringNotContainsString( 'Live sessions', $html );
+	}
+
+	/**
+	 * A talk linked to a synced event with a public URL, for register-link
+	 * and drawer coverage.
+	 */
+	private function make_linked_talk(): int {
+		$talk_id = $this->make_talk( 'Linked session', 3600 );
+		update_post_meta( $talk_id, '_eex_source_event_id', '101' );
+
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'publish',
+				'post_title'  => 'Linked event',
+				'meta_input'  => [
+					'_eex_heysummit_id'  => '101',
+					'_eex_connection_id' => 'c1',
+					'_eex_event_url'     => 'https://summit.example.com/',
+				],
+			]
+		);
+
+		return $talk_id;
+	}
+
+	public function test_hero_styles_are_selectable_and_bogus_values_fall_back(): void {
+		$this->make_talk( 'Styled session', 3600 );
+
+		$this->assertStringContainsString( 'eex-hero-panel', Components::render( 'next-session', [] ) );
+
+		Cache::flush();
+		$this->assertStringContainsString( 'eex-hero-spotlight', Components::render( 'next-session', [ 'layout' => 'spotlight' ] ) );
+
+		Cache::flush();
+		$this->assertStringContainsString( 'eex-hero-banner', Components::render( 'next-session', [ 'layout' => 'banner' ] ) );
+
+		Cache::flush();
+		$this->assertStringContainsString( 'eex-hero-minimal', Components::render( 'next-session', [ 'layout' => 'minimal' ] ) );
+
+		Cache::flush();
+		$this->assertStringContainsString( 'eex-hero-panel', Components::render( 'next-session', [ 'layout' => 'bogus' ] ), 'unknown styles snap to the default' );
+	}
+
+	public function test_register_buttons_deep_link_to_the_ticketing_page(): void {
+		$this->make_linked_talk();
+
+		// Default: HeySummit-hosted ticketing lives on the checkout page.
+		$html = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( 'summit.example.com/checkout/', $html );
+
+		// The event landing page stays available.
+		Cache::flush();
+		$event = Components::render( 'upcoming-sessions', [ 'register_link' => 'event' ] );
+		$this->assertStringNotContainsString( '/checkout/', $event );
+		$this->assertStringContainsString( 'summit.example.com', $event );
+
+		// External ticketing: the operator's own URL wins.
+		Cache::flush();
+		$custom = Components::render(
+			'upcoming-sessions',
+			[
+				'register_link' => 'custom',
+				'register_url'  => 'https://tickets.example.org/buy',
+			]
+		);
+		$this->assertStringContainsString( 'https://tickets.example.org/buy', $custom );
+	}
+
+	public function test_pricing_buttons_carry_the_ticket_into_checkout(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render( 'pricing', [ 'event' => '101' ] );
+
+		$this->assertStringContainsString( 'checkout/?ticket=9001', $html );
+	}
+
+	public function test_register_panel_renders_the_ticket_drawer(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'upcoming-sessions',
+			[
+				'register_action' => 'panel',
+				'event'           => '101',
+			]
+		);
+
+		$this->assertStringContainsString( 'data-eex-drawer="eex-drawer-', $html, 'the Register button points at the panel' );
+		$this->assertStringContainsString( 'eex-drawer-panel', $html );
+		$this->assertStringContainsString( 'role="dialog"', $html );
+		$this->assertStringContainsString( 'All access', $html, 'the drawer lists the tickets' );
+
+		// Plain links by default: no drawer markup at all.
+		Cache::flush();
+		$plain = Components::render( 'upcoming-sessions', [ 'event' => '101' ] );
+		$this->assertStringNotContainsString( 'eex-drawer', $plain );
+	}
+
+	public function test_empty_states_are_never_cached_for_the_full_display_ttl(): void {
+		Options::update_settings( [ 'cache_ttl' => 1440 ] );
+
+		Components::render( 'upcoming-sessions', [] );
+
+		$ttls = array_filter(
+			\EEX_Test_State::$transient_ttls,
+			static fn( $key ): bool => str_starts_with( (string) $key, 'eex_c_' ),
+			ARRAY_FILTER_USE_KEY
+		);
+
+		$this->assertNotEmpty( $ttls );
+		$this->assertLessThanOrEqual( MINUTE_IN_SECONDS, max( $ttls ), 'an empty state must be retried within a minute' );
+	}
+
+	/**
+	 * Two tickets on event 101: 9001 (paid, popular) and 9002 (free).
+	 */
+	private function mock_ticket_endpoint(): void {
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'                 => 9001,
+									'title'              => 'All access',
+									'is_paid'            => 'true',
+									'mark_as_popular'    => true,
+									'quantity_remaining' => '12',
+									'prices'             => '[{"id": 501, "title": "Standard", "price": "99"}]',
+								],
+								[
+									'id'      => 9002,
+									'title'   => 'Free pass',
+									'is_paid' => 'false',
+									'prices'  => '[]',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
 	}
 }

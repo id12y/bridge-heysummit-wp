@@ -12,6 +12,7 @@
 class EEX_Test_State {
 	public static array $options    = [];
 	public static array $transients = [];
+	public static array $transient_ttls = [];
 	public static array $filters    = [];
 	public static array $posts      = [];
 	public static array $post_meta  = [];
@@ -26,6 +27,7 @@ class EEX_Test_State {
 	public static function reset(): void {
 		self::$options          = [];
 		self::$transients       = [];
+		self::$transient_ttls   = [];
 		self::$filters          = [];
 		self::$posts            = [];
 		self::$post_meta        = [];
@@ -266,6 +268,11 @@ if ( ! function_exists( 'esc_attr__' ) ) {
 		return esc_attr( $text );
 	}
 }
+if ( ! function_exists( 'esc_attr_e' ) ) {
+	function esc_attr_e( $text, $domain = 'default' ) {
+		echo esc_attr( $text );
+	}
+}
 if ( ! function_exists( 'esc_html_e' ) ) {
 	function esc_html_e( $text, $domain = 'default' ) {
 		echo esc_html( $text );
@@ -358,7 +365,8 @@ if ( ! function_exists( 'get_transient' ) ) {
 }
 if ( ! function_exists( 'set_transient' ) ) {
 	function set_transient( $key, $value, $expiration = 0 ) {
-		EEX_Test_State::$transients[ $key ] = $value;
+		EEX_Test_State::$transients[ $key ]     = $value;
+		EEX_Test_State::$transient_ttls[ $key ] = (int) $expiration;
 		return true;
 	}
 }

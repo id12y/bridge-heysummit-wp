@@ -717,3 +717,62 @@ accepts a media-library attachment ID as well as a URL (numeric value →
 logo_id, rendered via wp_get_attachment_image like Full-mode sponsor
 posts). If HeySummit ever adds a sponsors read endpoint, Data-layer
 import slots in behind the same rows.
+
+
+## D60. Updates flush their own leftovers (Install\Upgrade)
+
+Plugin files are replaced without activation ever re-running (zip
+overwrite, git deploy, auto-update), yet the fragment cache kept
+serving markup from the previous build for up to the display TTL, and
+assets versioned with an unchanged EEX_VERSION kept old CSS/JS pinned
+in browser caches. Root cause of a week of "I still see the old
+layout" reports: three CSS/JS-changing releases shipped under the same
+1.6.0 version string. Two fixes: every release now bumps EEX_VERSION
+(assets cache-bust themselves), and Install\Upgrade::check() runs on
+every load — the version stored in the autoloaded settings option costs
+no extra query; a mismatch flushes the display cache and the live cache
+once and stores the new version.
+
+## D61. Empty states are never cached for the full display TTL
+
+A cold or failed fetch renders the (correct) empty state — but caching
+it for the operator-set display TTL (up to 24 hours) pins "New sessions
+are announced soon." next to widgets that fetched fine a second later.
+Frontend\Cache::set() caps the TTL at one minute whenever the fragment
+contains the eex-empty marker: real emptiness re-renders identically a
+minute later for pennies, transient failure self-heals.
+
+## D62. Register buttons land on ticketing, not the lobby (register_link)
+
+The API exposes only the event's public page URL; Register buttons sent
+people to that landing page, one more click away from tickets. Sessions,
+featured talks, the hero and the pricing table now share a
+register_link attribute: 'checkout' (default) rewrites the event URL to
+its HeySummit checkout page, preserving UTM query args; 'event' keeps
+the old landing-page behaviour; 'custom' takes the operator's own URL
+(register_url) for events sold through an external ticketing provider.
+Pricing buttons append ?ticket=<id> in checkout mode — HeySummit
+preselects the ticket when it recognises the parameter and ignores it
+otherwise, so the deep link degrades safely.
+
+## D63. The ticket drawer is server-rendered (register_action=panel)
+
+"Ticketing as a slider/popup" could not become a client-side API call
+(hard rule: the key never leaves the server). Instead the component
+renderer builds the whole drawer — tickets, prices, per-ticket checkout
+links — as hidden HTML inside the same cached fragment, and Register
+buttons carry data-eex-drawer pointing at it. eex-time.js supplies
+dialog behaviour (focus in, Tab trapped, Escape/backdrop close, focus
+returned, background scroll locked, reduced-motion honoured); without
+JS the buttons stay ordinary links to the same destination. Opt-in per
+widget on sessions, featured talks and the hero.
+
+## D64. Hero styles are one enum attribute, not four components
+
+The next-session hero gained a layout attribute (panel | banner |
+spotlight | minimal) because the four looks differ structurally (where
+the countdown and actions live), which makes them markup — so they must
+key the fragment cache and travel through the one schema, giving every
+surface (shortcode, block, Elementor) the same dropdown for free.
+Panel is the new default: countdown pill and actions grouped in a
+tinted right-hand column, replacing the floating lone button.

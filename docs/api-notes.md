@@ -202,3 +202,18 @@ nothing upcoming (plus a symmetric forward walk for newest-first
 accounts), merged and de-duplicated by talk id. A handful of requests
 regardless of history depth, capped by `eex_live_max_pages` (default 12
 fetches), all inside one cached fetch per cache lifetime.
+
+## Register destinations (v1.7.0)
+
+The API exposes no ticketing-page URL anywhere — Event carries only
+`event_url` (the public landing page) and Ticket carries no URL at all.
+The `register_link=checkout` default therefore rewrites `event_url` to
+`<event_url>/checkout/` (HeySummit's hosted ticket-selection path; the
+UTM query survives the rewrite), and pricing/drawer buttons append
+`?ticket=<id>` — HeySummit preselects a recognised ticket and ignores
+the parameter otherwise, so the deep link degrades to plain checkout.
+Events sold through an external ticketing provider are invisible to the
+API too: operators handle them with `register_link=custom` +
+`register_url`, or fall back to `register_link=event`. Verify the
+checkout path on the live hub after deploying; it is a HeySummit URL
+convention, not a documented API field.

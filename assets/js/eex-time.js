@@ -208,6 +208,97 @@
 }() );
 
 /**
+ * Ticket drawer: Register buttons carrying data-eex-drawer open the
+ * server-rendered slide-over instead of following their link (which stays
+ * as the no-JS fallback). Accessible dialog behaviour: focus moves in,
+ * Tab is trapped, Escape and the backdrop close, focus returns to the
+ * opening button, and the page behind stops scrolling.
+ */
+( function () {
+	'use strict';
+
+	var opener = null;
+
+	function openDrawer( drawer, button ) {
+		opener = button;
+		drawer.hidden = false;
+		document.documentElement.classList.add( 'eex-drawer-open' );
+
+		var panel = drawer.querySelector( '.eex-drawer-panel' );
+		if ( panel ) {
+			panel.focus();
+		}
+	}
+
+	function closeDrawer( drawer ) {
+		drawer.hidden = true;
+		document.documentElement.classList.remove( 'eex-drawer-open' );
+
+		if ( opener ) {
+			opener.focus();
+			opener = null;
+		}
+	}
+
+	function currentDrawer() {
+		return document.querySelector( '.eex-drawer:not([hidden])' );
+	}
+
+	document.addEventListener( 'click', function ( event ) {
+		var button = event.target.closest( '[data-eex-drawer]' );
+		if ( button ) {
+			var drawer = document.getElementById( button.getAttribute( 'data-eex-drawer' ) );
+			if ( drawer ) {
+				event.preventDefault();
+				openDrawer( drawer, button );
+			}
+			return;
+		}
+
+		var close = event.target.closest( '[data-eex-drawer-close]' );
+		if ( close ) {
+			var open = close.closest( '.eex-drawer' );
+			if ( open ) {
+				closeDrawer( open );
+			}
+		}
+	} );
+
+	document.addEventListener( 'keydown', function ( event ) {
+		var drawer = currentDrawer();
+		if ( ! drawer ) {
+			return;
+		}
+
+		if ( 'Escape' === event.key ) {
+			closeDrawer( drawer );
+			return;
+		}
+
+		if ( 'Tab' !== event.key ) {
+			return;
+		}
+
+		// Keep focus inside the dialog while it is open.
+		var focusable = drawer.querySelectorAll( 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])' );
+		if ( ! focusable.length ) {
+			return;
+		}
+
+		var first = focusable[ 0 ];
+		var last = focusable[ focusable.length - 1 ];
+
+		if ( event.shiftKey && document.activeElement === first ) {
+			event.preventDefault();
+			last.focus();
+		} else if ( ! event.shiftKey && document.activeElement === last ) {
+			event.preventDefault();
+			first.focus();
+		}
+	} );
+}() );
+
+/**
  * Session filter bar: progressive enhancement. Without JS the category,
  * speaker and search links work as ordinary links/forms; with JS they
  * filter the rendered session grids instantly.

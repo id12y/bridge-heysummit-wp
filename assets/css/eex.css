@@ -506,6 +506,10 @@
 	margin: 0;
 }
 
+.eex-hero-aside {
+	min-width: 0;
+}
+
 .eex-hero-aside .eex-card-actions {
 	flex-direction: column;
 	align-items: stretch;
@@ -518,14 +522,121 @@
 	display: block;
 }
 
+/* Panel (default): countdown and actions grouped in a tinted column. */
+.eex-hero-panel .eex-hero-aside {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	gap: 0.75em;
+	min-width: 13em;
+	padding: calc(var(--eex-gap) * 1.25);
+	border-radius: calc(var(--eex-radius) * 0.75);
+	background: var(--eex-badge-bg);
+}
+
+.eex-hero-panel .eex-hero-aside .eex-countdown {
+	align-self: center;
+	background: var(--eex-card-bg);
+}
+
+/* Banner: a slim full-width strip. */
+.eex-hero-banner {
+	padding: var(--eex-gap) calc(var(--eex-gap) * 1.5);
+}
+
+.eex-hero-banner .eex-hero-title {
+	font-size: 1.2em;
+	margin-bottom: 0.2rem;
+}
+
+.eex-hero-banner .eex-hero-meta {
+	margin-bottom: 0.25rem;
+}
+
+.eex-hero-banner .eex-hero-aside .eex-card-actions {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: var(--eex-actions-justify, flex-end);
+}
+
+.eex-hero-banner .eex-hero-aside .eex-cta {
+	display: inline-block;
+}
+
+/* Spotlight: centred poster. */
+.eex-hero-spotlight {
+	display: block;
+	text-align: center;
+	padding: calc(var(--eex-gap) * 2.5) calc(var(--eex-gap) * 1.5);
+}
+
+.eex-hero-spotlight .eex-hero-title {
+	font-size: 2em;
+}
+
+.eex-hero-spotlight .eex-hero-meta {
+	justify-content: center;
+}
+
+.eex-hero-spotlight .eex-agenda-speakers {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: center;
+}
+
+.eex-hero-spotlight .eex-hero-aside {
+	margin-top: var(--eex-gap);
+}
+
+.eex-hero-spotlight .eex-hero-aside .eex-card-actions {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+}
+
+.eex-hero-spotlight .eex-hero-aside .eex-cta {
+	display: inline-block;
+}
+
+/* Minimal: no card chrome at all. */
+.eex-hero-minimal {
+	display: block;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	padding: 0;
+}
+
+.eex-hero-minimal .eex-hero-aside {
+	margin-top: 0.75em;
+}
+
+.eex-hero-minimal .eex-hero-aside .eex-card-actions {
+	flex-direction: row;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: var(--eex-actions-justify, flex-start);
+	text-align: left;
+}
+
+.eex-hero-minimal .eex-hero-aside .eex-cta {
+	display: inline-block;
+}
+
 @media (max-width: 600px) {
 	.eex-hero {
 		grid-template-columns: 1fr;
 	}
 
-	.eex-hero-aside .eex-card-actions {
-		align-items: flex-start;
-		text-align: left;
+	.eex-hero-panel .eex-hero-aside {
+		min-width: 0;
+	}
+
+	.eex-hero-banner .eex-hero-aside .eex-card-actions,
+	.eex-hero-minimal .eex-hero-aside .eex-card-actions {
+		justify-content: flex-start;
 	}
 }
 
@@ -708,4 +819,109 @@
 	width: 100%;
 	height: 100%;
 	border: 0;
+}
+
+/* Ticket drawer (slide-over register panel) */
+.eex-drawer {
+	position: fixed;
+	inset: 0;
+	z-index: 99999;
+}
+
+.eex-drawer[hidden] {
+	display: none;
+}
+
+.eex-drawer-backdrop {
+	position: absolute;
+	inset: 0;
+	background: rgba(15, 23, 42, 0.55);
+}
+
+.eex-drawer-panel {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	width: min(28em, 100%);
+	background: var(--eex-card-bg);
+	box-shadow: -12px 0 40px rgba(0, 0, 0, 0.25);
+	padding: calc(var(--eex-gap) * 1.5);
+	overflow-y: auto;
+	animation: eex-drawer-in 0.25s ease-out;
+}
+
+@keyframes eex-drawer-in {
+	from {
+		transform: translateX(100%);
+	}
+
+	to {
+		transform: translateX(0);
+	}
+}
+
+@keyframes eex-drawer-up {
+	from {
+		transform: translateY(100%);
+	}
+
+	to {
+		transform: translateY(0);
+	}
+}
+
+.eex-drawer-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--eex-gap);
+	margin-bottom: var(--eex-gap);
+}
+
+.eex-drawer-title {
+	margin: 0;
+	font-size: 1.2em;
+}
+
+.eex-drawer-close {
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+	color: inherit;
+	font-size: 1.6em;
+	line-height: 1;
+	padding: 0.1em 0.35em;
+	border-radius: 0.3em;
+}
+
+.eex-drawer-close:hover,
+.eex-drawer-close:focus {
+	background: var(--eex-badge-bg);
+}
+
+.eex-drawer-tickets {
+	margin: 0;
+}
+
+/* While a drawer is open the page behind must not scroll. */
+.eex-drawer-open {
+	overflow: hidden;
+}
+
+@media (max-width: 600px) {
+	.eex-drawer-panel {
+		top: auto;
+		left: 0;
+		width: 100%;
+		max-height: 85vh;
+		border-radius: var(--eex-radius) var(--eex-radius) 0 0;
+		animation-name: eex-drawer-up;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.eex-drawer-panel {
+		animation: none;
+	}
 }
