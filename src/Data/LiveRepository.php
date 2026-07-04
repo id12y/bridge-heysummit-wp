@@ -1326,6 +1326,25 @@ class LiveRepository extends BaseMapper implements Repository {
 		$raw_event_url = (string) ( $event['raw_event_url'] ?? '' );
 		$event_url     = '' !== $raw_event_url ? Utm::tag( $raw_event_url ) : '';
 
+		// The API's own 'url' field is its self-link, never a public page.
+		if ( str_contains( $talk_url, '//api' ) ) {
+			$talk_url = '';
+		}
+
+		// The payload exposes no public talk URL at all, yet every talk has
+		// a landing page at <event site>/talks/<slug>/ — reconstructed from
+		// the slug when given, else the title (same best-effort convention
+		// as speaker hub links; see docs/api-notes.md).
+		if ( '' === $talk_url && '' !== $raw_event_url ) {
+			$slug = sanitize_title( self::str( $raw, [ 'slug', 'talk_slug' ] ) );
+			if ( '' === $slug ) {
+				$slug = sanitize_title( self::str( $raw, [ 'title', 'name' ] ) );
+			}
+			if ( '' !== $slug ) {
+				$talk_url = trailingslashit( $raw_event_url ) . 'talks/' . $slug . '/';
+			}
+		}
+
 		$categories = [];
 		foreach ( (array) ( $raw['categories'] ?? [] ) as $category ) {
 			$name = is_array( $category ) ? self::str( $category, [ 'title', 'name' ] ) : ( is_scalar( $category ) ? (string) $category : '' );

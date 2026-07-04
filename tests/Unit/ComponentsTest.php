@@ -767,6 +767,7 @@ final class ComponentsTest extends TestCase {
 		$talk_id = $this->make_talk( 'Linked session', 3600 );
 		update_post_meta( $talk_id, '_eex_source_event_id', '101' );
 		update_post_meta( $talk_id, '_eex_talk_url', 'https://summit.example.com/talks/linked-session/' );
+		update_post_meta( $talk_id, '_eex_heysummit_id', '777' );
 
 		wp_insert_post(
 			[
@@ -808,7 +809,7 @@ final class ComponentsTest extends TestCase {
 		// Default: both buttons — tickets to the event's checkout, session to
 		// the talk's own landing page.
 		$html = Components::render( 'upcoming-sessions', [] );
-		$this->assertStringContainsString( 'summit.example.com/checkout/', $html );
+		$this->assertStringContainsString( 'summit.example.com/checkout/?talk=777', $html, 'checkout preselects the talk' );
 		$this->assertStringContainsString( 'eex-cta-session', $html );
 		$this->assertStringContainsString( 'summit.example.com/talks/linked-session/', $html );
 
