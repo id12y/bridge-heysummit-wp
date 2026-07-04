@@ -17,7 +17,6 @@ defined( 'ABSPATH' ) || exit;
  */
 final class Cache {
 
-	private const TTL        = 5 * MINUTE_IN_SECONDS;
 	private const GENERATION = 'eex_cache_generation';
 
 	/**
@@ -41,7 +40,17 @@ final class Cache {
 	 * @param string              $html      Rendered HTML.
 	 */
 	public static function set( string $component, array $atts, string $html ): void {
-		set_transient( self::key( $component, $atts ), $html, self::TTL );
+		set_transient( self::key( $component, $atts ), $html, self::ttl() );
+	}
+
+	/**
+	 * Fragment lifetime from the cache_ttl setting (minutes, default 5).
+	 * Sync completion, webhooks and editorial saves still flush immediately;
+	 * this only bounds how long unchanged fragments (and random speaker
+	 * selections) live.
+	 */
+	private static function ttl(): int {
+		return max( 1, min( 1440, (int) \Emailexpert\Events\Options::setting( 'cache_ttl' ) ) ) * MINUTE_IN_SECONDS;
 	}
 
 	/**

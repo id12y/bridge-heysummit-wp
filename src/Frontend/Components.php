@@ -61,62 +61,116 @@ final class Components {
 		$empty_sessions = __( 'New sessions are announced soon.', 'emailexpert-events' );
 		$empty_events   = __( 'New events are announced soon.', 'emailexpert-events' );
 
+		// Shared spec fragments. 'options' whitelists an enum (and drives a
+		// select control on every surface); 'flag' marks a boolean integer
+		// (switch/toggle control); 'label' is the shared control label.
+		$talk_layout = [
+			'type'    => 'string',
+			'default' => 'cards',
+			'label'   => __( 'Layout', 'emailexpert-events' ),
+			'options' => [
+				'cards'   => __( 'Cards', 'emailexpert-events' ),
+				'list'    => __( 'List', 'emailexpert-events' ),
+				'agenda'  => __( 'Agenda (grouped by day)', 'emailexpert-events' ),
+				'compact' => __( 'Compact', 'emailexpert-events' ),
+			],
+		];
+
+		$grid_layout = [
+			'type'    => 'string',
+			'default' => 'grid',
+			'label'   => __( 'Layout', 'emailexpert-events' ),
+			'options' => [
+				'grid' => __( 'Grid', 'emailexpert-events' ),
+				'list' => __( 'List', 'emailexpert-events' ),
+			],
+		];
+
+		$talk_columns = [
+			'type'    => 'integer',
+			'default' => 0,
+			'label'   => __( 'Columns (0 = automatic)', 'emailexpert-events' ),
+		];
+
+		$flag = static function ( string $label, int $on = 1 ): array {
+			return [
+				'type'    => 'integer',
+				'default' => $on,
+				'flag'    => true,
+				'label'   => $label,
+			];
+		};
+
+		$show_speakers   = $flag( __( 'Show speakers', 'emailexpert-events' ) );
+		$show_categories = $flag( __( 'Show category badges', 'emailexpert-events' ) );
+		$show_ics        = $flag( __( 'Show "Add to calendar (.ics)" link', 'emailexpert-events' ) );
+		$show_google     = $flag( __( 'Show Google Calendar link', 'emailexpert-events' ) );
+		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
+
 		return [
 			'upcoming-sessions' => [
 				'title' => __( 'Upcoming sessions', 'emailexpert-events' ),
 				'atts'  => [
-					'event'          => [
+					'event'           => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'category'       => [
+					'category'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'limit'          => [
+					'layout'          => $talk_layout,
+					'columns'         => $talk_columns,
+					'limit'           => [
 						'type'    => 'integer',
 						'default' => 6,
+						'label'   => $limit_label,
 					],
-					'empty_text'     => [
+					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
 					],
-					'show_subscribe' => [
-						'type'    => 'integer',
-						'default' => 0,
-					],
+					'show_speakers'   => $show_speakers,
+					'show_categories' => $show_categories,
+					'show_ics'        => $show_ics,
+					'show_google'     => $show_google,
+					'show_subscribe'  => $flag( __( 'Show subscribe link', 'emailexpert-events' ), 0 ),
 				],
 			],
 			'past-sessions'     => [
 				'title' => __( 'Past sessions', 'emailexpert-events' ),
 				'atts'  => [
-					'event'      => [
+					'event'           => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'category'   => [
+					'category'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'limit'      => [
+					'layout'          => $talk_layout,
+					'columns'         => $talk_columns,
+					'show_speakers'   => $show_speakers,
+					'show_categories' => $show_categories,
+					'show_ics'        => $show_ics,
+					'show_google'     => $show_google,
+					'limit'           => [
 						'type'    => 'integer',
 						'default' => 12,
+						'label'   => $limit_label,
 					],
-					'paginate'   => [
-						'type'    => 'integer',
-						'default' => 1,
-					],
-					'page'       => [
+					'paginate'        => $flag( __( 'Paginate', 'emailexpert-events' ) ),
+					'page'            => [
 						'type'     => 'string',
 						'default'  => '',
 						'from_get' => 'eex_page',
 					],
-					'q'          => [
+					'q'               => [
 						'type'     => 'string',
 						'default'  => '',
 						'from_get' => 'eex_q',
 					],
-					'empty_text' => [
+					'empty_text'      => [
 						'type'    => 'string',
 						'default' => __( 'Session replays appear here after each session.', 'emailexpert-events' ),
 					],
@@ -125,9 +179,11 @@ final class Components {
 			'upcoming-events'   => [
 				'title' => __( 'Upcoming events', 'emailexpert-events' ),
 				'atts'  => [
+					'layout'     => $grid_layout,
 					'limit'      => [
 						'type'    => 'integer',
 						'default' => 3,
+						'label'   => $limit_label,
 					],
 					'series'     => [
 						'type'    => 'string',
@@ -142,9 +198,11 @@ final class Components {
 			'past-events'       => [
 				'title' => __( 'Past events', 'emailexpert-events' ),
 				'atts'  => [
+					'layout'     => $grid_layout,
 					'limit'      => [
 						'type'    => 'integer',
 						'default' => 0,
+						'label'   => $limit_label,
 					],
 					'series'     => [
 						'type'    => 'string',
@@ -172,15 +230,17 @@ final class Components {
 			'schedule'          => [
 				'title' => __( 'Schedule', 'emailexpert-events' ),
 				'atts'  => [
-					'event'      => [
+					'event'           => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'category'   => [
+					'category'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'empty_text' => [
+					'show_speakers'   => $show_speakers,
+					'show_categories' => $show_categories,
+					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
 					],
@@ -189,23 +249,63 @@ final class Components {
 			'speakers'          => [
 				'title' => __( 'Speaker grid', 'emailexpert-events' ),
 				'atts'  => [
-					'event'      => [
+					'event'       => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Event', 'emailexpert-events' ),
+					],
+					'category'    => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'category'   => [
+					'layout'      => $grid_layout,
+					'order'       => [
 						'type'    => 'string',
-						'default' => '',
+						'default' => 'name',
+						'label'   => __( 'Order', 'emailexpert-events' ),
+						'options' => [
+							'name'      => __( 'Alphabetical', 'emailexpert-events' ),
+							'name-desc' => __( 'Reverse alphabetical', 'emailexpert-events' ),
+							'random'    => __( 'Random (reshuffles when the cache refreshes)', 'emailexpert-events' ),
+						],
 					],
-					'columns'    => [
+					'photo_shape' => [
+						'type'    => 'string',
+						'default' => 'rounded',
+						'label'   => __( 'Photo shape', 'emailexpert-events' ),
+						'options' => [
+							'rounded' => __( 'Rounded corners', 'emailexpert-events' ),
+							'circle'  => __( 'Circle', 'emailexpert-events' ),
+							'square'  => __( 'Square', 'emailexpert-events' ),
+						],
+					],
+					'columns'     => [
 						'type'    => 'integer',
 						'default' => 4,
+						'label'   => __( 'Columns (0 = widget controlled)', 'emailexpert-events' ),
 					],
-					'limit'      => [
+					'limit'       => [
 						'type'    => 'integer',
 						'default' => 0,
+						'label'   => $limit_label,
 					],
-					'empty_text' => [
+					'paginate'    => $flag( __( 'Paginate', 'emailexpert-events' ), 0 ),
+					'page'        => [
+						'type'     => 'string',
+						'default'  => '',
+						'from_get' => 'eex_speaker_page',
+					],
+					'all_url'     => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( '"View all" link URL (empty = hidden)', 'emailexpert-events' ),
+					],
+					'all_text'    => [
+						'type'    => 'string',
+						'default' => __( 'View all speakers', 'emailexpert-events' ),
+						'label'   => __( '"View all" link text', 'emailexpert-events' ),
+					],
+					'empty_text'  => [
 						'type'    => 'string',
 						'default' => __( 'Speakers are announced soon.', 'emailexpert-events' ),
 					],
@@ -214,15 +314,21 @@ final class Components {
 			'featured-talks'    => [
 				'title' => __( 'Featured talks', 'emailexpert-events' ),
 				'atts'  => [
-					'event'      => [
+					'event'           => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'ids'        => [
+					'ids'             => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'empty_text' => [
+					'layout'          => $talk_layout,
+					'columns'         => $talk_columns,
+					'show_speakers'   => $show_speakers,
+					'show_categories' => $show_categories,
+					'show_ics'        => $show_ics,
+					'show_google'     => $show_google,
+					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
 					],
@@ -235,6 +341,7 @@ final class Components {
 						'type'    => 'string',
 						'default' => '',
 					],
+					'layout'     => $grid_layout,
 					'empty_text' => [
 						'type'    => 'string',
 						'default' => __( 'Sponsorship opportunities are available.', 'emailexpert-events' ),
@@ -252,10 +359,7 @@ final class Components {
 						'type'    => 'string',
 						'default' => '',
 					],
-					'show_search' => [
-						'type'    => 'integer',
-						'default' => 1,
-					],
+					'show_search' => $flag( __( 'Show search box', 'emailexpert-events' ) ),
 				],
 			],
 			'reg-counter'       => [
@@ -467,6 +571,12 @@ final class Components {
 			$out[ $key ] = 'integer' === $spec['type']
 				? (int) $value
 				: sanitize_text_field( (string) $value );
+
+			// Enum attributes fall back to their default rather than letting
+			// arbitrary values reach templates or cache keys.
+			if ( ! empty( $spec['options'] ) && ! isset( $spec['options'][ $out[ $key ] ] ) ) {
+				$out[ $key ] = $spec['default'];
+			}
 		}
 
 		return $out;
@@ -501,9 +611,11 @@ final class Components {
 			$speaker = get_post( $speaker_id );
 			if ( $speaker && 'publish' === $speaker->post_status ) {
 				$speakers[] = [
-					'id'   => $speaker_id,
-					'name' => (string) $speaker->post_title,
-					'url'  => (string) get_permalink( $speaker_id ),
+					'id'       => $speaker_id,
+					'name'     => (string) $speaker->post_title,
+					'url'      => (string) get_permalink( $speaker_id ),
+					'headline' => (string) get_post_meta( $speaker_id, '_eex_headline', true ),
+					'photo_id' => (int) get_post_thumbnail_id( $speaker_id ),
 				];
 			}
 		}
@@ -598,8 +710,28 @@ final class Components {
 			];
 		}
 
+		$layout = (string) ( $atts['layout'] ?? 'cards' );
+		$show   = self::show_flags( $atts );
+
+		if ( 'agenda' === $layout ) {
+			return self::agenda_layout( $items, $context, $show );
+		}
+
+		// Wrapper classes and template part per layout; unknown values were
+		// already snapped to the default by sanitise_atts().
+		$layouts = [
+			'cards'   => [ 'eex-grid eex-talk-grid', 'card-talk' ],
+			'list'    => [ 'eex-list eex-talk-list', 'list-talk' ],
+			'compact' => [ 'eex-list eex-talk-compact', 'compact-talk' ],
+		];
+
+		[ $classes, $part ] = $layouts[ $layout ] ?? $layouts['cards'];
+
+		$columns = min( 6, max( 0, (int) ( $atts['columns'] ?? 0 ) ) );
+		$style   = 'cards' === $layout && $columns > 0 ? sprintf( ' style="--eex-columns:%d"', $columns ) : '';
+
 		ob_start();
-		echo '<ul class="eex-grid eex-talk-grid" role="list">';
+		printf( '<ul class="%s" role="list"%s>', esc_attr( $classes ), $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from an integer above.
 		foreach ( $items as $data ) {
 			// Filterable data attributes for the session filter bar.
 			printf(
@@ -609,10 +741,11 @@ final class Components {
 				esc_attr( strtolower( implode( ',', array_map( static fn( array $s ): string => (string) $s['name'], (array) $data['speakers'] ) ) ) )
 			);
 			TemplateLoader::part(
-				'card-talk',
+				$part,
 				[
 					'data'    => $data,
 					'context' => $context,
+					'show'    => $show,
 				]
 			);
 			echo '</li>';
@@ -620,6 +753,106 @@ final class Components {
 		echo '</ul>';
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The display toggles for talk markup, all-on when a component's schema
+	 * has no such attributes (schedule shares the row templates).
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<string,bool>
+	 */
+	private static function show_flags( array $atts ): array {
+		return [
+			'speakers'   => ! isset( $atts['show_speakers'] ) || ! empty( $atts['show_speakers'] ),
+			'categories' => ! isset( $atts['show_categories'] ) || ! empty( $atts['show_categories'] ),
+			'ics'        => ! isset( $atts['show_ics'] ) || ! empty( $atts['show_ics'] ),
+			'google'     => ! isset( $atts['show_google'] ) || ! empty( $atts['show_google'] ),
+		];
+	}
+
+	/**
+	 * The agenda layout: sessions grouped under event-local day headings,
+	 * modelled on the site's original design but vertically compact.
+	 *
+	 * @param array<int,array<string,mixed>> $items   Talk data arrays.
+	 * @param string                         $context 'upcoming', 'past' or 'featured'.
+	 * @param array<string,bool>             $show    Display toggles.
+	 */
+	private static function agenda_layout( array $items, string $context, array $show ): string {
+		$rows = self::group_rows_by_day( $items, 'j F Y' );
+
+		ob_start();
+		$current_day = null;
+		$open        = false;
+
+		foreach ( $rows as $row ) {
+			if ( $row['day'] !== $current_day ) {
+				if ( $open ) {
+					echo '</ol></section>';
+				}
+				$current_day = $row['day'];
+				$open        = true;
+				echo '<section class="eex-agenda-day"><h3 class="eex-agenda-heading">' . esc_html( $row['day'] ) . '</h3><ol class="eex-agenda-list" role="list">';
+			}
+
+			$data = $row['data'];
+
+			// The same filterable attributes as the grid, so the session
+			// filter bar works on agendas too.
+			printf(
+				'<li class="eex-agenda-item" data-eex-title="%s" data-eex-cats="%s" data-eex-speakers="%s">',
+				esc_attr( strtolower( (string) $data['title'] ) ),
+				esc_attr( implode( ',', array_map( static fn( $term ): string => (string) $term->slug, (array) $data['categories'] ) ) ),
+				esc_attr( strtolower( implode( ',', array_map( static fn( array $s ): string => (string) $s['name'], (array) $data['speakers'] ) ) ) )
+			);
+			TemplateLoader::part(
+				'agenda-row',
+				[
+					'data'    => $data,
+					'context' => $context,
+					'show'    => $show,
+				]
+			);
+			echo '</li>';
+		}
+
+		if ( $open ) {
+			echo '</ol></section>';
+		}
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Order talks chronologically and stamp each with its event-local day
+	 * heading. Shared by the schedule and the agenda layout.
+	 *
+	 * @param array<int,array<string,mixed>> $items      Talk data arrays.
+	 * @param string                         $day_format Day heading format.
+	 * @return array<int,array{ts:int,day:string,data:array<string,mixed>}>
+	 */
+	private static function group_rows_by_day( array $items, string $day_format ): array {
+		$rows = [];
+
+		foreach ( $items as $data ) {
+			$ts = strtotime( (string) $data['starts_at'] );
+			if ( false === $ts ) {
+				continue;
+			}
+			$tz    = TimeFormat::timezone( (string) $data['timezone'] );
+			$local = ( new \DateTimeImmutable( '@' . $ts ) )->setTimezone( $tz );
+
+			$rows[] = [
+				'ts'   => $ts,
+				'day'  => $local->format( $day_format ),
+				'data' => $data,
+			];
+		}
+
+		usort( $rows, static fn( array $a, array $b ): int => $a['ts'] <=> $b['ts'] );
+
+		return $rows;
 	}
 
 	/**
@@ -733,12 +966,14 @@ final class Components {
 			];
 		}
 
+		$list = 'list' === (string) ( $atts['layout'] ?? 'grid' );
+
 		ob_start();
-		echo '<ul class="eex-grid eex-event-grid" role="list">';
+		echo $list ? '<ul class="eex-list eex-event-list" role="list">' : '<ul class="eex-grid eex-event-grid" role="list">';
 		foreach ( $items as $event ) {
 			echo '<li class="eex-grid-item">';
 			TemplateLoader::part(
-				'card-event',
+				$list ? 'list-event' : 'card-event',
 				[
 					'event'   => $event,
 					'context' => $context,
@@ -817,28 +1052,15 @@ final class Components {
 		}
 
 		// Order every talk chronologically and group by event-local day.
-		$rows = [];
-		foreach ( $items as $data ) {
-			$ts = strtotime( (string) $data['starts_at'] );
-			if ( false === $ts ) {
-				continue;
-			}
-			$tz    = TimeFormat::timezone( (string) $data['timezone'] );
-			$local = ( new \DateTimeImmutable( '@' . $ts ) )->setTimezone( $tz );
+		$rows = self::group_rows_by_day( $items, 'l j F Y' );
+		$show = self::show_flags( $atts );
 
-			$rows[] = [
-				'ts'   => $ts,
-				'day'  => $local->format( 'l j F Y' ),
-				'data' => $data,
-			];
-
+		foreach ( $rows as $row ) {
 			self::$schema_pool[] = [
 				'type' => 'talk',
-				'data' => $data,
+				'data' => $row['data'],
 			];
 		}
-
-		usort( $rows, static fn( array $a, array $b ): int => $a['ts'] <=> $b['ts'] );
 
 		ob_start();
 		$current_day = null;
@@ -854,7 +1076,13 @@ final class Components {
 				echo '<section class="eex-schedule-day"><h3 class="eex-schedule-heading">' . esc_html( $row['day'] ) . '</h3><ol class="eex-schedule-list" role="list">';
 			}
 
-			TemplateLoader::part( 'schedule-row', [ 'data' => $row['data'] ] );
+			TemplateLoader::part(
+				'schedule-row',
+				[
+					'data' => $row['data'],
+					'show' => $show,
+				]
+			);
 		}
 
 		if ( $open ) {
@@ -870,24 +1098,104 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_speakers( array $atts ): string {
-		$items = self::repo()->speakers( $atts );
+		$limit = max( 0, (int) $atts['limit'] );
+
+		// Pagination mirrors past-sessions: the page number is an attribute
+		// (fed from ?eex_speaker_page= via from_get) so the fragment cache
+		// keys on it. It needs a positive limit to mean anything.
+		$paginate = ! empty( $atts['paginate'] ) && $limit > 0;
+		$page     = $paginate ? max( 1, (int) ( $atts['page'] ?: 1 ) ) : 1;
+
+		$order = (string) ( $atts['order'] ?? 'name' );
+
+		if ( 'name' === $order ) {
+			$query_atts = $atts;
+			if ( $paginate ) {
+				$query_atts['offset'] = ( $page - 1 ) * $limit;
+			}
+
+			$items = self::repo()->speakers( $query_atts );
+		} else {
+			// Non-default orders need the whole set before slicing.
+			$all = self::repo()->speakers(
+				array_merge(
+					$atts,
+					[
+						'limit'  => 0,
+						'offset' => 0,
+					]
+				)
+			);
+
+			if ( 'random' === $order ) {
+				// The shuffled fragment is cached, so the selection stays
+				// stable until the display cache refreshes — then reshuffles.
+				// A random sample has no stable pages.
+				$paginate = false;
+				shuffle( $all );
+			} else {
+				$all = array_reverse( $all );
+			}
+
+			$offset = $paginate ? ( $page - 1 ) * $limit : 0;
+			$items  = $limit > 0 ? array_slice( $all, $offset, $limit ) : $all;
+		}
 
 		if ( empty( $items ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
 		}
 
-		$columns = min( 6, max( 1, (int) $atts['columns'] ) );
+		$list = 'list' === (string) ( $atts['layout'] ?? 'grid' );
+
+		// 0 = leave the CSS variable to the stylesheet or a widget's
+		// responsive columns control.
+		$columns = min( 6, max( 0, (int) $atts['columns'] ) );
+		$style   = ! $list && $columns > 0 ? sprintf( ' style="--eex-columns:%d"', $columns ) : '';
+
+		$classes = $list ? 'eex-list eex-speaker-list' : 'eex-grid eex-speaker-grid';
+		$shape   = (string) ( $atts['photo_shape'] ?? 'rounded' );
+		if ( 'rounded' !== $shape && '' !== $shape ) {
+			$classes .= ' eex-photos-' . $shape;
+		}
 
 		ob_start();
-		printf( '<ul class="eex-grid eex-speaker-grid" style="--eex-columns:%d" role="list">', (int) $columns );
+		printf( '<ul class="%s" role="list"%s>', esc_attr( $classes ), $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from an integer above.
 		foreach ( $items as $speaker ) {
 			echo '<li class="eex-grid-item">';
-			TemplateLoader::part( 'card-speaker', [ 'speaker' => $speaker ] );
+			TemplateLoader::part( $list ? 'list-speaker' : 'card-speaker', [ 'speaker' => $speaker ] );
 			echo '</li>';
 		}
 		echo '</ul>';
 
-		return (string) ob_get_clean();
+		$html = (string) ob_get_clean();
+
+		if ( $paginate ) {
+			$total = self::repo()->speakers_total( $atts );
+			$pages = (int) ceil( $total / $limit );
+
+			if ( $pages > 1 ) {
+				$html .= '<nav class="eex-pagination" aria-label="' . esc_attr__( 'Speaker pages', 'emailexpert-events' ) . '">';
+				for ( $i = 1; $i <= $pages; $i++ ) {
+					$html .= sprintf(
+						'<a href="%s"%s>%d</a> ',
+						esc_url( add_query_arg( 'eex_speaker_page', $i ) ),
+						$i === $page ? ' aria-current="page" class="eex-current"' : '',
+						(int) $i
+					);
+				}
+				$html .= '</nav>';
+			}
+		}
+
+		if ( '' !== (string) $atts['all_url'] ) {
+			$html .= sprintf(
+				'<p class="eex-view-all"><a class="eex-cta-secondary" href="%s">%s</a></p>',
+				esc_url( (string) $atts['all_url'] ),
+				esc_html( (string) $atts['all_text'] )
+			);
+		}
+
+		return $html;
 	}
 
 	/**
@@ -927,13 +1235,16 @@ final class Components {
 
 		ksort( $tiers );
 
+		$list = 'list' === (string) ( $atts['layout'] ?? 'grid' );
+
 		ob_start();
 		foreach ( $tiers as $key => $tier_sponsors ) {
 			[ , $tier_name ] = explode( '|', $key, 2 );
-			echo '<section class="eex-sponsor-tier"><h3 class="eex-tier-heading">' . esc_html( $tier_name ) . '</h3><ul class="eex-grid eex-sponsor-grid" role="list">';
+			echo '<section class="eex-sponsor-tier"><h3 class="eex-tier-heading">' . esc_html( $tier_name ) . '</h3>';
+			echo $list ? '<ul class="eex-list eex-sponsor-list" role="list">' : '<ul class="eex-grid eex-sponsor-grid" role="list">';
 			foreach ( $tier_sponsors as $sponsor ) {
 				echo '<li class="eex-grid-item">';
-				TemplateLoader::part( 'card-sponsor', [ 'sponsor' => $sponsor ] );
+				TemplateLoader::part( $list ? 'list-sponsor' : 'card-sponsor', [ 'sponsor' => $sponsor ] );
 				echo '</li>';
 			}
 			echo '</ul></section>';

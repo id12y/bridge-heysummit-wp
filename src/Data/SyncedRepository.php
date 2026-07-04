@@ -121,6 +121,17 @@ class SyncedRepository implements Repository {
 	}
 
 	/**
+	 * Total speakers, ignoring limit/offset.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	public function speakers_total( array $atts ): int {
+		unset( $atts['limit'], $atts['offset'] );
+
+		return count( Query::speakers( $atts + [ 'limit' => 0 ] ) );
+	}
+
+	/**
 	 * Categories (all terms; matches the previous filter-bar behaviour).
 	 *
 	 * @param array<string,mixed> $atts Attributes.

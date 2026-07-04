@@ -85,6 +85,18 @@ final class ComponentsTest extends TestCase {
 		$via_component = Components::render( 'upcoming-sessions', [ 'limit' => 6 ] );
 
 		$this->assertSame( $via_component, $via_shortcode );
+
+		// The new layout and toggle attributes travel identically.
+		$atts          = [
+			'layout'   => 'agenda',
+			'show_ics' => 0,
+		];
+		$via_shortcode = $shortcode_callback( $atts );
+		$via_component = Components::render( 'upcoming-sessions', $atts );
+
+		$this->assertSame( $via_component, $via_shortcode );
+		$this->assertStringContainsString( 'eex-agenda-day', $via_shortcode );
+		$this->assertStringNotContainsString( 'eex_ics=', $via_shortcode );
 	}
 
 	public function test_render_uses_cache_until_flush(): void {
@@ -191,5 +203,257 @@ final class ComponentsTest extends TestCase {
 		} finally {
 			unset( $_GET['eex_page'] );
 		}
+	}
+
+	public function test_enum_attributes_are_whitelisted(): void {
+		$schema = Components::definitions()['upcoming-sessions']['atts'];
+
+		$out = Components::sanitise_atts( $schema, [ 'layout' => '<script>alert(1)</script>' ] );
+		$this->assertSame( 'cards', $out['layout'], 'a bogus layout falls back to the default' );
+
+		$out = Components::sanitise_atts( $schema, [ 'layout' => 'agenda' ] );
+		$this->assertSame( 'agenda', $out['layout'] );
+
+		$speakers = Components::definitions()['speakers']['atts'];
+		$out      = Components::sanitise_atts( $speakers, [ 'photo_shape' => 'bogus' ] );
+		$this->assertSame( 'rounded', $out['photo_shape'], 'a bogus photo shape falls back to the default' );
+	}
+
+	public function test_default_attributes_preserve_existing_markup(): void {
+		$this->make_talk( 'Baseline session', 3600 );
+
+		$html = Components::render( 'upcoming-sessions', [] );
+
+		$this->assertStringContainsString( 'eex-grid eex-talk-grid', $html );
+		$this->assertStringNotContainsString( 'eex-talk-list', $html );
+		$this->assertStringNotContainsString( 'eex-agenda', $html );
+		$this->assertStringNotContainsString( 'eex-talk-compact', $html );
+	}
+
+	public function test_layouts_render_their_own_markup_and_keep_the_js_contract(): void {
+		$this->make_talk( 'Layout session', 3600 );
+
+		$list = Components::render( 'upcoming-sessions', [ 'layout' => 'list' ] );
+		$this->assertStringContainsString( 'eex-talk-list', $list );
+		$this->assertStringNotContainsString( 'eex-talk-grid', $list );
+		$this->assertStringContainsString( 'data-eex-session', $list );
+		$this->assertStringContainsString( 'data-eex-title', $list, 'the filter bar contract survives the list layout' );
+
+		Cache::flush();
+		$compact = Components::render( 'upcoming-sessions', [ 'layout' => 'compact' ] );
+		$this->assertStringContainsString( 'eex-talk-compact', $compact );
+		$this->assertStringContainsString( 'data-eex-title', $compact );
+
+		Cache::flush();
+		$agenda = Components::render( 'upcoming-sessions', [ 'layout' => 'agenda' ] );
+		$this->assertStringContainsString( 'eex-agenda-day', $agenda );
+		$this->assertStringContainsString( 'eex-agenda-heading', $agenda );
+		$this->assertStringContainsString( 'Online', $agenda, 'the agenda badge is present' );
+		$this->assertStringContainsString( 'data-eex-session', $agenda );
+		$this->assertStringContainsString( 'data-eex-title', $agenda );
+		$this->assertStringContainsString( gmdate( 'j F Y', time() + 3600 ), $agenda, 'the day heading uses the compact date format' );
+	}
+
+	public function test_layouts_key_the_cache_separately(): void {
+		$this->make_talk( 'Cache layout session', 3600 );
+
+		$cards = Components::render( 'upcoming-sessions', [] );
+		$list  = Components::render( 'upcoming-sessions', [ 'layout' => 'list' ] );
+
+		$this->assertStringContainsString( 'eex-talk-grid', $cards );
+		$this->assertStringContainsString( 'eex-talk-list', $list, 'a layout change must never serve the cached other layout' );
+	}
+
+	public function test_display_toggles_remove_exactly_their_markup(): void {
+		$talk_id = $this->make_talk( 'Toggle session', 3600 );
+		wp_insert_term( 'Deliverability', 'eex_category' );
+		wp_set_object_terms( $talk_id, [ 'deliverability' ], 'eex_category' );
+
+		$speaker_id = wp_insert_post(
+			[
+				'post_type'   => 'eex_speaker',
+				'post_status' => 'publish',
+				'post_title'  => 'Toggle Speaker',
+			]
+		);
+		update_post_meta( $talk_id, '_eex_speaker_ids', [ $speaker_id ] );
+
+		$all = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( 'eex_ics=', $all );
+		$this->assertStringContainsString( 'google.com/calendar', $all );
+		$this->assertStringContainsString( 'eex-chip', $all );
+		$this->assertStringContainsString( 'eex-badge', $all );
+
+		Cache::flush();
+		$html = Components::render(
+			'upcoming-sessions',
+			[
+				'show_ics'        => 0,
+				'show_google'     => 0,
+				'show_speakers'   => 0,
+				'show_categories' => 0,
+			]
+		);
+
+		$this->assertStringNotContainsString( 'eex_ics=', $html );
+		$this->assertStringNotContainsString( 'google.com/calendar', $html );
+		$this->assertStringNotContainsString( 'eex-chip', $html );
+		$this->assertStringNotContainsString( 'eex-badge', $html );
+		$this->assertStringContainsString( 'eex-card-talk', $html, 'the card itself is untouched by the toggles' );
+
+		Cache::flush();
+		$schedule = Components::render(
+			'schedule',
+			[
+				'show_speakers'   => 0,
+				'show_categories' => 0,
+			]
+		);
+		$this->assertStringNotContainsString( 'eex-chip', $schedule );
+		$this->assertStringNotContainsString( 'eex-badge', $schedule );
+	}
+
+	private function make_speaker( string $name ): int {
+		return wp_insert_post(
+			[
+				'post_type'   => 'eex_speaker',
+				'post_status' => 'publish',
+				'post_title'  => $name,
+			]
+		);
+	}
+
+	public function test_speaker_layout_and_photo_shape_classes(): void {
+		$talk_id = $this->make_talk( 'Speaker host session', 3600 );
+		update_post_meta( $talk_id, '_eex_speaker_ids', [ $this->make_speaker( 'Grid Speaker' ) ] );
+
+		$grid = Components::render( 'speakers', [] );
+		$this->assertStringContainsString( 'eex-speaker-grid', $grid );
+		$this->assertStringContainsString( 'style="--eex-columns:4"', $grid, 'the default columns are unchanged' );
+		$this->assertStringNotContainsString( 'eex-photos-', $grid, 'the default photo shape adds no class' );
+
+		Cache::flush();
+		$list = Components::render(
+			'speakers',
+			[
+				'layout'      => 'list',
+				'photo_shape' => 'circle',
+			]
+		);
+		$this->assertStringContainsString( 'eex-speaker-list', $list );
+		$this->assertStringContainsString( 'eex-photos-circle', $list );
+		$this->assertStringNotContainsString( 'eex-speaker-grid', $list );
+
+		Cache::flush();
+		$auto = Components::render( 'speakers', [ 'columns' => 0 ] );
+		$this->assertStringNotContainsString( '--eex-columns', $auto, 'columns 0 hands the variable to the stylesheet or widget' );
+	}
+
+	public function test_speakers_paginate_via_their_own_query_var(): void {
+		$talk_id = $this->make_talk( 'Paginated speakers session', 3600 );
+		update_post_meta(
+			$talk_id,
+			'_eex_speaker_ids',
+			[
+				$this->make_speaker( 'Speaker Alpha' ),
+				$this->make_speaker( 'Speaker Beta' ),
+			]
+		);
+
+		$atts = [
+			'paginate' => 1,
+			'limit'    => 1,
+		];
+
+		$page_one = Components::render( 'speakers', $atts );
+		$this->assertStringContainsString( 'Speaker Alpha', $page_one );
+		$this->assertStringNotContainsString( 'Speaker Beta', $page_one );
+		$this->assertStringContainsString( 'eex_speaker_page', $page_one, 'the pagination uses its own query var' );
+
+		$_GET['eex_speaker_page'] = '2';
+		try {
+			$page_two = Components::render( 'speakers', $atts );
+			$this->assertStringContainsString( 'Speaker Beta', $page_two );
+			$this->assertStringNotContainsString( 'Speaker Alpha', $page_two, 'page two never serves the cached page one' );
+		} finally {
+			unset( $_GET['eex_speaker_page'] );
+		}
+	}
+
+	public function test_event_list_layout(): void {
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'publish',
+				'post_title'  => 'Listed event',
+				'meta_input'  => [
+					'_eex_first_talk_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS ),
+					'_eex_last_talk_at'  => gmdate( 'Y-m-d\TH:i:s\Z', time() + 2 * DAY_IN_SECONDS ),
+				],
+			]
+		);
+
+		$html = Components::render( 'upcoming-events', [ 'layout' => 'list' ] );
+
+		$this->assertStringContainsString( 'eex-event-list', $html );
+		$this->assertStringContainsString( 'Listed event', $html );
+		$this->assertStringNotContainsString( 'eex-event-grid', $html );
+	}
+
+	public function test_speaker_order_options_and_view_all_link(): void {
+		$talk_id = $this->make_talk( 'Order host session', 3600 );
+		update_post_meta(
+			$talk_id,
+			'_eex_speaker_ids',
+			[
+				$this->make_speaker( 'Alpha Speaker' ),
+				$this->make_speaker( 'Beta Speaker' ),
+				$this->make_speaker( 'Gamma Speaker' ),
+			]
+		);
+
+		// Reverse alphabetical.
+		$desc = Components::render( 'speakers', [ 'order' => 'name-desc' ] );
+		$this->assertGreaterThan(
+			strpos( $desc, 'Gamma Speaker' ),
+			strpos( $desc, 'Alpha Speaker' ),
+			'reverse alphabetical renders Gamma before Alpha'
+		);
+
+		// Random respects the limit, disables pagination, and is stable
+		// within one cache lifetime.
+		Cache::flush();
+		$atts   = [
+			'order'    => 'random',
+			'limit'    => 2,
+			'paginate' => 1,
+		];
+		$random = Components::render( 'speakers', $atts );
+		$this->assertSame( 2, substr_count( $random, 'eex-card-speaker' ), 'random shows exactly the limit' );
+		$this->assertStringNotContainsString( 'eex-pagination', $random, 'a random sample has no stable pages' );
+		$this->assertSame( $random, Components::render( 'speakers', $atts ), 'the selection is cache-stable until a refresh' );
+
+		// Unknown order snaps back to alphabetical.
+		Cache::flush();
+		$bogus = Components::render( 'speakers', [ 'order' => 'bogus' ] );
+		$this->assertLessThan(
+			strpos( $bogus, 'Gamma Speaker' ),
+			strpos( $bogus, 'Alpha Speaker' ),
+			'an unknown order falls back to alphabetical'
+		);
+
+		// View-all link: hidden by default, escaped when set.
+		$this->assertStringNotContainsString( 'eex-view-all', $bogus );
+		Cache::flush();
+		$with_link = Components::render(
+			'speakers',
+			[
+				'all_url'  => 'https://example.test/speakers/"><script>',
+				'all_text' => 'View all speakers',
+			]
+		);
+		$this->assertStringContainsString( 'eex-view-all', $with_link );
+		$this->assertStringContainsString( 'View all speakers', $with_link );
+		$this->assertStringNotContainsString( '<script>', $with_link );
 	}
 }

@@ -64,6 +64,12 @@ final class Blocks {
 					'type'    => 'integer' === $spec['type'] ? 'number' : 'string',
 					'default' => $spec['default'],
 				];
+
+				// Enum attributes validate server-side too (ServerSideRender
+				// POSTs go through the block attribute schema).
+				if ( ! empty( $spec['options'] ) ) {
+					$attributes[ $key ]['enum'] = array_map( 'strval', array_keys( (array) $spec['options'] ) );
+				}
 			}
 
 			register_block_type(

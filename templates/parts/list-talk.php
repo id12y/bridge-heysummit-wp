@@ -1,12 +1,14 @@
 <?php
 /**
- * Session card. Override by copying to yourtheme/emailexpert-events/parts/.
+ * Session list row (layout="list"). Override by copying to
+ * yourtheme/emailexpert-events/parts/.
  *
  * @package Emailexpert\Events
  *
  * @var array $args {
  *     @type array  $data    Talk data from Components::talk_data().
- *     @type string $eex_context 'upcoming', 'past' or 'featured'.
+ *     @type string $context 'upcoming', 'past' or 'featured'.
+ *     @type array  $show    Display toggles (speakers, categories, ics, google).
  * }
  */
 
@@ -33,36 +35,32 @@ if ( empty( $eex_data['id'] ) ) {
 	return;
 }
 ?>
-<article class="eex-card eex-card-talk eex-context-<?php echo esc_attr( $eex_context ); ?>"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
+<article class="eex-list-row"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
 	<p class="eex-live-indicator" data-eex-live-slot="1" hidden aria-live="polite"></p>
 
-	<h3 class="eex-card-title">
-		<a href="<?php echo esc_url( (string) $eex_data['permalink'] ); ?>"><?php echo esc_html( (string) $eex_data['title'] ); ?></a>
-	</h3>
+	<span class="eex-list-time">
+		<?php echo TimeFormat::render( (string) $eex_data['starts_at'], (string) $eex_data['timezone'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+	</span>
 
-	<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
-		<p class="eex-card-time">
-			<?php echo TimeFormat::render( (string) $eex_data['starts_at'], (string) $eex_data['timezone'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
-		</p>
-	<?php endif; ?>
+	<span class="eex-list-main">
+		<a class="eex-list-title" href="<?php echo esc_url( (string) $eex_data['permalink'] ); ?>"><?php echo esc_html( (string) $eex_data['title'] ); ?></a>
 
-	<?php if ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) : ?>
-		<p class="eex-badges">
+		<?php if ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) : ?>
 			<?php foreach ( $eex_data['categories'] as $eex_term ) : ?>
 				<span class="eex-badge eex-badge-<?php echo esc_attr( $eex_term->slug ); ?>"><?php echo esc_html( $eex_term->name ); ?></span>
 			<?php endforeach; ?>
-		</p>
-	<?php endif; ?>
+		<?php endif; ?>
 
-	<?php if ( $eex_show['speakers'] && ! empty( $eex_data['speakers'] ) ) : ?>
-		<p class="eex-speaker-chips">
-			<?php foreach ( $eex_data['speakers'] as $eex_speaker ) : ?>
-				<?php TemplateLoader::part( 'speaker-chip', [ 'speaker' => $eex_speaker ] ); ?>
-			<?php endforeach; ?>
-		</p>
-	<?php endif; ?>
+		<?php if ( $eex_show['speakers'] && ! empty( $eex_data['speakers'] ) ) : ?>
+			<span class="eex-speaker-chips">
+				<?php foreach ( $eex_data['speakers'] as $eex_speaker ) : ?>
+					<?php TemplateLoader::part( 'speaker-chip', [ 'speaker' => $eex_speaker ] ); ?>
+				<?php endforeach; ?>
+			</span>
+		<?php endif; ?>
+	</span>
 
-	<p class="eex-card-actions">
+	<span class="eex-list-actions">
 		<?php if ( 'past' === $eex_context && '' !== (string) $eex_data['replay_url'] ) : ?>
 			<a class="eex-cta eex-cta-replay" href="<?php echo esc_url( (string) $eex_data['replay_url'] ); ?>"><?php esc_html_e( 'Watch replay', 'emailexpert-events' ); ?></a>
 		<?php elseif ( 'past' !== $eex_context ) : ?>
@@ -79,5 +77,5 @@ if ( empty( $eex_data['id'] ) ) {
 				<?php endif; ?>
 			<?php endif; ?>
 		<?php endif; ?>
-	</p>
+	</span>
 </article>

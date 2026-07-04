@@ -194,7 +194,7 @@
 	var state = { cat: '', speaker: '', text: '' };
 
 	function applyFilters() {
-		document.querySelectorAll( '.eex-talk-grid > li[data-eex-title]' ).forEach( function ( item ) {
+		document.querySelectorAll( '.eex li[data-eex-title]' ).forEach( function ( item ) {
 			var show = true;
 			if ( state.cat ) {
 				var cats = ( item.getAttribute( 'data-eex-cats' ) || '' ).split( ',' );

@@ -115,6 +115,14 @@ interface Repository {
 	public function speakers( array $atts ): array;
 
 	/**
+	 * Total speakers matching the attributes, ignoring limit/offset (for
+	 * pagination).
+	 *
+	 * @param array<string,mixed> $atts event, category.
+	 */
+	public function speakers_total( array $atts ): int;
+
+	/**
 	 * Categories relevant to the filters.
 	 *
 	 * @param array<string,mixed> $atts event.

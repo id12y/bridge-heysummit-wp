@@ -126,19 +126,50 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		];
 
 		foreach ( $colour_props as $prop => $label ) {
+			$args = [
+				'label'     => $label,
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => [
+					'{{WRAPPER}} .eex' => '--eex-' . $prop . ': {{VALUE}};',
+				],
+			];
+
+			// The accent foreground must stay readable on the accent
+			// background whatever the theme's link colour does.
+			if ( 'accent-fg' === $prop ) {
+				$args['default'] = '#ffffff';
+			}
+
+			$this->add_control( 'eex_colour_' . str_replace( '-', '_', $prop ), $args );
+		}
+
+		// Text colours write concrete color properties (not custom
+		// properties): an always-on rule consuming an unset variable computes
+		// as inherit and would silently override theme heading and link
+		// colours on pages that never touch these controls. A direct
+		// property only exists once the user sets a value.
+		$title_selector   = '{{WRAPPER}} .eex .eex-card-title, {{WRAPPER}} .eex .eex-card-title a, {{WRAPPER}} .eex .eex-list-title, {{WRAPPER}} .eex .eex-agenda-title, {{WRAPPER}} .eex .eex-agenda-title a, {{WRAPPER}} .eex .eex-schedule-title, {{WRAPPER}} .eex .eex-compact-title';
+		$heading_selector = '{{WRAPPER}} .eex .eex-schedule-heading, {{WRAPPER}} .eex .eex-agenda-heading, {{WRAPPER}} .eex .eex-tier-heading';
+
+		$text_colours = [
+			'eex_colour_text'    => [ __( 'Text colour', 'emailexpert-events' ), '{{WRAPPER}} .eex' ],
+			'eex_colour_title'   => [ __( 'Title colour', 'emailexpert-events' ), $title_selector ],
+			'eex_colour_heading' => [ __( 'Heading colour', 'emailexpert-events' ), $heading_selector ],
+			'eex_colour_link'    => [ __( 'Link colour', 'emailexpert-events' ), '{{WRAPPER}} .eex a' ],
+		];
+
+		foreach ( $text_colours as $id => [ $label, $selector ] ) {
 			$this->add_control(
-				'eex_colour_' . str_replace( '-', '_', $prop ),
+				$id,
 				[
 					'label'     => $label,
 					'type'      => \Elementor\Controls_Manager::COLOR,
-					'selectors' => [
-						'{{WRAPPER}} .eex' => '--eex-' . $prop . ': {{VALUE}};',
-					],
+					'selectors' => [ $selector => 'color: {{VALUE}};' ],
 				]
 			);
 		}
 
-		$this->add_control(
+		$this->add_responsive_control(
 			'eex_radius',
 			[
 				'label'      => __( 'Corner radius', 'emailexpert-events' ),
@@ -156,7 +187,7 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			]
 		);
 
-		$this->add_control(
+		$this->add_responsive_control(
 			'eex_gap',
 			[
 				'label'      => __( 'Grid gap', 'emailexpert-events' ),
@@ -174,6 +205,109 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			]
 		);
 
+		$this->add_responsive_control(
+			'eex_section_gap',
+			[
+				'label'      => __( 'Section spacing (day groups, tiers)', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px', 'rem' ],
+				'range'      => [
+					'px' => [
+						'min' => 0,
+						'max' => 96,
+					],
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .eex' => '--eex-section-gap: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_card_padding',
+			[
+				'label'      => __( 'Card padding', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-card, {{WRAPPER}} .eex .eex-agenda-row' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_row_padding',
+			[
+				'label'      => __( 'List row padding', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-list-row, {{WRAPPER}} .eex .eex-compact-row, {{WRAPPER}} .eex .eex-schedule-row' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
+				],
+			]
+		);
+
+		// Per-device grid columns. Set from Elementor's breakpoints (tablet
+		// 1024px by default) but consumed by this plugin's own 900/600px
+		// media queries — the variable is simply defined a little earlier
+		// than it is used. The speakers content-tab columns attribute wins
+		// over these until it is set to 0.
+		$this->add_responsive_control(
+			'eex_columns_css',
+			[
+				'label'       => __( 'Grid columns', 'emailexpert-events' ),
+				'type'        => \Elementor\Controls_Manager::NUMBER,
+				'min'         => 1,
+				'max'         => 6,
+				'selectors'   => [
+					'{{WRAPPER}} .eex' => '--eex-columns: {{VALUE}};',
+				],
+				'device_args' => [
+					'tablet' => [
+						'selectors' => [
+							'{{WRAPPER}} .eex' => '--eex-columns-tablet: {{VALUE}};',
+						],
+					],
+					'mobile' => [
+						'selectors' => [
+							'{{WRAPPER}} .eex' => '--eex-columns-mobile: {{VALUE}};',
+						],
+					],
+				],
+			]
+		);
+
+		$this->end_controls_section();
+
+		// Typography: theme fonts are inherited by default; these groups only
+		// emit rules once the user changes something.
+		$this->start_controls_section(
+			'eex_typography',
+			[
+				'label' => __( 'Typography', 'emailexpert-events' ),
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+			]
+		);
+
+		$meta_selector = '{{WRAPPER}} .eex .eex-card-time, {{WRAPPER}} .eex .eex-card-venue, {{WRAPPER}} .eex .eex-list-time, {{WRAPPER}} .eex .eex-compact-time, {{WRAPPER}} .eex .eex-agenda-time, {{WRAPPER}} .eex .eex-schedule-time, {{WRAPPER}} .eex .eex-speaker-headline, {{WRAPPER}} .eex .eex-speaker-company, {{WRAPPER}} .eex .eex-agenda-speaker-role, {{WRAPPER}} .eex .eex-tz';
+
+		$typography = [
+			'eex_typo_title' => [ __( 'Titles', 'emailexpert-events' ), $title_selector ],
+			'eex_typo_meta'  => [ __( 'Times and meta', 'emailexpert-events' ), $meta_selector ],
+			'eex_typo_body'  => [ __( 'Body', 'emailexpert-events' ), '{{WRAPPER}} .eex' ],
+		];
+
+		foreach ( $typography as $id => [ $label, $selector ] ) {
+			$this->add_group_control(
+				\Elementor\Group_Control_Typography::get_type(),
+				[
+					'name'     => $id,
+					'label'    => $label,
+					'selector' => $selector,
+				]
+			);
+		}
+
 		$this->end_controls_section();
 	}
 
@@ -184,6 +318,40 @@ class ComponentWidget extends \Elementor\Widget_Base {
 	 * @param array<string,mixed> $spec Attribute spec (type, default).
 	 */
 	private function add_attribute_control( string $key, array $spec ): void {
+		// Query-string-driven attributes (page numbers, search terms) must
+		// not be baked into a widget as fixed values.
+		if ( isset( $spec['from_get'] ) ) {
+			return;
+		}
+
+		if ( ! empty( $spec['options'] ) ) {
+			$this->add_control(
+				$key,
+				[
+					'label'   => (string) ( $spec['label'] ?? ucwords( str_replace( '_', ' ', $key ) ) ),
+					'type'    => \Elementor\Controls_Manager::SELECT,
+					'options' => (array) $spec['options'],
+					'default' => (string) $spec['default'],
+				]
+			);
+
+			return;
+		}
+
+		if ( ! empty( $spec['flag'] ) ) {
+			$this->add_control(
+				$key,
+				[
+					'label'        => (string) ( $spec['label'] ?? ucwords( str_replace( '_', ' ', $key ) ) ),
+					'type'         => \Elementor\Controls_Manager::SWITCHER,
+					'return_value' => '1',
+					'default'      => $spec['default'] ? '1' : '',
+				]
+			);
+
+			return;
+		}
+
 		if ( 'event' === $key ) {
 			$this->add_control(
 				$key,
@@ -213,30 +381,21 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			return;
 		}
 
-		if ( in_array( $key, [ 'paginate', 'show_subscribe' ], true ) ) {
-			$this->add_control(
-				$key,
-				[
-					'label'        => 'paginate' === $key ? __( 'Paginate', 'emailexpert-events' ) : __( 'Show subscribe link', 'emailexpert-events' ),
-					'type'         => \Elementor\Controls_Manager::SWITCHER,
-					'return_value' => '1',
-					'default'      => $spec['default'] ? '1' : '',
-				]
-			);
-
-			return;
-		}
-
 		if ( 'integer' === $spec['type'] ) {
-			$this->add_control(
-				$key,
-				[
-					'label'   => ucwords( str_replace( '_', ' ', $key ) ),
-					'type'    => \Elementor\Controls_Manager::NUMBER,
-					'default' => (int) $spec['default'],
-					'min'     => 0,
-				]
-			);
+			$args = [
+				'label'   => (string) ( $spec['label'] ?? ucwords( str_replace( '_', ' ', $key ) ) ),
+				'type'    => \Elementor\Controls_Manager::NUMBER,
+				'default' => (int) $spec['default'],
+				'min'     => 0,
+			];
+
+			// The speakers content columns beat the wrapper-level responsive
+			// columns control; explain the hand-over.
+			if ( 'columns' === $key ) {
+				$args['description'] = __( 'Set to 0 to control columns from the Style tab (responsive per device).', 'emailexpert-events' );
+			}
+
+			$this->add_control( $key, $args );
 
 			return;
 		}
@@ -244,7 +403,7 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		$this->add_control(
 			$key,
 			[
-				'label'       => ucwords( str_replace( '_', ' ', $key ) ),
+				'label'       => (string) ( $spec['label'] ?? ucwords( str_replace( '_', ' ', $key ) ) ),
 				'type'        => \Elementor\Controls_Manager::TEXT,
 				'default'     => (string) $spec['default'],
 				'label_block' => true,
