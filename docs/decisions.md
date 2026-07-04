@@ -609,3 +609,12 @@ first page back regardless, that is recorded as a failed page
 ("the route ignored the paging parameters and returned the first page
 again"), the walk stops immediately, and the Live status row says it in
 plain words. Version 1.3.0.
+
+## D53. Flush live cache resets the harvest record too
+
+The harvest record transients were keyed outside the cache generation,
+so Flush live cache cleared the data but left yesterday's diagnostics —
+after an update, the status row could keep showing the pre-update
+harvest and read as "nothing changed". Harvest records now carry the
+generation in their key, exactly like every other live transient, so a
+flush restarts the diagnostics with the pipeline. Version 1.3.1.
