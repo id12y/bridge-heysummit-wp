@@ -154,6 +154,15 @@ final class Components {
 				'panel' => __( 'Open the ticket panel (slide-over)', 'emailexpert-events' ),
 			],
 		];
+		$buy_on          = [
+			'type'    => 'string',
+			'default' => 'heysummit',
+			'label'   => __( 'Paid tickets buy on', 'emailexpert-events' ),
+			'options' => [
+				'heysummit' => __( 'The event site (HeySummit checkout)', 'emailexpert-events' ),
+				'woo'       => __( 'This site (mapped WooCommerce products)', 'emailexpert-events' ),
+			],
+		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		return [
@@ -188,6 +197,7 @@ final class Components {
 					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
+					'buy_on'          => $buy_on,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -410,6 +420,7 @@ final class Components {
 					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
+					'buy_on'          => $buy_on,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -489,6 +500,7 @@ final class Components {
 					'session_text'    => $session_text,
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
+					'buy_on'          => $buy_on,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -551,6 +563,7 @@ final class Components {
 					'highlight_popular' => $flag( __( 'Highlight the popular ticket', 'emailexpert-events' ) ),
 					'register_text'     => $register_text,
 					'register_url'      => $register_url,
+					'buy_on'            => $buy_on,
 					'empty_text'        => [
 						'type'    => 'string',
 						'default' => __( 'Tickets go on sale soon.', 'emailexpert-events' ),
@@ -1093,6 +1106,7 @@ final class Components {
 	private static function register_args( array $atts ): array {
 		return [
 			'url' => trim( (string) ( $atts['register_url'] ?? '' ) ),
+			'woo' => 'woo' === (string) ( $atts['buy_on'] ?? 'heysummit' ),
 		];
 	}
 
@@ -1153,14 +1167,17 @@ final class Components {
 	 * @param array<string,string> $register Register settings (mode, url).
 	 */
 	private static function ticket_register_url( array $ticket, array $register ): string {
-		// A ticket mapped to a WooCommerce product sells on THIS site — the
-		// only true never-leaves-the-slider path for paid tickets (verified:
-		// HeySummit's select-tickets page ignores preselect parameters).
-		foreach ( (array) ( $ticket['prices'] ?? [] ) as $price ) {
-			$product_url = \Emailexpert\Events\WooCommerce\Module::product_url_for_price( (string) ( $price['id'] ?? '' ) );
+		// Opt-in per widget: a ticket mapped to a WooCommerce product sells
+		// on THIS site — the only true never-leaves-the-slider path for paid
+		// tickets (verified: HeySummit's select-tickets page ignores
+		// preselect parameters). HeySummit checkout stays the default.
+		if ( ! empty( $register['woo'] ) ) {
+			foreach ( (array) ( $ticket['prices'] ?? [] ) as $price ) {
+				$product_url = \Emailexpert\Events\WooCommerce\Module::product_url_for_price( (string) ( $price['id'] ?? '' ) );
 
-			if ( '' !== $product_url ) {
-				return $product_url;
+				if ( '' !== $product_url ) {
+					return $product_url;
+				}
 			}
 		}
 

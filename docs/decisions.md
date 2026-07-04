@@ -900,7 +900,9 @@ parameter stays on our links (harmless, echo-confirmed, lights up if
 HeySummit ever honours it), but the real never-leaves-the-site path for
 paid tickets is the WooCommerce bridge that has existed since v2: when
 a ticket price is mapped to a Woo product (_eex_hs_ticket meta), the
-pricing table and drawer buy buttons now link to that local product
+pricing table and drawer buy buttons CAN link to that local product
 page instead of HeySummit — purchase on this site, pushed to HeySummit
-by the existing bridge. Unmapped tickets keep the select-tickets link.
-Free tickets already register inside the drawer.
+by the existing bridge. Operator correction (v1.10.3): this is opt-in
+per widget via the buy_on attribute — HeySummit checkout stays the
+default even when a mapping exists. Unmapped tickets always keep the
+select-tickets link. Free tickets already register inside the drawer.
