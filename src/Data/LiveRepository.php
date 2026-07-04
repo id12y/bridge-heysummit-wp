@@ -255,6 +255,28 @@ class LiveRepository extends BaseMapper implements Repository {
 	}
 
 	/**
+	 * Currently-running plus next sessions: Lite keeps no past data, so
+	 * "current" means sessions that started within the last six hours —
+	 * long enough for any live webinar, cheap to compute from the cached
+	 * collections. The JS decides actual live state.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function current_and_next( array $atts ): array {
+		$window = time() - 6 * HOUR_IN_SECONDS;
+
+		$talks = array_filter(
+			$this->talks_matching( $atts ),
+			static fn( array $talk ): bool => $talk['start_ts'] > 0 && $talk['start_ts'] >= $window
+		);
+
+		usort( $talks, static fn( array $a, array $b ): int => $a['start_ts'] <=> $b['start_ts'] );
+
+		return $this->limit( array_values( $talks ), $atts );
+	}
+
+	/**
 	 * Tickets for one configured event via the shared cached fetcher.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
@@ -1382,6 +1404,8 @@ class LiveRepository extends BaseMapper implements Repository {
 			'url'       => $event_url,
 			'headline'  => self::str( $raw, [ 'headline', 'company_title', 'expert_creds', 'title' ] ),
 			'company'   => self::str( $raw, [ 'company' ] ),
+			'bio'       => self::str( $raw, [ 'bio' ] ),
+			'slug'      => sanitize_title( self::str( $raw, [ 'slug' ] ) ),
 			'photo_id'  => 0,
 			'photo_url' => self::url_str( $raw, [ 'headshot', 'avatar', 'photo_url' ] ),
 		];

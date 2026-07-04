@@ -86,6 +86,31 @@
 		} );
 	}
 
+	function liveBar() {
+		document.querySelectorAll( '[data-eex-live-bar]' ).forEach( function ( bar ) {
+			var live = bar.querySelector( '.eex-live-bar-watch .eex-is-live' );
+			var link = bar.querySelector( '[data-eex-live-bar-link]' );
+
+			if ( ! live || ! link ) {
+				bar.hidden = true;
+				return;
+			}
+
+			var join = live.getAttribute( 'data-eex-join' ) || '';
+			if ( join && ! /^https?:\/\//i.test( join ) ) {
+				join = '';
+			}
+
+			link.textContent = live.getAttribute( 'data-eex-bar-title' ) || '';
+			if ( join ) {
+				link.setAttribute( 'href', join );
+			} else {
+				link.removeAttribute( 'href' );
+			}
+			bar.hidden = false;
+		} );
+	}
+
 	function countdowns() {
 		document.querySelectorAll( '[data-eex-countdown]' ).forEach( function ( node ) {
 			var target = Date.parse( node.getAttribute( 'data-eex-countdown' ) || '' );
@@ -161,6 +186,7 @@
 
 	function tick() {
 		sessionStates();
+		liveBar();
 		countdowns();
 	}
 

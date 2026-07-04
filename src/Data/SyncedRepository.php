@@ -149,6 +149,20 @@ class SyncedRepository implements Repository {
 	}
 
 	/**
+	 * Currently-running plus next sessions: the most recent starts (their
+	 * ends may be in the future — the JS decides live state) then the next
+	 * upcoming ones.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function current_and_next( array $atts ): array {
+		$recent = $this->past_talks( array_merge( $atts, [ 'limit' => 2 ] ) );
+
+		return array_merge( array_reverse( $recent ), $this->upcoming_talks( $atts ) );
+	}
+
+	/**
 	 * Every synced event with its status flags.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
@@ -160,13 +174,16 @@ class SyncedRepository implements Repository {
 				'post_type'      => PostTypes::EVENT,
 				'post_status'    => 'publish',
 				'posts_per_page' => -1,
-				'orderby'        => 'meta_value',
-				'meta_key'       => '_eex_first_talk_at', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- bounded event set.
-				'order'          => 'DESC',
 			]
 		);
 
-		return array_map( [ self::class, 'event_data' ], array_map( static fn( $post ): int => (int) $post->ID, (array) $posts ) );
+		$events = array_map( [ self::class, 'event_data' ], array_map( static fn( $post ): int => (int) $post->ID, (array) $posts ) );
+
+		// Sort in PHP: a meta_key-ordered query would silently exclude
+		// events that have no first-session date yet.
+		usort( $events, static fn( array $a, array $b ): int => strtotime( (string) $b['first_talk_at'] ) <=> strtotime( (string) $a['first_talk_at'] ) );
+
+		return $events;
 	}
 
 	/**
@@ -272,6 +289,7 @@ class SyncedRepository implements Repository {
 			'title'         => get_the_title( $post_id ),
 			'url'           => (string) get_permalink( $post_id ),
 			'event_url'     => Utm::tag( (string) get_post_meta( $post_id, '_eex_event_url', true ) ),
+			'raw_event_url' => (string) get_post_meta( $post_id, '_eex_event_url', true ),
 			'first_talk_at' => (string) get_post_meta( $post_id, '_eex_first_talk_at', true ),
 			'last_talk_at'  => (string) get_post_meta( $post_id, '_eex_last_talk_at', true ),
 			'timezone'      => (string) get_post_meta( $post_id, '_eex_timezone', true ),
@@ -299,6 +317,8 @@ class SyncedRepository implements Repository {
 			'url'       => (string) get_permalink( $post_id ),
 			'headline'  => (string) get_post_meta( $post_id, '_eex_headline', true ),
 			'company'   => (string) get_post_meta( $post_id, '_eex_company', true ),
+			'bio'       => (string) get_post_field( 'post_content', $post_id ),
+			'slug'      => (string) get_post_field( 'post_name', $post_id ),
 			'photo_id'  => (int) get_post_meta( $post_id, '_eex_photo_attachment_id', true ),
 			'photo_url' => '',
 		];

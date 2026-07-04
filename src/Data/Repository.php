@@ -141,6 +141,15 @@ interface Repository {
 	public function all_events( array $atts ): array;
 
 	/**
+	 * Currently-running plus next sessions (for the live-now bar): recent
+	 * starts whose end may still be in the future, then upcoming.
+	 *
+	 * @param array<string,mixed> $atts event, limit.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function current_and_next( array $atts ): array;
+
+	/**
 	 * Categories relevant to the filters.
 	 *
 	 * @param array<string,mixed> $atts event.

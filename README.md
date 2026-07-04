@@ -182,6 +182,11 @@ comma-separated slugs.
 | `eex/featured-talks` | `[eex_featured_talks ids="9001,9002" layout="cards"]` | Manual selection (HeySummit or post IDs) |
 | `eex/sponsors` | `[eex_sponsors event="" layout="grid"]` | Grouped by tier in tier order; logos link out `rel="sponsored noopener"` |
 | `eex/reg-counter` | `[eex_reg_counter event="" threshold="50"]` | Hidden below the threshold; refreshes via REST so cached pages stay current |
+| `eex/next-session` | `[eex_next_session event="" show_countdown="1"]` | Hero banner for the single soonest session: big title, local time, countdown, speakers, register CTA |
+| `eex/pricing` | `[eex_pricing event="" layout="columns" show_remaining="1"]` | Ticket pricing table straight from HeySummit: prices, "Most popular" ribbon, remaining-quantity scarcity, what each ticket covers |
+| `eex/speaker-spotlight` | `[eex_speaker_spotlight speaker="" show_bio="1"]` | One featured speaker with photo, role and biography; empty `speaker` = a random pick that rotates each cache refresh |
+| `eex/events-portfolio` | `[eex_events_portfolio status="live" layout="grid"]` | Every event on the account (live/evergreen/archived/all) — a self-maintaining "Our events" page |
+| `eex/live-now` | `[eex_live_now limit="3"]` | Slim banner that appears only while a session is live, with a Join link; renders hidden otherwise |
 
 ### Layouts and display toggles
 
@@ -202,6 +207,11 @@ The rendered-fragment cache lifetime is a setting (**Display cache
 lifetime**, 1–1440 minutes, default 5) — it also controls how often random
 speaker selections reshuffle. In Lite, the separate **Live cache lifetime**
 governs how often the underlying HeySummit data refreshes.
+
+Speaker links: `speaker_link="default|hub|none"` on the speakers grid and
+spotlight — link to this site's speaker pages, to the speaker's page on the
+HeySummit hub (best effort: the hub's name-based slug), or nowhere.
+`register_text` relabels the register button on any listing.
 
 Display toggles on session listings and the schedule (all default on):
 `show_speakers`, `show_categories`, `show_ics` (the .ics link) and

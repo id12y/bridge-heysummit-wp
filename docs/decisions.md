@@ -683,3 +683,21 @@ pages). The fragment cache lifetime itself became a setting (cache_ttl,
 has a user-visible effect beyond staleness; sync/webhook/editorial
 flushes still apply immediately. A "View all speakers" link (all_url /
 all_text attributes) renders after the grid when configured.
+
+
+## D58. The display pack reads API surface we already trusted
+
+Five components close the gap between what the API offers and what the
+site can show: next-session hero, ticket pricing table, speaker
+spotlight, events portfolio and a live-now bar. Tickets are commerce
+data and are never synced content — Data\Tickets is one cached fetch
+(15-minute transient, nested-route fallback) shared by the WooCommerce
+picker, the pricing component and, next, the forms bridge. The
+portfolio sorts in PHP because a meta_key-ordered query silently drops
+events with no first-session date. The live-now bar renders hidden and
+is revealed only by the session-state JS (cached HTML never claims live
+state); in Lite, "current" sessions are those started within six hours,
+since Lite keeps no past data. Speaker hub links are best-effort
+(the read API exposes no slug, so the hub's name-based slug is
+reconstructed) and optional per widget: this site's pages, the hub, or
+no link.

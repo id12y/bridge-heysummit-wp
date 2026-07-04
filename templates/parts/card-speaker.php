@@ -28,8 +28,9 @@ $eex_company   = (string) ( $eex_speaker['company'] ?? '' );
 $eex_photo_id  = (int) ( $eex_speaker['photo_id'] ?? 0 );
 $eex_photo_url = (string) ( $eex_speaker['photo_url'] ?? '' );
 ?>
+<?php $eex_link = (string) ( $eex_speaker['url'] ?? '' ); ?>
 <article class="eex-card eex-card-speaker">
-	<a href="<?php echo esc_url( (string) ( $eex_speaker['url'] ?? '' ) ); ?>" class="eex-speaker-link">
+	<<?php echo '' !== $eex_link ? 'a href="' . esc_url( $eex_link ) . '"' : 'span'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?> class="eex-speaker-link">
 		<?php if ( $eex_photo_id > 0 && function_exists( 'wp_get_attachment_image' ) ) : ?>
 			<?php
 			echo wp_get_attachment_image( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- core generates escaped markup.
@@ -47,7 +48,7 @@ $eex_photo_url = (string) ( $eex_speaker['photo_url'] ?? '' );
 			<img class="eex-speaker-photo" loading="lazy" src="<?php echo esc_url( $eex_photo_url ); ?>" alt="<?php echo esc_attr( $eex_name ); ?>" />
 		<?php endif; ?>
 		<h3 class="eex-card-title"><?php echo esc_html( $eex_name ); ?></h3>
-	</a>
+	</<?php echo '' !== $eex_link ? 'a' : 'span'; ?>>
 	<?php if ( '' !== $eex_headline ) : ?>
 		<p class="eex-speaker-headline"><?php echo esc_html( $eex_headline ); ?></p>
 	<?php endif; ?>

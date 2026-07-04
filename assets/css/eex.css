@@ -433,6 +433,143 @@
 	margin: 0.5rem 0 0;
 }
 
+/* Next-session hero */
+.eex-hero {
+	border: 1px solid var(--eex-border);
+	border-radius: var(--eex-radius);
+	background: var(--eex-card-bg);
+	padding: calc(var(--eex-gap) * 1.5);
+	margin-bottom: var(--eex-gap);
+	overflow-wrap: break-word;
+}
+
+.eex-hero-kicker {
+	margin: 0 0 0.25rem;
+	color: var(--eex-muted);
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-weight: 700;
+}
+
+.eex-hero-title {
+	margin: 0 0 0.35rem;
+	font-size: 1.6em;
+	line-height: 1.2;
+}
+
+.eex-hero-title a {
+	text-decoration: none;
+}
+
+.eex-hero-time {
+	margin: 0 0 0.5rem;
+	color: var(--eex-muted);
+}
+
+/* Pricing table */
+.eex-pricing-ticket {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.eex-pricing-ticket .eex-card-actions {
+	margin-top: auto;
+}
+
+.eex-pricing-popular {
+	border-color: var(--eex-accent);
+	box-shadow: 0 0 0 1px var(--eex-accent);
+}
+
+.eex-badge-popular {
+	background: var(--eex-accent);
+	color: var(--eex-accent-fg);
+	align-self: flex-start;
+	margin: 0;
+}
+
+.eex-pricing-prices {
+	margin: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25em 1em;
+	align-items: baseline;
+}
+
+.eex-pricing-amount {
+	font-size: 1.5em;
+	font-weight: 700;
+}
+
+.eex-pricing-price-label,
+.eex-pricing-description,
+.eex-pricing-remaining {
+	color: var(--eex-muted);
+	font-size: 0.9em;
+	margin: 0;
+}
+
+.eex-pricing-remaining {
+	color: var(--eex-live);
+	font-weight: 600;
+}
+
+/* Speaker spotlight */
+.eex-spotlight-speaker {
+	display: flex;
+	gap: var(--eex-gap);
+	align-items: flex-start;
+}
+
+.eex-spotlight-speaker .eex-speaker-photo {
+	width: 8em;
+	flex: 0 0 auto;
+	margin-bottom: 0;
+}
+
+.eex-spotlight-body {
+	min-width: 0;
+}
+
+.eex-spotlight-bio {
+	margin: 0.5rem 0 0;
+}
+
+@media (max-width: 600px) {
+	.eex-spotlight-speaker {
+		flex-direction: column;
+	}
+}
+
+/* Live-now bar (revealed by JS only) */
+.eex-live-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35em 0.75em;
+	align-items: center;
+	padding: 0.6em 1em;
+	border-radius: var(--eex-radius);
+	background: var(--eex-live);
+	color: var(--eex-accent-fg);
+	margin-bottom: var(--eex-gap);
+}
+
+.eex-live-bar-label {
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	font-size: 0.85em;
+}
+
+.eex .eex-live-bar-title,
+.eex .eex-live-bar-title:visited {
+	color: var(--eex-accent-fg);
+	font-weight: 600;
+}
+
 /* Empty states and pagination */
 .eex-empty {
 	color: var(--eex-muted);
