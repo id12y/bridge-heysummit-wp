@@ -347,21 +347,35 @@ class LiveRepository extends BaseMapper implements Repository {
 	}
 
 	/**
-	 * Sponsors from the settings option (manual data; capped and lean).
+	 * Sponsors: the API is asked first (the endpoint shipped long after the
+	 * rest, so the wall was manual-only for a while); the operator's manual
+	 * rows still render, appended and de-duplicated by name, so a wall built
+	 * by hand keeps working and can add sponsors the API does not know.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
 	 * @return array<int,array<string,mixed>>
 	 */
 	public function sponsors( array $atts ): array {
-		$out = [];
+		$out   = [];
+		$event = $this->event_summary( (string) ( $atts['event'] ?? '' ) );
+
+		if ( null !== $event && '' !== (string) $event['hs_id'] ) {
+			$out = Sponsors::for_display( (string) ( $event['connection'] ?? '' ), (string) $event['hs_id'] );
+		}
+
+		$seen = array_map( static fn( array $sponsor ): string => strtolower( (string) $sponsor['name'] ), $out );
 
 		foreach ( array_slice( (array) Options::setting( 'lite_sponsors' ), 0, 60 ) as $index => $sponsor ) {
 			if ( ! is_array( $sponsor ) || '' === (string) ( $sponsor['name'] ?? '' ) ) {
 				continue;
 			}
 
+			if ( in_array( strtolower( (string) $sponsor['name'] ), $seen, true ) ) {
+				continue;
+			}
+
 			$out[] = [
-				'id'         => $index + 1,
+				'id'         => 100000 + $index,
 				'name'       => (string) $sponsor['name'],
 				'url'        => (string) ( $sponsor['url'] ?? '' ),
 				'logo_id'    => (int) ( $sponsor['logo_id'] ?? 0 ),

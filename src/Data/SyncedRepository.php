@@ -261,6 +261,20 @@ class SyncedRepository implements Repository {
 			];
 		}
 
+		// The API's sponsors (the endpoint arrived late) join the wall too,
+		// de-duplicated by name so hand-made sponsor posts win.
+		$event = $this->event_summary( (string) ( $atts['event'] ?? '' ) );
+
+		if ( null !== $event && '' !== (string) $event['hs_id'] ) {
+			$seen = array_map( static fn( array $sponsor ): string => strtolower( (string) $sponsor['name'] ), $out );
+
+			foreach ( Sponsors::for_display( (string) ( $event['connection'] ?? '' ), (string) $event['hs_id'] ) as $sponsor ) {
+				if ( ! in_array( strtolower( (string) $sponsor['name'] ), $seen, true ) ) {
+					$out[] = $sponsor;
+				}
+			}
+		}
+
 		return $out;
 	}
 

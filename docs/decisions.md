@@ -820,3 +820,21 @@ the sole button). Labels default to "Get tickets" / "View session",
 both operator-editable. The pricing table keeps checkout + external
 override; components without the attribute (past sessions, schedule
 rows) default to the session button alone.
+
+## D68. The sponsors endpoint exists now — reads wired, writes declined
+
+HeySummit shipped a sponsors API (reads, inserts, updates, deletes)
+long after the rest, which is why D59 made the wall manual-only. Reads
+are now first-class: Data\Sponsors mirrors the tickets fetcher
+(15-minute cache, top-level route with the nested events/<id>/sponsors/
+fallback, PathStyles memory) and maps defensively across the API's
+likely field spellings (name/title/company_name, url/website/link,
+logo/logo_url/image, tier as string or object, order variants) since
+the endpoint went live after this code was written — discovery samples
+it and will report the real shape on the next Test connection. Both
+repositories put API sponsors on the wall first; the operator's manual
+rows (and CSV import) remain as supplements, de-duplicated by name so
+a hand-tuned entry never doubles an API one. Inserts/updates/deletes
+are deliberately NOT wired: the write allowlist stays attendee-only
+until a real workflow needs sponsor writes, per the standing rule that
+every write endpoint must be explicitly allowlisted and justified.
