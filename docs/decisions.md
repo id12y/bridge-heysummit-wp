@@ -701,3 +701,19 @@ since Lite keeps no past data. Speaker hub links are best-effort
 (the read API exposes no slug, so the hub's name-based slug is
 reconstructed) and optional per widget: this site's pages, the hub, or
 no link.
+
+
+## D59. Sponsors stay manual, but stop being mysterious
+
+"The sponsor wall finds nothing" has one root cause: HeySummit's v2 API
+exposes no sponsors endpoint at all, so there is nothing to import from
+the account — the wall renders whatever the operator enters. Three
+changes make that workable: the empty wall now explains itself to
+administrators (the admin-only note names the exact settings location
+and the API constraint); the Lite sponsors editor gains a CSV bulk
+import (Name, URL, Logo URL or media ID, Tier, Tier order, Blurb —
+quoted commas honoured, parsing unit-tested); and the logo field
+accepts a media-library attachment ID as well as a URL (numeric value →
+logo_id, rendered via wp_get_attachment_image like Full-mode sponsor
+posts). If HeySummit ever adds a sponsors read endpoint, Data-layer
+import slots in behind the same rows.

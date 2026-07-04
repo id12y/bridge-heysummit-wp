@@ -6,11 +6,13 @@
  * @package Emailexpert\Events
  *
  * @var array $args {
- *     @type array  $ticket            Ticket data (see Data\Tickets::for_display()).
- *     @type bool   $show_description  Show the ticket description.
- *     @type bool   $show_remaining    Show remaining quantity.
- *     @type bool   $highlight_popular Ribbon on the popular ticket.
- *     @type string $register_text     CTA label ('' = "Register").
+ *     @type array  $ticket           Ticket data (see Data\Tickets::for_display()).
+ *     @type bool   $hero             Emphasised hero ticket.
+ *     @type string $ribbon           Ribbon text ('' = no ribbon).
+ *     @type bool   $show_description Show the ticket description.
+ *     @type bool   $show_covers      Show coverage badges.
+ *     @type bool   $show_remaining   Show remaining quantity.
+ *     @type string $register_text    CTA label ('' = "Register").
  * }
  */
 
@@ -27,9 +29,10 @@ if ( '' === $eex_register_text ) {
 	$eex_register_text = __( 'Register', 'emailexpert-events' );
 }
 
-$eex_popular   = ! empty( $args['highlight_popular'] ) && ! empty( $eex_ticket['popular'] );
+$eex_hero      = ! empty( $args['hero'] );
+$eex_ribbon    = (string) ( $args['ribbon'] ?? '' );
 $eex_remaining = ! empty( $args['show_remaining'] ) ? (string) ( $eex_ticket['remaining'] ?? '' ) : '';
-$eex_applies   = (array) ( $eex_ticket['applies'] ?? [] );
+$eex_applies   = ! empty( $args['show_covers'] ) ? (array) ( $eex_ticket['applies'] ?? [] ) : [];
 
 $eex_covers = array_keys(
 	array_filter(
@@ -41,9 +44,9 @@ $eex_covers = array_keys(
 	)
 );
 ?>
-<article class="eex-card eex-pricing-ticket<?php echo $eex_popular ? ' eex-pricing-popular' : ''; ?>">
-	<?php if ( $eex_popular ) : ?>
-		<p class="eex-badge eex-badge-popular"><?php esc_html_e( 'Most popular', 'emailexpert-events' ); ?></p>
+<article class="eex-card eex-pricing-ticket<?php echo '' !== $eex_ribbon ? ' eex-pricing-popular' : ''; ?><?php echo $eex_hero ? ' eex-pricing-hero' : ''; ?>">
+	<?php if ( '' !== $eex_ribbon ) : ?>
+		<p class="eex-badge eex-badge-popular"><?php echo esc_html( $eex_ribbon ); ?></p>
 	<?php endif; ?>
 
 	<h3 class="eex-card-title"><?php echo esc_html( (string) $eex_ticket['title'] ); ?></h3>
