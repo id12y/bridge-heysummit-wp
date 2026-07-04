@@ -594,3 +594,18 @@ expansion; talks/attendees/categories/speakers gained PATCH/DELETE
 routes we deliberately do not use (the write allowlist stays create +
 ticket attach); outbound webhook payloads are the four documented shapes
 the parser already infers.
+
+## D52. The harvest speaks the route's own paging dialect
+
+v1.2.0's harvest record from production was conclusive: event 181590
+reports 273 sessions across 28 pages, pages read "1, 28" — yet only 10
+sessions surfaced, because "page 28" was the first page echoed back.
+The talks route ignores ?page= entirely (the spec documents a page
+parameter only for events and webhooks); its own next link carries the
+real parameters (limit/offset). The harvest now parses the next link's
+query string and pages the way the route itself does — limit/offset
+when the link says so, ?page= otherwise — and if a route echoes the
+first page back regardless, that is recorded as a failed page
+("the route ignored the paging parameters and returned the first page
+again"), the walk stops immediately, and the Live status row says it in
+plain words. Version 1.3.0.
