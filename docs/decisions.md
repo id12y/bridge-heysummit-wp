@@ -1006,3 +1006,44 @@ touching HeySummit), with an Elementor SELECT2 of sponsor names; the
 generic ticket-picker branch is now gated to ticket-bearing components
 so the two 'exclude' fields cannot collide. Operator verified the
 sponsor hub URL convention live — the api-notes caveat is closed.
+
+## D80. Forms bridge: capture-gate-queue-push, consent twice, emails transient (v1.16.0)
+
+Form plugins (Elementor Pro Forms via a proper form action, Gravity
+Forms, WPForms and Fluent Forms via their submission hooks) can now
+register submitters as HeySummit attendees — through the exact posture
+the Woo and accounts bridges established, and with NO write-allowlist
+change: attendee-create is the only endpoint used, and question answers
+ride inside that same call (the builder gained an additive `questions`
+key; malformed or empty answers are dropped, never sent).
+
+Decisions that matter:
+
+- **Explicit field-ID mapping, not guessing.** The operator maps which
+  field is the email, the name, the consent checkbox and any question
+  answers, using the IDs the form plugin itself shows (Elementor custom
+  IDs, GF dotted numbers, WPForms numbers, Fluent input names).
+  Heuristics on field labels would break silently in other languages.
+- **Consent is checked twice and configured deliberately.** Default
+  mode requires a mapped checkbox to be ticked ('no'/'off'/'0' do not
+  consent); 'implied' mode exists only for forms whose stated purpose
+  is registering, and the operator must choose it per mapping.
+  Suppression is checked at capture AND re-checked at delivery — an
+  opt-out between the two wins and deletes the queued entry.
+- **The queue is a buffer, not a ledger.** Entries are keyed by
+  sha256(email|event|mapping) so double submissions and re-fired plugin
+  hooks dedupe to one push; the entry (and the address in it) is
+  deleted the moment the push succeeds. A 500-entry cap refuses (and
+  loudly logs) rather than growing unbounded. Failed entries keep the
+  address so the Bridges-screen retry works; clearing failed entries
+  discards it. Addresses never reach the log and appear masked
+  (l…@example.org) in the queue table.
+- **"Already exists" is success, no ticket attach.** Unlike the Woo
+  bridge (a paid sale must land its ticket), a form lead who is already
+  an attendee needs nothing further — attaching would risk overwriting
+  a paid ticket with a lead-magnet one.
+- **Both modes, like Woo.** eex_forms_push joined Cron::JOBS but not
+  FULL_ONLY; pushing a lead needs no synced content. The Elementor Pro
+  action class is only autoloaded behind a class_exists guard on its
+  parent, so sites without Elementor Pro never load it (BootSmokeTest
+  exempts it the same way as the Elementor module).

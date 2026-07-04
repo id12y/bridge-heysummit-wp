@@ -38,6 +38,30 @@ final class AttendeeRequestBuilder {
 			$body['ticket_price_id'] = ctype_digit( $ticket_price_id ) ? (int) $ticket_price_id : $ticket_price_id;
 		}
 
+		// Registration-question answers (the spec's AttendeeCreateRequest
+		// carries them inline): only well-formed pairs travel; anything
+		// unanswered or malformed is dropped rather than sent empty.
+		$questions = [];
+		foreach ( (array) ( $purchase['questions'] ?? [] ) as $question ) {
+			if ( ! is_array( $question ) ) {
+				continue;
+			}
+
+			$question_id = (int) ( $question['question_id'] ?? 0 );
+			$answer      = trim( (string) ( $question['answer'] ?? '' ) );
+
+			if ( $question_id > 0 && '' !== $answer ) {
+				$questions[] = [
+					'question_id' => $question_id,
+					'answer'      => $answer,
+				];
+			}
+		}
+
+		if ( ! empty( $questions ) ) {
+			$body['questions'] = $questions;
+		}
+
 		/**
 		 * Filter the attendee-create request before it is sent.
 		 *
