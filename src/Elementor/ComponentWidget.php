@@ -366,6 +366,106 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			]
 		);
 
+		// Direct text-align (not a variable): headings inherit the theme's
+		// alignment until the operator chooses one here.
+		$this->add_responsive_control(
+			'eex_heading_align',
+			[
+				'label'     => __( 'Heading alignment', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::CHOOSE,
+				'options'   => [
+					'left'   => [
+						'title' => __( 'Left', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-left',
+					],
+					'center' => [
+						'title' => __( 'Centre', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-center',
+					],
+					'right'  => [
+						'title' => __( 'Right', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-right',
+					],
+				],
+				'selectors' => [
+					$heading_selector => 'text-align: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_control(
+			'eex_colour_accent_hover',
+			[
+				'label'     => __( 'Button hover background', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => [
+					'{{WRAPPER}} .eex .eex-cta:hover, {{WRAPPER}} .eex .eex-cta:focus-visible' => 'background: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_control(
+			'eex_colour_accent_hover_fg',
+			[
+				'label'     => __( 'Button hover text', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => [
+					'{{WRAPPER}} .eex .eex-cta:hover, {{WRAPPER}} .eex .eex-cta:focus-visible' => 'color: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_button_radius',
+			[
+				'label'      => __( 'Button corner radius', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px', 'em' ],
+				'range'      => [
+					'px' => [
+						'min' => 0,
+						'max' => 40,
+					],
+					'em' => [
+						'min'  => 0,
+						'max'  => 3,
+						'step' => 0.1,
+					],
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-cta, {{WRAPPER}} .eex .eex-cta-secondary' => 'border-radius: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_control(
+			'eex_buttons_full',
+			[
+				'label'                => __( 'Full-width buttons in cards', 'emailexpert-events' ),
+				'type'                 => \Elementor\Controls_Manager::SWITCHER,
+				'return_value'         => 'yes',
+				'selectors_dictionary' => [
+					'yes' => 'display: block; width: 100%; text-align: center; box-sizing: border-box;',
+				],
+				'selectors'            => [
+					'{{WRAPPER}} .eex .eex-card .eex-cta, {{WRAPPER}} .eex .eex-card .eex-cta-secondary' => '{{VALUE}}',
+				],
+			]
+		);
+
+		// The classic sponsor-wall chip: a tile behind each logo, for
+		// transparent logos that vanish on tinted or dark page backgrounds.
+		$this->add_control(
+			'eex_logo_tile',
+			[
+				'label'     => __( 'Logo tile background', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => [
+					'{{WRAPPER}} .eex .eex-card-sponsor > a, {{WRAPPER}} .eex .eex-card-sponsor > .eex-sponsor-logo, {{WRAPPER}} .eex .eex-sponsor-row-logo, {{WRAPPER}} .eex .eex-strip-item' => 'background: {{VALUE}}; border-radius: var(--eex-radius); padding: 0.5em;',
+				],
+			]
+		);
+
 		$this->add_responsive_control(
 			'eex_logo_height',
 			[
