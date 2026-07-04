@@ -141,9 +141,12 @@
 			if ( ! display ) {
 				display = document.createElement( 'strong' );
 				display.className = 'eex-countdown-remaining';
+				// The separator only belongs before a following label; a bare
+				// countdown (the hero) must not end in a dangling dash.
+				display.setAttribute( 'data-eex-sep', ( node.textContent || '' ).trim() ? '1' : '' );
 				node.insertBefore( display, node.firstChild );
 			}
-			display.textContent = parts.join( ' ' ) + ' — ';
+			display.textContent = parts.join( ' ' ) + ( display.getAttribute( 'data-eex-sep' ) ? ' — ' : '' );
 		} );
 	}
 

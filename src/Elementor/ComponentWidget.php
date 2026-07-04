@@ -247,6 +247,31 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			]
 		);
 
+		$this->add_control(
+			'eex_button_size',
+			[
+				'label'                => __( 'Button size', 'emailexpert-events' ),
+				'type'                 => \Elementor\Controls_Manager::SELECT,
+				'default'              => '',
+				'options'              => [
+					''   => __( 'Default', 'emailexpert-events' ),
+					'sm' => __( 'Small', 'emailexpert-events' ),
+					'md' => __( 'Medium', 'emailexpert-events' ),
+					'lg' => __( 'Large', 'emailexpert-events' ),
+					'xl' => __( 'Extra large', 'emailexpert-events' ),
+				],
+				'selectors_dictionary' => [
+					'sm' => '--eex-cta-pad: 0.3em 0.75em; --eex-cta-font: 0.85em;',
+					'md' => '--eex-cta-pad: 0.45em 1em; --eex-cta-font: 1em;',
+					'lg' => '--eex-cta-pad: 0.6em 1.4em; --eex-cta-font: 1.1em;',
+					'xl' => '--eex-cta-pad: 0.8em 1.8em; --eex-cta-font: 1.25em;',
+				],
+				'selectors'            => [
+					'{{WRAPPER}} .eex' => '{{VALUE}}',
+				],
+			]
+		);
+
 		$this->add_responsive_control(
 			'eex_actions_align',
 			[
@@ -275,10 +300,11 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		$this->add_responsive_control(
 			'eex_button_padding',
 			[
-				'label'      => __( 'Button padding', 'emailexpert-events' ),
-				'type'       => \Elementor\Controls_Manager::DIMENSIONS,
-				'size_units' => [ 'px', 'em', 'rem' ],
-				'selectors'  => [
+				'label'       => __( 'Button padding', 'emailexpert-events' ),
+				'description' => __( 'Fine-tune override; leave empty to use the Button size preset.', 'emailexpert-events' ),
+				'type'        => \Elementor\Controls_Manager::DIMENSIONS,
+				'size_units'  => [ 'px', 'em', 'rem' ],
+				'selectors'   => [
 					'{{WRAPPER}} .eex .eex-cta' => 'padding: {{TOP}}{{UNIT}} {{RIGHT}}{{UNIT}} {{BOTTOM}}{{UNIT}} {{LEFT}}{{UNIT}};',
 				],
 			]

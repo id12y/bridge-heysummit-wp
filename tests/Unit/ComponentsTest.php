@@ -489,6 +489,8 @@ final class ComponentsTest extends TestCase {
 		$html = Components::render( 'next-session', [] );
 
 		$this->assertStringContainsString( 'eex-hero', $html );
+		$this->assertStringContainsString( 'eex-hero-main', $html );
+		$this->assertStringContainsString( 'eex-hero-aside', $html );
 		$this->assertStringContainsString( 'Soonest session', $html );
 		$this->assertStringNotContainsString( 'Later session', $html );
 		$this->assertStringContainsString( 'data-eex-countdown', $html );

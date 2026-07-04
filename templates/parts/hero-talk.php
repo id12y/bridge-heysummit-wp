@@ -41,6 +41,7 @@ if ( '' === $eex_register_text ) {
 $eex_countdown = ! empty( $args['show_countdown'] ) && '' !== (string) $eex_data['starts_at'];
 ?>
 <article class="eex-hero"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
+	<div class="eex-hero-main">
 	<p class="eex-live-indicator" data-eex-live-slot="1" hidden aria-live="polite"></p>
 
 	<p class="eex-hero-kicker"><?php esc_html_e( 'Up next', 'emailexpert-events' ); ?></p>
@@ -49,15 +50,17 @@ $eex_countdown = ! empty( $args['show_countdown'] ) && '' !== (string) $eex_data
 		<a href="<?php echo esc_url( (string) $eex_data['permalink'] ); ?>"><?php echo esc_html( (string) $eex_data['title'] ); ?></a>
 	</h2>
 
-	<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
-		<p class="eex-hero-time">
-			<?php echo TimeFormat::render( (string) $eex_data['starts_at'], (string) $eex_data['timezone'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
-		</p>
-	<?php endif; ?>
+	<div class="eex-hero-meta">
+		<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
+			<p class="eex-hero-time">
+				<?php echo TimeFormat::render( (string) $eex_data['starts_at'], (string) $eex_data['timezone'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
+			</p>
+		<?php endif; ?>
 
-	<?php if ( $eex_countdown ) : ?>
-		<p class="eex-countdown" data-eex-countdown="<?php echo esc_attr( gmdate( 'Y-m-d\TH:i:s\Z', (int) strtotime( (string) $eex_data['starts_at'] ) ) ); ?>" aria-live="polite"></p>
-	<?php endif; ?>
+		<?php if ( $eex_countdown ) : ?>
+			<p class="eex-countdown" data-eex-countdown="<?php echo esc_attr( gmdate( 'Y-m-d\TH:i:s\Z', (int) strtotime( (string) $eex_data['starts_at'] ) ) ); ?>" aria-live="polite"></p>
+		<?php endif; ?>
+	</div>
 
 	<?php if ( $eex_show['speakers'] && ! empty( $eex_data['speakers'] ) ) : ?>
 		<p class="eex-agenda-speakers">
@@ -95,18 +98,22 @@ $eex_countdown = ! empty( $args['show_countdown'] ) && '' !== (string) $eex_data
 		</p>
 	<?php endif; ?>
 
-	<p class="eex-card-actions">
-		<?php $eex_register_url = (string) ( $eex_data['event_url'] ?: $eex_data['talk_url'] ); ?>
-		<?php if ( '' !== $eex_register_url ) : ?>
-			<a class="eex-cta eex-cta-register" data-eex-cta="1" href="<?php echo esc_url( $eex_register_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
-		<?php endif; ?>
-		<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
-			<?php if ( $eex_show['ics'] ) : ?>
-				<a class="eex-cta-secondary" href="<?php echo esc_url( Ics::download_url( $eex_data ) ); ?>"><?php esc_html_e( 'Add to calendar (.ics)', 'emailexpert-events' ); ?></a>
+	</div>
+
+	<div class="eex-hero-aside">
+		<p class="eex-card-actions">
+			<?php $eex_register_url = (string) ( $eex_data['event_url'] ?: $eex_data['talk_url'] ); ?>
+			<?php if ( '' !== $eex_register_url ) : ?>
+				<a class="eex-cta eex-cta-register" data-eex-cta="1" href="<?php echo esc_url( $eex_register_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
 			<?php endif; ?>
-			<?php if ( $eex_show['google'] ) : ?>
-				<a class="eex-cta-secondary" href="<?php echo esc_url( Ics::google_url( $eex_data ) ); ?>" rel="noopener"><?php esc_html_e( 'Google Calendar', 'emailexpert-events' ); ?></a>
+			<?php if ( '' !== (string) $eex_data['starts_at'] ) : ?>
+				<?php if ( $eex_show['ics'] ) : ?>
+					<a class="eex-cta-secondary" href="<?php echo esc_url( Ics::download_url( $eex_data ) ); ?>"><?php esc_html_e( 'Add to calendar (.ics)', 'emailexpert-events' ); ?></a>
+				<?php endif; ?>
+				<?php if ( $eex_show['google'] ) : ?>
+					<a class="eex-cta-secondary" href="<?php echo esc_url( Ics::google_url( $eex_data ) ); ?>" rel="noopener"><?php esc_html_e( 'Google Calendar', 'emailexpert-events' ); ?></a>
+				<?php endif; ?>
 			<?php endif; ?>
-		<?php endif; ?>
-	</p>
+		</p>
+	</div>
 </article>
