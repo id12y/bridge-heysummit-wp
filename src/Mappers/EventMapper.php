@@ -27,14 +27,16 @@ final class EventMapper extends BaseMapper {
 			return null;
 		}
 
+		$timezone = self::str( $raw, [ 'timezone', 'time_zone', 'tz' ] );
+
 		return [
 			'hs_id'                     => $hs_id,
 			'title'                     => self::str( $raw, [ 'title', 'name' ] ),
 			'description'               => self::str( $raw, [ 'description', 'summary', 'about' ] ),
 			'event_url'                 => self::url_str( $raw, [ 'event_url', 'url', 'public_url' ] ),
-			'timezone'                  => self::str( $raw, [ 'timezone', 'time_zone', 'tz' ] ),
-			'first_talk_at'             => self::datetime( $raw, [ 'first_talk_at', 'starts_at', 'start_date' ] ),
-			'last_talk_at'              => self::datetime( $raw, [ 'last_talk_at', 'ends_at', 'end_date' ] ),
+			'timezone'                  => $timezone,
+			'first_talk_at'             => self::datetime( $raw, [ 'first_talk_at', 'starts_at', 'start_date' ], $timezone ),
+			'last_talk_at'              => self::datetime( $raw, [ 'last_talk_at', 'ends_at', 'end_date' ], $timezone ),
 			'is_live'                   => self::boolish( $raw, 'is_live' ),
 			'is_archived'               => self::boolish( $raw, 'is_archived' ),
 			'is_evergreen'              => self::boolish( $raw, 'is_evergreen' ),

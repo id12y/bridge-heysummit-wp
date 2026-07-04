@@ -173,7 +173,9 @@ class SyncEngine {
 				if ( isset( $raw_talk['is_active'] ) && false === $raw_talk['is_active'] ) {
 					continue; // Inactive = removed from the site (spec); orphan-drafts below.
 				}
-				$mapped = TalkMapper::map( $raw_talk );
+				// Bare API timestamps are event-local: the event's timezone
+				// disambiguates them (docs/decisions.md D86).
+				$mapped = TalkMapper::map( $raw_talk, (string) ( $mapped_event['timezone'] ?? '' ) );
 				if ( null !== $mapped ) {
 					$mapped['raw']  = $raw_talk;
 					$mapped_talks[] = $mapped;

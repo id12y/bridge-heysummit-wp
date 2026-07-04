@@ -1321,7 +1321,8 @@ class LiveRepository extends BaseMapper implements Repository {
 	 * @return array<string,mixed>
 	 */
 	protected function map_event( array $raw, string $conn_id ): array {
-		$url = self::url_str( $raw, [ 'event_url', 'url', 'public_url' ] );
+		$url      = self::url_str( $raw, [ 'event_url', 'url', 'public_url' ] );
+		$timezone = self::str( $raw, [ 'timezone' ] );
 
 		return [
 			'id'            => 0,
@@ -1331,9 +1332,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			'url'           => Utm::tag( $url ),
 			'event_url'     => Utm::tag( $url ),
 			'raw_event_url' => $url,
-			'first_talk_at' => self::datetime( $raw, [ 'first_talk_at', 'starts_at' ] ),
-			'last_talk_at'  => self::datetime( $raw, [ 'last_talk_at', 'ends_at' ] ),
-			'timezone'      => self::str( $raw, [ 'timezone' ] ),
+			'first_talk_at' => self::datetime( $raw, [ 'first_talk_at', 'starts_at' ], $timezone ),
+			'last_talk_at'  => self::datetime( $raw, [ 'last_talk_at', 'ends_at' ], $timezone ),
+			'timezone'      => $timezone,
 			'open'          => self::boolish( $raw, [ 'is_open_for_registrations', '_is_open_for_registrations' ] ),
 			'evergreen'     => self::boolish( $raw, 'is_evergreen' ),
 			'live'          => self::boolish( $raw, 'is_live' ),
@@ -1443,9 +1444,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			'brand_name'    => self::str( $raw, [ 'brand_logo_name' ] ),
 			'brand_instead' => ! empty( $raw['show_brand_logo_instead_of_speakers'] ),
 			'description'   => self::str( $raw, [ 'description', 'description_short', 'description_long' ] ),
-			'starts_at'     => self::datetime( $raw, [ 'starts_at', 'date' ] ),
-			'ends_at'       => self::talk_ends( $raw ),
-			'start_ts'      => (int) strtotime( self::datetime( $raw, [ 'starts_at', 'date' ] ) ),
+			'starts_at'     => self::datetime( $raw, [ 'starts_at', 'date' ], (string) ( $event['timezone'] ?? '' ) ),
+			'ends_at'       => self::talk_ends( $raw, (string) ( $event['timezone'] ?? '' ) ),
+			'start_ts'      => (int) strtotime( self::datetime( $raw, [ 'starts_at', 'date' ], (string) ( $event['timezone'] ?? '' ) ) ),
 			'talk_url'      => Utm::tag( $talk_url ),
 			'replay_url'    => self::url_of( $raw['replay_url'] ?? '' ),
 			'speakers'      => $speakers,
@@ -1467,17 +1468,18 @@ class LiveRepository extends BaseMapper implements Repository {
 	 * durations; the old blanket one-hour default remains the last resort
 	 * for consumers that need an end).
 	 *
-	 * @param array<string,mixed> $raw Raw talk record.
+	 * @param array<string,mixed> $raw      Raw talk record.
+	 * @param string              $timezone Event timezone for bare timestamps.
 	 */
-	private static function talk_ends( array $raw ): string {
-		$ends = self::datetime( $raw, [ 'ends_at' ] );
+	private static function talk_ends( array $raw, string $timezone = '' ): string {
+		$ends = self::datetime( $raw, [ 'ends_at' ], $timezone );
 
 		if ( '' !== $ends ) {
 			return $ends;
 		}
 
 		$mins  = (int) ( $raw['broadcast_duration_mins'] ?? 0 );
-		$start = self::datetime( $raw, [ 'starts_at', 'date' ] );
+		$start = self::datetime( $raw, [ 'starts_at', 'date' ], $timezone );
 
 		if ( $mins > 0 && '' !== $start ) {
 			return gmdate( 'Y-m-d\TH:i:s\Z', (int) strtotime( $start ) + $mins * MINUTE_IN_SECONDS );

@@ -87,6 +87,80 @@ final class MappersTest extends TestCase {
 		$this->assertSame( [], $mapped['speaker_hs_ids'] );
 	}
 
+	public function test_bare_timestamps_are_event_local_not_utc(): void {
+		// HeySummit serialises times in the EVENT's timezone without an
+		// offset. 7 July, 6pm London (BST, GMT+1) is 5pm UTC — treating it
+		// as UTC showed every session one hour late in summer.
+		$summer = TalkMapper::map(
+			[
+				'id'        => 9010,
+				'starts_at' => '2027-07-07T18:00:00',
+				'ends_at'   => '2027-07-07T19:00:00',
+			],
+			'Europe/London'
+		);
+		$this->assertSame( '2027-07-07T17:00:00Z', $summer['starts_at'] );
+		$this->assertSame( '2027-07-07T18:00:00Z', $summer['ends_at'] );
+
+		// In winter London is GMT+0 — the same code path must not shift.
+		$winter = TalkMapper::map(
+			[
+				'id'        => 9011,
+				'starts_at' => '2027-01-07T18:00:00',
+			],
+			'Europe/London'
+		);
+		$this->assertSame( '2027-01-07T18:00:00Z', $winter['starts_at'] );
+
+		// An explicit offset or Z is unambiguous: the hint is ignored.
+		$zulu = TalkMapper::map(
+			[
+				'id'        => 9012,
+				'starts_at' => '2027-07-07T17:00:00Z',
+			],
+			'Europe/London'
+		);
+		$this->assertSame( '2027-07-07T17:00:00Z', $zulu['starts_at'] );
+
+		$offset = TalkMapper::map(
+			[
+				'id'        => 9013,
+				'starts_at' => '2027-07-07T19:00:00+02:00',
+			],
+			'America/New_York'
+		);
+		$this->assertSame( '2027-07-07T17:00:00Z', $offset['starts_at'] );
+
+		// No timezone known, or an unknown zone string: the old UTC
+		// assumption stands rather than erroring.
+		$no_zone = TalkMapper::map(
+			[
+				'id'        => 9014,
+				'starts_at' => '2027-07-07T18:00:00',
+			]
+		);
+		$this->assertSame( '2027-07-07T18:00:00Z', $no_zone['starts_at'] );
+
+		$bad_zone = TalkMapper::map(
+			[
+				'id'        => 9015,
+				'starts_at' => '2027-07-07T18:00:00',
+			],
+			'Narnia/Lantern'
+		);
+		$this->assertSame( '2027-07-07T18:00:00Z', $bad_zone['starts_at'] );
+
+		// The event mapper localises its own range fields by its own zone.
+		$event = EventMapper::map(
+			[
+				'id'            => 300,
+				'timezone'      => 'Europe/London',
+				'first_talk_at' => '2027-07-07T18:00:00',
+			]
+		);
+		$this->assertSame( '2027-07-07T17:00:00Z', $event['first_talk_at'] );
+	}
+
 	public function test_speaker_mapper_string_avatar(): void {
 		$mapped = SpeakerMapper::map( self::fixture( 'speakers' )[0] );
 

@@ -116,18 +116,37 @@ abstract class BaseMapper {
 	/**
 	 * Parse a timestamp-ish string to a UTC ISO 8601 string, or ''.
 	 *
-	 * @param array<string,mixed> $raw  Raw record.
-	 * @param string[]            $keys Candidate keys.
+	 * A bare timestamp (no trailing Z and no ±hh:mm offset) is the EVENT'S
+	 * local wall-clock time, not UTC — HeySummit serialises times in the
+	 * event's timezone. When a timezone is supplied, bare values are parsed
+	 * in it before converting to UTC; without one, the old UTC assumption
+	 * stands (WordPress pins PHP's default timezone to UTC). Values that
+	 * carry an explicit offset are unambiguous and ignore the hint.
+	 *
+	 * @param array<string,mixed> $raw      Raw record.
+	 * @param string[]            $keys     Candidate keys.
+	 * @param string              $timezone The event's IANA timezone (e.g. Europe/London), '' = none known.
 	 */
-	protected static function datetime( array $raw, array $keys ): string {
+	protected static function datetime( array $raw, array $keys, string $timezone = '' ): string {
 		$value = self::str( $raw, $keys );
 
 		if ( '' === $value ) {
 			return '';
 		}
 
+		$zone = null;
+		if ( '' !== $timezone
+			&& preg_match( '/\d:\d{2}/', $value ) // A time component exists (a bare date has no wall clock to localise).
+			&& ! preg_match( '/(?:Z|[+-]\d{2}:?\d{2})\s*$/i', $value ) ) {
+			try {
+				$zone = new \DateTimeZone( $timezone );
+			} catch ( \Exception $e ) {
+				$zone = null; // Unknown zone string: fall back to the UTC assumption.
+			}
+		}
+
 		try {
-			$dt = new \DateTimeImmutable( $value );
+			$dt = null !== $zone ? new \DateTimeImmutable( $value, $zone ) : new \DateTimeImmutable( $value );
 		} catch ( \Exception $e ) {
 			return '';
 		}
