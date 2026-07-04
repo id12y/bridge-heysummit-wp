@@ -119,14 +119,20 @@ final class Components {
 		];
 		$register_link   = [
 			'type'    => 'string',
-			'default' => 'checkout',
+			'default' => 'talk',
 			'label'   => __( 'Register button destination', 'emailexpert-events' ),
 			'options' => [
-				'checkout' => __( 'Ticketing page (HeySummit checkout)', 'emailexpert-events' ),
+				'talk'     => __( "This session's page", 'emailexpert-events' ),
+				'checkout' => __( 'Event ticketing page (checkout)', 'emailexpert-events' ),
 				'event'    => __( 'Event page', 'emailexpert-events' ),
 				'custom'   => __( 'Custom URL (external ticketing)', 'emailexpert-events' ),
 			],
 		];
+		// Tickets are event-level commerce: a per-session destination makes
+		// no sense on the pricing table, and checkout is the natural default.
+		$register_link_tickets            = $register_link;
+		$register_link_tickets['default'] = 'checkout';
+		unset( $register_link_tickets['options']['talk'] );
 		$register_url    = [
 			'type'    => 'string',
 			'default' => '',
@@ -486,7 +492,7 @@ final class Components {
 					'show_remaining'    => $flag( __( 'Show remaining quantity', 'emailexpert-events' ) ),
 					'highlight_popular' => $flag( __( 'Highlight the popular ticket', 'emailexpert-events' ) ),
 					'register_text'     => $register_text,
-					'register_link'     => $register_link,
+					'register_link'     => $register_link_tickets,
 					'register_url'      => $register_url,
 					'empty_text'        => [
 						'type'    => 'string',
@@ -1026,7 +1032,7 @@ final class Components {
 	 */
 	private static function register_args( array $atts ): array {
 		return [
-			'mode' => (string) ( $atts['register_link'] ?? 'checkout' ),
+			'mode' => (string) ( $atts['register_link'] ?? 'talk' ),
 			'url'  => trim( (string) ( $atts['register_url'] ?? '' ) ),
 		];
 	}
@@ -1042,8 +1048,8 @@ final class Components {
 	 */
 	public static function register_url( array $data, array $register ): string {
 		$event_url = (string) ( $data['event_url'] ?? '' );
-		$fallback  = '' !== $event_url ? $event_url : (string) ( $data['talk_url'] ?? '' );
-		$mode      = (string) ( $register['mode'] ?? 'checkout' );
+		$talk_url  = (string) ( $data['talk_url'] ?? '' );
+		$mode      = (string) ( $register['mode'] ?? 'talk' );
 
 		if ( 'custom' === $mode && '' !== (string) ( $register['url'] ?? '' ) ) {
 			return (string) $register['url'];
@@ -1053,7 +1059,12 @@ final class Components {
 			return self::checkout_url( $event_url );
 		}
 
-		return $fallback;
+		if ( 'event' === $mode ) {
+			return '' !== $event_url ? $event_url : $talk_url;
+		}
+
+		// 'talk' (default): every session has its own landing page.
+		return '' !== $talk_url ? $talk_url : $event_url;
 	}
 
 	/**
@@ -1113,7 +1124,15 @@ final class Components {
 		}
 
 		$register = self::register_args( $atts );
-		$id       = 'eex-drawer-' . substr( md5( wp_json_encode( [ (string) ( $atts['event'] ?? '' ), $register ] ) ), 0, 8 );
+
+		// A session-page destination on the button does not apply to the
+		// tickets inside the panel: those always deep-link the checkout
+		// (unless the whole event is ticketed externally).
+		if ( 'custom' !== $register['mode'] ) {
+			$register['mode'] = 'checkout';
+		}
+
+		$id = 'eex-drawer-' . substr( md5( wp_json_encode( [ (string) ( $atts['event'] ?? '' ), $register ] ) ), 0, 8 );
 
 		ob_start();
 		?>

@@ -790,3 +790,18 @@ their empties remain authoritative and are never masked. Trade-off: in
 Lite a genuinely emptied schedule can linger up to six hours — the time
 module already marks aged sessions as past client-side, and the
 admin-only debug note keeps reporting the true fetch state underneath.
+
+## D66. Session buttons register for the session (register_link=talk)
+
+Field correction to D62: sending every per-session Register button to the
+event-wide checkout "makes no sense" — each talk has its own landing
+page on HeySummit, which is where registering for a specific session
+starts. Talk components (sessions, featured talks, the hero) therefore
+default to 'talk' (the session's landing page, falling back to the
+event URL when a talk has none); 'checkout', 'event' and 'custom'
+remain selectable. The pricing table keeps 'checkout' as its default —
+tickets are event-level commerce and a per-session destination is
+meaningless there, so its dropdown simply omits 'talk'. Inside the
+ticket drawer, per-ticket buttons always deep-link the checkout
+regardless of what the opening button does (custom external URLs
+excepted).

@@ -758,6 +758,7 @@ final class ComponentsTest extends TestCase {
 	private function make_linked_talk(): int {
 		$talk_id = $this->make_talk( 'Linked session', 3600 );
 		update_post_meta( $talk_id, '_eex_source_event_id', '101' );
+		update_post_meta( $talk_id, '_eex_talk_url', 'https://summit.example.com/talks/linked-session/' );
 
 		wp_insert_post(
 			[
@@ -793,12 +794,18 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'eex-hero-panel', Components::render( 'next-session', [ 'layout' => 'bogus' ] ), 'unknown styles snap to the default' );
 	}
 
-	public function test_register_buttons_deep_link_to_the_ticketing_page(): void {
+	public function test_register_buttons_land_on_the_right_destination(): void {
 		$this->make_linked_talk();
 
-		// Default: HeySummit-hosted ticketing lives on the checkout page.
+		// Default: each session's own landing page.
 		$html = Components::render( 'upcoming-sessions', [] );
-		$this->assertStringContainsString( 'summit.example.com/checkout/', $html );
+		$this->assertStringContainsString( 'summit.example.com/talks/linked-session/', $html );
+		$this->assertStringNotContainsString( '/checkout/', $html );
+
+		// Event ticketing page on request.
+		Cache::flush();
+		$checkout = Components::render( 'upcoming-sessions', [ 'register_link' => 'checkout' ] );
+		$this->assertStringContainsString( 'summit.example.com/checkout/', $checkout );
 
 		// The event landing page stays available.
 		Cache::flush();
