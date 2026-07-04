@@ -71,10 +71,15 @@ timeout, stampede-locked) means a cold page renders immediately and warms
 on subsequent views. Empty results are never long-cached, so a blip cannot
 pin "no sessions" to a page. "Flush live cache" clears everything.
 
+Lite also has the **past-sessions archive and replay library** (the same
+bounded harvest that feeds upcoming sessions serves the other side of the
+clock — newest first, replay CTAs, pagination and search), the **session
+filter bar**, and the **calendar subscribe feed** (at
+`/?eex_feed=calendar`, since Lite adds no rewrite rules).
+
 What only Full adds (each settings location says so): local event / session
 / speaker **pages and archives — and the SEO/GEO indexable content they
-carry** — the replays library and past-sessions components, the calendar
-subscribe feed, webhooks + attribution + registration counter, the
+carry** — past events, webhooks + attribution + registration counter, the
 MyListing bridge, the Accounts module, Elementor dynamic tags and Loop Grid
 queries (plain Elementor widgets work in both modes), and the weekly
 digest.
@@ -203,7 +208,7 @@ dropdowns — IDs are never typed by hand once the API has answered.
 |---|---|---|
 | `eex/next-session` | `[eex_next_session]` | Hero for the single soonest session in 4 styles (`layout="panel\|banner\|spotlight\|minimal"`), with countdown, speakers, and the full two-button register experience below |
 | `eex/upcoming-sessions` | `[eex_upcoming_sessions]` | Soonest first; layouts `cards\|list\|agenda\|compact`, column control, session images, venue/stage, status badges (In person / Open access / Replay soon), brand logos, calendar links, subscribe link |
-| `eex/past-sessions` | `[eex_past_sessions]` (Full) | Newest first, paginated; replay CTA when a replay exists |
+| `eex/past-sessions` | `[eex_past_sessions]` | Newest first, paginated, searchable; replay CTA when a replay exists. In Lite it surfaces whatever the bounded live harvest fetched — the recent archive |
 | `eex/schedule` | `[eex_schedule]` | Grouped by day in event-local time with timezone label |
 | `eex/featured-talks` | `[eex_featured_talks ids=""]` | Hand-picked sessions, same layouts and register options as upcoming sessions |
 | `eex/countdown` | `[eex_countdown event="" talk=""]` | Counts to a session or an event's next session; vanilla JS, text fallback |
@@ -216,7 +221,7 @@ dropdowns — IDs are never typed by hand once the API has answered.
 | `eex/sponsor-spotlight` | `[eex_sponsor_spotlight]` | One sponsor, large — see below |
 | `eex/live-now` | `[eex_live_now]` | Slim banner that appears only while a session is live, with a Join link |
 | `eex/reg-counter` | `[eex_reg_counter threshold="50"]` (Full) | Live registration counter, hidden below the threshold, refreshed via REST so cached pages stay current |
-| `eex/session-filter` | `[eex_session_filter]` (Full) | Category/speaker/text filter bar for the sessions library; works without JS as links + GET form |
+| `eex/session-filter` | `[eex_session_filter]` | Category/speaker/text filter bar for the sessions library; works without JS as links + GET form (in Lite the category links filter the list on the current page via `?eex_cat=`) |
 
 ### Registration buttons and the ticket panel
 
@@ -287,8 +292,10 @@ cached HTML is hours old. Without JS, visitors see event-local times and no
 live-state claims.
 
 Calendar: every upcoming session offers an `.ics` download and Google
-Calendar link; Full adds the subscribable `/feeds/eex/calendar.ics` feed
-(RFC 5545, filterable by event and category).
+Calendar link. The subscribable feed (RFC 5545, filterable by event and
+category) lives at `/feeds/eex/calendar.ics` in Full and
+`/?eex_feed=calendar` in Lite (no rewrite rules); the listings' subscribe
+link always points at the right one.
 
 ## Templates and theming
 

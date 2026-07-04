@@ -184,7 +184,7 @@ final class Wizard {
 		<p>
 			<?php
 			esc_html_e(
-				'Full mode syncs HeySummit events, sessions and speakers into WordPress as content: you get indexable local pages with Schema.org markup (SEO/GEO), a replays library, webhooks with registration attribution, the MyListing bridge and Elementor dynamic tags. Lite mode displays live HeySummit data without storing any of it: no local pages and therefore no SEO/GEO content, no replays library, no MyListing, no Elementor dynamic tags and no webhooks — but you keep the live display components, calendar downloads, inline schema on the blocks themselves, and the WooCommerce bridge. Lite suits a site that wants a live feed of the next sessions, not a mirror.',
+				'Full mode syncs HeySummit events, sessions and speakers into WordPress as content: you get indexable local pages with Schema.org markup (SEO/GEO), webhooks with registration attribution, the MyListing bridge and Elementor dynamic tags. Lite mode displays live HeySummit data without storing any of it: no local pages and therefore no SEO/GEO content, no MyListing, no Elementor dynamic tags and no webhooks — but you keep every display component (including past sessions and replays), the session filter bar, the calendar feed and downloads, inline schema on the blocks themselves, and the WooCommerce and forms bridges. Lite suits a site that wants the live experience, not a mirror.',
 				'emailexpert-events'
 			);
 			?>

@@ -65,6 +65,7 @@ final class Plugin {
 			new Frontend\IcsDownload(),
 			new Rest\RegisterController(), // The ticket drawer's free-ticket form, both modes.
 			new Forms\Module(), // Form plugins → attendees; like the Woo bridge it works in both modes.
+			new Frontend\Feeds(), // Calendar subscribe feed: pretty URL in Full, ?eex_feed=calendar in Lite.
 			new Logging\Retention(), // Handler only; the cron exists only once a table does.
 		];
 
@@ -84,7 +85,6 @@ final class Plugin {
 			$services[] = new Webhooks\Processor();
 			$services[] = new Webhooks\Privacy();
 			$services[] = new Rest\CounterController();
-			$services[] = new Frontend\Feeds();
 			$services[] = new Frontend\CacheFlush();
 			$services[] = new Frontend\PurgeIntegration();
 			$services[] = new Webhooks\Relay();

@@ -1132,6 +1132,11 @@ if ( ! function_exists( 'flush_rewrite_rules' ) ) {
 		$GLOBALS['eex_test_rewrites_flushed'] = true;
 	}
 }
+if ( ! function_exists( 'add_rewrite_rule' ) ) {
+	function add_rewrite_rule( $regex, $query, $after = 'bottom' ) {
+		$GLOBALS['eex_test_rewrites'][] = (string) $regex;
+	}
+}
 
 // --- theme / taxonomy helpers for module detection. ----------------------------------
 if ( ! function_exists( 'get_object_taxonomies' ) ) {
