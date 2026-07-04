@@ -28,8 +28,11 @@ final class BootSmokeTest extends TestCase {
 			}
 
 			// Elementor classes extend Elementor base classes that only exist
-			// when Elementor is active; they are syntax-checked instead.
-			if ( str_contains( $file->getPathname(), '/Elementor/' ) ) {
+			// when Elementor is active; they are syntax-checked instead. The
+			// forms action likewise extends Elementor Pro's Action_Base and
+			// is only autoloaded behind its registrar's class_exists guard.
+			if ( str_contains( $file->getPathname(), '/Elementor/' )
+				|| str_ends_with( $file->getPathname(), 'Forms/Adapters/ElementorAction.php' ) ) {
 				continue;
 			}
 

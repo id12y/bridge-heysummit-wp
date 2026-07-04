@@ -33,14 +33,16 @@ final class Cron {
 		'eex_abandonment_check',
 		'eex_relay_deliver',
 		'eex_woo_push',
+		'eex_forms_push',
 		'eex_accounts_push',
 		'eex_accounts_backfill',
 	];
 
 	/**
 	 * Hooks stopped by a switch to Lite: everything content- and
-	 * webhook-driven. WooCommerce push jobs survive — the bridge works
-	 * identically in both modes — and daily maintenance follows the tables.
+	 * webhook-driven. WooCommerce and forms push jobs survive — those
+	 * bridges work identically in both modes — and daily maintenance
+	 * follows the tables.
 	 */
 	public const FULL_ONLY = [
 		'eex_sync_cron',

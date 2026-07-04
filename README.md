@@ -446,6 +446,36 @@ off-platform flow, avoiding HeySummit's transaction fee).
 - Attribution rows from Woo pushes carry the order ID and dedupe against
   HeySummit's own checkout-complete webhook by attendee ID.
 
+## Forms → HeySummit bridge (optional)
+
+Register form submissions as HeySummit attendees. Works with **Elementor
+Pro Forms** (a proper "HeySummit registration" action in the form widget's
+Actions After Submit), **Gravity Forms**, **WPForms** and **Fluent Forms**
+(matched by form ID); works in both operating modes.
+
+- Define mappings under Settings → EEX Bridges → Forms: label, source
+  plugin, form ID, connection, event and ticket price (both offered as
+  name pickers wherever the API answers), plus the field IDs holding the
+  email, name and consent — the IDs as the form plugin shows them
+  (Elementor custom field IDs, Gravity Forms field numbers with dots for
+  name parts, WPForms field numbers, Fluent Forms input names).
+- **Consent is a hard rule.** Default mode requires the mapped consent
+  checkbox to be ticked; "implied" mode (submitting the form is itself the
+  registration consent) exists for forms whose stated purpose is
+  registering, and must be chosen per mapping. Suppressed addresses are
+  never pushed — checked at capture and again at delivery, so an opt-out
+  between the two wins.
+- Optional question answers: map form fields to HeySummit registration
+  question IDs; answers travel inside the same attendee-create call.
+- Submissions queue for async push (the visitor's submit never waits on
+  the API), deduped by email + event + mapping so double submissions and
+  re-fired plugin hooks produce one attendee. "Already exists" counts as
+  success. Failures retry 3 times with backoff, then flag a notice with
+  retry/clear buttons on the Bridges screen. Queue entries are deleted on
+  success; addresses never reach the log and appear masked on screen.
+- Same write allowlist as every other bridge — attendee-create only,
+  nothing new opened.
+
 ## UTM auto-tagging
 
 Display settings → UTM: set a source (e.g. `emailexpert.com`) and medium;
