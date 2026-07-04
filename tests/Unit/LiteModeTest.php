@@ -339,6 +339,35 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringNotContainsString( 'Deliverability tools.', $plain, 'blurbs off by default' );
 		$this->assertStringContainsString( '--eex-sponsor-logo:5em', $plain );
 
+		// Columns, limit and alphabetical order.
+		Cache::flush();
+		$shaped = Components::render(
+			'sponsors',
+			[
+				'group_by' => 'none',
+				'columns'  => 5,
+				'limit'    => 2,
+				'order'    => 'name',
+			]
+		);
+		$this->assertStringContainsString( '--eex-columns:5', $shaped );
+		$this->assertStringContainsString( 'Acme', $shaped, 'alphabetically first survives the cap' );
+		$this->assertStringContainsString( 'Beta Ltd', $shaped );
+		$this->assertStringNotContainsString( 'Unlisted Co', $shaped, 'the cap trims the tail' );
+
+		// Reverse alphabetical flips who survives.
+		Cache::flush();
+		$reversed = Components::render(
+			'sponsors',
+			[
+				'group_by' => 'none',
+				'limit'    => 2,
+				'order'    => 'name-desc',
+			]
+		);
+		$this->assertStringContainsString( 'Unlisted Co', $reversed );
+		$this->assertStringNotContainsString( 'Acme', $reversed );
+
 		// Main sponsors only.
 		Cache::flush();
 		$main = Components::render( 'sponsors', [ 'main_only' => 1 ] );

@@ -921,3 +921,14 @@ headings | one flat wall), show_names, show_blurb (off by default —
 walls are logos first), and logo_size (small/medium/large via the
 --eex-sponsor-logo variable). Cards centre their logo with the name
 beneath; logo-only walls keep the link and an aria-label on the logo.
+
+## D74. Wall ordering, cap and columns; the weight-sort bug
+
+The sponsors component gained order (weight | alphabetical | reverse |
+random — cache-stable like random speakers), a total cap (limit,
+applied after ordering so random+limit is a random sample), and a
+columns control. Building "grouped by the weight we provided" exposed
+a latent bug in my own grouping: tier keys were string-sorted, so a
+weight of 100 would have sorted before 99 — keys are now zero-padded.
+Ordering applies within each category group when grouped, or to the
+whole wall when flat.

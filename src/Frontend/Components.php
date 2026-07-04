@@ -472,6 +472,23 @@ final class Components {
 							'none'     => __( 'One flat wall, no headings', 'emailexpert-events' ),
 						],
 					],
+					'order'            => [
+						'type'    => 'string',
+						'default' => 'weight',
+						'label'   => __( 'Order (within each group)', 'emailexpert-events' ),
+						'options' => [
+							'weight'    => __( 'As weighted in HeySummit', 'emailexpert-events' ),
+							'name'      => __( 'Alphabetical', 'emailexpert-events' ),
+							'name-desc' => __( 'Reverse alphabetical', 'emailexpert-events' ),
+							'random'    => __( 'Random (reshuffles each cache refresh)', 'emailexpert-events' ),
+						],
+					],
+					'columns'          => $talk_columns,
+					'limit'            => [
+						'type'    => 'integer',
+						'default' => 0,
+						'label'   => $limit_label,
+					],
 					'show_names'       => $flag( __( 'Show sponsor names', 'emailexpert-events' ) ),
 					'show_blurb'       => $flag( __( 'Show short descriptions', 'emailexpert-events' ), 0 ),
 					'logo_size'        => [
@@ -1805,10 +1822,10 @@ final class Components {
 		$shown_on = (string) ( $atts['shown_on'] ?? 'any' );
 		$category = strtolower( trim( (string) ( $atts['sponsor_category'] ?? '' ) ) );
 
-		// Group by tier in tier order. Manual rows carry none of the API's
-		// flags: they pass every visibility filter (the operator typed them
-		// in on purpose) but are never "main" and have no categories.
-		$tiers = [];
+		// Filter first (manual rows carry none of the API's flags: they pass
+		// every visibility filter — the operator typed them in on purpose —
+		// but are never "main" and have no categories).
+		$rows = [];
 		foreach ( self::repo()->sponsors( $atts ) as $sponsor ) {
 			if ( ! empty( $atts['main_only'] ) && empty( $sponsor['main'] ) ) {
 				continue;
@@ -1826,11 +1843,39 @@ final class Components {
 				}
 			}
 
-			$tiers[ (int) $sponsor['tier_order'] . '|' . (string) $sponsor['tier_name'] ][] = $sponsor;
+			$rows[] = $sponsor;
 		}
 
-		if ( empty( $tiers ) ) {
+		if ( empty( $rows ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		// Order (within each group when grouped; the whole wall when flat),
+		// then cap. Random is cache-stable: the fragment cache holds each
+		// shuffle for the display TTL, exactly like random speakers.
+		switch ( (string) ( $atts['order'] ?? 'weight' ) ) {
+			case 'name':
+				usort( $rows, static fn( array $a, array $b ): int => strcasecmp( (string) $a['name'], (string) $b['name'] ) );
+				break;
+			case 'name-desc':
+				usort( $rows, static fn( array $a, array $b ): int => strcasecmp( (string) $b['name'], (string) $a['name'] ) );
+				break;
+			case 'random':
+				shuffle( $rows );
+				break;
+		}
+
+		$limit = max( 0, (int) ( $atts['limit'] ?? 0 ) );
+		if ( $limit > 0 ) {
+			$rows = array_slice( $rows, 0, $limit );
+		}
+
+		// Group by tier AFTER ordering, so each group keeps the chosen order.
+		// The weight is zero-padded: string-sorted keys would put 100 before
+		// 99 and betray the weighting the operator set.
+		$tiers = [];
+		foreach ( $rows as $sponsor ) {
+			$tiers[ sprintf( '%05d|%s', min( 99999, max( 0, (int) $sponsor['tier_order'] ) ), (string) $sponsor['tier_name'] ) ][] = $sponsor;
 		}
 
 		ksort( $tiers );
@@ -1847,7 +1892,12 @@ final class Components {
 			'medium' => '3.25em',
 			'large'  => '5em',
 		];
-		$logo_style = sprintf( ' style="--eex-sponsor-logo:%s"', $logo_sizes[ (string) ( $atts['logo_size'] ?? 'medium' ) ] ?? '3.25em' );
+		$columns    = min( 6, max( 0, (int) ( $atts['columns'] ?? 0 ) ) );
+		$logo_style = sprintf(
+			' style="--eex-sponsor-logo:%s%s"',
+			$logo_sizes[ (string) ( $atts['logo_size'] ?? 'medium' ) ] ?? '3.25em',
+			! $list && $columns > 0 ? sprintf( ';--eex-columns:%d', $columns ) : ''
+		);
 
 		$open_list  = ( $list ? '<ul class="eex-list eex-sponsor-list" role="list"' : '<ul class="eex-grid eex-sponsor-grid" role="list"' ) . $logo_style . '>';
 		$sponsor_li = static function ( array $sponsor ) use ( $list, $show ): void {
