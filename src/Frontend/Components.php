@@ -61,62 +61,116 @@ final class Components {
 		$empty_sessions = __( 'New sessions are announced soon.', 'emailexpert-events' );
 		$empty_events   = __( 'New events are announced soon.', 'emailexpert-events' );
 
+		// Shared spec fragments. 'options' whitelists an enum (and drives a
+		// select control on every surface); 'flag' marks a boolean integer
+		// (switch/toggle control); 'label' is the shared control label.
+		$talk_layout = [
+			'type'    => 'string',
+			'default' => 'cards',
+			'label'   => __( 'Layout', 'emailexpert-events' ),
+			'options' => [
+				'cards'   => __( 'Cards', 'emailexpert-events' ),
+				'list'    => __( 'List', 'emailexpert-events' ),
+				'agenda'  => __( 'Agenda (grouped by day)', 'emailexpert-events' ),
+				'compact' => __( 'Compact', 'emailexpert-events' ),
+			],
+		];
+
+		$grid_layout = [
+			'type'    => 'string',
+			'default' => 'grid',
+			'label'   => __( 'Layout', 'emailexpert-events' ),
+			'options' => [
+				'grid' => __( 'Grid', 'emailexpert-events' ),
+				'list' => __( 'List', 'emailexpert-events' ),
+			],
+		];
+
+		$talk_columns = [
+			'type'    => 'integer',
+			'default' => 0,
+			'label'   => __( 'Columns (0 = automatic)', 'emailexpert-events' ),
+		];
+
+		$flag = static function ( string $label, int $on = 1 ): array {
+			return [
+				'type'    => 'integer',
+				'default' => $on,
+				'flag'    => true,
+				'label'   => $label,
+			];
+		};
+
+		$show_speakers   = $flag( __( 'Show speakers', 'emailexpert-events' ) );
+		$show_categories = $flag( __( 'Show category badges', 'emailexpert-events' ) );
+		$show_ics        = $flag( __( 'Show "Add to calendar (.ics)" link', 'emailexpert-events' ) );
+		$show_google     = $flag( __( 'Show Google Calendar link', 'emailexpert-events' ) );
+		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
+
 		return [
 			'upcoming-sessions' => [
 				'title' => __( 'Upcoming sessions', 'emailexpert-events' ),
 				'atts'  => [
-					'event'          => [
+					'event'           => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'category'       => [
+					'category'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'limit'          => [
+					'layout'          => $talk_layout,
+					'columns'         => $talk_columns,
+					'limit'           => [
 						'type'    => 'integer',
 						'default' => 6,
+						'label'   => $limit_label,
 					],
-					'empty_text'     => [
+					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
 					],
-					'show_subscribe' => [
-						'type'    => 'integer',
-						'default' => 0,
-					],
+					'show_speakers'   => $show_speakers,
+					'show_categories' => $show_categories,
+					'show_ics'        => $show_ics,
+					'show_google'     => $show_google,
+					'show_subscribe'  => $flag( __( 'Show subscribe link', 'emailexpert-events' ), 0 ),
 				],
 			],
 			'past-sessions'     => [
 				'title' => __( 'Past sessions', 'emailexpert-events' ),
 				'atts'  => [
-					'event'      => [
+					'event'           => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'category'   => [
+					'category'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'limit'      => [
+					'layout'          => $talk_layout,
+					'columns'         => $talk_columns,
+					'show_speakers'   => $show_speakers,
+					'show_categories' => $show_categories,
+					'show_ics'        => $show_ics,
+					'show_google'     => $show_google,
+					'limit'           => [
 						'type'    => 'integer',
 						'default' => 12,
+						'label'   => $limit_label,
 					],
-					'paginate'   => [
-						'type'    => 'integer',
-						'default' => 1,
-					],
-					'page'       => [
+					'paginate'        => $flag( __( 'Paginate', 'emailexpert-events' ) ),
+					'page'            => [
 						'type'     => 'string',
 						'default'  => '',
 						'from_get' => 'eex_page',
 					],
-					'q'          => [
+					'q'               => [
 						'type'     => 'string',
 						'default'  => '',
 						'from_get' => 'eex_q',
 					],
-					'empty_text' => [
+					'empty_text'      => [
 						'type'    => 'string',
 						'default' => __( 'Session replays appear here after each session.', 'emailexpert-events' ),
 					],
@@ -125,9 +179,11 @@ final class Components {
 			'upcoming-events'   => [
 				'title' => __( 'Upcoming events', 'emailexpert-events' ),
 				'atts'  => [
+					'layout'     => $grid_layout,
 					'limit'      => [
 						'type'    => 'integer',
 						'default' => 3,
+						'label'   => $limit_label,
 					],
 					'series'     => [
 						'type'    => 'string',
@@ -142,9 +198,11 @@ final class Components {
 			'past-events'       => [
 				'title' => __( 'Past events', 'emailexpert-events' ),
 				'atts'  => [
+					'layout'     => $grid_layout,
 					'limit'      => [
 						'type'    => 'integer',
 						'default' => 0,
+						'label'   => $limit_label,
 					],
 					'series'     => [
 						'type'    => 'string',
@@ -172,15 +230,17 @@ final class Components {
 			'schedule'          => [
 				'title' => __( 'Schedule', 'emailexpert-events' ),
 				'atts'  => [
-					'event'      => [
+					'event'           => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'category'   => [
+					'category'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'empty_text' => [
+					'show_speakers'   => $show_speakers,
+					'show_categories' => $show_categories,
+					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
 					],
@@ -189,23 +249,43 @@ final class Components {
 			'speakers'          => [
 				'title' => __( 'Speaker grid', 'emailexpert-events' ),
 				'atts'  => [
-					'event'      => [
+					'event'       => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Event', 'emailexpert-events' ),
+					],
+					'category'    => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'category'   => [
+					'layout'      => $grid_layout,
+					'photo_shape' => [
 						'type'    => 'string',
-						'default' => '',
+						'default' => 'rounded',
+						'label'   => __( 'Photo shape', 'emailexpert-events' ),
+						'options' => [
+							'rounded' => __( 'Rounded corners', 'emailexpert-events' ),
+							'circle'  => __( 'Circle', 'emailexpert-events' ),
+							'square'  => __( 'Square', 'emailexpert-events' ),
+						],
 					],
-					'columns'    => [
+					'columns'     => [
 						'type'    => 'integer',
 						'default' => 4,
+						'label'   => __( 'Columns (0 = widget controlled)', 'emailexpert-events' ),
 					],
-					'limit'      => [
+					'limit'       => [
 						'type'    => 'integer',
 						'default' => 0,
+						'label'   => $limit_label,
 					],
-					'empty_text' => [
+					'paginate'    => $flag( __( 'Paginate', 'emailexpert-events' ), 0 ),
+					'page'        => [
+						'type'     => 'string',
+						'default'  => '',
+						'from_get' => 'eex_speaker_page',
+					],
+					'empty_text'  => [
 						'type'    => 'string',
 						'default' => __( 'Speakers are announced soon.', 'emailexpert-events' ),
 					],
@@ -214,15 +294,21 @@ final class Components {
 			'featured-talks'    => [
 				'title' => __( 'Featured talks', 'emailexpert-events' ),
 				'atts'  => [
-					'event'      => [
+					'event'           => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'ids'        => [
+					'ids'             => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'empty_text' => [
+					'layout'          => $talk_layout,
+					'columns'         => $talk_columns,
+					'show_speakers'   => $show_speakers,
+					'show_categories' => $show_categories,
+					'show_ics'        => $show_ics,
+					'show_google'     => $show_google,
+					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
 					],
@@ -235,6 +321,7 @@ final class Components {
 						'type'    => 'string',
 						'default' => '',
 					],
+					'layout'     => $grid_layout,
 					'empty_text' => [
 						'type'    => 'string',
 						'default' => __( 'Sponsorship opportunities are available.', 'emailexpert-events' ),
@@ -252,10 +339,7 @@ final class Components {
 						'type'    => 'string',
 						'default' => '',
 					],
-					'show_search' => [
-						'type'    => 'integer',
-						'default' => 1,
-					],
+					'show_search' => $flag( __( 'Show search box', 'emailexpert-events' ) ),
 				],
 			],
 			'reg-counter'       => [
@@ -467,6 +551,12 @@ final class Components {
 			$out[ $key ] = 'integer' === $spec['type']
 				? (int) $value
 				: sanitize_text_field( (string) $value );
+
+			// Enum attributes fall back to their default rather than letting
+			// arbitrary values reach templates or cache keys.
+			if ( ! empty( $spec['options'] ) && ! isset( $spec['options'][ $out[ $key ] ] ) ) {
+				$out[ $key ] = $spec['default'];
+			}
 		}
 
 		return $out;

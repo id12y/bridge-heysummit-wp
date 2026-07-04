@@ -192,4 +192,29 @@ final class ComponentsTest extends TestCase {
 			unset( $_GET['eex_page'] );
 		}
 	}
+
+	public function test_enum_attributes_are_whitelisted(): void {
+		$schema = Components::definitions()['upcoming-sessions']['atts'];
+
+		$out = Components::sanitise_atts( $schema, [ 'layout' => '<script>alert(1)</script>' ] );
+		$this->assertSame( 'cards', $out['layout'], 'a bogus layout falls back to the default' );
+
+		$out = Components::sanitise_atts( $schema, [ 'layout' => 'agenda' ] );
+		$this->assertSame( 'agenda', $out['layout'] );
+
+		$speakers = Components::definitions()['speakers']['atts'];
+		$out      = Components::sanitise_atts( $speakers, [ 'photo_shape' => 'bogus' ] );
+		$this->assertSame( 'rounded', $out['photo_shape'], 'a bogus photo shape falls back to the default' );
+	}
+
+	public function test_default_attributes_preserve_existing_markup(): void {
+		$this->make_talk( 'Baseline session', 3600 );
+
+		$html = Components::render( 'upcoming-sessions', [] );
+
+		$this->assertStringContainsString( 'eex-grid eex-talk-grid', $html );
+		$this->assertStringNotContainsString( 'eex-talk-list', $html );
+		$this->assertStringNotContainsString( 'eex-agenda', $html );
+		$this->assertStringNotContainsString( 'eex-talk-compact', $html );
+	}
 }
