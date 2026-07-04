@@ -39,6 +39,11 @@ if ( '' === $eex_register_text ) {
 }
 ?>
 <article class="eex-card eex-card-talk eex-context-<?php echo esc_attr( $eex_context ); ?>"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
+	<?php if ( ! empty( $eex_show['image'] ) && '' !== (string) ( $eex_data['image'] ?? '' ) ) : ?>
+		<div class="eex-card-image">
+			<img src="<?php echo esc_url( (string) $eex_data['image'] ); ?>" alt="" loading="lazy" />
+		</div>
+	<?php endif; ?>
 	<p class="eex-live-indicator" data-eex-live-slot="1" hidden aria-live="polite"></p>
 
 	<h3 class="eex-card-title">
@@ -51,15 +56,38 @@ if ( '' === $eex_register_text ) {
 		</p>
 	<?php endif; ?>
 
-	<?php if ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) : ?>
+	<?php if ( ! empty( $eex_show['venue'] ) && '' !== (string) ( $eex_data['venue'] ?? '' ) ) : ?>
+		<p class="eex-card-venue"><?php echo esc_html( (string) $eex_data['venue'] ); ?></p>
+	<?php endif; ?>
+
+	<?php
+	$eex_status_badges = [];
+	if ( ! empty( $eex_data['inperson'] ) ) {
+		$eex_status_badges[] = __( 'In person', 'emailexpert-events' );
+	}
+	if ( ! empty( $eex_data['open_access'] ) ) {
+		$eex_status_badges[] = __( 'Open access', 'emailexpert-events' );
+	}
+	if ( '' !== (string) ( $eex_data['custom_tag'] ?? '' ) ) {
+		$eex_status_badges[] = (string) $eex_data['custom_tag'];
+	}
+	?>
+	<?php if ( $eex_show['categories'] && ( ! empty( $eex_data['categories'] ) || ! empty( $eex_status_badges ) ) ) : ?>
 		<p class="eex-badges">
-			<?php foreach ( $eex_data['categories'] as $eex_term ) : ?>
+			<?php foreach ( (array) $eex_data['categories'] as $eex_term ) : ?>
 				<span class="eex-badge eex-badge-<?php echo esc_attr( $eex_term->slug ); ?>"><?php echo esc_html( $eex_term->name ); ?></span>
+			<?php endforeach; ?>
+			<?php foreach ( $eex_status_badges as $eex_status_badge ) : ?>
+				<span class="eex-badge eex-badge-status"><?php echo esc_html( $eex_status_badge ); ?></span>
 			<?php endforeach; ?>
 		</p>
 	<?php endif; ?>
 
-	<?php if ( $eex_show['speakers'] && ! empty( $eex_data['speakers'] ) ) : ?>
+	<?php if ( ! empty( $eex_data['brand_instead'] ) && '' !== (string) ( $eex_data['brand_logo'] ?? '' ) ) : ?>
+		<p class="eex-brand-logo">
+			<img src="<?php echo esc_url( (string) $eex_data['brand_logo'] ); ?>" alt="<?php echo esc_attr( (string) ( $eex_data['brand_name'] ?? '' ) ); ?>" loading="lazy" />
+		</p>
+	<?php elseif ( $eex_show['speakers'] && ! empty( $eex_data['speakers'] ) ) : ?>
 		<p class="eex-speaker-chips">
 			<?php foreach ( $eex_data['speakers'] as $eex_speaker ) : ?>
 				<?php TemplateLoader::part( 'speaker-chip', [ 'speaker' => $eex_speaker ] ); ?>

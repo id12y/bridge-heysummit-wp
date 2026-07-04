@@ -1149,3 +1149,45 @@
 .eex-spotlight-description p:last-child {
 	margin-bottom: 0;
 }
+
+/* Session imagery, venue and brand */
+.eex-card-image {
+	margin: calc(var(--eex-gap) * -1) calc(var(--eex-gap) * -1) var(--eex-gap);
+	border-radius: var(--eex-radius) var(--eex-radius) 0 0;
+	overflow: hidden;
+}
+
+.eex-card-image img {
+	display: block;
+	width: 100%;
+	height: auto;
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+}
+
+.eex-list-venue,
+.eex-agenda-venue {
+	display: block;
+	color: var(--eex-muted);
+	font-size: 0.85em;
+}
+
+.eex-agenda-venue {
+	display: inline;
+}
+
+.eex-brand-logo {
+	margin: 0 0 0.75rem;
+}
+
+.eex-brand-logo img {
+	max-height: 2.5em;
+	width: auto;
+	max-width: 12em;
+	object-fit: contain;
+}
+
+.eex-badge-status {
+	background: var(--eex-accent);
+	color: var(--eex-accent-fg);
+}

@@ -48,6 +48,9 @@ if ( '' === $eex_register_text ) {
 	</span>
 
 	<span class="eex-list-main">
+		<?php if ( ! empty( $eex_show['venue'] ) && '' !== (string) ( $eex_data['venue'] ?? '' ) ) : ?>
+			<span class="eex-list-venue"><?php echo esc_html( (string) $eex_data['venue'] ); ?></span>
+		<?php endif; ?>
 		<a class="eex-list-title" href="<?php echo esc_url( (string) $eex_data['permalink'] ); ?>"><?php echo esc_html( (string) $eex_data['title'] ); ?></a>
 
 		<?php if ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) : ?>
