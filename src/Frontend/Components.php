@@ -519,6 +519,11 @@ final class Components {
 						'type'    => 'string',
 						'default' => '',
 					],
+					'sponsor_category' => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Only from this sponsor category (random picks within it)', 'emailexpert-events' ),
+					],
 					'layout'           => [
 						'type'    => 'string',
 						'default' => 'card',
@@ -2108,6 +2113,20 @@ final class Components {
 	 */
 	private static function render_sponsor_spotlight( array $atts ): string {
 		$sponsors = self::repo()->sponsors( $atts );
+		$category = strtolower( trim( (string) ( $atts['sponsor_category'] ?? '' ) ) );
+
+		if ( '' !== $category ) {
+			$sponsors = array_values(
+				array_filter(
+					$sponsors,
+					static function ( array $sponsor ) use ( $category ): bool {
+						$names = array_map( 'strtolower', (array) ( $sponsor['sponsor_categories'] ?? [] ) );
+
+						return in_array( $category, $names, true ) || strtolower( (string) ( $sponsor['tier_name'] ?? '' ) ) === $category;
+					}
+				)
+			);
+		}
 
 		if ( empty( $sponsors ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );

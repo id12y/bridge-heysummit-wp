@@ -383,6 +383,17 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'meet.example.com/acme', $spotlight, 'booking link' );
 		$this->assertStringContainsString( 'tel:+442079460000', $spotlight, 'phone link normalised' );
 
+		// Random constrained to a category: with one Gold sponsor the "random"
+		// pick is deterministic, and a category with no members is empty.
+		Cache::flush();
+		$gold_only = Components::render( 'sponsor-spotlight', [ 'sponsor_category' => 'gold' ] );
+		$this->assertStringContainsString( 'Acme', $gold_only );
+		$this->assertStringNotContainsString( 'Beta Ltd', $gold_only );
+
+		Cache::flush();
+		$empty_cat = Components::render( 'sponsor-spotlight', [ 'sponsor_category' => 'platinum' ] );
+		$this->assertStringContainsString( 'eex-empty', $empty_cat );
+
 		// A specific pick that does not exist falls to the empty state.
 		Cache::flush();
 		$missing = Components::render( 'sponsor-spotlight', [ 'sponsor' => '424242' ] );
