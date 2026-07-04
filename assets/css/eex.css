@@ -366,6 +366,37 @@
 	color: var(--eex-muted);
 }
 
+.eex-photos-circle .eex-speaker-photo {
+	--eex-photo-radius: 50%;
+}
+
+.eex-photos-square .eex-speaker-photo {
+	--eex-photo-radius: 0;
+}
+
+.eex-speaker-row .eex-speaker-photo,
+.eex-agenda-speaker-photo {
+	width: 3em;
+	height: 3em;
+	flex: 0 0 auto;
+	margin-bottom: 0;
+}
+
+.eex-speaker-row,
+.eex-sponsor-row {
+	align-items: center;
+}
+
+.eex-speaker-row .eex-list-main {
+	display: flex;
+	flex-direction: column;
+}
+
+.eex-sponsor-row-logo {
+	flex: 0 0 auto;
+	max-width: 6em;
+}
+
 /* Sponsors */
 .eex-sponsor-logo {
 	max-width: 100%;

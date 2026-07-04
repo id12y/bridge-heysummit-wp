@@ -300,4 +300,91 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( 'eex-chip', $schedule );
 		$this->assertStringNotContainsString( 'eex-badge', $schedule );
 	}
+
+	private function make_speaker( string $name ): int {
+		return wp_insert_post(
+			[
+				'post_type'   => 'eex_speaker',
+				'post_status' => 'publish',
+				'post_title'  => $name,
+			]
+		);
+	}
+
+	public function test_speaker_layout_and_photo_shape_classes(): void {
+		$talk_id = $this->make_talk( 'Speaker host session', 3600 );
+		update_post_meta( $talk_id, '_eex_speaker_ids', [ $this->make_speaker( 'Grid Speaker' ) ] );
+
+		$grid = Components::render( 'speakers', [] );
+		$this->assertStringContainsString( 'eex-speaker-grid', $grid );
+		$this->assertStringContainsString( 'style="--eex-columns:4"', $grid, 'the default columns are unchanged' );
+		$this->assertStringNotContainsString( 'eex-photos-', $grid, 'the default photo shape adds no class' );
+
+		Cache::flush();
+		$list = Components::render(
+			'speakers',
+			[
+				'layout'      => 'list',
+				'photo_shape' => 'circle',
+			]
+		);
+		$this->assertStringContainsString( 'eex-speaker-list', $list );
+		$this->assertStringContainsString( 'eex-photos-circle', $list );
+		$this->assertStringNotContainsString( 'eex-speaker-grid', $list );
+
+		Cache::flush();
+		$auto = Components::render( 'speakers', [ 'columns' => 0 ] );
+		$this->assertStringNotContainsString( '--eex-columns', $auto, 'columns 0 hands the variable to the stylesheet or widget' );
+	}
+
+	public function test_speakers_paginate_via_their_own_query_var(): void {
+		$talk_id = $this->make_talk( 'Paginated speakers session', 3600 );
+		update_post_meta(
+			$talk_id,
+			'_eex_speaker_ids',
+			[
+				$this->make_speaker( 'Speaker Alpha' ),
+				$this->make_speaker( 'Speaker Beta' ),
+			]
+		);
+
+		$atts = [
+			'paginate' => 1,
+			'limit'    => 1,
+		];
+
+		$page_one = Components::render( 'speakers', $atts );
+		$this->assertStringContainsString( 'Speaker Alpha', $page_one );
+		$this->assertStringNotContainsString( 'Speaker Beta', $page_one );
+		$this->assertStringContainsString( 'eex_speaker_page', $page_one, 'the pagination uses its own query var' );
+
+		$_GET['eex_speaker_page'] = '2';
+		try {
+			$page_two = Components::render( 'speakers', $atts );
+			$this->assertStringContainsString( 'Speaker Beta', $page_two );
+			$this->assertStringNotContainsString( 'Speaker Alpha', $page_two, 'page two never serves the cached page one' );
+		} finally {
+			unset( $_GET['eex_speaker_page'] );
+		}
+	}
+
+	public function test_event_list_layout(): void {
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'publish',
+				'post_title'  => 'Listed event',
+				'meta_input'  => [
+					'_eex_first_talk_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS ),
+					'_eex_last_talk_at'  => gmdate( 'Y-m-d\TH:i:s\Z', time() + 2 * DAY_IN_SECONDS ),
+				],
+			]
+		);
+
+		$html = Components::render( 'upcoming-events', [ 'layout' => 'list' ] );
+
+		$this->assertStringContainsString( 'eex-event-list', $html );
+		$this->assertStringContainsString( 'Listed event', $html );
+		$this->assertStringNotContainsString( 'eex-event-grid', $html );
+	}
 }

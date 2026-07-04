@@ -946,12 +946,14 @@ final class Components {
 			];
 		}
 
+		$list = 'list' === (string) ( $atts['layout'] ?? 'grid' );
+
 		ob_start();
-		echo '<ul class="eex-grid eex-event-grid" role="list">';
+		echo $list ? '<ul class="eex-list eex-event-list" role="list">' : '<ul class="eex-grid eex-event-grid" role="list">';
 		foreach ( $items as $event ) {
 			echo '<li class="eex-grid-item">';
 			TemplateLoader::part(
-				'card-event',
+				$list ? 'list-event' : 'card-event',
 				[
 					'event'   => $event,
 					'context' => $context,
@@ -1076,24 +1078,68 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function render_speakers( array $atts ): string {
-		$items = self::repo()->speakers( $atts );
+		$limit = max( 0, (int) $atts['limit'] );
+
+		// Pagination mirrors past-sessions: the page number is an attribute
+		// (fed from ?eex_speaker_page= via from_get) so the fragment cache
+		// keys on it. It needs a positive limit to mean anything.
+		$paginate = ! empty( $atts['paginate'] ) && $limit > 0;
+		$page     = $paginate ? max( 1, (int) ( $atts['page'] ?: 1 ) ) : 1;
+
+		$query_atts = $atts;
+		if ( $paginate ) {
+			$query_atts['offset'] = ( $page - 1 ) * $limit;
+		}
+
+		$items = self::repo()->speakers( $query_atts );
 
 		if ( empty( $items ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
 		}
 
-		$columns = min( 6, max( 1, (int) $atts['columns'] ) );
+		$list = 'list' === (string) ( $atts['layout'] ?? 'grid' );
+
+		// 0 = leave the CSS variable to the stylesheet or a widget's
+		// responsive columns control.
+		$columns = min( 6, max( 0, (int) $atts['columns'] ) );
+		$style   = ! $list && $columns > 0 ? sprintf( ' style="--eex-columns:%d"', $columns ) : '';
+
+		$classes = $list ? 'eex-list eex-speaker-list' : 'eex-grid eex-speaker-grid';
+		$shape   = (string) ( $atts['photo_shape'] ?? 'rounded' );
+		if ( 'rounded' !== $shape && '' !== $shape ) {
+			$classes .= ' eex-photos-' . $shape;
+		}
 
 		ob_start();
-		printf( '<ul class="eex-grid eex-speaker-grid" style="--eex-columns:%d" role="list">', (int) $columns );
+		printf( '<ul class="%s" role="list"%s>', esc_attr( $classes ), $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from an integer above.
 		foreach ( $items as $speaker ) {
 			echo '<li class="eex-grid-item">';
-			TemplateLoader::part( 'card-speaker', [ 'speaker' => $speaker ] );
+			TemplateLoader::part( $list ? 'list-speaker' : 'card-speaker', [ 'speaker' => $speaker ] );
 			echo '</li>';
 		}
 		echo '</ul>';
 
-		return (string) ob_get_clean();
+		$html = (string) ob_get_clean();
+
+		if ( $paginate ) {
+			$total = self::repo()->speakers_total( $atts );
+			$pages = (int) ceil( $total / $limit );
+
+			if ( $pages > 1 ) {
+				$html .= '<nav class="eex-pagination" aria-label="' . esc_attr__( 'Speaker pages', 'emailexpert-events' ) . '">';
+				for ( $i = 1; $i <= $pages; $i++ ) {
+					$html .= sprintf(
+						'<a href="%s"%s>%d</a> ',
+						esc_url( add_query_arg( 'eex_speaker_page', $i ) ),
+						$i === $page ? ' aria-current="page" class="eex-current"' : '',
+						(int) $i
+					);
+				}
+				$html .= '</nav>';
+			}
+		}
+
+		return $html;
 	}
 
 	/**
@@ -1133,13 +1179,16 @@ final class Components {
 
 		ksort( $tiers );
 
+		$list = 'list' === (string) ( $atts['layout'] ?? 'grid' );
+
 		ob_start();
 		foreach ( $tiers as $key => $tier_sponsors ) {
 			[ , $tier_name ] = explode( '|', $key, 2 );
-			echo '<section class="eex-sponsor-tier"><h3 class="eex-tier-heading">' . esc_html( $tier_name ) . '</h3><ul class="eex-grid eex-sponsor-grid" role="list">';
+			echo '<section class="eex-sponsor-tier"><h3 class="eex-tier-heading">' . esc_html( $tier_name ) . '</h3>';
+			echo $list ? '<ul class="eex-list eex-sponsor-list" role="list">' : '<ul class="eex-grid eex-sponsor-grid" role="list">';
 			foreach ( $tier_sponsors as $sponsor ) {
 				echo '<li class="eex-grid-item">';
-				TemplateLoader::part( 'card-sponsor', [ 'sponsor' => $sponsor ] );
+				TemplateLoader::part( $list ? 'list-sponsor' : 'card-sponsor', [ 'sponsor' => $sponsor ] );
 				echo '</li>';
 			}
 			echo '</ul></section>';

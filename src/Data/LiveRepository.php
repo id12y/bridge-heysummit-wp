@@ -244,6 +244,17 @@ class LiveRepository extends BaseMapper implements Repository {
 	}
 
 	/**
+	 * Total speakers, ignoring limit/offset.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	public function speakers_total( array $atts ): int {
+		unset( $atts['limit'], $atts['offset'] );
+
+		return count( $this->speakers( $atts + [ 'limit' => 0 ] ) );
+	}
+
+	/**
 	 * Categories across the matching talks (no local pages, so no URLs).
 	 *
 	 * @param array<string,mixed> $atts Attributes.
