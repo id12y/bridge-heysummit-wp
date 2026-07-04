@@ -1269,9 +1269,12 @@ class LiveRepository extends BaseMapper implements Repository {
 			$entry          = $this->map_speaker( $speaker, $event_url );
 			if ( '' !== $entry['name'] ) {
 				$speakers[] = [
-					'id'   => (int) $entry['id'],
-					'name' => (string) $entry['name'],
-					'url'  => (string) $entry['url'],
+					'id'        => (int) $entry['id'],
+					'name'      => (string) $entry['name'],
+					'url'       => (string) $entry['url'],
+					'headline'  => (string) $entry['headline'],
+					'photo_id'  => 0,
+					'photo_url' => (string) $entry['photo_url'],
 				];
 			}
 		}

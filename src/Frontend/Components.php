@@ -591,9 +591,11 @@ final class Components {
 			$speaker = get_post( $speaker_id );
 			if ( $speaker && 'publish' === $speaker->post_status ) {
 				$speakers[] = [
-					'id'   => $speaker_id,
-					'name' => (string) $speaker->post_title,
-					'url'  => (string) get_permalink( $speaker_id ),
+					'id'       => $speaker_id,
+					'name'     => (string) $speaker->post_title,
+					'url'      => (string) get_permalink( $speaker_id ),
+					'headline' => (string) get_post_meta( $speaker_id, '_eex_headline', true ),
+					'photo_id' => (int) get_post_thumbnail_id( $speaker_id ),
 				];
 			}
 		}
@@ -688,8 +690,28 @@ final class Components {
 			];
 		}
 
+		$layout = (string) ( $atts['layout'] ?? 'cards' );
+		$show   = self::show_flags( $atts );
+
+		if ( 'agenda' === $layout ) {
+			return self::agenda_layout( $items, $context, $show );
+		}
+
+		// Wrapper classes and template part per layout; unknown values were
+		// already snapped to the default by sanitise_atts().
+		$layouts = [
+			'cards'   => [ 'eex-grid eex-talk-grid', 'card-talk' ],
+			'list'    => [ 'eex-list eex-talk-list', 'list-talk' ],
+			'compact' => [ 'eex-list eex-talk-compact', 'compact-talk' ],
+		];
+
+		[ $classes, $part ] = $layouts[ $layout ] ?? $layouts['cards'];
+
+		$columns = min( 6, max( 0, (int) ( $atts['columns'] ?? 0 ) ) );
+		$style   = 'cards' === $layout && $columns > 0 ? sprintf( ' style="--eex-columns:%d"', $columns ) : '';
+
 		ob_start();
-		echo '<ul class="eex-grid eex-talk-grid" role="list">';
+		printf( '<ul class="%s" role="list"%s>', esc_attr( $classes ), $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from an integer above.
 		foreach ( $items as $data ) {
 			// Filterable data attributes for the session filter bar.
 			printf(
@@ -699,10 +721,11 @@ final class Components {
 				esc_attr( strtolower( implode( ',', array_map( static fn( array $s ): string => (string) $s['name'], (array) $data['speakers'] ) ) ) )
 			);
 			TemplateLoader::part(
-				'card-talk',
+				$part,
 				[
 					'data'    => $data,
 					'context' => $context,
+					'show'    => $show,
 				]
 			);
 			echo '</li>';
@@ -710,6 +733,106 @@ final class Components {
 		echo '</ul>';
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * The display toggles for talk markup, all-on when a component's schema
+	 * has no such attributes (schedule shares the row templates).
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<string,bool>
+	 */
+	private static function show_flags( array $atts ): array {
+		return [
+			'speakers'   => ! isset( $atts['show_speakers'] ) || ! empty( $atts['show_speakers'] ),
+			'categories' => ! isset( $atts['show_categories'] ) || ! empty( $atts['show_categories'] ),
+			'ics'        => ! isset( $atts['show_ics'] ) || ! empty( $atts['show_ics'] ),
+			'google'     => ! isset( $atts['show_google'] ) || ! empty( $atts['show_google'] ),
+		];
+	}
+
+	/**
+	 * The agenda layout: sessions grouped under event-local day headings,
+	 * modelled on the site's original design but vertically compact.
+	 *
+	 * @param array<int,array<string,mixed>> $items   Talk data arrays.
+	 * @param string                         $context 'upcoming', 'past' or 'featured'.
+	 * @param array<string,bool>             $show    Display toggles.
+	 */
+	private static function agenda_layout( array $items, string $context, array $show ): string {
+		$rows = self::group_rows_by_day( $items, 'j F Y' );
+
+		ob_start();
+		$current_day = null;
+		$open        = false;
+
+		foreach ( $rows as $row ) {
+			if ( $row['day'] !== $current_day ) {
+				if ( $open ) {
+					echo '</ol></section>';
+				}
+				$current_day = $row['day'];
+				$open        = true;
+				echo '<section class="eex-agenda-day"><h3 class="eex-agenda-heading">' . esc_html( $row['day'] ) . '</h3><ol class="eex-agenda-list" role="list">';
+			}
+
+			$data = $row['data'];
+
+			// The same filterable attributes as the grid, so the session
+			// filter bar works on agendas too.
+			printf(
+				'<li class="eex-agenda-item" data-eex-title="%s" data-eex-cats="%s" data-eex-speakers="%s">',
+				esc_attr( strtolower( (string) $data['title'] ) ),
+				esc_attr( implode( ',', array_map( static fn( $term ): string => (string) $term->slug, (array) $data['categories'] ) ) ),
+				esc_attr( strtolower( implode( ',', array_map( static fn( array $s ): string => (string) $s['name'], (array) $data['speakers'] ) ) ) )
+			);
+			TemplateLoader::part(
+				'agenda-row',
+				[
+					'data'    => $data,
+					'context' => $context,
+					'show'    => $show,
+				]
+			);
+			echo '</li>';
+		}
+
+		if ( $open ) {
+			echo '</ol></section>';
+		}
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Order talks chronologically and stamp each with its event-local day
+	 * heading. Shared by the schedule and the agenda layout.
+	 *
+	 * @param array<int,array<string,mixed>> $items      Talk data arrays.
+	 * @param string                         $day_format Day heading format.
+	 * @return array<int,array{ts:int,day:string,data:array<string,mixed>}>
+	 */
+	private static function group_rows_by_day( array $items, string $day_format ): array {
+		$rows = [];
+
+		foreach ( $items as $data ) {
+			$ts = strtotime( (string) $data['starts_at'] );
+			if ( false === $ts ) {
+				continue;
+			}
+			$tz    = TimeFormat::timezone( (string) $data['timezone'] );
+			$local = ( new \DateTimeImmutable( '@' . $ts ) )->setTimezone( $tz );
+
+			$rows[] = [
+				'ts'   => $ts,
+				'day'  => $local->format( $day_format ),
+				'data' => $data,
+			];
+		}
+
+		usort( $rows, static fn( array $a, array $b ): int => $a['ts'] <=> $b['ts'] );
+
+		return $rows;
 	}
 
 	/**
@@ -907,28 +1030,15 @@ final class Components {
 		}
 
 		// Order every talk chronologically and group by event-local day.
-		$rows = [];
-		foreach ( $items as $data ) {
-			$ts = strtotime( (string) $data['starts_at'] );
-			if ( false === $ts ) {
-				continue;
-			}
-			$tz    = TimeFormat::timezone( (string) $data['timezone'] );
-			$local = ( new \DateTimeImmutable( '@' . $ts ) )->setTimezone( $tz );
+		$rows = self::group_rows_by_day( $items, 'l j F Y' );
+		$show = self::show_flags( $atts );
 
-			$rows[] = [
-				'ts'   => $ts,
-				'day'  => $local->format( 'l j F Y' ),
-				'data' => $data,
-			];
-
+		foreach ( $rows as $row ) {
 			self::$schema_pool[] = [
 				'type' => 'talk',
-				'data' => $data,
+				'data' => $row['data'],
 			];
 		}
-
-		usort( $rows, static fn( array $a, array $b ): int => $a['ts'] <=> $b['ts'] );
 
 		ob_start();
 		$current_day = null;
@@ -944,7 +1054,13 @@ final class Components {
 				echo '<section class="eex-schedule-day"><h3 class="eex-schedule-heading">' . esc_html( $row['day'] ) . '</h3><ol class="eex-schedule-list" role="list">';
 			}
 
-			TemplateLoader::part( 'schedule-row', [ 'data' => $row['data'] ] );
+			TemplateLoader::part(
+				'schedule-row',
+				[
+					'data' => $row['data'],
+					'show' => $show,
+				]
+			);
 		}
 
 		if ( $open ) {

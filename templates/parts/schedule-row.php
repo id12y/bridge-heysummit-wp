@@ -16,6 +16,13 @@ use Emailexpert\Events\Frontend\TimeFormat;
 defined( 'ABSPATH' ) || exit;
 
 $eex_data = (array) ( $args['data'] ?? [] );
+$eex_show = array_merge(
+	[
+		'speakers'   => true,
+		'categories' => true,
+	],
+	(array) ( $args['show'] ?? [] )
+);
 
 if ( empty( $eex_data['id'] ) ) {
 	return;
@@ -27,12 +34,12 @@ if ( empty( $eex_data['id'] ) ) {
 	</span>
 	<span class="eex-schedule-main">
 		<a class="eex-schedule-title" href="<?php echo esc_url( (string) $eex_data['permalink'] ); ?>"><?php echo esc_html( (string) $eex_data['title'] ); ?></a>
-		<?php if ( ! empty( $eex_data['categories'] ) ) : ?>
+		<?php if ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) : ?>
 			<?php foreach ( $eex_data['categories'] as $eex_term ) : ?>
 				<span class="eex-badge eex-badge-<?php echo esc_attr( $eex_term->slug ); ?>"><?php echo esc_html( $eex_term->name ); ?></span>
 			<?php endforeach; ?>
 		<?php endif; ?>
-		<?php if ( ! empty( $eex_data['speakers'] ) ) : ?>
+		<?php if ( $eex_show['speakers'] && ! empty( $eex_data['speakers'] ) ) : ?>
 			<span class="eex-speaker-chips">
 				<?php foreach ( $eex_data['speakers'] as $eex_speaker ) : ?>
 					<?php TemplateLoader::part( 'speaker-chip', [ 'speaker' => $eex_speaker ] ); ?>

@@ -217,4 +217,87 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( 'eex-agenda', $html );
 		$this->assertStringNotContainsString( 'eex-talk-compact', $html );
 	}
+
+	public function test_layouts_render_their_own_markup_and_keep_the_js_contract(): void {
+		$this->make_talk( 'Layout session', 3600 );
+
+		$list = Components::render( 'upcoming-sessions', [ 'layout' => 'list' ] );
+		$this->assertStringContainsString( 'eex-talk-list', $list );
+		$this->assertStringNotContainsString( 'eex-talk-grid', $list );
+		$this->assertStringContainsString( 'data-eex-session', $list );
+		$this->assertStringContainsString( 'data-eex-title', $list, 'the filter bar contract survives the list layout' );
+
+		Cache::flush();
+		$compact = Components::render( 'upcoming-sessions', [ 'layout' => 'compact' ] );
+		$this->assertStringContainsString( 'eex-talk-compact', $compact );
+		$this->assertStringContainsString( 'data-eex-title', $compact );
+
+		Cache::flush();
+		$agenda = Components::render( 'upcoming-sessions', [ 'layout' => 'agenda' ] );
+		$this->assertStringContainsString( 'eex-agenda-day', $agenda );
+		$this->assertStringContainsString( 'eex-agenda-heading', $agenda );
+		$this->assertStringContainsString( 'Online', $agenda, 'the agenda badge is present' );
+		$this->assertStringContainsString( 'data-eex-session', $agenda );
+		$this->assertStringContainsString( 'data-eex-title', $agenda );
+		$this->assertStringContainsString( gmdate( 'j F Y', time() + 3600 ), $agenda, 'the day heading uses the compact date format' );
+	}
+
+	public function test_layouts_key_the_cache_separately(): void {
+		$this->make_talk( 'Cache layout session', 3600 );
+
+		$cards = Components::render( 'upcoming-sessions', [] );
+		$list  = Components::render( 'upcoming-sessions', [ 'layout' => 'list' ] );
+
+		$this->assertStringContainsString( 'eex-talk-grid', $cards );
+		$this->assertStringContainsString( 'eex-talk-list', $list, 'a layout change must never serve the cached other layout' );
+	}
+
+	public function test_display_toggles_remove_exactly_their_markup(): void {
+		$talk_id = $this->make_talk( 'Toggle session', 3600 );
+		wp_insert_term( 'Deliverability', 'eex_category' );
+		wp_set_object_terms( $talk_id, [ 'deliverability' ], 'eex_category' );
+
+		$speaker_id = wp_insert_post(
+			[
+				'post_type'   => 'eex_speaker',
+				'post_status' => 'publish',
+				'post_title'  => 'Toggle Speaker',
+			]
+		);
+		update_post_meta( $talk_id, '_eex_speaker_ids', [ $speaker_id ] );
+
+		$all = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( 'eex_ics=', $all );
+		$this->assertStringContainsString( 'google.com/calendar', $all );
+		$this->assertStringContainsString( 'eex-chip', $all );
+		$this->assertStringContainsString( 'eex-badge', $all );
+
+		Cache::flush();
+		$html = Components::render(
+			'upcoming-sessions',
+			[
+				'show_ics'        => 0,
+				'show_google'     => 0,
+				'show_speakers'   => 0,
+				'show_categories' => 0,
+			]
+		);
+
+		$this->assertStringNotContainsString( 'eex_ics=', $html );
+		$this->assertStringNotContainsString( 'google.com/calendar', $html );
+		$this->assertStringNotContainsString( 'eex-chip', $html );
+		$this->assertStringNotContainsString( 'eex-badge', $html );
+		$this->assertStringContainsString( 'eex-card-talk', $html, 'the card itself is untouched by the toggles' );
+
+		Cache::flush();
+		$schedule = Components::render(
+			'schedule',
+			[
+				'show_speakers'   => 0,
+				'show_categories' => 0,
+			]
+		);
+		$this->assertStringNotContainsString( 'eex-chip', $schedule );
+		$this->assertStringNotContainsString( 'eex-badge', $schedule );
+	}
 }
