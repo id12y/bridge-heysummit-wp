@@ -847,7 +847,20 @@ class LiveRepository extends BaseMapper implements Repository {
 					$size  = max( 1, count( $rows ) );
 					$count = (int) ( $first['count'] ?? 0 );
 					$next  = isset( $first['next'] ) && is_string( $first['next'] ) ? $first['next'] : '';
-					$last  = (int) ceil( max( 0, $count ) / $size );
+
+					// The route's own next link names the real paging
+					// parameters. The talks route ignores ?page= (the spec
+					// documents page only for events and webhooks) and pages
+					// by limit/offset — trusting an assumed scheme is exactly
+					// how 273 sessions once read as 10 on production.
+					$next_query = [];
+					$query_part = (string) wp_parse_url( $next, PHP_URL_QUERY );
+					if ( '' !== $query_part ) {
+						parse_str( $query_part, $next_query );
+					}
+
+					$per  = isset( $next_query['limit'] ) ? max( 1, (int) $next_query['limit'] ) : $size;
+					$last = (int) ceil( max( 0, $count ) / $per );
 
 					$meta['count'] = $count > 0 ? $count : count( $rows );
 					$meta['pages'] = max( 1, $last );
@@ -863,12 +876,26 @@ class LiveRepository extends BaseMapper implements Repository {
 						$last = $budget; // A next link but no count: walk forward blind.
 					}
 
+					$page_args = static function ( int $page_no ) use ( $next_query, $per ): array {
+						if ( isset( $next_query['offset'] ) || isset( $next_query['limit'] ) ) {
+							return [
+								'limit'  => $per,
+								'offset' => ( $page_no - 1 ) * $per,
+							];
+						}
+
+						return [ 'page' => $page_no ];
+					};
+
 					$fetched   = 1;
 					$collected = $rows;
 					$seen      = [ 1 => true ];
+					$echoed    = false;
 
-					$read_page = static function ( int $page ) use ( $client, $path, $args, $options, $normalise, &$meta, &$fetched ) {
-						$response = $client->get( $path, [ 'page' => $page ] + $args, $options );
+					$first_id = isset( $rows[0]['id'] ) && is_scalar( $rows[0]['id'] ) ? (string) $rows[0]['id'] : '';
+
+					$read_page = static function ( int $page ) use ( $client, $path, $args, $options, $normalise, $page_args, $first_id, &$meta, &$fetched, &$echoed ) {
+						$response = $client->get( $path, $page_args( $page ) + $args, $options );
 						++$fetched;
 
 						if ( is_wp_error( $response ) ) {
@@ -877,9 +904,21 @@ class LiveRepository extends BaseMapper implements Repository {
 							return null;
 						}
 
+						$page_rows = $normalise( $response );
+
+						// A route that ignores its paging parameters echoes
+						// the first page back. Record it loudly — otherwise
+						// one page silently reads as the whole summit.
+						if ( $page > 1 && '' !== $first_id && isset( $page_rows[0]['id'] ) && (string) $page_rows[0]['id'] === $first_id ) {
+							$meta['failed'][ $page ] = __( 'the route ignored the paging parameters and returned the first page again', 'emailexpert-events' );
+							$echoed                  = true;
+
+							return null;
+						}
+
 						$meta['read'][] = $page;
 
-						return $normalise( $response );
+						return $page_rows;
 					};
 
 					// Backwards from the end (oldest-first accounts). A page
@@ -898,6 +937,10 @@ class LiveRepository extends BaseMapper implements Repository {
 						$page_rows = $read_page( $page );
 
 						if ( null === $page_rows ) {
+							if ( $echoed ) {
+								break; // Every further request would echo too.
+							}
+
 							continue;
 						}
 

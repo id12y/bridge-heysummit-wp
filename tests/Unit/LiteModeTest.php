@@ -1009,6 +1009,103 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'cURL error 28', (string) $meta['failed'][6] );
 	}
 
+	public function test_the_paging_scheme_is_learned_from_the_routes_own_next_link(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		// The production talks route ignores ?page= and pages by
+		// limit/offset — its next link says so. 273 sessions read as 10
+		// until the harvest started speaking the route's own dialect.
+		$this->mock_http(
+			function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				$this->requests[] = $url;
+
+				preg_match( '/[?&]offset=(\d+)/', $url, $m );
+				$offset = isset( $m[1] ) ? (int) $m[1] : 0;
+
+				$rows = 5 === $offset
+					? [
+						[
+							'id'    => 705,
+							'title' => 'Fresh session',
+							'date'  => $future,
+							'event' => 101,
+						],
+					]
+					: [
+						[
+							'id'    => 700 + $offset,
+							'title' => 'Ancient session ' . $offset,
+							'date'  => '2020-12-10T16:00:00Z',
+							'event' => 101,
+						],
+					];
+
+				return self::json_response(
+					[
+						'count'   => 6,
+						'next'    => $offset < 5 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?limit=1&offset=' . ( $offset + 1 ) : null,
+						'results' => $rows,
+					]
+				);
+			}
+		);
+
+		$titles = array_map( static fn( array $talk ): string => (string) $talk['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		$this->assertSame( [ 'Fresh session' ], $titles, 'the upcoming session is reached via limit/offset paging' );
+		$this->assertNotEmpty( array_filter( $this->requests, static fn( string $url ): bool => str_contains( $url, 'offset=5' ) ), 'the jump used the offset dialect' );
+		$this->assertSame( [], array_filter( $this->requests, static fn( string $url ): bool => str_contains( $url, 'page=' ) ), 'no assumed ?page= requests were sent' );
+	}
+
+	public function test_a_route_that_ignores_paging_parameters_is_reported_not_trusted(): void {
+		$this->go_lite();
+
+		// Whatever parameters travel, the route echoes the first page back.
+		// The harvest must say so instead of reporting one page as the
+		// whole summit.
+		$this->mock_http(
+			static function ( $url ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				return self::json_response(
+					[
+						'count'   => 273,
+						'next'    => \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=2',
+						'results' => [
+							[
+								'id'    => 501,
+								'title' => 'Old session',
+								'date'  => '2020-12-10T16:00:00Z',
+								'event' => 101,
+							],
+						],
+					]
+				);
+			}
+		);
+
+		$diagnosis = Repositories::current()->diagnose();
+
+		$this->assertStringContainsString( 'pages that failed', $diagnosis );
+		$this->assertStringContainsString( 'returned the first page again', $diagnosis );
+
+		$meta = LiveRepository::harvest_meta( 'c1|101' );
+		$this->assertSame( 273, $meta['count'] );
+		$this->assertCount( 1, $meta['failed'], 'the walk stops after the first echo instead of burning the budget' );
+	}
+
 	public function test_the_count_is_trusted_when_the_next_link_is_absent(): void {
 		$this->go_lite();
 
