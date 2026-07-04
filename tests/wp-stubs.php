@@ -859,6 +859,26 @@ if ( ! function_exists( 'get_the_terms' ) ) {
 }
 
 // --- registration no-ops and misc additions. ------------------------------------
+if ( ! function_exists( 'wp_trim_words' ) ) {
+	function wp_trim_words( $text, $num_words = 55, $more = '&hellip;' ) {
+		$words = preg_split( '/\s+/', trim( (string) $text ) );
+		if ( count( $words ) <= $num_words ) {
+			return trim( (string) $text );
+		}
+		return implode( ' ', array_slice( $words, 0, $num_words ) ) . $more;
+	}
+}
+if ( ! function_exists( 'trailingslashit' ) ) {
+	function trailingslashit( $value ) {
+		return rtrim( (string) $value, '/\\' ) . '/';
+	}
+}
+if ( ! function_exists( 'get_post_field' ) ) {
+	function get_post_field( $field, $post_id ) {
+		$post = get_post( (int) $post_id );
+		return $post ? (string) ( $post->$field ?? '' ) : '';
+	}
+}
 if ( ! function_exists( 'wp_parse_url' ) ) {
 	function wp_parse_url( $url, $component = -1 ) {
 		return parse_url( (string) $url, $component );

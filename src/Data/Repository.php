@@ -123,6 +123,33 @@ interface Repository {
 	public function speakers_total( array $atts ): int;
 
 	/**
+	 * Display-shaped tickets (with prices) for one event — commerce data,
+	 * fetched live and cached in both modes.
+	 *
+	 * @param array<string,mixed> $atts event.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function tickets( array $atts ): array;
+
+	/**
+	 * Every event on the account with its live/evergreen/archived flags —
+	 * the events portfolio.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function all_events( array $atts ): array;
+
+	/**
+	 * Currently-running plus next sessions (for the live-now bar): recent
+	 * starts whose end may still be in the future, then upcoming.
+	 *
+	 * @param array<string,mixed> $atts event, limit.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function current_and_next( array $atts ): array;
+
+	/**
 	 * Categories relevant to the filters.
 	 *
 	 * @param array<string,mixed> $atts event.

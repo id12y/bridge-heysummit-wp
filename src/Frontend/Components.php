@@ -105,6 +105,11 @@ final class Components {
 		$show_categories = $flag( __( 'Show category badges', 'emailexpert-events' ) );
 		$show_ics        = $flag( __( 'Show "Add to calendar (.ics)" link', 'emailexpert-events' ) );
 		$show_google     = $flag( __( 'Show Google Calendar link', 'emailexpert-events' ) );
+		$register_text   = [
+			'type'    => 'string',
+			'default' => '',
+			'label'   => __( 'Register button text (empty = "Register")', 'emailexpert-events' ),
+		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		return [
@@ -134,6 +139,7 @@ final class Components {
 					'show_categories' => $show_categories,
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
+					'register_text'   => $register_text,
 					'show_subscribe'  => $flag( __( 'Show subscribe link', 'emailexpert-events' ), 0 ),
 				],
 			],
@@ -154,6 +160,7 @@ final class Components {
 					'show_categories' => $show_categories,
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
+					'register_text'   => $register_text,
 					'limit'           => [
 						'type'    => 'integer',
 						'default' => 12,
@@ -179,17 +186,18 @@ final class Components {
 			'upcoming-events'   => [
 				'title' => __( 'Upcoming events', 'emailexpert-events' ),
 				'atts'  => [
-					'layout'     => $grid_layout,
-					'limit'      => [
+					'layout'        => $grid_layout,
+					'register_text' => $register_text,
+					'limit'         => [
 						'type'    => 'integer',
 						'default' => 3,
 						'label'   => $limit_label,
 					],
-					'series'     => [
+					'series'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'empty_text' => [
+					'empty_text'    => [
 						'type'    => 'string',
 						'default' => $empty_events,
 					],
@@ -198,17 +206,18 @@ final class Components {
 			'past-events'       => [
 				'title' => __( 'Past events', 'emailexpert-events' ),
 				'atts'  => [
-					'layout'     => $grid_layout,
-					'limit'      => [
+					'layout'        => $grid_layout,
+					'register_text' => $register_text,
+					'limit'         => [
 						'type'    => 'integer',
 						'default' => 0,
 						'label'   => $limit_label,
 					],
-					'series'     => [
+					'series'        => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'empty_text' => [
+					'empty_text'    => [
 						'type'    => 'string',
 						'default' => __( 'Past events appear here.', 'emailexpert-events' ),
 					],
@@ -249,17 +258,17 @@ final class Components {
 			'speakers'          => [
 				'title' => __( 'Speaker grid', 'emailexpert-events' ),
 				'atts'  => [
-					'event'       => [
+					'event'        => [
 						'type'    => 'string',
 						'default' => '',
 						'label'   => __( 'Event', 'emailexpert-events' ),
 					],
-					'category'    => [
+					'category'     => [
 						'type'    => 'string',
 						'default' => '',
 					],
-					'layout'      => $grid_layout,
-					'order'       => [
+					'layout'       => $grid_layout,
+					'order'        => [
 						'type'    => 'string',
 						'default' => 'name',
 						'label'   => __( 'Order', 'emailexpert-events' ),
@@ -269,7 +278,17 @@ final class Components {
 							'random'    => __( 'Random (reshuffles when the cache refreshes)', 'emailexpert-events' ),
 						],
 					],
-					'photo_shape' => [
+					'speaker_link' => [
+						'type'    => 'string',
+						'default' => 'default',
+						'label'   => __( 'Speaker links', 'emailexpert-events' ),
+						'options' => [
+							'default' => __( 'Speaker page on this site', 'emailexpert-events' ),
+							'hub'     => __( 'Speaker page on the HeySummit hub', 'emailexpert-events' ),
+							'none'    => __( 'No link', 'emailexpert-events' ),
+						],
+					],
+					'photo_shape'  => [
 						'type'    => 'string',
 						'default' => 'rounded',
 						'label'   => __( 'Photo shape', 'emailexpert-events' ),
@@ -279,33 +298,33 @@ final class Components {
 							'square'  => __( 'Square', 'emailexpert-events' ),
 						],
 					],
-					'columns'     => [
+					'columns'      => [
 						'type'    => 'integer',
 						'default' => 4,
 						'label'   => __( 'Columns (0 = widget controlled)', 'emailexpert-events' ),
 					],
-					'limit'       => [
+					'limit'        => [
 						'type'    => 'integer',
 						'default' => 0,
 						'label'   => $limit_label,
 					],
-					'paginate'    => $flag( __( 'Paginate', 'emailexpert-events' ), 0 ),
-					'page'        => [
+					'paginate'     => $flag( __( 'Paginate', 'emailexpert-events' ), 0 ),
+					'page'         => [
 						'type'     => 'string',
 						'default'  => '',
 						'from_get' => 'eex_speaker_page',
 					],
-					'all_url'     => [
+					'all_url'      => [
 						'type'    => 'string',
 						'default' => '',
 						'label'   => __( '"View all" link URL (empty = hidden)', 'emailexpert-events' ),
 					],
-					'all_text'    => [
+					'all_text'     => [
 						'type'    => 'string',
 						'default' => __( 'View all speakers', 'emailexpert-events' ),
 						'label'   => __( '"View all" link text', 'emailexpert-events' ),
 					],
-					'empty_text'  => [
+					'empty_text'   => [
 						'type'    => 'string',
 						'default' => __( 'Speakers are announced soon.', 'emailexpert-events' ),
 					],
@@ -328,6 +347,7 @@ final class Components {
 					'show_categories' => $show_categories,
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
+					'register_text'   => $register_text,
 					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
@@ -345,6 +365,134 @@ final class Components {
 					'empty_text' => [
 						'type'    => 'string',
 						'default' => __( 'Sponsorship opportunities are available.', 'emailexpert-events' ),
+					],
+				],
+			],
+			'next-session'      => [
+				'title' => __( 'Next session (hero)', 'emailexpert-events' ),
+				'atts'  => [
+					'event'          => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'category'       => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'show_countdown' => $flag( __( 'Show countdown', 'emailexpert-events' ) ),
+					'show_speakers'  => $show_speakers,
+					'show_ics'       => $show_ics,
+					'show_google'    => $show_google,
+					'register_text'  => $register_text,
+					'empty_text'     => [
+						'type'    => 'string',
+						'default' => $empty_sessions,
+					],
+				],
+			],
+			'pricing'           => [
+				'title' => __( 'Ticket pricing table', 'emailexpert-events' ),
+				'atts'  => [
+					'event'             => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'layout'            => [
+						'type'    => 'string',
+						'default' => 'columns',
+						'label'   => __( 'Layout', 'emailexpert-events' ),
+						'options' => [
+							'columns' => __( 'Columns', 'emailexpert-events' ),
+							'rows'    => __( 'Rows', 'emailexpert-events' ),
+						],
+					],
+					'show_description'  => $flag( __( 'Show ticket descriptions', 'emailexpert-events' ) ),
+					'show_remaining'    => $flag( __( 'Show remaining quantity', 'emailexpert-events' ) ),
+					'highlight_popular' => $flag( __( 'Highlight the popular ticket', 'emailexpert-events' ) ),
+					'register_text'     => $register_text,
+					'empty_text'        => [
+						'type'    => 'string',
+						'default' => __( 'Tickets go on sale soon.', 'emailexpert-events' ),
+					],
+				],
+			],
+			'speaker-spotlight' => [
+				'title' => __( 'Speaker spotlight', 'emailexpert-events' ),
+				'atts'  => [
+					'speaker'      => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Speaker ID (empty = random)', 'emailexpert-events' ),
+					],
+					'event'        => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'speaker_link' => [
+						'type'    => 'string',
+						'default' => 'default',
+						'label'   => __( 'Speaker links', 'emailexpert-events' ),
+						'options' => [
+							'default' => __( 'Speaker page on this site', 'emailexpert-events' ),
+							'hub'     => __( 'Speaker page on the HeySummit hub', 'emailexpert-events' ),
+							'none'    => __( 'No link', 'emailexpert-events' ),
+						],
+					],
+					'photo_shape'  => [
+						'type'    => 'string',
+						'default' => 'rounded',
+						'label'   => __( 'Photo shape', 'emailexpert-events' ),
+						'options' => [
+							'rounded' => __( 'Rounded corners', 'emailexpert-events' ),
+							'circle'  => __( 'Circle', 'emailexpert-events' ),
+							'square'  => __( 'Square', 'emailexpert-events' ),
+						],
+					],
+					'show_bio'     => $flag( __( 'Show biography', 'emailexpert-events' ) ),
+					'empty_text'   => [
+						'type'    => 'string',
+						'default' => __( 'Speakers are announced soon.', 'emailexpert-events' ),
+					],
+				],
+			],
+			'events-portfolio'  => [
+				'title' => __( 'Events portfolio', 'emailexpert-events' ),
+				'atts'  => [
+					'status'        => [
+						'type'    => 'string',
+						'default' => 'live',
+						'label'   => __( 'Which events', 'emailexpert-events' ),
+						'options' => [
+							'live'      => __( 'Live (public)', 'emailexpert-events' ),
+							'evergreen' => __( 'Evergreen only', 'emailexpert-events' ),
+							'archived'  => __( 'Archived only', 'emailexpert-events' ),
+							'all'       => __( 'Everything', 'emailexpert-events' ),
+						],
+					],
+					'layout'        => $grid_layout,
+					'register_text' => $register_text,
+					'limit'         => [
+						'type'    => 'integer',
+						'default' => 0,
+						'label'   => $limit_label,
+					],
+					'empty_text'    => [
+						'type'    => 'string',
+						'default' => $empty_events,
+					],
+				],
+			],
+			'live-now'          => [
+				'title' => __( 'Live now bar', 'emailexpert-events' ),
+				'atts'  => [
+					'event' => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'limit' => [
+						'type'    => 'integer',
+						'default' => 3,
+						'label'   => __( 'Sessions to watch', 'emailexpert-events' ),
 					],
 				],
 			],
@@ -714,7 +862,7 @@ final class Components {
 		$show   = self::show_flags( $atts );
 
 		if ( 'agenda' === $layout ) {
-			return self::agenda_layout( $items, $context, $show );
+			return self::agenda_layout( $items, $context, $show, (string) ( $atts['register_text'] ?? '' ) );
 		}
 
 		// Wrapper classes and template part per layout; unknown values were
@@ -743,9 +891,10 @@ final class Components {
 			TemplateLoader::part(
 				$part,
 				[
-					'data'    => $data,
-					'context' => $context,
-					'show'    => $show,
+					'data'          => $data,
+					'context'       => $context,
+					'show'          => $show,
+					'register_text' => (string) ( $atts['register_text'] ?? '' ),
 				]
 			);
 			echo '</li>';
@@ -779,7 +928,7 @@ final class Components {
 	 * @param string                         $context 'upcoming', 'past' or 'featured'.
 	 * @param array<string,bool>             $show    Display toggles.
 	 */
-	private static function agenda_layout( array $items, string $context, array $show ): string {
+	private static function agenda_layout( array $items, string $context, array $show, string $register_text = '' ): string {
 		$rows = self::group_rows_by_day( $items, 'j F Y' );
 
 		ob_start();
@@ -809,9 +958,10 @@ final class Components {
 			TemplateLoader::part(
 				'agenda-row',
 				[
-					'data'    => $data,
-					'context' => $context,
-					'show'    => $show,
+					'data'          => $data,
+					'context'       => $context,
+					'show'          => $show,
+					'register_text' => $register_text,
 				]
 			);
 			echo '</li>';
@@ -975,8 +1125,9 @@ final class Components {
 			TemplateLoader::part(
 				$list ? 'list-event' : 'card-event',
 				[
-					'event'   => $event,
-					'context' => $context,
+					'event'         => $event,
+					'context'       => $context,
+					'register_text' => (string) ( $atts['register_text'] ?? '' ),
 				]
 			);
 			echo '</li>';
@@ -1114,7 +1265,7 @@ final class Components {
 				$query_atts['offset'] = ( $page - 1 ) * $limit;
 			}
 
-			$items = self::repo()->speakers( $query_atts );
+			$items = self::apply_speaker_link( self::repo()->speakers( $query_atts ), $atts );
 		} else {
 			// Non-default orders need the whole set before slicing.
 			$all = self::repo()->speakers(
@@ -1138,7 +1289,7 @@ final class Components {
 			}
 
 			$offset = $paginate ? ( $page - 1 ) * $limit : 0;
-			$items  = $limit > 0 ? array_slice( $all, $offset, $limit ) : $all;
+			$items  = self::apply_speaker_link( $limit > 0 ? array_slice( $all, $offset, $limit ) : $all, $atts );
 		}
 
 		if ( empty( $items ) ) {
@@ -1251,6 +1402,248 @@ final class Components {
 		}
 
 		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Hero banner for the single soonest upcoming session.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_next_session( array $atts ): string {
+		$items = self::repo()->upcoming_talks( array_merge( $atts, [ 'limit' => 1 ] ) );
+
+		if ( empty( $items ) ) {
+			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		self::$schema_pool[] = [
+			'type' => 'talk',
+			'data' => $items[0],
+		];
+
+		ob_start();
+		TemplateLoader::part(
+			'hero-talk',
+			[
+				'data'           => $items[0],
+				'show'           => self::show_flags( $atts ),
+				'show_countdown' => ! empty( $atts['show_countdown'] ),
+				'register_text'  => (string) ( $atts['register_text'] ?? '' ),
+			]
+		);
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Ticket pricing table for one event.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_pricing( array $atts ): string {
+		$tickets = self::repo()->tickets( $atts );
+
+		if ( empty( $tickets ) ) {
+			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		$rows = 'rows' === (string) ( $atts['layout'] ?? 'columns' );
+
+		ob_start();
+		printf( '<ul class="%s" role="list">', esc_attr( $rows ? 'eex-list eex-pricing eex-pricing-rows' : 'eex-grid eex-pricing' ) );
+		foreach ( $tickets as $ticket ) {
+			echo '<li class="eex-grid-item">';
+			TemplateLoader::part(
+				'pricing-ticket',
+				[
+					'ticket'            => $ticket,
+					'show_description'  => ! empty( $atts['show_description'] ),
+					'show_remaining'    => ! empty( $atts['show_remaining'] ),
+					'highlight_popular' => ! empty( $atts['highlight_popular'] ),
+					'register_text'     => (string) ( $atts['register_text'] ?? '' ),
+				]
+			);
+			echo '</li>';
+		}
+		echo '</ul>';
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * One featured speaker (chosen by ID, or a cache-stable random pick).
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_speaker_spotlight( array $atts ): string {
+		$speakers = self::repo()->speakers(
+			array_merge(
+				$atts,
+				[
+					'limit'  => 0,
+					'offset' => 0,
+				]
+			)
+		);
+
+		if ( empty( $speakers ) ) {
+			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		$pick = null;
+		$ref  = (string) ( $atts['speaker'] ?? '' );
+
+		if ( '' !== $ref ) {
+			foreach ( $speakers as $speaker ) {
+				if ( (string) $speaker['id'] === $ref ) {
+					$pick = $speaker;
+					break;
+				}
+			}
+		}
+
+		if ( null === $pick ) {
+			// Random pick inside the cached fragment: stable until the
+			// display cache refreshes (the speakers random-order pattern).
+			$pick = $speakers[ array_rand( $speakers ) ];
+		}
+
+		$pick = self::apply_speaker_link( [ $pick ], $atts )[0];
+
+		$shape   = (string) ( $atts['photo_shape'] ?? 'rounded' );
+		$classes = 'eex-spotlight' . ( 'rounded' !== $shape && '' !== $shape ? ' eex-photos-' . $shape : '' );
+
+		ob_start();
+		printf( '<div class="%s">', esc_attr( $classes ) );
+		TemplateLoader::part(
+			'spotlight-speaker',
+			[
+				'speaker'  => $pick,
+				'show_bio' => ! empty( $atts['show_bio'] ),
+			]
+		);
+		echo '</div>';
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Every event on the account, filtered by status.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_events_portfolio( array $atts ): string {
+		$status = (string) ( $atts['status'] ?? 'live' );
+
+		$events = array_values(
+			array_filter(
+				self::repo()->all_events( $atts ),
+				static function ( array $event ) use ( $status ): bool {
+					switch ( $status ) {
+						case 'evergreen':
+							return ! empty( $event['evergreen'] ) && empty( $event['archived'] );
+						case 'archived':
+							return ! empty( $event['archived'] );
+						case 'all':
+							return true;
+						default: // The default filter keeps public events.
+							return ! empty( $event['live'] ) && empty( $event['archived'] );
+					}
+				}
+			)
+		);
+
+		$limit = (int) ( $atts['limit'] ?? 0 );
+		if ( $limit > 0 ) {
+			$events = array_slice( $events, 0, $limit );
+		}
+
+		return self::event_cards( $events, $atts, 'upcoming' );
+	}
+
+	/**
+	 * Live-now bar: renders hidden with the next sessions' timing data; the
+	 * session-state JS reveals it while one is live. Cached HTML never
+	 * claims live state (existing rule).
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_live_now( array $atts ): string {
+		$items = self::repo()->current_and_next( array_merge( $atts, [ 'limit' => max( 1, (int) ( $atts['limit'] ?? 3 ) ) ] ) );
+
+		if ( empty( $items ) ) {
+			return '';
+		}
+
+		ob_start();
+		echo '<div class="eex-live-bar" data-eex-live-bar="1" hidden>';
+		printf(
+			'<span class="eex-live-bar-label">%s</span> <a class="eex-live-bar-title" data-eex-live-bar-link href="#"></a>',
+			esc_html__( 'Live now:', 'emailexpert-events' )
+		);
+		echo '<ul class="eex-live-bar-watch" hidden>';
+		foreach ( $items as $data ) {
+			printf(
+				'<li data-eex-bar-title="%s"%s></li>',
+				esc_attr( (string) $data['title'] ),
+				self::session_attrs( $data ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			);
+		}
+		echo '</ul></div>';
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Rewrite speaker URLs per the speaker_link attribute: this site's
+	 * pages (default), best-effort HeySummit hub speaker pages, or no link.
+	 *
+	 * @param array<int,array<string,mixed>> $speakers Speaker data arrays.
+	 * @param array<string,mixed>            $atts     Attributes.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function apply_speaker_link( array $speakers, array $atts ): array {
+		$mode = (string) ( $atts['speaker_link'] ?? 'default' );
+
+		if ( 'none' === $mode ) {
+			return array_map(
+				static function ( array $speaker ): array {
+					$speaker['url'] = '';
+
+					return $speaker;
+				},
+				$speakers
+			);
+		}
+
+		if ( 'hub' !== $mode ) {
+			return $speakers;
+		}
+
+		$event = self::repo()->event_summary( (string) ( $atts['event'] ?? '' ) );
+		$base  = null !== $event ? (string) ( $event['raw_event_url'] ?? '' ) : '';
+
+		if ( '' === $base ) {
+			return $speakers; // No hub to point at; keep the default links.
+		}
+
+		return array_map(
+			static function ( array $speaker ) use ( $base ): array {
+				// The hub's speaker slugs default to the name; the API's
+				// read payload carries no slug, so this is best-effort.
+				$slug = (string) ( $speaker['slug'] ?? '' );
+				if ( '' === $slug ) {
+					$slug = sanitize_title( (string) $speaker['name'] );
+				}
+
+				if ( '' !== $slug ) {
+					$speaker['url'] = Utm::tag( trailingslashit( $base ) . 'speakers/' . $slug . '/' );
+				}
+
+				return $speaker;
+			},
+			$speakers
+		);
 	}
 
 	/**

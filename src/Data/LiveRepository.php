@@ -255,6 +255,74 @@ class LiveRepository extends BaseMapper implements Repository {
 	}
 
 	/**
+	 * Currently-running plus next sessions: Lite keeps no past data, so
+	 * "current" means sessions that started within the last six hours —
+	 * long enough for any live webinar, cheap to compute from the cached
+	 * collections. The JS decides actual live state.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function current_and_next( array $atts ): array {
+		$window = time() - 6 * HOUR_IN_SECONDS;
+
+		$talks = array_filter(
+			$this->talks_matching( $atts ),
+			static fn( array $talk ): bool => $talk['start_ts'] > 0 && $talk['start_ts'] >= $window
+		);
+
+		usort( $talks, static fn( array $a, array $b ): int => $a['start_ts'] <=> $b['start_ts'] );
+
+		return $this->limit( array_values( $talks ), $atts );
+	}
+
+	/**
+	 * Tickets for one configured event via the shared cached fetcher.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function tickets( array $atts ): array {
+		$event = $this->event_summary( (string) ( $atts['event'] ?? '' ) );
+
+		if ( null === $event || '' === (string) $event['hs_id'] ) {
+			return [];
+		}
+
+		return Tickets::for_display( (string) ( $event['connection'] ?? '' ), (string) $event['hs_id'], (string) $event['event_url'] );
+	}
+
+	/**
+	 * Every event on every keyed connection (page 1 of each collection,
+	 * cached) with status flags — the events portfolio.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public function all_events( array $atts ): array {
+		$events = [];
+
+		foreach ( Options::connections() as $connection ) {
+			$conn_id = (string) ( $connection['id'] ?? '' );
+			$client  = $this->client( $conn_id );
+
+			if ( null === $client ) {
+				continue;
+			}
+
+			foreach ( (array) $this->raw_events( $conn_id, $client ) as $raw ) {
+				if ( is_array( $raw ) && '' !== self::id_of( $raw, [ 'id' ] ) ) {
+					$events[] = $this->map_event( $raw, $conn_id );
+				}
+			}
+		}
+
+		usort( $events, static fn( array $a, array $b ): int => strtotime( (string) $b['first_talk_at'] ) <=> strtotime( (string) $a['first_talk_at'] ) );
+
+		return $events;
+	}
+
+	/**
 	 * Categories across the matching talks (no local pages, so no URLs).
 	 *
 	 * @param array<string,mixed> $atts Attributes.
@@ -1235,6 +1303,8 @@ class LiveRepository extends BaseMapper implements Repository {
 			'timezone'      => self::str( $raw, [ 'timezone' ] ),
 			'open'          => self::boolish( $raw, [ 'is_open_for_registrations', '_is_open_for_registrations' ] ),
 			'evergreen'     => self::boolish( $raw, 'is_evergreen' ),
+			'live'          => self::boolish( $raw, 'is_live' ),
+			'archived'      => self::boolish( $raw, 'is_archived' ),
 			'venue'         => self::str( $raw, [ 'venue_name', 'venue' ] ),
 			'reg_count'     => 0,
 			'series'        => [],
@@ -1334,6 +1404,8 @@ class LiveRepository extends BaseMapper implements Repository {
 			'url'       => $event_url,
 			'headline'  => self::str( $raw, [ 'headline', 'company_title', 'expert_creds', 'title' ] ),
 			'company'   => self::str( $raw, [ 'company' ] ),
+			'bio'       => self::str( $raw, [ 'bio' ] ),
+			'slug'      => sanitize_title( self::str( $raw, [ 'slug' ] ) ),
 			'photo_id'  => 0,
 			'photo_url' => self::url_str( $raw, [ 'headshot', 'avatar', 'photo_url' ] ),
 		];

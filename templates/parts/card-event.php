@@ -26,6 +26,11 @@ if ( empty( $eex_event['title'] ) && empty( $eex_event['id'] ) ) {
 	return;
 }
 
+$eex_register_text = (string) ( $args['register_text'] ?? '' );
+if ( '' === $eex_register_text ) {
+	$eex_register_text = __( 'Register', 'emailexpert-events' );
+}
+
 $eex_first = (string) ( $eex_event['first_talk_at'] ?? '' );
 $eex_tz    = (string) ( $eex_event['timezone'] ?? '' );
 $eex_open  = ! empty( $eex_event['open'] );
@@ -55,7 +60,7 @@ $eex_venue = (string) ( $eex_event['venue'] ?? '' );
 
 	<p class="eex-card-actions">
 		<?php if ( 'upcoming' === $eex_context && $eex_open && '' !== $eex_url ) : ?>
-			<a class="eex-cta eex-cta-register" href="<?php echo esc_url( $eex_url ); ?>"><?php esc_html_e( 'Register', 'emailexpert-events' ); ?></a>
+			<a class="eex-cta eex-cta-register" href="<?php echo esc_url( $eex_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
 		<?php endif; ?>
 		<a class="eex-cta-secondary" href="<?php echo esc_url( (string) ( $eex_event['url'] ?? '' ) ); ?>"><?php esc_html_e( 'View details', 'emailexpert-events' ); ?></a>
 	</p>

@@ -456,4 +456,194 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'View all speakers', $with_link );
 		$this->assertStringNotContainsString( '<script>', $with_link );
 	}
+
+	public function test_register_text_is_customisable_and_escaped(): void {
+		$talk_id = $this->make_talk( 'CTA session', 3600 );
+		update_post_meta( $talk_id, '_eex_talk_url', 'https://summit.example.com/talk/' );
+
+		$default = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( '>Register</a>', $default );
+
+		Cache::flush();
+		$custom = Components::render( 'upcoming-sessions', [ 'register_text' => 'Save my seat <script>' ] );
+		$this->assertStringContainsString( 'Save my seat', $custom );
+		$this->assertStringNotContainsString( '<script>', $custom );
+		$this->assertStringNotContainsString( '>Register</a>', $custom );
+
+		Cache::flush();
+		$agenda = Components::render(
+			'upcoming-sessions',
+			[
+				'layout'        => 'agenda',
+				'register_text' => 'Join us',
+			]
+		);
+		$this->assertStringContainsString( '>Join us</a>', $agenda );
+	}
+
+	public function test_next_session_hero_renders_the_soonest_session(): void {
+		$this->make_talk( 'Later session', 7200 );
+		$soon_id = $this->make_talk( 'Soonest session', 3600 );
+		update_post_meta( $soon_id, '_eex_talk_url', 'https://summit.example.com/talk/' );
+
+		$html = Components::render( 'next-session', [] );
+
+		$this->assertStringContainsString( 'eex-hero', $html );
+		$this->assertStringContainsString( 'Soonest session', $html );
+		$this->assertStringNotContainsString( 'Later session', $html );
+		$this->assertStringContainsString( 'data-eex-countdown', $html );
+		$this->assertStringContainsString( 'data-eex-session', $html );
+
+		Cache::flush();
+		$plain = Components::render( 'next-session', [ 'show_countdown' => 0 ] );
+		$this->assertStringNotContainsString( 'data-eex-countdown', $plain );
+	}
+
+	public function test_pricing_table_expands_prices_and_flags(): void {
+		$event_id = wp_insert_post(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'publish',
+				'post_title'  => 'Priced event',
+				'meta_input'  => [
+					'_eex_heysummit_id'  => '101',
+					'_eex_connection_id' => 'c1',
+					'_eex_event_url'     => 'https://summit.example.com/',
+				],
+			]
+		);
+
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'                  => 9001,
+									'title'               => 'All access',
+									'description'         => 'Everything included.',
+									'is_paid'             => 'true',
+									'mark_as_popular'     => true,
+									'quantity_remaining'  => '12',
+									'apply_to_broadcasts' => true,
+									'apply_to_replays'    => true,
+									'prices'              => '[{"id": 501, "title": "Standard", "price": "\u00a399"}]',
+								],
+								[
+									'id'      => 9002,
+									'title'   => 'Free pass',
+									'is_paid' => 'false',
+									'prices'  => '[]',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$html = Components::render( 'pricing', [ 'event' => '101' ] );
+
+		$this->assertStringContainsString( 'eex-pricing', $html );
+		$this->assertStringContainsString( 'All access', $html );
+		$this->assertStringContainsString( 'Standard', $html );
+		$this->assertStringContainsString( 'Most popular', $html );
+		$this->assertStringContainsString( 'Only 12 left', $html );
+		$this->assertStringContainsString( 'Free', $html );
+		$this->assertStringContainsString( 'Replays', $html );
+	}
+
+	public function test_speaker_spotlight_and_hub_links(): void {
+		$talk_id = $this->make_talk( 'Spotlight host', 3600 );
+		$speaker = $this->make_speaker( 'Spot Speaker' );
+		update_post_meta( $talk_id, '_eex_speaker_ids', [ $speaker ] );
+		update_post_meta( $talk_id, '_eex_source_event_id', '101' );
+
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'publish',
+				'post_title'  => 'Hub event',
+				'meta_input'  => [
+					'_eex_heysummit_id' => '101',
+					'_eex_event_url'    => 'https://summit.example.com/',
+				],
+			]
+		);
+
+		$html = Components::render( 'speaker-spotlight', [] );
+		$this->assertStringContainsString( 'eex-spotlight-speaker', $html );
+		$this->assertStringContainsString( 'Spot Speaker', $html );
+
+		// Hub links rewrite speaker URLs to the HeySummit hub.
+		Cache::flush();
+		$hub = Components::render(
+			'speakers',
+			[
+				'speaker_link' => 'hub',
+				'event'        => '101',
+			]
+		);
+		$this->assertStringContainsString( 'summit.example.com/speakers/spot-speaker/', $hub );
+
+		// No link at all.
+		Cache::flush();
+		$none = Components::render( 'speakers', [ 'speaker_link' => 'none' ] );
+		$this->assertStringNotContainsString( '<a href', $none );
+		$this->assertStringContainsString( 'Spot Speaker', $none );
+	}
+
+	public function test_events_portfolio_filters_by_status(): void {
+		foreach ( [
+			[ 'Live event', 1, 0 ],
+			[ 'Archived event', 1, 1 ],
+		] as [ $title, $live, $archived ] ) {
+			wp_insert_post(
+				[
+					'post_type'   => 'eex_event',
+					'post_status' => 'publish',
+					'post_title'  => $title,
+					'meta_input'  => [
+						'_eex_heysummit_id' => $title,
+						'_eex_is_live'      => $live,
+						'_eex_is_archived'  => $archived,
+					],
+				]
+			);
+		}
+
+		$live = Components::render( 'events-portfolio', [] );
+		$this->assertStringContainsString( 'Live event', $live );
+		$this->assertStringNotContainsString( 'Archived event', $live );
+
+		Cache::flush();
+		$archived = Components::render( 'events-portfolio', [ 'status' => 'archived' ] );
+		$this->assertStringContainsString( 'Archived event', $archived );
+		$this->assertStringNotContainsString( 'Live event', $archived );
+	}
+
+	public function test_live_now_bar_renders_hidden_with_session_data(): void {
+		$this->make_talk( 'Imminent session', 600 );
+
+		$html = Components::render( 'live-now', [] );
+
+		$this->assertStringContainsString( 'data-eex-live-bar', $html );
+		$this->assertStringContainsString( 'hidden', $html, 'cached HTML never claims live state' );
+		$this->assertStringContainsString( 'data-eex-bar-title="Imminent session"', $html );
+		$this->assertStringContainsString( 'data-eex-session', $html );
+	}
 }
