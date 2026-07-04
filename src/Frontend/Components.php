@@ -190,6 +190,8 @@ final class Components {
 					],
 					'show_speakers'   => $show_speakers,
 					'show_categories' => $show_categories,
+					'show_image'      => $flag( __( 'Show session images', 'emailexpert-events' ), 0 ),
+					'show_venue'      => $flag( __( 'Show venue/stage', 'emailexpert-events' ) ),
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
 					'buttons'         => $buttons,
@@ -226,6 +228,8 @@ final class Components {
 					'columns'         => $talk_columns,
 					'show_speakers'   => $show_speakers,
 					'show_categories' => $show_categories,
+					'show_image'      => $flag( __( 'Show session images', 'emailexpert-events' ), 0 ),
+					'show_venue'      => $flag( __( 'Show venue/stage', 'emailexpert-events' ) ),
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
 					'register_text'   => $register_text,
@@ -413,6 +417,8 @@ final class Components {
 					'columns'         => $talk_columns,
 					'show_speakers'   => $show_speakers,
 					'show_categories' => $show_categories,
+					'show_image'      => $flag( __( 'Show session images', 'emailexpert-events' ), 0 ),
+					'show_venue'      => $flag( __( 'Show venue/stage', 'emailexpert-events' ) ),
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
 					'buttons'         => $buttons,
@@ -1171,6 +1177,8 @@ final class Components {
 			'categories' => ! isset( $atts['show_categories'] ) || ! empty( $atts['show_categories'] ),
 			'ics'        => ! isset( $atts['show_ics'] ) || ! empty( $atts['show_ics'] ),
 			'google'     => ! isset( $atts['show_google'] ) || ! empty( $atts['show_google'] ),
+			'image'      => ! empty( $atts['show_image'] ),
+			'venue'      => ! isset( $atts['show_venue'] ) || ! empty( $atts['show_venue'] ),
 		];
 	}
 
@@ -1196,6 +1204,13 @@ final class Components {
 	 * @param array<string,string> $register Register settings (url = external ticketing).
 	 */
 	public static function ticketing_url( array $data, array $register ): string {
+		// An externally hosted session replaces BOTH buttons' destinations.
+		$talk_external = (string) ( $data['external_url'] ?? '' );
+
+		if ( '' !== $talk_external ) {
+			return $talk_external;
+		}
+
 		$external = (string) ( $register['url'] ?? '' );
 
 		if ( '' !== $external ) {
@@ -1229,6 +1244,13 @@ final class Components {
 	 * @param array<string,mixed> $data Talk data (event_url/talk_url).
 	 */
 	public static function session_url( array $data ): string {
+		// An externally hosted session replaces BOTH buttons' destinations.
+		$external = (string) ( $data['external_url'] ?? '' );
+
+		if ( '' !== $external ) {
+			return $external;
+		}
+
 		$talk_url = (string) ( $data['talk_url'] ?? '' );
 
 		return '' !== $talk_url ? $talk_url : (string) ( $data['event_url'] ?? '' );

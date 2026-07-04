@@ -107,6 +107,27 @@ final class LiteModeTest extends TestCase {
 									'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + 9000 ),
 									'event'     => 101,
 								],
+								[
+									'id'                      => 503,
+									'title'                   => 'External masterclass',
+									'starts_at'               => gmdate( 'Y-m-d\TH:i:s\Z', time() + 12000 ),
+									'event'                   => 101,
+									'external_url'            => 'https://elsewhere.example.com/masterclass',
+									'primary_image'           => 'https://cdn.example.com/talk503.jpg',
+									'inperson_available'      => true,
+									'inperson_venue'          => 'The Roundhouse',
+									'inperson_venue_area'     => 'Main Hall',
+									'is_open_access'          => true,
+									'custom_tag'              => 'Members favourite',
+									'broadcast_duration_mins' => 45,
+								],
+								[
+									'id'             => 504,
+									'title'          => 'Cancelled workshop',
+									'starts_at'      => gmdate( 'Y-m-d\TH:i:s\Z', time() + 15000 ),
+									'event'          => 101,
+									'talk_cancelled' => true,
+								],
 							],
 						]
 					);
@@ -208,6 +229,50 @@ final class LiteModeTest extends TestCase {
 
 		$this->assertSame( $html, $again );
 		$this->assertCount( 0, $this->requests, 'no API calls within TTL' );
+	}
+
+	public function test_rich_talk_fields_render_and_cancelled_talks_never_do(): void {
+		$this->go_lite();
+		$this->mock_api();
+
+		$html = Components::render(
+			'upcoming-sessions',
+			[
+				'show_image' => 1,
+				'buttons'    => 'both',
+			]
+		);
+
+		// Cancelled sessions never render anywhere.
+		$this->assertStringNotContainsString( 'Cancelled workshop', $html );
+
+		// The external session points BOTH buttons (and its title) elsewhere.
+		$this->assertStringContainsString( 'elsewhere.example.com/masterclass', $html );
+		$external_pos = strpos( $html, 'External masterclass' );
+		$this->assertNotFalse( $external_pos );
+		$this->assertGreaterThan(
+			1,
+			substr_count( $html, 'elsewhere.example.com/masterclass' ),
+			'session and tickets buttons both use the external URL'
+		);
+
+		// Imagery, venue and status badges from the expanded serializer.
+		$this->assertStringContainsString( 'cdn.example.com/talk503.jpg', $html, 'session image renders when enabled' );
+		$this->assertStringContainsString( 'The Roundhouse, Main Hall', $html, 'venue line' );
+		$this->assertStringContainsString( 'In person', $html );
+		$this->assertStringContainsString( 'Open access', $html );
+		$this->assertStringContainsString( 'Members favourite', $html, 'custom tag becomes a badge' );
+
+		// Real duration feeds the end time (45 minutes, not the 1h default).
+		$this->assertStringContainsString(
+			'data-eex-end="' . gmdate( 'Y-m-d\TH:i:s\Z', time() + 12000 + 45 * 60 ) . '"',
+			$html
+		);
+
+		// Images stay off by default.
+		Cache::flush();
+		$plain = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringNotContainsString( 'cdn.example.com/talk503.jpg', $plain );
 	}
 
 	public function test_lite_sessions_link_to_their_own_talk_pages(): void {
@@ -786,7 +851,7 @@ final class LiteModeTest extends TestCase {
 		$this->assertIsArray( $payload );
 
 		$events = isset( $payload[0] ) ? $payload : [ $payload ];
-		$this->assertCount( 2, $events, 'one Event per rendered session' );
+		$this->assertCount( 3, $events, 'one Event per rendered session (the cancelled one is excluded)' );
 
 		foreach ( $events as $event ) {
 			$this->assertSame( 'https://schema.org', $event['@context'] );

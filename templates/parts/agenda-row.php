@@ -46,6 +46,9 @@ if ( '' === $eex_register_text ) {
 		<span class="eex-agenda-time">
 			<?php echo TimeFormat::render( (string) $eex_data['starts_at'], (string) $eex_data['timezone'], 'H:i' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>
 		</span>
+		<?php if ( ! empty( $eex_show['venue'] ) && '' !== (string) ( $eex_data['venue'] ?? '' ) ) : ?>
+			<span class="eex-agenda-venue"><?php echo esc_html( (string) $eex_data['venue'] ); ?></span>
+		<?php endif; ?>
 		<span class="eex-badge eex-badge-online"><?php esc_html_e( 'Online', 'emailexpert-events' ); ?></span>
 		<?php if ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) : ?>
 			<?php foreach ( $eex_data['categories'] as $eex_term ) : ?>

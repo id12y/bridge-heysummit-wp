@@ -961,3 +961,18 @@ links wherever the API provides them. Still unused and noted for next:
 primary_image/custom_promo_image_primary (session card imagery),
 stage/inperson_venue (venue display), talk_cancelled/is_open_access
 badges, and event feature_image/company_name on the portfolio.
+
+## D77. The talks serializer's depth reaches the cards (v1.13.0)
+
+Banked from the expanded serializer: session images
+(custom_promo_image_primary/primary_image) behind a show_image toggle
+(off by default — layouts must not jump on update); venue lines built
+from stage + inperson_venue + area behind show_venue (on); status
+badges riding the existing badge row (In person, Open access, and the
+organiser's custom_tag); brand logos replacing speaker chips when
+show_brand_logo_instead_of_speakers says so; cancelled sessions
+excluded from every listing unconditionally. Operator rule for
+external_url: an externally hosted session replaces BOTH buttons'
+destinations (session page and tickets) and its title link — the
+session lives elsewhere, so everything points there, ahead of even the
+per-widget external-ticketing override.

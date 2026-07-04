@@ -859,6 +859,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			$talks = array_merge( $talks, $this->talks_for_event( $event ) );
 		}
 
+		// A cancelled session must never be offered anywhere.
+		$talks = array_values( array_filter( $talks, static fn( array $talk ): bool => empty( $talk['cancelled'] ) ) );
+
 		return array_values(
 			array_filter(
 				$talks,
@@ -1393,11 +1396,36 @@ class LiveRepository extends BaseMapper implements Repository {
 			}
 		}
 
+		$external = self::url_str( $raw, [ 'external_url' ] );
+
+		$venue_parts = [];
+		$stage       = $raw['stage'] ?? null;
+		if ( is_array( $stage ) ) {
+			$venue_parts[] = self::str( $stage, [ 'title', 'name' ] );
+		} elseif ( is_string( $stage ) ) {
+			$venue_parts[] = sanitize_text_field( $stage );
+		}
+		$venue_parts[] = self::str( $raw, [ 'inperson_venue' ] );
+		$venue_parts[] = self::str( $raw, [ 'inperson_venue_area' ] );
+		$venue         = implode( ', ', array_filter( array_unique( array_map( 'trim', $venue_parts ) ) ) );
+
 		return [
 			'id'            => (int) $hs_id,
 			'hs_id'         => $hs_id,
 			'title'         => self::str( $raw, [ 'title', 'name' ] ),
-			'permalink'     => Utm::tag( $talk_url ) ?: $event_url,
+			// An externally hosted session points everything at its home.
+			'permalink'     => Utm::tag( $external ?: $talk_url ) ?: $event_url,
+			'external_url'  => Utm::tag( $external ),
+			'image'         => self::url_str( $raw, [ 'custom_promo_image_primary', 'primary_image' ] ),
+			'venue'         => $venue,
+			'inperson'      => ! empty( $raw['inperson_available'] ),
+			'open_access'   => ! empty( $raw['is_open_access'] ) || ! empty( $raw['is_public_access'] ),
+			'custom_tag'    => self::str( $raw, [ 'custom_tag' ] ),
+			'replay_soon'   => ! empty( $raw['replay_planned'] ),
+			'cancelled'     => ! empty( $raw['talk_cancelled'] ),
+			'brand_logo'    => self::url_str( $raw, [ 'brand_logo_url', 'brand_logo' ] ),
+			'brand_name'    => self::str( $raw, [ 'brand_logo_name' ] ),
+			'brand_instead' => ! empty( $raw['show_brand_logo_instead_of_speakers'] ),
 			'description'   => self::str( $raw, [ 'description', 'description_short', 'description_long' ] ),
 			'starts_at'     => self::datetime( $raw, [ 'starts_at', 'date' ] ),
 			'ends_at'       => self::talk_ends( $raw ),
