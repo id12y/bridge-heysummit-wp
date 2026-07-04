@@ -228,4 +228,10 @@ reconstructs it (payload `slug`/`talk_slug` when present, else
 `sanitize_title(title)`) exactly like speaker hub links; talk permalinks
 and the session button both use it. Session-row tickets buttons append
 `?talk=<id>` to the checkout — preselected when HeySummit recognises
-it, ignored otherwise. Both conventions want a live spot-check.
+it, ignored otherwise. Both conventions want a live spot-check. For the record, the v2 Talk
+schema is exactly: `id, title, date, event, speakers, categories,
+is_active, is_featured` — no slug and no URL of any kind, so the
+title-derived slug is not a shortcut but the only possible source.
+Duplicate-titled talks are the known weak spot: HeySummit will have
+suffixed one of the slugs, and the reconstructed link for the later
+one will land on the wrong talk (or 404) until retitled.
