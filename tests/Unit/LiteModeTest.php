@@ -225,6 +225,74 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'hub/checkout/?talk=501', $html );
 	}
 
+	public function test_sponsor_wall_reads_the_api_and_keeps_manual_extras(): void {
+		$this->go_lite();
+		Options::update_settings(
+			[
+				'lite_sponsors' => [
+					[
+						'name'  => 'Acme',
+						'url'   => 'https://acme.example.com',
+						'tier'  => 'Gold',
+						'blurb' => 'MANUAL ROW',
+					],
+					[
+						'name' => 'Handmade Co',
+						'tier' => 'Partner',
+					],
+				],
+			]
+		);
+		$this->mock_api();
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'sponsors/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'      => 1,
+									'name'    => 'Acme',
+									'website' => 'https://acme.example.com',
+									'logo'    => 'https://cdn.example.com/acme.png',
+									'tier'    => [
+										'title' => 'Gold',
+										'order' => 1,
+									],
+								],
+								[
+									'id'        => 2,
+									'title'     => 'Beta Ltd',
+									'level'     => 'Silver',
+									'order'     => 2,
+									'is_active' => true,
+								],
+								[
+									'id'        => 3,
+									'name'      => 'Hidden Corp',
+									'is_active' => false,
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$html = Components::render( 'sponsors', [] );
+
+		$this->assertStringContainsString( 'Acme', $html );
+		$this->assertStringContainsString( 'Beta Ltd', $html, 'title/level/order spellings map too' );
+		$this->assertStringContainsString( 'Gold', $html );
+		$this->assertStringContainsString( 'Silver', $html );
+		$this->assertStringContainsString( 'cdn.example.com/acme.png', $html, 'API logo URL renders' );
+		$this->assertStringContainsString( 'Handmade Co', $html, 'manual extras stay on the wall' );
+		$this->assertStringNotContainsString( 'Hidden Corp', $html, 'inactive sponsors are skipped' );
+		$this->assertStringNotContainsString( 'MANUAL ROW', $html, 'the API row wins over a same-name manual row' );
+	}
+
 	public function test_api_failure_serves_last_good_then_empty_state_never_fatal(): void {
 		$this->go_lite();
 		$this->mock_api();
@@ -1666,7 +1734,7 @@ final class LiteModeTest extends TestCase {
 		$html = Components::render( 'sponsors', [] );
 
 		$this->assertStringContainsString( 'eex-empty', $html );
-		$this->assertStringContainsString( 'sponsors are manual data', $html );
+		$this->assertStringContainsString( 'no sponsors came back from the HeySummit API', $html );
 		$this->assertStringContainsString( 'CSV import', $html );
 	}
 }

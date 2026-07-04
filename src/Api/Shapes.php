@@ -68,6 +68,21 @@ final class Shapes {
 				'optional' => true,
 			],
 		],
+		'sponsors'   => [
+			'id'   => [ 'type' => 'int|string' ],
+			'name' => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'logo' => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'url'  => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+		],
 		'talks'      => [
 			'id'          => [ 'type' => 'int|string' ],
 			'title'       => [ 'type' => 'string' ],

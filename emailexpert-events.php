@@ -3,7 +3,7 @@
  * Plugin Name:       emailexpert Events
  * Plugin URI:        https://emailexpert.com/
  * Description:       HeySummit connector: syncs events, sessions and speakers into WordPress, renders them with Schema.org markup, and receives registration webhooks.
- * Version:           1.7.3
+ * Version:           1.8.0
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            emailexpert UK Ltd
@@ -16,7 +16,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'EEX_VERSION', '1.7.3' );
+define( 'EEX_VERSION', '1.8.0' );
 define( 'EEX_PLUGIN_FILE', __FILE__ );
 define( 'EEX_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'EEX_PLUGIN_URL', plugin_dir_url( __FILE__ ) );

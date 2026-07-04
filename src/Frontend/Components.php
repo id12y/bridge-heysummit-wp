@@ -718,10 +718,11 @@ final class Components {
 			);
 		}
 
-		// Sponsors are the one manual data set: HeySummit's API exposes no
-		// sponsors endpoint, so an empty wall means "nothing entered yet".
+		// An empty wall now means the API returned no sponsors for the event
+		// AND no manual rows exist (the sponsors endpoint arrived in v1.8.0;
+		// manual rows remain as a supplement).
 		if ( str_contains( $html, 'eex-empty' ) && 'sponsors' === $name ) {
-			$notes[] = 'sponsors are manual data (the HeySummit API does not expose hub sponsors). Add rows or paste a CSV import under Settings -> emailexpert Events -> Live display -> Sponsors.';
+			$notes[] = 'no sponsors came back from the HeySummit API for this event, and no manual rows are entered. Check the discovery diagnostics (Settings -> emailexpert Events -> Test connection) for the sponsors row, or add rows / a CSV import under Live display -> Sponsors.';
 		}
 
 		// An empty live component gets a pipeline diagnosis: which stage

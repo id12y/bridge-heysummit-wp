@@ -544,7 +544,7 @@ final class ComponentsTest extends TestCase {
 								[
 									'id'                  => 9001,
 									'title'               => 'All access',
-									'description'         => 'Everything included.',
+									'description'         => '<p>Everything included.</p><script>alert(1)</script>',
 									'is_paid'             => 'true',
 									'mark_as_popular'     => true,
 									'quantity_remaining'  => '12',
@@ -556,7 +556,7 @@ final class ComponentsTest extends TestCase {
 									'id'      => 9002,
 									'title'   => 'Free pass',
 									'is_paid' => 'false',
-									'prices'  => '[]',
+									'prices'  => '[{"id": 502, "title": "Guest", "price": "0.00"}]',
 								],
 							],
 						]
@@ -574,8 +574,15 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'Standard', $html );
 		$this->assertStringContainsString( 'Most popular', $html );
 		$this->assertStringContainsString( 'Only 12 left', $html );
-		$this->assertStringContainsString( 'Free', $html );
 		$this->assertStringContainsString( 'Replays', $html );
+
+		// Descriptions keep their own markup (safe subset), never literal tags.
+		$this->assertStringContainsString( '<p>Everything included.</p>', $html );
+		$this->assertStringNotContainsString( '&lt;p&gt;', $html );
+		$this->assertStringNotContainsString( '<script>', $html );
+
+		// A 0.00 price reads as Free.
+		$this->assertStringContainsString( '>Free<', $html );
 	}
 
 	public function test_speaker_spotlight_and_hub_links(): void {

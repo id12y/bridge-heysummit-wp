@@ -866,11 +866,39 @@
 	right: 0;
 	bottom: 0;
 	width: min(28em, 100%);
-	background: var(--eex-card-bg);
+	/* Never the card variable: it defaults to transparent, and a see-through
+	   dialog reads as broken. Own variable, solid default. */
+	background: var(--eex-drawer-bg, #ffffff);
+	color: var(--eex-drawer-fg, #1d2327);
 	box-shadow: -12px 0 40px rgba(0, 0, 0, 0.25);
 	padding: calc(var(--eex-gap) * 1.5);
 	overflow-y: auto;
+	overscroll-behavior: contain;
 	animation: eex-drawer-in 0.25s ease-out;
+}
+
+.eex-drawer-title {
+	font-size: 1.35rem;
+	line-height: 1.2;
+}
+
+/* Inside the drawer the theme's big heading styles must not shout. */
+.eex-drawer .eex-card {
+	background: var(--eex-drawer-bg, #ffffff);
+}
+
+.eex-drawer .eex-card-title {
+	font-size: 1.15rem;
+	line-height: 1.3;
+}
+
+.eex-drawer .eex-pricing-description {
+	font-size: 0.9em;
+	color: var(--eex-muted);
+}
+
+.eex-drawer .eex-grid-item + .eex-grid-item {
+	margin-top: var(--eex-gap);
 }
 
 @keyframes eex-drawer-in {
