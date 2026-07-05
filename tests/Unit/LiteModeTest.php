@@ -1902,6 +1902,103 @@ final class LiteModeTest extends TestCase {
 		$this->assertSame( [ 'Mid-list future session' ], $titles, 'the sweep reaches upcoming sessions hidden mid-list' );
 	}
 
+	public function test_a_shallow_sweep_never_blanks_what_a_deep_sweep_cached(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		// Production event 181590: 273 sessions across 28 pages, and the list
+		// is NOT ordered by date — its upcoming sessions sit on a MIDDLE page,
+		// past both ends. A deep admin-budget sweep (40 pages) reaches them; a
+		// shallow front-end sweep (12 pages) stops short and finds nothing
+		// upcoming. Both fetches share one cache key, so the shallow sweep's
+		// "nothing upcoming" used to overwrite the deep sweep's last-good copy
+		// — the events showed at bedtime, vanished by morning, and only a
+		// Flush live cache (which reloads the admin page at the deep budget)
+		// brought them back. The shallow sweep must preserve, never erase.
+		$this->mock_http(
+			function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				$this->requests[] = $url;
+
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				// The one upcoming session is on page 20: beyond the 12-page
+				// front-end budget, within the 40-page admin budget. Both ends
+				// (pages 1 and 30) and everything the shallow sweep can reach
+				// are old.
+				$rows = 20 === $page
+					? [ [ 'id' => 2000, 'title' => 'Upcoming keynote', 'date' => $future, 'event' => 101 ] ] // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+					: [ [ 'id' => 1000 + $page, 'title' => 'Old session ' . $page, 'date' => '2020-12-10T16:00:00Z', 'event' => 101 ] ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+				return self::json_response(
+					[
+						'count'   => 30,
+						'next'    => $page < 30 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'results' => $rows,
+					]
+				);
+			}
+		);
+
+		// The deep sweep reaches page 20 and caches the upcoming session as
+		// both the fresh and the 24-hour last-good copy.
+		add_filter( 'eex_live_max_pages', static fn(): int => 40 );
+
+		$deep = array_map( static fn( array $t ): string => (string) $t['title'], Repositories::current()->upcoming_talks( [] ) );
+		$this->assertSame( [ 'Upcoming keynote' ], $deep, 'the deep sweep finds the mid-list upcoming session' );
+
+		// Overnight the fresh copy (15 min) expires; the last-good copy (24h)
+		// survives. A visitor now triggers a shallow re-sweep.
+		foreach ( array_keys( \EEX_Test_State::$transients ) as $key ) {
+			if ( str_starts_with( (string) $key, 'eex_live_' ) ) {
+				unset( \EEX_Test_State::$transients[ $key ] );
+			}
+		}
+		LiveCache::reset_request_state();
+		Repositories::reset();
+		$this->requests = [];
+
+		remove_all_filters( 'eex_live_max_pages' );
+		add_filter( 'eex_live_max_pages', static fn(): int => 12 );
+
+		$shallow = array_map( static fn( array $t ): string => (string) $t['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		// The shallow sweep never reached page 20...
+		$reached = array_map(
+			static function ( string $url ): int {
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+
+				return isset( $m[1] ) ? (int) $m[1] : 1;
+			},
+			$this->requests
+		);
+		$this->assertNotContains( 20, $reached, 'the shallow sweep is budget-capped before page 20' );
+
+		// ...yet the upcoming session still shows, served from last-good.
+		$this->assertSame( [ 'Upcoming keynote' ], $shallow, 'the shallow sweep preserves the cached upcoming session instead of blanking it' );
+
+		$meta = LiveRepository::harvest_meta( 'c1|101' );
+		$this->assertSame( 'last-good', $meta['served'] ?? '', 'the harvest record notes the fall back to last-good' );
+		$this->assertStringContainsString( 'last complete result is being shown', $this->harvest_line(), 'the status row explains the truncation' );
+	}
+
+	/**
+	 * The harvest account line for the sole configured event, for assertions.
+	 */
+	private function harvest_line(): string {
+		$method = new \ReflectionMethod( LiveRepository::class, 'harvest_summary' );
+		$method->setAccessible( true );
+
+		return (string) $method->invoke( Repositories::current() );
+	}
+
 	public function test_the_diagnosis_shows_raw_wire_evidence_spans_drops_and_a_sample(): void {
 		$this->go_lite();
 

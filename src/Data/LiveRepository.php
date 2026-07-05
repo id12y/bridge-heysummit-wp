@@ -595,6 +595,10 @@ class LiveRepository extends BaseMapper implements Repository {
 				);
 			}
 
+			if ( ! empty( $meta['served'] ) && 'last-good' === $meta['served'] ) {
+				$line .= __( '; this sweep was truncated by its page budget before it reached the upcoming sessions, so the last complete result is being shown instead (an admin view or Flush live cache sweeps deeper)', 'emailexpert-events' );
+			}
+
 			$drops   = (array) ( $this->drop_stats[ $key ] ?? [] );
 			$dropped = [];
 
@@ -1087,7 +1091,9 @@ class LiveRepository extends BaseMapper implements Repository {
 					// (some routes omit it); the next link is trusted even
 					// when the count is absent.
 					if ( $last <= 1 && '' === $next ) {
-						return $rows; // Single page: nothing more to walk.
+						$meta['complete'] = true; // Single page: the whole collection was read.
+
+						return $rows; // Nothing more to walk.
 					}
 
 					if ( $last <= 1 ) {
@@ -1243,6 +1249,13 @@ class LiveRepository extends BaseMapper implements Repository {
 
 					$meta['collected'] = count( $unique );
 
+					// Whether every page of the collection was read. A sweep cut
+					// short by the page budget or the wall-clock deadline is NOT
+					// complete, so a "nothing upcoming" verdict from it cannot be
+					// trusted — the upcoming sessions may sit on a page it never
+					// reached (see the last-good guard below).
+					$meta['complete'] = count( $seen ) >= $last;
+
 					return array_values( $unique );
 				};
 
@@ -1260,6 +1273,29 @@ class LiveRepository extends BaseMapper implements Repository {
 
 					if ( ! empty( $results ) && $usable( $results ) ) {
 						\Emailexpert\Events\Api\PathStyles::remember( $conn_id, 'talks', $style );
+
+						// A budget- or deadline-truncated sweep that surfaced
+						// nothing upcoming is not authoritative: on accounts whose
+						// talks are not ordered by date, the upcoming sessions sit
+						// on pages this sweep never reached (production event
+						// 181590: 273 sessions over 28 pages, the newest NOT last).
+						// Caching that partial as last-good is exactly what let a
+						// front-end sweep — capped at 12 pages — blank the very
+						// sessions a deeper admin-budget sweep had found, until the
+						// next Flush live cache. Prefer the last-good collection
+						// while it still carries upcoming sessions, so a shallow
+						// sweep can only preserve them, never erase them.
+						if ( empty( $meta['complete'] ) && ! $has_future( $results ) ) {
+							$previous = LiveCache::peek_good( 'talks|' . $conn_id . '|' . $event_hs_id );
+
+							if ( is_array( $previous ) && $has_future( $previous ) ) {
+								$meta['style']  = $style;
+								$meta['served'] = 'last-good';
+								set_transient( self::harvest_key( $conn_id . '|' . $event_hs_id ), $meta, DAY_IN_SECONDS );
+
+								return $previous;
+							}
+						}
 
 						$meta['style'] = $style;
 						set_transient( self::harvest_key( $conn_id . '|' . $event_hs_id ), $meta, DAY_IN_SECONDS );
