@@ -147,6 +147,22 @@ final class LiveCache {
 	}
 
 	/**
+	 * The last-good copy of a resource without triggering a fetch, spending
+	 * the request budget, or taking a lock — a read-only peek.
+	 *
+	 * The talk harvest uses it to avoid overwriting a fuller cached
+	 * collection with a budget-truncated one: a shallow front-end sweep that
+	 * never reached the upcoming sessions must not erase what a deeper
+	 * (admin-budget) sweep already found and cached.
+	 *
+	 * @param string $key Stable resource key, exactly as passed to remember().
+	 * @return mixed Last-good value, or null when there is none.
+	 */
+	public static function peek_good( string $key ) {
+		return self::last_good( self::key( 'lg', $key ) );
+	}
+
+	/**
 	 * The per-request cold-fetch budget.
 	 */
 	private static function budget(): int {

@@ -1284,3 +1284,48 @@ until hover — style-only, so a CSS variable pair consumed in eex.css
 with hover/focus reset). Rule reaffirmed for future components: when a
 template introduces a new text class, it must join the Style tab's
 selector lists in the same change.
+
+## D89. A budget-truncated sweep must not poison the last-good cache (v1.20.4)
+
+Field report: upcoming sessions displayed at bedtime, were gone by
+morning, and a Flush live cache brought them back — every night. The
+harvest record told the story. Event 181590 reports 273 sessions across
+28 pages, and this account's talks list is NOT ordered by date: its
+upcoming sessions sit on a MIDDLE page, past both ends (the last page,
+28, held only 2026-06 sessions while the event's own record ran to
+2029). D55's middle sweep is the right tool for that — but it is bounded
+by `eex_live_max_pages`, 40 in admin and 12 on the front end (a visitor
+page must never make dozens of sequential API calls). So the deep admin
+sweep reaches the upcoming sessions and the shallow front-end sweep,
+capped at 12 of 28 pages, does not. Both fetches share one cache key.
+The sequence: an admin view (or a flush, which reloads the admin page)
+sweeps deep and caches the upcoming sessions as the fresh (15-minute)
+AND last-good (24-hour) copies → events show; 15 minutes later the fresh
+copy lapses, the next visitor triggers a shallow sweep that finds
+nothing upcoming, and that partial overwrites BOTH copies, including the
+24-hour last-good → events vanish until the next flush.
+
+The two-tier cache exists precisely so a degraded fetch serves last-good
+instead of blanking the page; a sweep truncated by its page budget or
+wall-clock deadline is a degraded fetch for the "is anything upcoming?"
+question, but the harvest was treating it as authoritative. Now the
+harvest records whether it read the whole collection (`complete`), and a
+sweep that is BOTH incomplete AND found nothing upcoming defers to the
+last-good collection when that copy still carries upcoming sessions
+(`LiveCache::peek_good()`, a read-only peek that spends no budget and
+takes no lock) — so a shallow sweep can only preserve upcoming sessions,
+never erase them. Once a deep sweep has cached them, every subsequent
+shallow sweep re-serves and re-saves that copy, and the sessions stay
+put without a flush. Consequences and bounds: the fix is one-directional
+(a shallow sweep never adds or prunes upcoming sessions, it only keeps
+the last complete answer), so refreshing the upcoming set still needs a
+deep sweep — an admin view, a flush, or a raised `eex_live_max_pages`;
+a genuinely-emptied summit therefore keeps showing its last upcoming
+sessions on the front end until a deep sweep confirms the emptiness (the
+same serve-stale trade-off as D65, and the client-side clock still ages
+past sessions out of the list). The Live status row names the situation
+("this sweep was truncated by its page budget before it reached the
+upcoming sessions, so the last complete result is being shown"). The
+cold-start case is unchanged: with no last-good yet, the first shallow
+sweep still caches its partial, and the first admin view or flush seeds
+the complete copy that the guard then protects.

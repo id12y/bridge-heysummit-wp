@@ -3,6 +3,21 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.20.4
+- **Fixed: upcoming sessions vanished overnight and came back only after
+  a Flush live cache.** On an account whose talks are not ordered by date,
+  the upcoming sessions can sit on a middle page of a long collection. A
+  deep admin-budget sweep (40 pages) reaches them; a shallow front-end
+  sweep (12 pages) stops short and finds nothing upcoming. Because both
+  share one cache, the shallow "nothing upcoming" was overwriting the
+  deep sweep's saved copy — so the sessions disappeared until the next
+  flush restored them. A budget-truncated sweep that finds nothing
+  upcoming now keeps the last complete result instead of erasing it, so
+  once the sessions are found they stay put. The Live status row says
+  when this is happening ("this sweep was truncated by its page budget…").
+  If you want the front end itself to sweep the whole collection, raise
+  `eex_live_max_pages`.
+
 ## 1.20.0 – 1.20.3
 - **Style pass for every Elementor widget**: design presets (boxed /
   outlined / soft / chromeless / inverted), typography groups for
