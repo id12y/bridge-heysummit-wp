@@ -31,7 +31,7 @@ final class Components {
 	 * the filter bar work in Lite — the talk harvest already fetches past
 	 * sessions, and the bar filters via JS with query-arg fallbacks.
 	 */
-	public const FULL_ONLY = [ 'past-events', 'reg-counter' ];
+	public const FULL_ONLY = [ 'past-events', 'reg-counter', 'venue' ];
 
 	/**
 	 * Components whose Lite render emits inline Event JSON-LD for the items
@@ -329,6 +329,8 @@ final class Components {
 					],
 					'show_speakers'   => $show_speakers,
 					'show_categories' => $show_categories,
+					'day_nav'         => $flag( __( 'Show jump-to-day links above the schedule', 'emailexpert-events' ), 0 ),
+					'show_tz_toggle'  => $flag( __( 'Show a timezone toggle (your time / event time)', 'emailexpert-events' ), 0 ),
 					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
@@ -389,6 +391,7 @@ final class Components {
 						'label'   => $limit_label,
 					],
 					'paginate'     => $flag( __( 'Paginate', 'emailexpert-events' ), 0 ),
+					'show_links'   => $flag( __( 'Show speaker social/web links', 'emailexpert-events' ), 0 ),
 					'page'         => [
 						'type'     => 'string',
 						'default'  => '',
@@ -792,6 +795,7 @@ final class Components {
 						],
 					],
 					'show_bio'     => $flag( __( 'Show biography', 'emailexpert-events' ) ),
+					'show_links'   => $flag( __( 'Show speaker social/web links', 'emailexpert-events' ), 0 ),
 					'empty_text'   => [
 						'type'    => 'string',
 						'default' => __( 'Speakers are announced soon.', 'emailexpert-events' ),
@@ -863,6 +867,186 @@ final class Components {
 					'threshold' => [
 						'type'    => 'integer',
 						'default' => 50,
+					],
+				],
+			],
+			'register-bar'      => [
+				'title' => __( 'Sticky register bar', 'emailexpert-events' ),
+				'atts'  => [
+					'event'           => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'text'            => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Bar text (empty = event title)', 'emailexpert-events' ),
+					],
+					'register_text'   => $tickets_text,
+					'position'        => [
+						'type'    => 'string',
+						'default' => 'bottom',
+						'label'   => __( 'Pin to', 'emailexpert-events' ),
+						'options' => [
+							'bottom' => __( 'Bottom of the screen', 'emailexpert-events' ),
+							'top'    => __( 'Top of the screen', 'emailexpert-events' ),
+						],
+					],
+					'offset'          => [
+						'type'    => 'integer',
+						'default' => 400,
+						'label'   => __( 'Show after scrolling this many pixels', 'emailexpert-events' ),
+					],
+					'show_countdown'  => $flag( __( 'Show the countdown', 'emailexpert-events' ) ),
+					'show_live'       => $flag( __( 'Switch to "Join now" while a session is live', 'emailexpert-events' ) ),
+					'dismissible'     => $flag( __( 'Visitors can dismiss the bar', 'emailexpert-events' ) ),
+					'register_url'    => $register_url,
+					'register_action' => $register_action,
+					'buy_on'          => $buy_on,
+					'coupon'          => $coupon,
+					'tickets'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Panel: only these tickets (comma separated IDs)', 'emailexpert-events' ),
+					],
+					'exclude'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Panel: hide these tickets (comma separated IDs)', 'emailexpert-events' ),
+					],
+				],
+			],
+			'register-inline'   => [
+				'title' => __( 'Registration form', 'emailexpert-events' ),
+				'atts'  => [
+					'event'         => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'ticket'        => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Free ticket ID (empty = the first free ticket)', 'emailexpert-events' ),
+					],
+					'heading'       => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Heading (empty = no heading)', 'emailexpert-events' ),
+					],
+					'register_text' => $register_text,
+					'coupon'        => $coupon,
+					'empty_text'    => [
+						'type'    => 'string',
+						'default' => __( 'Registration opens soon.', 'emailexpert-events' ),
+					],
+				],
+			],
+			'stats'             => [
+				'title' => __( 'Event stats strip', 'emailexpert-events' ),
+				'atts'  => [
+					'event'   => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'items'   => [
+						'type'    => 'string',
+						'default' => 'speakers,sessions,days',
+						'label'   => __( 'Stats to show, in order (speakers, sessions, days, categories, registered)', 'emailexpert-events' ),
+					],
+					'animate' => $flag( __( 'Count up when scrolled into view', 'emailexpert-events' ), 0 ),
+				],
+			],
+			'replay-gallery'    => [
+				'title' => __( 'Replay gallery', 'emailexpert-events' ),
+				'atts'  => [
+					'event'         => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'category'      => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'limit'         => [
+						'type'    => 'integer',
+						'default' => 0,
+						'label'   => $limit_label,
+					],
+					'columns'       => $talk_columns,
+					'show_speakers' => $show_speakers,
+					'show_image'    => $flag( __( 'Show session images', 'emailexpert-events' ) ),
+					'show_soon'     => $flag( __( 'Include sessions whose replay is coming soon', 'emailexpert-events' ) ),
+					'link'          => [
+						'type'    => 'string',
+						'default' => 'talk',
+						'label'   => __( 'Cards link to', 'emailexpert-events' ),
+						'options' => [
+							'talk'   => __( 'The session page', 'emailexpert-events' ),
+							'replay' => __( 'The replay directly', 'emailexpert-events' ),
+						],
+					],
+					'empty_text'    => [
+						'type'    => 'string',
+						'default' => __( 'Replays will appear here soon.', 'emailexpert-events' ),
+					],
+				],
+			],
+			'venue'             => [
+				'title' => __( 'Venue card', 'emailexpert-events' ),
+				'atts'  => [
+					'event'         => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'heading'       => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Heading (empty = "Venue")', 'emailexpert-events' ),
+					],
+					'show_map_link' => $flag( __( 'Show a "Directions" map link', 'emailexpert-events' ) ),
+					'empty_text'    => [
+						'type'    => 'string',
+						'default' => __( 'Venue details coming soon.', 'emailexpert-events' ),
+					],
+				],
+			],
+			'featured-session'  => [
+				'title' => __( 'Featured session card', 'emailexpert-events' ),
+				'atts'  => [
+					'talk'             => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Session ID (empty = the next upcoming session)', 'emailexpert-events' ),
+					],
+					'event'            => [
+						'type'    => 'string',
+						'default' => '',
+					],
+					'view'             => [
+						'type'    => 'string',
+						'default' => 'card',
+						'label'   => __( 'View', 'emailexpert-events' ),
+						'options' => [
+							'card'    => __( 'Feature card (wide)', 'emailexpert-events' ),
+							'compact' => __( 'Compact (sidebar)', 'emailexpert-events' ),
+						],
+					],
+					'show_image'       => $flag( __( 'Show the session image', 'emailexpert-events' ) ),
+					'show_description' => $flag( __( 'Show the description', 'emailexpert-events' ) ),
+					'show_speakers'    => $show_speakers,
+					'show_categories'  => $show_categories,
+					'show_venue'       => $flag( __( 'Show the location (stage / venue)', 'emailexpert-events' ) ),
+					'show_address'     => $flag( __( 'Show the event venue address and map link', 'emailexpert-events' ) ),
+					'show_ics'         => $show_ics,
+					'buttons'          => $buttons,
+					'register_text'    => $tickets_text,
+					'session_text'     => $session_text,
+					'register_url'     => $register_url,
+					'buy_on'           => $buy_on,
+					'coupon'           => $coupon,
+					'empty_text'       => [
+						'type'    => 'string',
+						'default' => $empty_sessions,
 					],
 				],
 			],
@@ -1180,6 +1364,9 @@ final class Components {
 			'ends_at'       => (string) get_post_meta( $post_id, '_eex_ends_at', true ),
 			'talk_url'      => Utm::tag( (string) get_post_meta( $post_id, '_eex_talk_url', true ) ),
 			'replay_url'    => $replay,
+			'venue'         => (string) get_post_meta( $post_id, '_eex_talk_venue', true ),
+			'inperson'      => (bool) get_post_meta( $post_id, '_eex_inperson', true ),
+			'image'         => (string) ( function_exists( 'get_the_post_thumbnail_url' ) ? ( get_the_post_thumbnail_url( $post_id, 'medium_large' ) ?: '' ) : '' ),
 			'speakers'      => $speakers,
 			'categories'    => is_array( $categories ) ? $categories : [],
 			'event_hs_id'   => $event_hs_id,
@@ -1190,6 +1377,38 @@ final class Components {
 			'ics_ref'       => $post_id,
 			'published'     => 'publish' === get_post_status( $post_id ),
 		];
+	}
+
+	/**
+	 * A human label for a speaker's social/web link, from its host.
+	 *
+	 * @param string $url Link URL.
+	 */
+	public static function link_label( string $url ): string {
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		$host = (string) preg_replace( '/^www\./', '', $host );
+
+		$known = [
+			'linkedin.com'    => 'LinkedIn',
+			'twitter.com'     => 'X (Twitter)',
+			'x.com'           => 'X (Twitter)',
+			'facebook.com'    => 'Facebook',
+			'instagram.com'   => 'Instagram',
+			'youtube.com'     => 'YouTube',
+			'github.com'      => 'GitHub',
+			'bsky.app'        => 'Bluesky',
+			'mastodon.social' => 'Mastodon',
+			'threads.net'     => 'Threads',
+			'tiktok.com'      => 'TikTok',
+		];
+
+		foreach ( $known as $domain => $label ) {
+			if ( $host === $domain || str_ends_with( $host, '.' . $domain ) ) {
+				return $label;
+			}
+		}
+
+		return '' !== $host ? $host : __( 'Website', 'emailexpert-events' );
 	}
 
 	/**
@@ -1580,35 +1799,18 @@ final class Components {
 							?>
 							<?php if ( $is_free && '' !== $event_id ) : ?>
 								<button type="button" class="eex-cta eex-reg-toggle" data-eex-reg-toggle="1"><?php esc_html_e( 'Register free', 'emailexpert-events' ); ?></button>
-								<form class="eex-reg-form" data-eex-reg="1" hidden>
-									<input type="hidden" name="event" value="<?php echo esc_attr( $event_id ); ?>" />
-									<input type="hidden" name="ticket" value="<?php echo esc_attr( (string) $ticket['id'] ); ?>" />
-									<input type="hidden" name="price" value="<?php echo esc_attr( $price_id ); ?>" />
-									<p class="eex-reg-hp" aria-hidden="true">
-										<label><?php esc_html_e( 'Leave this field empty', 'emailexpert-events' ); ?><input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
-									</p>
-									<p class="eex-reg-field">
-										<label><?php esc_html_e( 'Name', 'emailexpert-events' ); ?><input type="text" name="name" required autocomplete="name" /></label>
-									</p>
-									<p class="eex-reg-field">
-										<label><?php esc_html_e( 'Email', 'emailexpert-events' ); ?><input type="email" name="email" required autocomplete="email" /></label>
-									</p>
-									<p class="eex-reg-consent">
-										<label>
-											<input type="checkbox" name="consent" value="1" required />
-											<?php
-											echo esc_html(
-												(string) apply_filters(
-													'eex_register_consent_text',
-													__( 'Register me for this event; the organiser may email me about it.', 'emailexpert-events' )
-												)
-											);
-											?>
-										</label>
-									</p>
-									<button type="submit" class="eex-cta"><?php esc_html_e( 'Complete registration', 'emailexpert-events' ); ?></button>
-									<p class="eex-reg-msg" aria-live="polite"></p>
-								</form>
+								<?php
+								TemplateLoader::part(
+									'register-form',
+									[
+										'event_id'    => $event_id,
+										'ticket_id'   => (string) $ticket['id'],
+										'price_id'    => $price_id,
+										'submit_text' => '',
+										'hidden'      => true,
+									]
+								);
+								?>
 							<?php endif; ?>
 						</li>
 					<?php endforeach; ?>
@@ -1919,7 +2121,37 @@ final class Components {
 			];
 		}
 
+		// Both extras are opt-in and additive: with the flags off the markup
+		// below is unchanged from previous releases.
+		$days = array_values( array_unique( array_column( $rows, 'day' ) ) );
+		$uid  = ! empty( $atts['day_nav'] ) ? substr( md5( wp_json_encode( $atts ) ), 0, 6 ) : '';
+
 		ob_start();
+
+		if ( ! empty( $atts['show_tz_toggle'] ) ) {
+			// JS-only affordance (time zones cannot be switched server-side);
+			// eex-time.js reveals it. aria-pressed = "showing MY timezone".
+			printf(
+				'<p class="eex-tz-toggle" hidden><button type="button" class="eex-chip" data-eex-tz-toggle="1" aria-pressed="true" data-label-local="%s" data-label-event="%s">%s</button></p>',
+				esc_attr__( 'Show times in your timezone', 'emailexpert-events' ),
+				esc_attr__( 'Show times in event time', 'emailexpert-events' ),
+				esc_html__( 'Show times in event time', 'emailexpert-events' )
+			);
+		}
+
+		if ( '' !== $uid && count( $days ) > 1 ) {
+			echo '<nav class="eex-day-nav" aria-label="' . esc_attr__( 'Jump to day', 'emailexpert-events' ) . '">';
+			foreach ( $days as $i => $day ) {
+				printf(
+					'<a class="eex-chip" href="#eex-day-%s-%d">%s</a> ',
+					esc_attr( $uid ),
+					(int) $i,
+					esc_html( (string) $day )
+				);
+			}
+			echo '</nav>';
+		}
+
 		$current_day = null;
 		$open        = false;
 
@@ -1930,7 +2162,8 @@ final class Components {
 				}
 				$current_day = $row['day'];
 				$open        = true;
-				echo '<section class="eex-schedule-day"><h3 class="eex-schedule-heading">' . esc_html( $row['day'] ) . '</h3><ol class="eex-schedule-list" role="list">';
+				$anchor      = '' !== $uid ? sprintf( ' id="eex-day-%s-%d"', esc_attr( $uid ), (int) array_search( $row['day'], $days, true ) ) : '';
+				echo '<section class="eex-schedule-day"' . $anchor . '><h3 class="eex-schedule-heading">' . esc_html( $row['day'] ) . '</h3><ol class="eex-schedule-list" role="list">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 			}
 
 			TemplateLoader::part(
@@ -2019,7 +2252,13 @@ final class Components {
 		printf( '<ul class="%s" role="list"%s>', esc_attr( $classes ), $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from an integer above.
 		foreach ( $items as $speaker ) {
 			echo '<li class="eex-grid-item">';
-			TemplateLoader::part( $list ? 'list-speaker' : 'card-speaker', [ 'speaker' => $speaker ] );
+			TemplateLoader::part(
+				$list ? 'list-speaker' : 'card-speaker',
+				[
+					'speaker'    => $speaker,
+					'show_links' => ! empty( $atts['show_links'] ),
+				]
+			);
 			echo '</li>';
 		}
 		echo '</ul>';
@@ -2641,8 +2880,9 @@ final class Components {
 		TemplateLoader::part(
 			'spotlight-speaker',
 			[
-				'speaker'  => $pick,
-				'show_bio' => ! empty( $atts['show_bio'] ),
+				'speaker'    => $pick,
+				'show_bio'   => ! empty( $atts['show_bio'] ),
+				'show_links' => ! empty( $atts['show_links'] ),
 			]
 		);
 		echo '</div>';
@@ -2863,5 +3103,396 @@ final class Components {
 			esc_html( number_format_i18n( $count ) ),
 			esc_html__( 'people registered', 'emailexpert-events' )
 		);
+	}
+
+	/**
+	 * Sticky register bar: a slim always-reachable CTA. Server-rendered in
+	 * normal flow (the no-JS presentation); eex-time.js pins it and reveals
+	 * it after the scroll offset, and remembers a dismissal for the session.
+	 * The button reuses the whole register stack — external override, Woo,
+	 * coupon, and the ticket drawer in panel mode — and, wrapped in session
+	 * attributes, flips to "Join now" while a session is live.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_register_bar( array $atts ): string {
+		$event = self::repo()->event_summary( (string) $atts['event'] );
+
+		if ( null === $event ) {
+			return '';
+		}
+
+		$register = self::register_args( $atts );
+		$url      = self::ticketing_url( [ 'event_url' => (string) $event['event_url'] ], $register );
+
+		if ( '' === $url ) {
+			return '';
+		}
+
+		$drawer = self::ticket_drawer( $atts );
+		$text   = '' !== (string) $atts['text'] ? (string) $atts['text'] : (string) $event['title'];
+		$label  = '' !== (string) $atts['register_text'] ? (string) $atts['register_text'] : __( 'Get tickets', 'emailexpert-events' );
+
+		// The next (or current) session powers the live flip and countdown.
+		$next      = ! empty( $atts['show_live'] ) ? self::repo()->current_and_next(
+			[
+				'event' => (string) $atts['event'],
+				'limit' => 1,
+			]
+		) : [];
+		$countdown = ! empty( $atts['show_countdown'] ) ? self::render_countdown(
+			[
+				'talk'  => '',
+				'event' => (string) $atts['event'],
+			]
+		) : '';
+
+		$id = 'eex-bar-' . substr( md5( wp_json_encode( [ $atts, (string) $event['hs_id'] ] ) ), 0, 8 );
+
+		ob_start();
+		TemplateLoader::part(
+			'register-bar',
+			[
+				'id'          => $id,
+				'text'        => $text,
+				'label'       => $label,
+				'url'         => $url,
+				'position'    => (string) $atts['position'],
+				'offset'      => max( 0, (int) $atts['offset'] ),
+				'dismissible' => ! empty( $atts['dismissible'] ),
+				'countdown'   => $countdown,
+				'session'     => ! empty( $next ) ? $next[0] : [],
+				'drawer_id'   => $drawer['id'],
+			]
+		);
+
+		return (string) ob_get_clean() . $drawer['html'];
+	}
+
+	/**
+	 * Inline registration form: the drawer's free-ticket form as a placeable
+	 * component. Events selling paid tickets only degrade to a checkout CTA
+	 * (payment can only happen on the platform); no tickets at all shows the
+	 * empty state.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_register_inline( array $atts ): string {
+		$event    = self::repo()->event_summary( (string) $atts['event'] );
+		$event_id = null !== $event ? (string) $event['hs_id'] : '';
+		$tickets  = self::repo()->tickets( $atts );
+
+		if ( '' === $event_id || empty( $tickets ) ) {
+			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		$wanted = (string) $atts['ticket'];
+		$free   = null;
+
+		foreach ( $tickets as $ticket ) {
+			if ( ! empty( $ticket['is_paid'] ) ) {
+				continue;
+			}
+			if ( '' === $wanted || (string) $ticket['id'] === $wanted ) {
+				$free = $ticket;
+				break;
+			}
+		}
+
+		$heading = '' !== (string) $atts['heading']
+			? sprintf( '<h3 class="eex-reg-inline-heading">%s</h3>', esc_html( (string) $atts['heading'] ) )
+			: '';
+
+		if ( null === $free ) {
+			// Paid-only event: a working checkout button beats a dead form.
+			$paid = $tickets[0];
+			$url  = self::ticket_register_url( $paid, self::register_args( $atts ) );
+
+			if ( '' === $url ) {
+				return self::empty_state( (string) $atts['empty_text'] );
+			}
+
+			return sprintf(
+				'%s<p class="eex-reg-inline-cta"><a class="eex-cta eex-cta-register" href="%s">%s</a></p>',
+				$heading, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+				esc_url( $url ),
+				esc_html( '' !== (string) $atts['register_text'] ? (string) $atts['register_text'] : __( 'Get tickets', 'emailexpert-events' ) )
+			);
+		}
+
+		$price_id = '';
+		foreach ( (array) $free['prices'] as $price ) {
+			if ( '' !== (string) ( $price['id'] ?? '' ) ) {
+				$price_id = (string) $price['id'];
+				break;
+			}
+		}
+
+		ob_start();
+		TemplateLoader::part(
+			'register-form',
+			[
+				'event_id'    => $event_id,
+				'ticket_id'   => (string) $free['id'],
+				'price_id'    => $price_id,
+				'submit_text' => (string) $atts['register_text'],
+				'hidden'      => false,
+			]
+		);
+
+		return sprintf( '%s<div class="eex-reg-inline">%s</div>', $heading, (string) ob_get_clean() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped parts.
+	}
+
+	/**
+	 * Event stats strip: social proof from numbers the plugin already has.
+	 * A stat that is zero or unavailable renders nothing — "0 speakers"
+	 * sells no tickets — and a strip with no stats renders empty.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_stats( array $atts ): string {
+		$event = self::repo()->event_summary( (string) $atts['event'] );
+
+		if ( null === $event ) {
+			return '';
+		}
+
+		$wanted = array_values( array_filter( array_map( 'trim', explode( ',', (string) $atts['items'] ) ) ) );
+
+		if ( empty( $wanted ) ) {
+			return '';
+		}
+
+		$talks = null;
+		$lazy  = function () use ( &$talks, $atts ): array {
+			if ( null === $talks ) {
+				$talks = array_merge(
+					self::repo()->upcoming_talks( $atts + [ 'limit' => 0 ] ),
+					self::repo()->past_talks( $atts + [ 'limit' => 0 ] )
+				);
+			}
+
+			return $talks;
+		};
+
+		$values = [];
+
+		foreach ( $wanted as $item ) {
+			switch ( $item ) {
+				case 'speakers':
+					$values[] = [ self::repo()->speakers_total( $atts ), __( 'Speakers', 'emailexpert-events' ) ];
+					break;
+				case 'sessions':
+					$values[] = [ count( $lazy() ), __( 'Sessions', 'emailexpert-events' ) ];
+					break;
+				case 'days':
+					$days     = array_unique( array_column( self::group_rows_by_day( $lazy(), 'Y-m-d' ), 'day' ) );
+					$values[] = [ count( $days ), __( 'Days', 'emailexpert-events' ) ];
+					break;
+				case 'categories':
+					$values[] = [ count( self::repo()->categories( $atts ) ), __( 'Topics', 'emailexpert-events' ) ];
+					break;
+				case 'registered':
+					$values[] = [ (int) ( $event['reg_count'] ?? 0 ), __( 'Registered', 'emailexpert-events' ) ];
+					break;
+			}
+		}
+
+		$values = array_filter( $values, static fn( array $stat ): bool => $stat[0] > 0 );
+
+		if ( empty( $values ) ) {
+			return '';
+		}
+
+		$animate = ! empty( $atts['animate'] );
+
+		ob_start();
+		echo '<ul class="eex-stats" role="list">';
+		foreach ( $values as [ $count, $label ] ) {
+			printf(
+				'<li class="eex-stat"><span class="eex-stat-number"%s>%s</span> <span class="eex-stat-label">%s</span></li>',
+				$animate ? ' data-eex-countup="' . (int) $count . '"' : '',
+				esc_html( number_format_i18n( (int) $count ) ),
+				esc_html( $label )
+			);
+		}
+		echo '</ul>';
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Replay gallery: the post-event content library. Past sessions with a
+	 * replay URL (manual `_eex_replay_url` still beats the synced value —
+	 * the existing rule), plus optionally the ones HeySummit has flagged
+	 * replay_planned, badged "Replay soon" until the URL exists.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_replay_gallery( array $atts ): string {
+		$items = array_values(
+			array_filter(
+				self::repo()->past_talks( $atts + [ 'limit' => 0 ] ),
+				static function ( array $data ) use ( $atts ): bool {
+					if ( '' !== (string) ( $data['replay_url'] ?? '' ) ) {
+						return true;
+					}
+
+					return ! empty( $atts['show_soon'] ) && ! empty( $data['replay_soon'] );
+				}
+			)
+		);
+
+		$limit = max( 0, (int) $atts['limit'] );
+		if ( $limit > 0 ) {
+			$items = array_slice( $items, 0, $limit );
+		}
+
+		if ( empty( $items ) ) {
+			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		$columns = min( 6, max( 0, (int) $atts['columns'] ) );
+		$style   = $columns > 0 ? sprintf( ' style="--eex-columns:%d"', $columns ) : '';
+
+		ob_start();
+		printf( '<ul class="eex-grid eex-replay-grid" role="list"%s>', $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from an integer above.
+		foreach ( $items as $data ) {
+			echo '<li class="eex-grid-item">';
+			TemplateLoader::part(
+				'replay-card',
+				[
+					'data'          => $data,
+					'link'          => (string) $atts['link'],
+					'show_speakers' => ! empty( $atts['show_speakers'] ),
+					'show_image'    => ! empty( $atts['show_image'] ),
+				]
+			);
+			echo '</li>';
+		}
+		echo '</ul>';
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Featured session card: one session — hand-picked or the next upcoming
+	 * — with its physical location given equal billing to the programme
+	 * details: stage/venue line, "In person" badge, and optionally the
+	 * event venue's address with a directions link. Two views: a wide
+	 * feature card and a compact sidebar card.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_featured_session( array $atts ): string {
+		$ref  = (string) $atts['talk'];
+		$data = null;
+
+		if ( '' !== $ref ) {
+			$data = self::repo()->talk( $ref );
+		} else {
+			$next = self::repo()->upcoming_talks(
+				[
+					'event' => (string) $atts['event'],
+					'limit' => 1,
+				]
+			);
+			$data = $next[0] ?? null;
+		}
+
+		if ( null === $data ) {
+			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		self::$schema_pool[] = [
+			'type' => 'talk',
+			'data' => $data,
+		];
+
+		// The event venue address (the venue component's data) joins the
+		// card when requested: Full mode carries the full address, Lite
+		// knows the venue name only.
+		$address = [];
+		$map_url = '';
+
+		if ( ! empty( $atts['show_address'] ) ) {
+			$event_post_id = (int) ( $data['event_post_id'] ?? 0 );
+
+			if ( $event_post_id > 0 ) {
+				foreach ( [ 'name', 'street', 'locality', 'postcode', 'country' ] as $field ) {
+					$value = (string) get_post_meta( $event_post_id, '_eex_venue_' . $field, true );
+					if ( '' !== $value ) {
+						$address[] = $value;
+					}
+				}
+			} else {
+				$event = self::repo()->event_summary( (string) ( $data['event_hs_id'] ?? '' ) );
+				if ( null !== $event && '' !== (string) ( $event['venue'] ?? '' ) ) {
+					$address[] = (string) $event['venue'];
+				}
+			}
+
+			if ( ! empty( $address ) ) {
+				$map_url = 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( implode( ', ', $address ) );
+			}
+		}
+
+		ob_start();
+		TemplateLoader::part(
+			'featured-session',
+			[
+				'data'          => $data,
+				'view'          => (string) $atts['view'],
+				'show'          => self::show_flags( $atts ) + [ 'description' => ! empty( $atts['show_description'] ) ],
+				'address'       => $address,
+				'map_url'       => $map_url,
+				'buttons'       => (string) $atts['buttons'],
+				'register_text' => (string) $atts['register_text'],
+				'session_text'  => (string) $atts['session_text'],
+				'register'      => self::register_args( $atts ),
+			]
+		);
+
+		return (string) ob_get_clean();
+	}
+
+	/**
+	 * Venue card (Full mode): the operator-owned `_eex_venue_*` meta — the
+	 * same fields Event schema publishes — finally gets a front-end surface.
+	 * The map link is a link, not an embed: no third-party iframe weight.
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function render_venue( array $atts ): string {
+		$event   = self::repo()->event_summary( (string) $atts['event'] );
+		$post_id = null !== $event ? (int) ( $event['id'] ?? 0 ) : 0;
+
+		$fields = [];
+		foreach ( [ 'name', 'street', 'locality', 'postcode', 'country' ] as $field ) {
+			$fields[ $field ] = $post_id > 0 ? (string) get_post_meta( $post_id, '_eex_venue_' . $field, true ) : '';
+		}
+
+		$lines = array_values( array_filter( $fields ) );
+
+		if ( empty( $lines ) ) {
+			return self::empty_state( (string) $atts['empty_text'] );
+		}
+
+		$heading = '' !== (string) $atts['heading'] ? (string) $atts['heading'] : __( 'Venue', 'emailexpert-events' );
+		$map_url = ! empty( $atts['show_map_link'] )
+			? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( implode( ', ', $lines ) )
+			: '';
+
+		ob_start();
+		TemplateLoader::part(
+			'venue-card',
+			[
+				'heading' => $heading,
+				'fields'  => $fields,
+				'map_url' => $map_url,
+			]
+		);
+
+		return (string) ob_get_clean();
 	}
 }

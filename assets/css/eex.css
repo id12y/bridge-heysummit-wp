@@ -1324,3 +1324,252 @@
 	background: transparent;
 	padding: calc(var(--eex-gap) * 0.5);
 }
+
+/* Sticky register bar */
+.eex-register-bar {
+	display: flex;
+	align-items: center;
+	background: var(--eex-accent);
+	color: var(--eex-accent-fg);
+	border-radius: var(--eex-radius);
+	padding: 0.6rem 1rem;
+	padding-left: max(1rem, env(safe-area-inset-left));
+	padding-right: max(1rem, env(safe-area-inset-right));
+}
+
+.eex-register-bar .eex-bar-body {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var(--eex-gap);
+	flex-wrap: wrap;
+	width: 100%;
+	max-width: 72rem;
+	margin: 0 auto;
+}
+
+.eex-register-bar p {
+	margin: 0;
+}
+
+.eex-bar-text .eex-countdown {
+	display: inline;
+	margin-left: 0.5em;
+	font-size: 0.9em;
+	opacity: 0.9;
+}
+
+.eex-bar-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.eex-register-bar .eex-cta {
+	background: var(--eex-accent-fg);
+	color: var(--eex-accent);
+}
+
+.eex-bar-dismiss {
+	background: transparent;
+	border: 0;
+	color: inherit;
+	font-size: 1.4rem;
+	line-height: 1;
+	cursor: pointer;
+	padding: 0.2rem 0.4rem;
+}
+
+.eex-bar-dismiss:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+}
+
+/* Pinned by JS; hidden until the scroll offset, slides in when visible. */
+.eex-register-bar.eex-bar-fixed {
+	position: fixed;
+	left: 0;
+	right: 0;
+	z-index: 9990;
+	border-radius: 0;
+	visibility: hidden;
+	transition: transform 0.25s ease, visibility 0.25s;
+}
+
+.eex-bar-bottom.eex-bar-fixed {
+	bottom: 0;
+	padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+	transform: translateY(110%);
+}
+
+.eex-bar-top.eex-bar-fixed {
+	top: 0;
+	transform: translateY(-110%);
+}
+
+.eex-register-bar.eex-bar-fixed.eex-bar-visible {
+	visibility: visible;
+	transform: none;
+}
+
+/* Inline registration form */
+.eex-reg-inline .eex-reg-form {
+	max-width: 32rem;
+}
+
+/* Stats strip */
+.eex-stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--eex-gap);
+	list-style: none;
+	margin: 0 0 var(--eex-gap);
+	padding: 0;
+	text-align: center;
+}
+
+.eex-stat {
+	flex: 1 1 8rem;
+	background: var(--eex-card-bg);
+	border: 1px solid var(--eex-border);
+	border-radius: var(--eex-radius);
+	padding: calc(var(--eex-gap) * 0.75);
+}
+
+.eex-stat-number {
+	display: block;
+	font-size: 2rem;
+	font-weight: 700;
+	line-height: 1.1;
+}
+
+.eex-stat-label {
+	color: var(--eex-muted);
+	font-size: 0.9em;
+}
+
+/* Replay gallery */
+.eex-replay-grid {
+	--eex-columns: 3;
+}
+
+.eex-replay-media {
+	position: relative;
+}
+
+.eex-replay-play {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--eex-accent);
+	pointer-events: none;
+}
+
+.eex-replay-soon {
+	opacity: 0.75;
+}
+
+.eex-replay-speakers {
+	color: var(--eex-muted);
+	margin: 0 0 0.5rem;
+}
+
+/* Venue card */
+.eex-venue-name {
+	font-weight: 600;
+	margin: 0 0 0.25rem;
+}
+
+.eex-venue-address {
+	color: var(--eex-muted);
+	margin: 0 0 0.75rem;
+}
+
+/* Featured session card */
+.eex-feature-session .eex-feature-location {
+	border-left: 3px solid var(--eex-accent);
+	padding: 0.25rem 0 0.25rem 0.75rem;
+	margin: 0 0 var(--eex-gap);
+}
+
+.eex-feature-session .eex-feature-location p {
+	margin: 0 0 0.35rem;
+}
+
+.eex-feature-card {
+	display: grid;
+	grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+	gap: var(--eex-gap);
+	align-items: start;
+}
+
+.eex-feature-card .eex-feature-media {
+	margin: 0;
+}
+
+.eex-feature-card .eex-feature-media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: var(--eex-radius);
+}
+
+.eex-feature-card:not(:has(.eex-feature-media)) {
+	grid-template-columns: 1fr;
+}
+
+@media (max-width: 700px) {
+	.eex-feature-card {
+		grid-template-columns: 1fr;
+	}
+}
+
+.eex-feature-compact {
+	font-size: 0.95em;
+}
+
+/* Schedule extras: day jump links and the timezone toggle */
+.eex-day-nav {
+	display: flex;
+	flex-wrap: nowrap;
+	gap: 0.5rem;
+	overflow-x: auto;
+	padding-bottom: 0.5rem;
+	margin-bottom: var(--eex-gap);
+	-webkit-overflow-scrolling: touch;
+}
+
+.eex-day-nav .eex-chip {
+	white-space: nowrap;
+}
+
+.eex-tz-toggle {
+	margin: 0 0 0.75rem;
+}
+
+.eex-tz-toggle button {
+	cursor: pointer;
+}
+
+/* Speaker links */
+.eex-speaker-links {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35rem;
+	margin: 0.5rem 0 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.eex-register-bar.eex-bar-fixed {
+		transition: none;
+	}
+}
+
+.eex-feature-compact .eex-feature-media img {
+	width: 100%;
+	height: 150px;
+	object-fit: cover;
+	border-radius: var(--eex-radius);
+}

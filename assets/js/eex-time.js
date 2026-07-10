@@ -10,6 +10,20 @@
 
 	var config = window.eexTime || { i18n: {}, soonMinutes: 60, restBase: '' };
 
+	var timeNodes = [];
+	var timeModeOverride = null;
+
+	function storedTimeMode() {
+		if ( timeModeOverride ) {
+			return timeModeOverride;
+		}
+		try {
+			return window.sessionStorage.getItem( 'eex-tz-mode' ) || 'local';
+		} catch ( e ) {
+			return 'local';
+		}
+	}
+
 	function localise() {
 		var timeFormat = new window.Intl.DateTimeFormat( undefined, {
 			dateStyle: 'medium',
@@ -22,6 +36,11 @@
 			if ( isNaN( date.getTime() ) ) {
 				return;
 			}
+			// Both renderings are kept so a timezone toggle can flip between
+			// them: the server's event-local markup and the visitor-local one.
+			if ( ! node.eexEventHtml ) {
+				node.eexEventHtml = node.innerHTML;
+			}
 			node.textContent = timeFormat.format( date );
 			if ( zone ) {
 				var tz = document.createElement( 'span' );
@@ -29,8 +48,45 @@
 				tz.textContent = ' (' + zone + ')';
 				node.appendChild( tz );
 			}
+			node.eexLocalHtml = node.innerHTML;
+			timeNodes.push( node );
+		} );
+
+		applyTimeMode();
+	}
+
+	function applyTimeMode() {
+		var eventMode = 'event' === storedTimeMode();
+
+		timeNodes.forEach( function ( node ) {
+			node.innerHTML = eventMode ? node.eexEventHtml : node.eexLocalHtml;
+		} );
+
+		// The toggle is a JS-only affordance: reveal it, and keep its label
+		// naming the mode a click switches TO. aria-pressed = "my timezone".
+		document.querySelectorAll( '[data-eex-tz-toggle]' ).forEach( function ( button ) {
+			var wrap = button.closest( '.eex-tz-toggle' );
+			if ( wrap ) {
+				wrap.hidden = false;
+			}
+			button.setAttribute( 'aria-pressed', eventMode ? 'false' : 'true' );
+			button.textContent = ( eventMode ? button.getAttribute( 'data-label-local' ) : button.getAttribute( 'data-label-event' ) ) || button.textContent;
 		} );
 	}
+
+	document.addEventListener( 'click', function ( event ) {
+		var toggle = event.target.closest( '[data-eex-tz-toggle]' );
+		if ( ! toggle ) {
+			return;
+		}
+		timeModeOverride = 'event' === storedTimeMode() ? 'local' : 'event';
+		try {
+			window.sessionStorage.setItem( 'eex-tz-mode', timeModeOverride );
+		} catch ( e ) {
+			/* Preference just won't persist beyond this page. */
+		}
+		applyTimeMode();
+	} );
 
 	function sessionStates() {
 		var now = Date.now();
@@ -380,6 +436,104 @@
 			event.preventDefault();
 			first.focus();
 		}
+	} );
+}() );
+
+/**
+ * Sticky register bar: rendered in normal flow (the no-JS presentation),
+ * then pinned and revealed after the scroll offset. A dismissal is
+ * remembered for the browsing session. Static inside the Elementor editor
+ * so it stays selectable where it was placed.
+ */
+( function () {
+	'use strict';
+
+	var bars = document.querySelectorAll( '[data-eex-register-bar]' );
+	if ( ! bars.length || document.body.classList.contains( 'elementor-editor-active' ) ) {
+		return;
+	}
+
+	bars.forEach( function ( bar ) {
+		var dismissed = false;
+		try {
+			dismissed = !! window.sessionStorage.getItem( 'eex-dismissed-' + bar.id );
+		} catch ( e ) {
+			/* No storage: the bar just shows. */
+		}
+		if ( dismissed ) {
+			return;
+		}
+
+		var offset = parseInt( bar.getAttribute( 'data-eex-bar-offset' ) || '0', 10 );
+		bar.classList.add( 'eex-bar-fixed' );
+
+		function update() {
+			bar.classList.toggle( 'eex-bar-visible', ( window.scrollY || window.pageYOffset || 0 ) >= offset );
+		}
+
+		window.addEventListener( 'scroll', update, { passive: true } );
+		update();
+
+		bar.addEventListener( 'click', function ( event ) {
+			if ( ! event.target.closest( '[data-eex-bar-dismiss]' ) ) {
+				return;
+			}
+			bar.classList.remove( 'eex-bar-visible' );
+			try {
+				window.sessionStorage.setItem( 'eex-dismissed-' + bar.id, '1' );
+			} catch ( e ) {
+				/* The dismissal just won't survive a reload. */
+			}
+		} );
+	} );
+}() );
+
+/**
+ * Stat count-up: opt-in per widget, first time the number scrolls into
+ * view, skipped entirely for visitors preferring reduced motion. The
+ * server-rendered figure is always the fallback.
+ */
+( function () {
+	'use strict';
+
+	var nodes = document.querySelectorAll( '[data-eex-countup]' );
+	if ( ! nodes.length || ! window.IntersectionObserver ) {
+		return;
+	}
+	if ( window.matchMedia && window.matchMedia( '(prefers-reduced-motion: reduce)' ).matches ) {
+		return;
+	}
+
+	var observer = new window.IntersectionObserver( function ( entries ) {
+		entries.forEach( function ( entry ) {
+			if ( ! entry.isIntersecting ) {
+				return;
+			}
+			observer.unobserve( entry.target );
+
+			var node = entry.target;
+			var target = parseInt( node.getAttribute( 'data-eex-countup' ) || '', 10 );
+			if ( isNaN( target ) || target <= 0 ) {
+				return;
+			}
+
+			var start = null;
+			function step( timestamp ) {
+				if ( null === start ) {
+					start = timestamp;
+				}
+				var progress = Math.min( 1, ( timestamp - start ) / 900 );
+				node.textContent = Math.round( target * ( 1 - Math.pow( 1 - progress, 3 ) ) ).toLocaleString();
+				if ( progress < 1 ) {
+					window.requestAnimationFrame( step );
+				}
+			}
+			window.requestAnimationFrame( step );
+		} );
+	}, { threshold: 0.4 } );
+
+	nodes.forEach( function ( node ) {
+		observer.observe( node );
 	} );
 }() );
 

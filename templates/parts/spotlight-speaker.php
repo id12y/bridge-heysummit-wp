@@ -65,5 +65,17 @@ $eex_photo_url = (string) ( $eex_speaker['photo_url'] ?? '' );
 		<?php if ( '' !== $eex_bio ) : ?>
 			<p class="eex-spotlight-bio"><?php echo esc_html( wp_trim_words( wp_strip_all_tags( $eex_bio ), 60 ) ); ?></p>
 		<?php endif; ?>
+
+		<?php if ( ! empty( $args['show_links'] ) ) : ?>
+			<?php
+			\Emailexpert\Events\Frontend\TemplateLoader::part(
+				'speaker-links',
+				[
+					'links' => (array) ( $eex_speaker['links'] ?? [] ),
+					'name'  => $eex_name,
+				]
+			);
+			?>
+		<?php endif; ?>
 	</div>
 </article>

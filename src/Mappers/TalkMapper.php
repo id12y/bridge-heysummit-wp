@@ -55,10 +55,35 @@ final class TalkMapper extends BaseMapper {
 			'ends_at'         => self::datetime( $raw, [ 'ends_at', 'end_time', 'end_date' ], $event_timezone ),
 			'talk_url'        => self::url_str( $raw, [ 'talk_url', 'url', 'public_url' ] ),
 			'replay_url'      => self::url_str( $raw, [ 'replay_url', 'recording_url', 'video_url' ] ),
+			'venue'           => self::venue_of( $raw ),
+			'inperson'        => ! empty( $raw['inperson_available'] ),
 			'event_hs_id'     => self::id_of( $raw, [ 'event', 'event_id' ] ),
 			'speaker_hs_ids'  => self::id_list( $raw['speakers'] ?? null ),
 			'category_hs_ids' => array_values( array_unique( array_column( $categories, 'hs_id' ) ) ),
 			'categories'      => $categories,
 		];
+	}
+
+	/**
+	 * The talk's physical location line: stage, then in-person venue and
+	 * area — the same composition the Lite mapper uses, so both modes show
+	 * identical location text.
+	 *
+	 * @param array<string,mixed> $raw Raw API record.
+	 */
+	private static function venue_of( array $raw ): string {
+		$parts = [];
+		$stage = $raw['stage'] ?? null;
+
+		if ( is_array( $stage ) ) {
+			$parts[] = self::str( $stage, [ 'title', 'name' ] );
+		} elseif ( is_string( $stage ) ) {
+			$parts[] = sanitize_text_field( $stage );
+		}
+
+		$parts[] = self::str( $raw, [ 'inperson_venue' ] );
+		$parts[] = self::str( $raw, [ 'inperson_venue_area' ] );
+
+		return implode( ', ', array_filter( array_unique( array_map( 'trim', $parts ) ) ) );
 	}
 }

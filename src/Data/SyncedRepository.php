@@ -340,6 +340,7 @@ class SyncedRepository implements Repository {
 			'slug'      => (string) get_post_field( 'post_name', $post_id ),
 			'photo_id'  => (int) get_post_meta( $post_id, '_eex_photo_attachment_id', true ),
 			'photo_url' => '',
+			'links'     => array_values( array_filter( array_map( 'strval', (array) get_post_meta( $post_id, '_eex_links', true ) ) ) ),
 		];
 	}
 }

@@ -36,6 +36,12 @@ final class Shortcodes {
 		'sponsor-spotlight' => 'eex_sponsor_spotlight',
 		'events-portfolio'  => 'eex_events_portfolio',
 		'live-now'          => 'eex_live_now',
+		'register-bar'      => 'eex_register_bar',
+		'register-inline'   => 'eex_register_inline',
+		'stats'             => 'eex_stats',
+		'replay-gallery'    => 'eex_replay_gallery',
+		'venue'             => 'eex_venue',
+		'featured-session'  => 'eex_featured_session',
 	];
 
 	/**
