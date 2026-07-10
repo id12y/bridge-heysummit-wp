@@ -1383,7 +1383,7 @@ class LiveRepository extends BaseMapper implements Repository {
 			'evergreen'     => self::boolish( $raw, 'is_evergreen' ),
 			'live'          => self::boolish( $raw, 'is_live' ),
 			'archived'      => self::boolish( $raw, 'is_archived' ),
-			'venue'         => self::str( $raw, [ 'venue_name', 'venue' ] ),
+			'venue'         => preg_match( '/^\d+$/', self::str( $raw, [ 'venue_name', 'venue' ] ) ) ? '' : self::str( $raw, [ 'venue_name', 'venue' ] ),
 			'reg_count'     => 0,
 			'series'        => [],
 		];
@@ -1426,7 +1426,9 @@ class LiveRepository extends BaseMapper implements Repository {
 		$categories = [];
 		foreach ( (array) ( $raw['categories'] ?? [] ) as $category ) {
 			$name = is_array( $category ) ? self::str( $category, [ 'title', 'name' ] ) : ( is_scalar( $category ) ? (string) $category : '' );
-			if ( '' !== $name ) {
+			// A scalar category is usually an ID reference: a bare number
+			// must never become a visible badge.
+			if ( '' !== $name && ! preg_match( '/^\d+$/', $name ) ) {
 				$categories[] = (object) [
 					'slug' => sanitize_title( $name ),
 					'name' => $name,
@@ -1468,7 +1470,13 @@ class LiveRepository extends BaseMapper implements Repository {
 		}
 		$venue_parts[] = self::str( $raw, [ 'inperson_venue' ] );
 		$venue_parts[] = self::str( $raw, [ 'inperson_venue_area' ] );
-		$venue         = implode( ', ', array_filter( array_unique( array_map( 'trim', $venue_parts ) ) ) );
+		// A bare number is a record ID leaking through (the API sometimes
+		// serialises venue/stage relations as IDs) — never a display name.
+		$venue_parts = array_filter(
+			array_unique( array_map( 'trim', $venue_parts ) ),
+			static fn( string $part ): bool => '' !== $part && ! preg_match( '/^\d+$/', $part )
+		);
+		$venue       = implode( ', ', $venue_parts );
 
 		return [
 			'id'            => (int) $hs_id,

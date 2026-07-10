@@ -1443,3 +1443,33 @@ Venue is Full-only (the address meta lives on event posts) and joined
 FULL_ONLY; the featured session card shows the Lite venue name line in
 Lite. Elementor's event picker now works in Lite via eex_event_titles,
 remembered on every live event map — the ticket-titles pattern.
+
+## D93. Field report: presentation bugs come in classes — fix the class (v1.23.0)
+
+First real-account render of the featured session card showed two bugs:
+the built-in "In person" pill next to the account's own "In Person"
+category, and a bare "12970" as the location line (HeySummit had
+serialised the venue relation as a record ID). Each is an instance of a
+class, so the fix swept the class across every widget rather than
+patching the reported spot:
+
+Duplicate information via two paths — status pills now dedupe against
+category names with case and punctuation folded (status_badges(), used
+by session cards and the featured card); a speaker's company line
+yields when the headline already names the company; the featured card's
+address drops its first line when the session's venue line already
+names the venue (the maps query keeps the full address); the register
+bar's countdown is label-free because the bar itself names the event.
+
+Machine data leaking as display text — bare-numeric parts are dropped
+from talk venue lines in BOTH mappers, from the Lite event venue, and
+from Lite scalar category badges (an ID list must never become "9"
+"12" pills).
+
+Empty-value edges — speaker chips without a URL render as spans, not
+href="" anchors that link to the current page.
+
+The rule this reaffirms: display fields sourced from the API are
+untrusted PRESENTATIONALLY as well as structurally — validated not
+just for safety (schemes, escaping) but for whether they read as
+human text.
