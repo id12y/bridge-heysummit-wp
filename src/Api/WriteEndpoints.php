@@ -12,14 +12,17 @@ defined( 'ABSPATH' ) || exit;
 /**
  * The single place that defines which HeySummit endpoints may ever be
  * written to. The hard rule (v2, re-verified against the published OpenAPI
- * spec — docs/decisions.md D45): the only sanctioned writes are attendee
- * create and ticket assignment. In the real v2 API those live at
+ * spec — docs/decisions.md D45): the only sanctioned data writes are
+ * attendee create and ticket assignment. In the real v2 API those live at
  * POST events/<id>/attendees/ and the documented-idempotent
  * POST events/<id>/attendees/<pk>/tickets/; the originally assumed
- * external-ticket-sales endpoint does not exist. HeySummitClient::post()
- * consults this list and throws for anything else — including event
- * create/update (which the spec exposes and this plugin must never touch),
- * every other resource, and anything with traversal or query noise.
+ * external-ticket-sales endpoint does not exist. The third entry,
+ * checkout-link, is a generate-only POST (docs/decisions.md D91): it mints
+ * a checkout URL — optionally with a coupon baked in — and mutates no
+ * attendee, ticket or event data. HeySummitClient::post() consults this
+ * list and throws for anything else — including event create/update (which
+ * the spec exposes and this plugin must never touch), every other
+ * resource, and anything with traversal or query noise.
  */
 final class WriteEndpoints {
 
@@ -30,6 +33,7 @@ final class WriteEndpoints {
 	public const ALLOWLIST = [
 		'#^events/\d+/attendees/$#',
 		'#^events/\d+/attendees/\d+/tickets/$#',
+		'#^events/\d+/tickets/\d+/checkout-link/$#',
 	];
 
 	/**

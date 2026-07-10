@@ -164,6 +164,11 @@ final class Components {
 				'woo'       => __( 'This site (mapped WooCommerce products)', 'emailexpert-events' ),
 			],
 		];
+		$coupon          = [
+			'type'    => 'string',
+			'default' => '',
+			'label'   => __( 'Coupon code baked into ticket checkout links (HeySummit checkout only)', 'emailexpert-events' ),
+		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		$definitions = [
@@ -201,6 +206,7 @@ final class Components {
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
+					'coupon'          => $coupon,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -429,6 +435,7 @@ final class Components {
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
+					'coupon'          => $coupon,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -681,6 +688,7 @@ final class Components {
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
+					'coupon'          => $coupon,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -744,6 +752,7 @@ final class Components {
 					'register_text'     => $register_text,
 					'register_url'      => $register_url,
 					'buy_on'            => $buy_on,
+					'coupon'            => $coupon,
 					'empty_text'        => [
 						'type'    => 'string',
 						'default' => __( 'Tickets go on sale soon.', 'emailexpert-events' ),
@@ -1397,18 +1406,19 @@ final class Components {
 
 
 	/**
-	 * One ticket's register URL. In checkout mode the ticket ID rides along
-	 * as a query argument — HeySummit's checkout preselects it when it
-	 * recognises the parameter and simply ignores it otherwise.
+	 * One ticket's register URL. The API's per-ticket checkout_link is the
+	 * preferred destination — it lands checkout with the ticket genuinely
+	 * preselected. Tickets without one (accounts predating the field, stale
+	 * cache) fall back to the constructed select-tickets URL with the
+	 * echo-only ?ticket= parameter, exactly as before.
 	 *
 	 * @param array<string,mixed>  $ticket   Display-shaped ticket row.
 	 * @param array<string,string> $register Register settings (mode, url).
 	 */
 	private static function ticket_register_url( array $ticket, array $register ): string {
 		// Opt-in per widget: a ticket mapped to a WooCommerce product sells
-		// on THIS site — the only true never-leaves-the-slider path for paid
-		// tickets (verified: HeySummit's select-tickets page ignores
-		// preselect parameters). HeySummit checkout stays the default.
+		// on THIS site — the only never-leaves-the-slider path for paid
+		// tickets. HeySummit checkout stays the default.
 		if ( ! empty( $register['woo'] ) ) {
 			foreach ( (array) ( $ticket['prices'] ?? [] ) as $price ) {
 				$product_url = \Emailexpert\Events\WooCommerce\Module::product_url_for_price( (string) ( $price['id'] ?? '' ) );
@@ -1419,10 +1429,26 @@ final class Components {
 			}
 		}
 
+		$checkout_link = (string) ( $ticket['checkout_link'] ?? '' );
+
+		// An external ticketing override replaces HeySummit checkout links
+		// wholesale, so the API link only applies without one.
+		if ( '' !== $checkout_link && '' === (string) ( $register['url'] ?? '' ) ) {
+			$url = self::carry_query( $checkout_link, (string) ( $ticket['register_url'] ?? '' ) );
+
+			/**
+			 * The API-provided per-ticket checkout link about to be rendered.
+			 *
+			 * @param string              $url    Checkout link, page query carried over.
+			 * @param array<string,mixed> $ticket Display-shaped ticket row.
+			 */
+			return (string) apply_filters( 'eex_ticket_checkout_link', $url, $ticket );
+		}
+
 		$url = self::ticketing_url( [ 'event_url' => (string) ( $ticket['register_url'] ?? '' ) ], $register );
 
-		// The parameter is echo-only today; kept because it is harmless and
-		// lights up the moment HeySummit honours it.
+		// The parameter is echo-only on select-tickets; kept because it is
+		// harmless and this path only serves rows without a checkout_link.
 		if ( '' !== $url && '' === (string) ( $register['url'] ?? '' ) ) {
 			$url = add_query_arg( 'ticket', (string) $ticket['id'], $url );
 		}
@@ -1431,14 +1457,48 @@ final class Components {
 	}
 
 	/**
+	 * Copy the query string of $source (the UTM-tagged event URL) onto $url
+	 * (the API-provided checkout link, which arrives untagged), never
+	 * clobbering parameters the link already carries. Keeps attribution
+	 * identical to what the constructed checkout URL would have sent.
+	 *
+	 * @param string $url    Destination URL.
+	 * @param string $source URL whose query string to carry over.
+	 */
+	private static function carry_query( string $url, string $source ): string {
+		$query = (string) wp_parse_url( $source, PHP_URL_QUERY );
+
+		if ( '' === $query ) {
+			return $url;
+		}
+
+		parse_str( $query, $params );
+		$params = array_filter( $params, 'is_scalar' );
+
+		$existing = (string) wp_parse_url( $url, PHP_URL_QUERY );
+
+		if ( '' !== $existing ) {
+			parse_str( $existing, $present );
+			$params = array_diff_key( $params, $present );
+		}
+
+		if ( empty( $params ) ) {
+			return $url;
+		}
+
+		return add_query_arg( array_map( 'rawurlencode', array_map( 'strval', $params ) ), $url );
+	}
+
+	/**
 	 * The slide-over ticket panel: server-rendered (and fragment-cached with
 	 * the component), revealed by eex-time.js when a Register button carries
 	 * its ID. Free tickets register right here through the plugin's own
-	 * allowlisted attendee-create call; paid tickets link to the event page
-	 * (payment can only happen on the platform). The component's tickets/
-	 * exclude attributes filter what is offered. Empty when the component
-	 * keeps plain links or no tickets resolve — buttons then behave as
-	 * ordinary links.
+	 * allowlisted attendee-create call; paid tickets deep-link to checkout —
+	 * the ticket's own checkout_link when the API provides one, the event's
+	 * select-tickets page otherwise (payment can only happen on the
+	 * platform). The component's tickets/exclude attributes filter what is
+	 * offered. Empty when the component keeps plain links or no tickets
+	 * resolve — buttons then behave as ordinary links.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
 	 * @return array{id:string,html:string}
@@ -1475,7 +1535,8 @@ final class Components {
 		$register = self::register_args( $atts );
 		$event    = self::repo()->event_summary( (string) ( $atts['event'] ?? '' ) );
 		$event_id = null !== $event ? (string) $event['hs_id'] : '';
-		$id       = 'eex-drawer-' . substr( md5( wp_json_encode( [ $event_id, $register, $only, $excluded ] ) ), 0, 8 );
+		$coupon   = (string) ( $atts['coupon'] ?? '' );
+		$id       = 'eex-drawer-' . substr( md5( wp_json_encode( [ $event_id, $register, $only, $excluded, $coupon ] ) ), 0, 8 );
 
 		ob_start();
 		?>

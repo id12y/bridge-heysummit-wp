@@ -3,6 +3,33 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.22.0
+- **Coupon codes bake into your buy buttons.** Create a coupon in
+  HeySummit (Revenue area) as usual, then set `coupon="CODE"` on any
+  pricing table or ticket-panel widget — shortcode, block or Elementor.
+  Every buy button in that widget becomes a discounted deep link:
+  visitors land on checkout with the ticket preselected and the
+  discount already applied, no code to type. Build campaign landing
+  pages around it — your UTM tags still ride along, so the attribution
+  report shows what each couponed page sold (sponsor and partner codes
+  become measurable). If a coupon expires or the link can't be
+  generated, buttons quietly fall back to the normal full-price
+  checkout link — never a broken page. Generated links are reused for
+  12 hours (`eex_coupon_link_ttl` filter).
+
+## 1.21.0
+- **Buy buttons now land straight on each ticket's own checkout.**
+  HeySummit added a dedicated per-ticket checkout link to its API (the
+  same link as the dashboard's Generate Checkout Link), and the pricing
+  table and ticket drawer now use it — visitors arrive at checkout with
+  the ticket already selected instead of on the pick-a-ticket page.
+  Your UTM tags ride along as before. Accounts whose API does not
+  return the link yet keep the previous select-tickets destination, as
+  do WooCommerce-mapped tickets (buy_on) and external ticketing URLs —
+  those still take precedence. Takes effect on the first ticket fetch
+  after updating. New `eex_ticket_checkout_link` filter to adjust the
+  link per ticket if you need to.
+
 ## 1.20.4
 - **Fixed: upcoming sessions vanished overnight and came back only after
   a Flush live cache.** On an account whose talks are not ordered by date,

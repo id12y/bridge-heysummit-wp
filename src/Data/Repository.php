@@ -124,9 +124,10 @@ interface Repository {
 
 	/**
 	 * Display-shaped tickets (with prices) for one event — commerce data,
-	 * fetched live and cached in both modes.
+	 * fetched live and cached in both modes. A coupon att bakes the code
+	 * into each ticket's checkout link.
 	 *
-	 * @param array<string,mixed> $atts event.
+	 * @param array<string,mixed> $atts event, coupon.
 	 * @return array<int,array<string,mixed>>
 	 */
 	public function tickets( array $atts ): array;

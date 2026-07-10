@@ -120,6 +120,12 @@ final class WooBridgeTest extends TestCase {
 
 		$this->assertTrue( WriteEndpoints::allowed( 'events/101/attendees/' ), 'attendee create' );
 		$this->assertTrue( WriteEndpoints::allowed( 'events/101/attendees/55001/tickets/' ), 'idempotent ticket attach' );
+		$this->assertTrue( WriteEndpoints::allowed( 'events/101/tickets/9001/checkout-link/' ), 'generate-only checkout link' );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/tickets/checkout-link/' ), 'a ticket ID is required' );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/tickets/9001/checkout-link/extra/' ) );
+		$this->assertFalse( WriteEndpoints::allowed( 'tickets/9001/checkout-link/' ), 'no top-level ticket writes' );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/tickets/9001/checkout-link/?x=1' ) );
+		$this->assertFalse( WriteEndpoints::allowed( 'events/101/tickets/' ), 'ticket create must never be reachable' );
 		$this->assertFalse( WriteEndpoints::allowed( 'events/' ), 'event create is exposed by the API and must never be reachable' );
 		$this->assertFalse( WriteEndpoints::allowed( 'events/101/' ), 'event update likewise' );
 		$this->assertFalse( WriteEndpoints::allowed( 'events/101/talks/' ), 'talk create likewise' );
