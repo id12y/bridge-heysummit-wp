@@ -3,6 +3,30 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.29.0
+- **Fixed (field-reported): venue details showed nothing on some
+  accounts.** HeySummit serialises the venue relation three different
+  ways — a name, an object, or a bare record ID. The mappers now read
+  the name (and address, when present) out of venue objects on talks
+  AND events, in both modes. Accounts that only send an ID still have
+  no readable venue — so the venue card now also accepts the details
+  typed straight into the widget (name, street, city, postcode,
+  country), which override or stand in for API data everywhere,
+  including in Lite mode where the card was previously unavailable.
+- **Venue card granular controls**: the name, the address, the
+  Directions link and a venue image are now individually toggleable.
+- **When the venue card is empty, administrators see why** — an
+  HTML-comment note names the three data sources so "ticked but
+  nothing displayed" diagnoses itself.
+- **Updates no longer need a manual cache flush.** The display and
+  live caches were already flushed automatically on every plugin
+  update; now the ticket and coupon-link caches are version-keyed too,
+  so a deploy starts fully fresh with no operator action. (Page caches
+  at the host/CDN level remain outside the plugin.)
+- **Fixed: "Replay available soon" now works in Full mode** — the
+  replay_planned flag is synced (`_eex_replay_soon`), so the badge no
+  longer works only in Lite.
+
 ## 1.28.0
 Front-end review release: every widget was rendered with hostile realistic
 data and exercised in a real browser (desktop and 375px mobile, keyboard,

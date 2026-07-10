@@ -31,7 +31,7 @@ final class Components {
 	 * the filter bar work in Lite — the talk harvest already fetches past
 	 * sessions, and the bar filters via JS with query-arg fallbacks.
 	 */
-	public const FULL_ONLY = [ 'past-events', 'reg-counter', 'venue' ];
+	public const FULL_ONLY = [ 'past-events', 'reg-counter' ];
 
 	/**
 	 * Components whose Lite render emits inline Event JSON-LD for the items
@@ -1031,7 +1031,39 @@ final class Components {
 						'default' => '',
 						'label'   => __( 'Heading (empty = "Venue")', 'emailexpert-events' ),
 					],
+					'show_name'     => $flag( __( 'Show the venue name', 'emailexpert-events' ) ),
+					'show_address'  => $flag( __( 'Show the address', 'emailexpert-events' ) ),
 					'show_map_link' => $flag( __( 'Show a "Directions" map link', 'emailexpert-events' ) ),
+					'image'         => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Venue image URL (empty = no image)', 'emailexpert-events' ),
+					],
+					'name'          => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Venue name (empty = from the event)', 'emailexpert-events' ),
+					],
+					'street'        => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Street (empty = from the event)', 'emailexpert-events' ),
+					],
+					'locality'      => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'City/town (empty = from the event)', 'emailexpert-events' ),
+					],
+					'postcode'      => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Postcode (empty = from the event)', 'emailexpert-events' ),
+					],
+					'country'       => [
+						'type'    => 'string',
+						'default' => '',
+						'label'   => __( 'Country (empty = from the event)', 'emailexpert-events' ),
+					],
 					'empty_text'    => [
 						'type'    => 'string',
 						'default' => __( 'Venue details coming soon.', 'emailexpert-events' ),
@@ -1207,6 +1239,15 @@ final class Components {
 	 * @param string $html The rendered (possibly cached) fragment.
 	 */
 	private static function admin_debug_note( string $name, string $html ): string {
+		// The venue card explains its emptiness in both modes: this was a
+		// field-reported head-scratcher ("venue ticked, nothing displayed").
+		if ( 'venue' === $name
+			&& str_contains( $html, 'eex-empty' )
+			&& function_exists( 'current_user_can' )
+			&& current_user_can( 'manage_options' ) ) {
+			return "\n<!-- emailexpert Events (visible to administrators only): no venue data found. The HeySummit API sent no readable venue for this event. Fill the venue fields on the event post (Full mode) or type the venue name/address into this widget's own settings. -->";
+		}
+
 		if ( ! Options::is_lite()
 			|| ! function_exists( 'current_user_can' )
 			|| ! current_user_can( 'manage_options' ) ) {
@@ -1394,6 +1435,7 @@ final class Components {
 			'ends_at'       => (string) get_post_meta( $post_id, '_eex_ends_at', true ),
 			'talk_url'      => Utm::tag( (string) get_post_meta( $post_id, '_eex_talk_url', true ) ),
 			'replay_url'    => $replay,
+			'replay_soon'   => (bool) get_post_meta( $post_id, '_eex_replay_soon', true ),
 			'venue'         => (string) get_post_meta( $post_id, '_eex_talk_venue', true ),
 			'inperson'      => (bool) get_post_meta( $post_id, '_eex_inperson', true ),
 			'image'         => (string) ( function_exists( 'get_the_post_thumbnail_url' ) ? ( get_the_post_thumbnail_url( $post_id, 'medium_large' ) ?: '' ) : '' ),
@@ -1431,8 +1473,11 @@ final class Components {
 			}
 		} else {
 			$event = self::repo()->event_summary( (string) ( $data['event_hs_id'] ?? '' ) );
-			if ( null !== $event && '' !== (string) ( $event['venue'] ?? '' ) ) {
-				$lines[] = (string) $event['venue'];
+			if ( null !== $event ) {
+				if ( '' !== (string) ( $event['venue'] ?? '' ) ) {
+					$lines[] = (string) $event['venue'];
+				}
+				$lines = array_merge( $lines, array_map( 'strval', (array) ( $event['venue_address'] ?? [] ) ) );
 			}
 		}
 
@@ -3634,29 +3679,53 @@ final class Components {
 		$event   = self::repo()->event_summary( (string) $atts['event'] );
 		$post_id = null !== $event ? (int) ( $event['id'] ?? 0 ) : 0;
 
+		// Three data sources, most explicit first: what the operator typed
+		// into the widget, the event post's venue fields (Full mode), the
+		// venue the API serialised (the only Lite source).
 		$fields = [];
 		foreach ( [ 'name', 'street', 'locality', 'postcode', 'country' ] as $field ) {
-			$fields[ $field ] = $post_id > 0 ? (string) get_post_meta( $post_id, '_eex_venue_' . $field, true ) : '';
+			$manual           = trim( (string) $atts[ $field ] );
+			$fields[ $field ] = '' !== $manual
+				? $manual
+				: ( $post_id > 0 ? (string) get_post_meta( $post_id, '_eex_venue_' . $field, true ) : '' );
 		}
 
-		$lines = array_values( array_filter( $fields ) );
+		$name  = $fields['name'];
+		$lines = array_values(
+			array_filter(
+				[
+					$fields['street'],
+					trim( $fields['locality'] . ' ' . $fields['postcode'] ),
+					$fields['country'],
+				]
+			)
+		);
 
-		if ( empty( $lines ) ) {
+		if ( '' === $name && null !== $event ) {
+			$name = (string) ( $event['venue'] ?? '' );
+		}
+		if ( empty( $lines ) && null !== $event ) {
+			$lines = array_map( 'strval', (array) ( $event['venue_address'] ?? [] ) );
+		}
+
+		if ( '' === $name && empty( $lines ) ) {
 			return self::empty_state( (string) $atts['empty_text'] );
 		}
 
-		$heading = '' !== (string) $atts['heading'] ? (string) $atts['heading'] : __( 'Venue', 'emailexpert-events' );
-		$map_url = ! empty( $atts['show_map_link'] )
-			? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( implode( ', ', $lines ) )
+		$map_query = implode( ', ', array_filter( array_merge( [ $name ], $lines ) ) );
+		$map_url   = ! empty( $atts['show_map_link'] ) && '' !== $map_query
+			? 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( $map_query )
 			: '';
 
 		ob_start();
 		TemplateLoader::part(
 			'venue-card',
 			[
-				'heading' => $heading,
-				'fields'  => $fields,
-				'map_url' => $map_url,
+				'heading'   => '' !== (string) $atts['heading'] ? (string) $atts['heading'] : __( 'Venue', 'emailexpert-events' ),
+				'name'      => ! empty( $atts['show_name'] ) ? $name : '',
+				'lines'     => ! empty( $atts['show_address'] ) ? $lines : [],
+				'map_url'   => $map_url,
+				'image_url' => esc_url_raw( (string) $atts['image'] ),
 			]
 		);
 

@@ -36,9 +36,10 @@ final class Tickets {
 			return new WP_Error( 'eex_tickets_args', __( 'Choose a connection and event first.', 'emailexpert-events' ) );
 		}
 
-		// Key versioned (v2) so upgrading picks up checkout_link-bearing rows
-		// immediately instead of after the old cache's 15 minutes.
-		$key    = 'eex_tickets_' . md5( 'v2|' . $connection_id . '|' . $event_id );
+		// The plugin version salts the key: every update starts from fresh
+		// rows immediately (any new mapped fields included) instead of
+		// serving the old build's cache for up to 15 minutes.
+		$key    = 'eex_tickets_' . md5( EEX_VERSION . '|' . $connection_id . '|' . $event_id );
 		$cached = get_transient( $key );
 		if ( is_array( $cached ) ) {
 			return $cached;
@@ -190,7 +191,7 @@ final class Tickets {
 			return '';
 		}
 
-		$key    = 'eex_ticket_link_' . md5( $connection_id . '|' . $event_id . '|' . $ticket_id . '|' . $coupon );
+		$key    = 'eex_ticket_link_' . md5( EEX_VERSION . '|' . $connection_id . '|' . $event_id . '|' . $ticket_id . '|' . $coupon );
 		$cached = get_transient( $key );
 		if ( is_string( $cached ) ) {
 			return $cached;
