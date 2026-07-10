@@ -865,7 +865,11 @@ final class ComponentsTest extends TestCase {
 
 		$html = Components::render( 'pricing', [ 'event' => '101' ] );
 
-		$this->assertStringContainsString( 'checkout/select-tickets/?ticket=9001', $html );
+		// The paid ticket carries the API's dedicated checkout link; the free
+		// one has none, so it keeps the constructed select-tickets fallback.
+		$this->assertStringContainsString( 'checkout/ticket/9001-abc/', $html );
+		$this->assertStringNotContainsString( 'select-tickets/?ticket=9001', $html );
+		$this->assertStringContainsString( 'checkout/select-tickets/?ticket=9002', $html );
 
 		// A ticket price mapped to a WooCommerce product can sell on THIS
 		// site — but only when the operator opts in via buy_on.
@@ -878,10 +882,10 @@ final class ComponentsTest extends TestCase {
 			]
 		);
 		Cache::flush();
-		delete_transient( 'eex_tickets_' . md5( 'c1|101' ) );
+		delete_transient( 'eex_tickets_' . md5( 'v2|c1|101' ) );
 
 		$default = Components::render( 'pricing', [ 'event' => '101' ] );
-		$this->assertStringContainsString( 'select-tickets/?ticket=9001', $default, 'HeySummit checkout stays the default despite the mapping' );
+		$this->assertStringContainsString( 'checkout/ticket/9001-abc/', $default, 'HeySummit checkout stays the default despite the mapping' );
 
 		Cache::flush();
 		$woo = Components::render(
@@ -891,8 +895,152 @@ final class ComponentsTest extends TestCase {
 				'buy_on' => 'woo',
 			]
 		);
-		$this->assertStringNotContainsString( 'select-tickets/?ticket=9001', $woo );
+		$this->assertStringNotContainsString( 'checkout/ticket/9001-abc/', $woo, 'the mapping outranks the API checkout link' );
 		$this->assertStringContainsString( '?p=', $woo, 'opted in: the mapped ticket links to the local product' );
+	}
+
+	public function test_ticket_checkout_links_carry_the_pages_utm_query(): void {
+		Options::update_settings(
+			[
+				'utm_enabled' => 1,
+				'utm_source'  => 'example.org',
+				'utm_medium'  => 'events',
+			]
+		);
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render( 'pricing', [ 'event' => '101' ] );
+
+		// The API link arrives untagged; the page's attribution rides along
+		// exactly as it would have on the constructed URL.
+		$this->assertStringContainsString( 'checkout/ticket/9001-abc/?utm_source=example.org', $html );
+		$this->assertStringContainsString( 'utm_medium=events', $html );
+	}
+
+	public function test_a_checkout_links_own_query_is_never_clobbered(): void {
+		Options::update_settings(
+			[
+				'utm_enabled' => 1,
+				'utm_source'  => 'example.org',
+				'utm_medium'  => 'events',
+			]
+		);
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'            => 9001,
+									'title'         => 'All access',
+									'is_paid'       => 'true',
+									'prices'        => '[]',
+									'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-abc/?utm_source=already',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$html = Components::render( 'pricing', [ 'event' => '101' ] );
+
+		$this->assertStringContainsString( 'utm_source=already', $html );
+		$this->assertStringNotContainsString( 'utm_source=example.org', $html );
+		$this->assertStringContainsString( 'utm_medium=events', $html, 'params the link lacks are still carried over' );
+	}
+
+	public function test_a_non_web_checkout_link_falls_back_to_the_constructed_url(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'            => 9001,
+									'title'         => 'All access',
+									'is_paid'       => 'true',
+									'prices'        => '[]',
+									'checkout_link' => 'javascript:alert(1)',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$html = Components::render( 'pricing', [ 'event' => '101' ] );
+
+		$this->assertStringNotContainsString( 'javascript:', $html );
+		$this->assertStringNotContainsString( 'alert(1)', $html );
+		$this->assertStringContainsString( 'checkout/select-tickets/?ticket=9001', $html );
+	}
+
+	public function test_external_ticketing_overrides_the_checkout_link(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'pricing',
+			[
+				'event'        => '101',
+				'register_url' => 'https://tickets.example.org/buy',
+			]
+		);
+
+		$this->assertStringContainsString( 'https://tickets.example.org/buy', $html );
+		$this->assertStringNotContainsString( 'checkout/ticket/9001-abc/', $html );
 	}
 
 	public function test_register_panel_renders_the_ticket_drawer(): void {
@@ -922,11 +1070,13 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'role="dialog"', $html );
 		$this->assertStringContainsString( 'All access', $html, 'the drawer lists the tickets' );
 
-		// The free ticket registers in the drawer; the paid one links out.
+		// The free ticket registers in the drawer; the paid one deep-links
+		// to its own checkout.
 		$this->assertStringContainsString( 'data-eex-reg="1"', $html, 'free ticket gets the in-drawer form' );
 		$this->assertStringContainsString( 'name="consent"', $html );
 		$this->assertStringContainsString( 'name="website"', $html, 'honeypot present' );
 		$this->assertSame( 1, substr_count( $html, 'data-eex-reg="1"' ), 'only the free ticket gets a form' );
+		$this->assertStringContainsString( 'checkout/ticket/9001-abc/', $html, 'the paid ticket links to its API checkout link' );
 
 		// The drawer honours the ticket filters.
 		Cache::flush();
@@ -968,7 +1118,7 @@ final class ComponentsTest extends TestCase {
 		// the API is now down: the last good fragment must be served, not a
 		// fresh empty state.
 		Cache::flush();
-		delete_transient( 'eex_tickets_' . md5( 'c1|101' ) );
+		delete_transient( 'eex_tickets_' . md5( 'v2|c1|101' ) );
 		\EEX_Test_State::$filters['pre_http_request'] = [];
 		$this->mock_http( static fn() => new \WP_Error( 'http_request_failed', 'timed out' ) );
 
@@ -1022,6 +1172,7 @@ final class ComponentsTest extends TestCase {
 									'mark_as_popular'    => true,
 									'quantity_remaining' => '12',
 									'prices'             => '[{"id": 501, "title": "Standard", "price": "99"}]',
+									'checkout_link'      => 'https://summit.example.com/checkout/ticket/9001-abc/',
 								],
 								[
 									'id'      => 9002,

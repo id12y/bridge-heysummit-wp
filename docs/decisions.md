@@ -1329,3 +1329,40 @@ upcoming sessions, so the last complete result is being shown"). The
 cold-start case is unchanged: with no last-good yet, the first shallow
 sweep still caches its partial, and the first admin view or flush seeds
 the complete copy that the guard then protects.
+
+## D90. Per-ticket buy buttons use the API's checkout_link (v1.21.0)
+
+HeySummit added a dedicated per-ticket checkout URL after we raised
+the deep-linking gap (founder-confirmed by email, 9 Jul 2026): every
+ticket row in v2 API responses now carries `checkout_link`, the same
+`<hub>/checkout/ticket/<pk>-<hash>/` link the dashboard's Generate
+Checkout Link produces, and it genuinely preselects the ticket —
+unlike the `?ticket=` parameter, which D72's live click-test proved
+echo-only. Per-ticket CTAs (pricing table and drawer) now prefer it.
+
+Precedence, unchanged around the new arrival: Woo mapping (buy_on=woo,
+D72) still outranks everything; a widget's external ticketing override
+still replaces HeySummit checkout wholesale; then the API
+checkout_link when the row has one; then the constructed
+select-tickets URL with the echo-only parameter, byte-for-byte as
+before — so accounts whose serializer predates the field, and rows
+served from a stale cache, degrade to exactly the old behaviour.
+Event-level tickets buttons (session cards, hero, agenda) have no
+single ticket to deep-link and keep select-tickets.
+
+The API link arrives untagged, so `carry_query()` copies the tagged
+event URL's query string onto it at render time — attribution stays
+identical to what the constructed URL would have sent, and parameters
+the link already carries are never clobbered (the Utm::tag rule). An
+`eex_ticket_checkout_link` filter is the operator escape hatch.
+The raw ticket transient key is versioned (v2|) so upgraded sites
+fetch link-bearing rows immediately instead of serving the old cache
+for up to 15 minutes; orphaned entries expire on their own.
+
+HeySummit also shipped POST events/<id>/tickets/<pk>/checkout-link/
+(optional coupon in the body). NOT allowlisted: the GET field already
+covers display, and D45's write-surface rule — attendee create and
+ticket attach only — stands until coupon-baked links are actually
+wanted. If that day comes, the endpoint is generate-only (mints a URL,
+mutates nothing), so the widening is defensible; it gets its own
+decision entry then.

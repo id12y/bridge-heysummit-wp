@@ -36,7 +36,9 @@ final class Tickets {
 			return new WP_Error( 'eex_tickets_args', __( 'Choose a connection and event first.', 'emailexpert-events' ) );
 		}
 
-		$key    = 'eex_tickets_' . md5( $connection_id . '|' . $event_id );
+		// Key versioned (v2) so upgrading picks up checkout_link-bearing rows
+		// immediately instead of after the old cache's 15 minutes.
+		$key    = 'eex_tickets_' . md5( 'v2|' . $connection_id . '|' . $event_id );
 		$cached = get_transient( $key );
 		if ( is_array( $cached ) ) {
 			return $cached;
@@ -170,7 +172,9 @@ final class Tickets {
 	}
 
 	/**
-	 * Display-shaped ticket data for the pricing component.
+	 * Display-shaped ticket data for the pricing component. Each row carries
+	 * checkout_link — the API's dedicated per-ticket checkout URL (empty when
+	 * the account does not return one yet).
 	 *
 	 * @param string $connection_id Connection ID.
 	 * @param string $event_id      HeySummit event ID.
@@ -193,6 +197,14 @@ final class Tickets {
 				continue;
 			}
 
+			// Only an absolute web URL may become a button destination;
+			// anything else (relative noise, hostile schemes) falls back to
+			// the constructed checkout URL.
+			$checkout_link = (string) ( $ticket['checkout_link'] ?? '' );
+			if ( ! preg_match( '#^https?://#i', $checkout_link ) ) {
+				$checkout_link = '';
+			}
+
 			$prices = [];
 			foreach ( self::prices_of( $ticket ) as $price ) {
 				$prices[] = [
@@ -203,19 +215,20 @@ final class Tickets {
 			}
 
 			$out[] = [
-				'id'           => (string) $ticket['id'],
-				'title'        => (string) ( $ticket['title'] ?? $ticket['name'] ?? $ticket['id'] ),
-				'description'  => (string) ( $ticket['description'] ?? '' ),
-				'is_paid'      => ! empty( $ticket['is_paid'] ) && 'false' !== strtolower( (string) $ticket['is_paid'] ),
-				'popular'      => ! empty( $ticket['mark_as_popular'] ),
-				'remaining'    => (string) ( $ticket['quantity_remaining'] ?? '' ),
-				'applies'      => [
+				'id'            => (string) $ticket['id'],
+				'title'         => (string) ( $ticket['title'] ?? $ticket['name'] ?? $ticket['id'] ),
+				'description'   => (string) ( $ticket['description'] ?? '' ),
+				'is_paid'       => ! empty( $ticket['is_paid'] ) && 'false' !== strtolower( (string) $ticket['is_paid'] ),
+				'popular'       => ! empty( $ticket['mark_as_popular'] ),
+				'remaining'     => (string) ( $ticket['quantity_remaining'] ?? '' ),
+				'applies'       => [
 					'live'     => ! empty( $ticket['apply_to_broadcasts'] ),
 					'replays'  => ! empty( $ticket['apply_to_replays'] ),
 					'inperson' => ! empty( $ticket['apply_to_inperson'] ),
 				],
-				'prices'       => $prices,
-				'register_url' => $register_url,
+				'prices'        => $prices,
+				'checkout_link' => esc_url_raw( $checkout_link ),
+				'register_url'  => $register_url,
 			];
 		}
 

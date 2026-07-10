@@ -277,3 +277,23 @@ Sponsor rows carry a real `slug`; the hub page is assumed at
 hub pages, but with an API-provided slug rather than a reconstruction).
 VERIFIED live by the operator (v1.15.0): sponsor hub pages resolve at
 `<event_url>/sponsors/<slug>/`.
+
+## Tickets carry checkout_link; a POST generator exists (v1.21.0)
+
+HeySummit shipped both after we asked (founder-confirmed by email,
+9 Jul 2026). Ticket rows on list/create/update responses now include
+`checkout_link` — a dedicated per-ticket checkout URL of the form
+`<hub>/checkout/ticket/<pk>-<hash>/`, the same link the dashboard's
+Revenue > Tickets > Generate Checkout Link produces. Unlike the
+`?ticket=` parameter (echo-only, D72), this link genuinely lands
+checkout with the ticket preselected. Per-ticket buy buttons now
+prefer it; the constructed `select-tickets/?ticket=<id>` URL of
+v1.10.1 is the fallback for rows without the field (accounts
+predating it, stale cache). The link arrives untagged, so the plugin
+carries the page's UTM query onto it at render time.
+
+There is also `POST events/<id>/tickets/<ticket_pk>/checkout-link/`
+to generate a link on demand, with an optional coupon in the body to
+bake a discount into the checkout. Deliberately NOT allowlisted in
+WriteEndpoints for now — the GET field covers display, and widening
+the write surface needs its own decision (see docs/decisions.md D90).
