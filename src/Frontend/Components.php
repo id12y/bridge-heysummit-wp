@@ -164,6 +164,11 @@ final class Components {
 				'woo'       => __( 'This site (mapped WooCommerce products)', 'emailexpert-events' ),
 			],
 		];
+		$coupon          = [
+			'type'    => 'string',
+			'default' => '',
+			'label'   => __( 'Coupon code baked into ticket checkout links (HeySummit checkout only)', 'emailexpert-events' ),
+		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		$definitions = [
@@ -201,6 +206,7 @@ final class Components {
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
+					'coupon'          => $coupon,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -429,6 +435,7 @@ final class Components {
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
+					'coupon'          => $coupon,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -681,6 +688,7 @@ final class Components {
 					'register_url'    => $register_url,
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
+					'coupon'          => $coupon,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -744,6 +752,7 @@ final class Components {
 					'register_text'     => $register_text,
 					'register_url'      => $register_url,
 					'buy_on'            => $buy_on,
+					'coupon'            => $coupon,
 					'empty_text'        => [
 						'type'    => 'string',
 						'default' => __( 'Tickets go on sale soon.', 'emailexpert-events' ),
@@ -1526,7 +1535,8 @@ final class Components {
 		$register = self::register_args( $atts );
 		$event    = self::repo()->event_summary( (string) ( $atts['event'] ?? '' ) );
 		$event_id = null !== $event ? (string) $event['hs_id'] : '';
-		$id       = 'eex-drawer-' . substr( md5( wp_json_encode( [ $event_id, $register, $only, $excluded ] ) ), 0, 8 );
+		$coupon   = (string) ( $atts['coupon'] ?? '' );
+		$id       = 'eex-drawer-' . substr( md5( wp_json_encode( [ $event_id, $register, $only, $excluded, $coupon ] ) ), 0, 8 );
 
 		ob_start();
 		?>

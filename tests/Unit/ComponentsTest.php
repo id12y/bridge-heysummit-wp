@@ -1043,6 +1043,193 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( 'checkout/ticket/9001-abc/', $html );
 	}
 
+	public function test_a_coupon_bakes_into_ticket_checkout_links_and_the_link_is_cached(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+
+		$posts = 0;
+		$this->mock_http(
+			function ( $url, $args ) use ( &$posts ) {
+				// The generator route also contains "tickets/" — match it first.
+				if ( str_contains( (string) $url, 'checkout-link/' ) ) {
+					++$posts;
+					$this->assertSame( 'POST', (string) ( $args['method'] ?? '' ) );
+					$this->assertStringContainsString( 'events/101/tickets/9001/checkout-link/', (string) $url );
+					$this->assertSame( '{"coupon":"SAVE20"}', (string) ( $args['body'] ?? '' ) );
+
+					return self::json_response( [ 'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-COUPONED/' ] );
+				}
+
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'            => 9001,
+									'title'         => 'All access',
+									'is_paid'       => 'true',
+									'prices'        => '[]',
+									'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-abc/',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$html = Components::render(
+			'pricing',
+			[
+				'event'  => '101',
+				'coupon' => 'SAVE20',
+			]
+		);
+
+		$this->assertStringContainsString( 'checkout/ticket/9001-COUPONED/', $html, 'the couponed link replaces the plain one' );
+		$this->assertStringNotContainsString( 'checkout/ticket/9001-abc/', $html );
+		$this->assertSame( 1, $posts );
+
+		// A second render reuses the cached link: no second POST.
+		Cache::flush();
+		$again = Components::render(
+			'pricing',
+			[
+				'event'  => '101',
+				'coupon' => 'SAVE20',
+			]
+		);
+		$this->assertStringContainsString( 'checkout/ticket/9001-COUPONED/', $again );
+		$this->assertSame( 1, $posts, 'generated links are cached per ticket+coupon' );
+	}
+
+	public function test_a_failed_coupon_generation_keeps_the_plain_link_and_is_not_retried(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+
+		$posts = 0;
+		$this->mock_http(
+			function ( $url ) use ( &$posts ) {
+				if ( str_contains( (string) $url, 'checkout-link/' ) ) {
+					++$posts;
+
+					return self::json_response( [ 'detail' => 'Coupon not found.' ], 404 );
+				}
+
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'            => 9001,
+									'title'         => 'All access',
+									'is_paid'       => 'true',
+									'prices'        => '[]',
+									'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-abc/',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$html = Components::render(
+			'pricing',
+			[
+				'event'  => '101',
+				'coupon' => 'EXPIRED',
+			]
+		);
+
+		$this->assertStringContainsString( 'checkout/ticket/9001-abc/', $html, 'a bad coupon costs the discount, never the button' );
+		$this->assertStringNotContainsString( 'COUPONED', $html );
+		$this->assertSame( 1, $posts );
+
+		// The failure is negative-cached: the next render does not re-POST.
+		Cache::flush();
+		Components::render(
+			'pricing',
+			[
+				'event'  => '101',
+				'coupon' => 'EXPIRED',
+			]
+		);
+		$this->assertSame( 1, $posts, 'failures are negative-cached' );
+	}
+
+	public function test_external_ticketing_overrides_a_couponed_link_too(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'checkout-link/' ) ) {
+					return self::json_response( [ 'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-COUPONED/' ] );
+				}
+
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'      => 9001,
+									'title'   => 'All access',
+									'is_paid' => 'true',
+									'prices'  => '[]',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$html = Components::render(
+			'pricing',
+			[
+				'event'        => '101',
+				'coupon'       => 'SAVE20',
+				'register_url' => 'https://tickets.example.org/buy',
+			]
+		);
+
+		$this->assertStringContainsString( 'https://tickets.example.org/buy', $html );
+		$this->assertStringNotContainsString( 'COUPONED', $html );
+	}
+
 	public function test_register_panel_renders_the_ticket_drawer(): void {
 		$this->make_linked_talk();
 		update_option(
@@ -1095,6 +1282,71 @@ final class ComponentsTest extends TestCase {
 		Cache::flush();
 		$plain = Components::render( 'upcoming-sessions', [ 'event' => '101' ] );
 		$this->assertStringNotContainsString( 'eex-drawer', $plain );
+	}
+
+	public function test_the_drawer_bakes_coupons_and_gets_its_own_id(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'checkout-link/' ) ) {
+					return self::json_response( [ 'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-COUPONED/' ] );
+				}
+
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'            => 9001,
+									'title'         => 'All access',
+									'is_paid'       => 'true',
+									'prices'        => '[]',
+									'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-abc/',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$plain = Components::render(
+			'upcoming-sessions',
+			[
+				'register_action' => 'panel',
+				'event'           => '101',
+			]
+		);
+		Cache::flush();
+		$couponed = Components::render(
+			'upcoming-sessions',
+			[
+				'register_action' => 'panel',
+				'event'           => '101',
+				'coupon'          => 'SAVE20',
+			]
+		);
+
+		$this->assertStringContainsString( 'checkout/ticket/9001-abc/', $plain );
+		$this->assertStringContainsString( 'checkout/ticket/9001-COUPONED/', $couponed );
+
+		preg_match( '/data-eex-drawer="(eex-drawer-[0-9a-f]+)"/', $plain, $a );
+		preg_match( '/data-eex-drawer="(eex-drawer-[0-9a-f]+)"/', $couponed, $b );
+		$this->assertNotEmpty( $a[1] ?? '' );
+		$this->assertNotEmpty( $b[1] ?? '' );
+		$this->assertNotSame( $a[1], $b[1], 'coupon variants get distinct drawer ids' );
 	}
 
 	public function test_a_failed_refetch_serves_the_last_good_fragment(): void {

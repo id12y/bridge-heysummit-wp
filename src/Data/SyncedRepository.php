@@ -135,7 +135,7 @@ class SyncedRepository implements Repository {
 	 * Tickets for one event: resolved via the synced event post, fetched
 	 * live through the shared cached fetcher.
 	 *
-	 * @param array<string,mixed> $atts Attributes.
+	 * @param array<string,mixed> $atts Attributes (coupon recognised).
 	 * @return array<int,array<string,mixed>>
 	 */
 	public function tickets( array $atts ): array {
@@ -145,7 +145,12 @@ class SyncedRepository implements Repository {
 			return [];
 		}
 
-		return Tickets::for_display( (string) ( $event['connection'] ?? '' ), (string) $event['hs_id'], (string) $event['event_url'] );
+		return Tickets::for_display(
+			(string) ( $event['connection'] ?? '' ),
+			(string) $event['hs_id'],
+			(string) $event['event_url'],
+			sanitize_text_field( (string) ( $atts['coupon'] ?? '' ) )
+		);
 	}
 
 	/**

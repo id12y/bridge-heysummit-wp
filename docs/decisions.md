@@ -1366,3 +1366,38 @@ ticket attach only — stands until coupon-baked links are actually
 wanted. If that day comes, the endpoint is generate-only (mints a URL,
 mutates nothing), so the widening is defensible; it gets its own
 decision entry then.
+
+## D91. Coupon-baked checkout links; the write allowlist gains a generator (v1.22.0)
+
+The other half of HeySummit's July 2026 checkout-link work (D90):
+POST events/<id>/tickets/<pk>/checkout-link/ generates a per-ticket
+checkout URL with an optional coupon baked in. A `coupon` attribute on
+the ticket-bearing components (pricing plus the three drawer-capable
+session widgets) now feeds that endpoint, and the generated link rides
+the row's checkout_link key — so precedence (Woo mapping and the
+external override still win), UTM carry-over and the hostile-scheme
+guard all apply unchanged, and Components needed no new URL logic. The
+operator journey: create the coupon in the HeySummit dashboard, set
+coupon="CODE" on a widget, and every buy button on that page is a
+discounted deep link — no code for the visitor to type, and campaign
+pages pair with UTM attribution to make sponsor/partner codes
+measurable.
+
+The write allowlist (D45) gains its third entry for this. The rule
+stands — no event or content writes, ever — and the addition is
+defensible because the endpoint is generate-only: it mints a URL and
+mutates no attendee, ticket or event data; worst case is a wasted
+link. Call volume is bounded: one POST per ticket+coupon, cached 12
+hours on success (eex_coupon_link_ttl) and negative-cached 5 minutes
+on failure, so an account without the endpoint or an expired coupon
+cannot be re-POSTed on every render. Failure yields '' and the row
+keeps its plain checkout_link — a bad coupon costs the visitor the
+discount, never the button.
+
+Deliberately excluded from this version: coupons from
+visitor-controlled input (a ?coupon= page parameter would let anyone drive
+authenticated POSTs and mint cache rows — if ever wanted it needs an
+operator-approved coupon allowlist, the same reasoning as the D-series
+cache-stuffing guards), and any coupon admin UI (the API's coupon
+list/create abilities are unconfirmed — asked of HeySummit; a widget
+dropdown of live codes could follow).

@@ -172,17 +172,71 @@ final class Tickets {
 	}
 
 	/**
+	 * A checkout link with a coupon baked in, generated on demand through
+	 * the allowlisted POST events/<id>/tickets/<pk>/checkout-link/ and
+	 * cached per ticket+coupon. '' on any failure — the caller then keeps
+	 * the plain checkout_link (or the constructed URL), so a bad or expired
+	 * coupon can only ever cost the visitor the discount, never the button.
+	 * Failures are negative-cached briefly so an account without the
+	 * endpoint cannot be re-POSTed on every ticket of every render.
+	 *
+	 * @param string $connection_id Connection ID.
+	 * @param string $event_id      HeySummit event ID.
+	 * @param string $ticket_id     HeySummit ticket ID.
+	 * @param string $coupon        Coupon code to bake in.
+	 */
+	public static function couponed_checkout_link( string $connection_id, string $event_id, string $ticket_id, string $coupon ): string {
+		if ( '' === $connection_id || '' === $event_id || '' === $ticket_id || '' === $coupon ) {
+			return '';
+		}
+
+		$key    = 'eex_ticket_link_' . md5( $connection_id . '|' . $event_id . '|' . $ticket_id . '|' . $coupon );
+		$cached = get_transient( $key );
+		if ( is_string( $cached ) ) {
+			return $cached;
+		}
+
+		$connection = Options::connection( $connection_id );
+		$response   = null !== $connection
+			? HeySummitClient::for_connection( $connection )->post(
+				'events/' . rawurlencode( $event_id ) . '/tickets/' . rawurlencode( $ticket_id ) . '/checkout-link/',
+				[ 'coupon' => $coupon ]
+			)
+			: null;
+
+		$link = '';
+		if ( is_array( $response ) ) {
+			$link = (string) ( $response['checkout_link'] ?? $response['link'] ?? $response['url'] ?? '' );
+			if ( ! preg_match( '#^https?://#i', $link ) ) {
+				$link = '';
+			}
+			$link = esc_url_raw( $link );
+		}
+
+		/**
+		 * How long a generated coupon link is reused. Failures ('' result)
+		 * are kept only briefly so a transient API problem heals itself.
+		 */
+		$ttl = '' !== $link ? (int) apply_filters( 'eex_coupon_link_ttl', 12 * HOUR_IN_SECONDS ) : 5 * MINUTE_IN_SECONDS;
+		set_transient( $key, $link, $ttl );
+
+		return $link;
+	}
+
+	/**
 	 * Display-shaped ticket data for the pricing component. Each row carries
 	 * checkout_link — the API's dedicated per-ticket checkout URL (empty when
-	 * the account does not return one yet).
+	 * the account does not return one yet), replaced by a coupon-baked
+	 * variant when a coupon is given and generates successfully.
 	 *
 	 * @param string $connection_id Connection ID.
 	 * @param string $event_id      HeySummit event ID.
 	 * @param string $register_url  Event registration URL (already tagged).
+	 * @param string $coupon        Optional coupon code to bake into links.
 	 * @return array<int,array<string,mixed>> Empty on any failure (the
 	 *                                        component renders its empty state).
 	 */
-	public static function for_display( string $connection_id, string $event_id, string $register_url ): array {
+	public static function for_display( string $connection_id, string $event_id, string $register_url, string $coupon = '' ): array {
 		$tickets = self::raw( $connection_id, $event_id );
 
 		if ( is_wp_error( $tickets ) ) {
@@ -203,6 +257,15 @@ final class Tickets {
 			$checkout_link = (string) ( $ticket['checkout_link'] ?? '' );
 			if ( ! preg_match( '#^https?://#i', $checkout_link ) ) {
 				$checkout_link = '';
+			}
+
+			// A coupon-baked link replaces the plain one; generation failure
+			// keeps the plain link, so the visitor loses only the discount.
+			if ( '' !== $coupon ) {
+				$couponed = self::couponed_checkout_link( $connection_id, $event_id, (string) $ticket['id'], $coupon );
+				if ( '' !== $couponed ) {
+					$checkout_link = $couponed;
+				}
 			}
 
 			$prices = [];
