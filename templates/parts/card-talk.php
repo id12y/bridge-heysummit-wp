@@ -60,6 +60,18 @@ if ( '' === $eex_register_text ) {
 		<p class="eex-card-venue"><?php echo esc_html( (string) $eex_data['venue'] ); ?></p>
 	<?php endif; ?>
 
+	<?php if ( ! empty( $eex_show['address'] ) && ! empty( $eex_data['inperson'] ) ) : ?>
+		<?php $eex_addr = Components::event_address( $eex_data ); ?>
+		<?php if ( ! empty( $eex_addr['lines'] ) ) : ?>
+			<p class="eex-venue-address">
+				<?php echo implode( '<br />', array_map( 'esc_html', $eex_addr['lines'] ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per line above. ?>
+				<?php if ( '' !== $eex_addr['map_url'] ) : ?>
+					<a class="eex-venue-map-link" href="<?php echo esc_url( $eex_addr['map_url'] ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Directions', 'emailexpert-events' ); ?></a>
+				<?php endif; ?>
+			</p>
+		<?php endif; ?>
+	<?php endif; ?>
+
 	<?php $eex_status_badges = Components::status_badges( $eex_data ); ?>
 	<?php if ( $eex_show['categories'] && ( ! empty( $eex_data['categories'] ) || ! empty( $eex_status_badges ) ) ) : ?>
 		<p class="eex-badges">
@@ -79,7 +91,15 @@ if ( '' === $eex_register_text ) {
 	<?php elseif ( $eex_show['speakers'] && ! empty( $eex_data['speakers'] ) ) : ?>
 		<p class="eex-speaker-chips">
 			<?php foreach ( $eex_data['speakers'] as $eex_speaker ) : ?>
-				<?php TemplateLoader::part( 'speaker-chip', [ 'speaker' => $eex_speaker ] ); ?>
+				<?php
+				TemplateLoader::part(
+					'speaker-chip',
+					[
+						'speaker' => $eex_speaker,
+						'info'    => (string) ( $eex_show['speaker_info'] ?? 'names' ),
+					]
+				);
+				?>
 			<?php endforeach; ?>
 		</p>
 	<?php endif; ?>

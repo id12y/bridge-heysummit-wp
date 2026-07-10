@@ -1573,3 +1573,29 @@
 	object-fit: cover;
 	border-radius: var(--eex-radius);
 }
+
+/* Speaker chip detail levels */
+.eex-chip-photo {
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	object-fit: cover;
+	vertical-align: middle;
+}
+
+.eex-chip-headline {
+	color: var(--eex-muted);
+	font-size: 0.85em;
+}
+
+.eex-chip-full {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	padding-left: 0.3em;
+}
+
+.eex-venue-map-link {
+	margin-left: 0.5em;
+	white-space: nowrap;
+}

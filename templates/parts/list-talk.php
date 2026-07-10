@@ -62,7 +62,15 @@ if ( '' === $eex_register_text ) {
 		<?php if ( $eex_show['speakers'] && ! empty( $eex_data['speakers'] ) ) : ?>
 			<span class="eex-speaker-chips">
 				<?php foreach ( $eex_data['speakers'] as $eex_speaker ) : ?>
-					<?php TemplateLoader::part( 'speaker-chip', [ 'speaker' => $eex_speaker ] ); ?>
+					<?php
+					TemplateLoader::part(
+						'speaker-chip',
+						[
+							'speaker' => $eex_speaker,
+							'info'    => (string) ( $eex_show['speaker_info'] ?? 'names' ),
+						]
+					);
+					?>
 				<?php endforeach; ?>
 			</span>
 		<?php endif; ?>
