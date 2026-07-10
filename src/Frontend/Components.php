@@ -951,7 +951,7 @@ final class Components {
 					'items'   => [
 						'type'    => 'string',
 						'default' => 'speakers,sessions,days',
-						'label'   => __( 'Stats to show, in order (speakers, sessions, days, categories, registered)', 'emailexpert-events' ),
+						'label'   => __( 'Stats, in order: speakers, sessions, days, categories, registered, members — rename any with a colon (speakers:Experts), or add your own number (1200:Subscribers)', 'emailexpert-events' ),
 					],
 					'animate' => $flag( __( 'Count up when scrolled into view', 'emailexpert-events' ), 0 ),
 				],
@@ -1377,6 +1377,43 @@ final class Components {
 			'ics_ref'       => $post_id,
 			'published'     => 'publish' === get_post_status( $post_id ),
 		];
+	}
+
+	/**
+	 * A talk's status badges (In person / Open access / custom tag), minus
+	 * any that would duplicate one of its category badges — an account with
+	 * an "In Person" category must not show the pill twice.
+	 *
+	 * @param array<string,mixed> $data Talk data.
+	 * @return string[]
+	 */
+	public static function status_badges( array $data ): array {
+		$badges = [];
+
+		if ( ! empty( $data['inperson'] ) ) {
+			$badges[] = __( 'In person', 'emailexpert-events' );
+		}
+		if ( ! empty( $data['open_access'] ) ) {
+			$badges[] = __( 'Open access', 'emailexpert-events' );
+		}
+		if ( '' !== (string) ( $data['custom_tag'] ?? '' ) ) {
+			$badges[] = (string) $data['custom_tag'];
+		}
+
+		// Compare with punctuation and case ignored: "In Person" and
+		// "in-person" both silence the built-in pill.
+		$fold  = static fn( string $text ): string => (string) preg_replace( '/[^a-z0-9]+/', '', strtolower( $text ) );
+		$taken = array_map(
+			static fn( $term ): string => $fold( (string) ( $term->name ?? '' ) ),
+			(array) ( $data['categories'] ?? [] )
+		);
+
+		return array_values(
+			array_filter(
+				$badges,
+				static fn( string $badge ): bool => ! in_array( $fold( $badge ), $taken, true )
+			)
+		);
 	}
 
 	/**
@@ -2087,6 +2124,11 @@ final class Components {
 
 		if ( '' === $target || false === strtotime( $target ) ) {
 			return '';
+		}
+
+		// Internal callers (the register bar) already name the subject.
+		if ( ! empty( $atts['bare'] ) ) {
+			$label = '';
 		}
 
 		// Graceful no-JS fallback: the event-local start time, no live claims.
@@ -3144,6 +3186,9 @@ final class Components {
 			[
 				'talk'  => '',
 				'event' => (string) $atts['event'],
+				// The bar already names the event; a labelled countdown
+				// would say it twice when nothing upcoming carries a title.
+				'bare'  => 1,
 			]
 		) : '';
 
@@ -3245,8 +3290,11 @@ final class Components {
 
 	/**
 	 * Event stats strip: social proof from numbers the plugin already has.
-	 * A stat that is zero or unavailable renders nothing — "0 speakers"
-	 * sells no tickets — and a strip with no stats renders empty.
+	 * Each item is a stat slug, optionally relabelled with a colon
+	 * (speakers:Experts), or an operator-supplied number with its label
+	 * (1200:Subscribers) for figures the API cannot know. A stat that is
+	 * zero or unavailable renders nothing — "0 speakers" sells no tickets —
+	 * and a strip with no stats renders empty.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
 	 */
@@ -3278,22 +3326,47 @@ final class Components {
 		$values = [];
 
 		foreach ( $wanted as $item ) {
-			switch ( $item ) {
+			[ $slug, $label ] = array_pad( explode( ':', $item, 2 ), 2, '' );
+			$slug             = trim( $slug );
+			$label            = trim( $label );
+
+			// An operator-supplied figure: "1200:Subscribers".
+			if ( preg_match( '/^\d+$/', $slug ) ) {
+				if ( '' !== $label ) {
+					$values[] = [ (int) $slug, $label ];
+				}
+				continue;
+			}
+
+			switch ( $slug ) {
 				case 'speakers':
-					$values[] = [ self::repo()->speakers_total( $atts ), __( 'Speakers', 'emailexpert-events' ) ];
+					$values[] = [ self::repo()->speakers_total( $atts ), '' !== $label ? $label : __( 'Speakers', 'emailexpert-events' ) ];
 					break;
 				case 'sessions':
-					$values[] = [ count( $lazy() ), __( 'Sessions', 'emailexpert-events' ) ];
+					$values[] = [ count( $lazy() ), '' !== $label ? $label : __( 'Sessions', 'emailexpert-events' ) ];
 					break;
 				case 'days':
 					$days     = array_unique( array_column( self::group_rows_by_day( $lazy(), 'Y-m-d' ), 'day' ) );
-					$values[] = [ count( $days ), __( 'Days', 'emailexpert-events' ) ];
+					$values[] = [ count( $days ), '' !== $label ? $label : __( 'Days', 'emailexpert-events' ) ];
 					break;
 				case 'categories':
-					$values[] = [ count( self::repo()->categories( $atts ) ), __( 'Topics', 'emailexpert-events' ) ];
+					$values[] = [ count( self::repo()->categories( $atts ) ), '' !== $label ? $label : __( 'Topics', 'emailexpert-events' ) ];
 					break;
 				case 'registered':
-					$values[] = [ (int) ( $event['reg_count'] ?? 0 ), __( 'Registered', 'emailexpert-events' ) ];
+					$values[] = [ (int) ( $event['reg_count'] ?? 0 ), '' !== $label ? $label : __( 'Registered', 'emailexpert-events' ) ];
+					break;
+				case 'members':
+					// This site's community: every registered user, unless the
+					// operator narrows it (e.g. to a membership role).
+					$count = function_exists( 'count_users' ) ? (int) ( count_users()['total_users'] ?? 0 ) : 0;
+
+					/**
+					 * The figure behind the "members" stat.
+					 *
+					 * @param int $count Registered-user count.
+					 */
+					$count    = (int) apply_filters( 'eex_stats_members', $count );
+					$values[] = [ $count, '' !== $label ? $label : __( 'Members', 'emailexpert-events' ) ];
 					break;
 			}
 		}
@@ -3432,8 +3505,17 @@ final class Components {
 				}
 			}
 
+			// The maps query wants the full address; the display drops its
+			// first line when the session's own venue line already names it
+			// ("Main Stage, The Exchange" + "The Exchange, …" reads twice).
 			if ( ! empty( $address ) ) {
 				$map_url = 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( implode( ', ', $address ) );
+
+				$fold  = static fn( string $text ): string => (string) preg_replace( '/[^a-z0-9]+/', '', strtolower( $text ) );
+				$venue = $fold( (string) ( $data['venue'] ?? '' ) );
+				if ( '' !== $venue && str_contains( $venue, $fold( $address[0] ) ) ) {
+					array_shift( $address );
+				}
 			}
 		}
 

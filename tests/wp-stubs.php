@@ -1246,6 +1246,11 @@ if ( ! function_exists( 'eex_test_create_user' ) ) {
 		return $id;
 	}
 }
+if ( ! function_exists( 'count_users' ) ) {
+	function count_users() {
+		return [ 'total_users' => count( $GLOBALS['eex_test_users'] ?? [] ) ];
+	}
+}
 if ( ! function_exists( 'get_userdata' ) ) {
 	function get_userdata( $user_id ) {
 		return $GLOBALS['eex_test_users'][ (int) $user_id ] ?? false;

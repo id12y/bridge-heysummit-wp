@@ -84,6 +84,13 @@ final class TalkMapper extends BaseMapper {
 		$parts[] = self::str( $raw, [ 'inperson_venue' ] );
 		$parts[] = self::str( $raw, [ 'inperson_venue_area' ] );
 
-		return implode( ', ', array_filter( array_unique( array_map( 'trim', $parts ) ) ) );
+		// A bare number is a record ID leaking through (the API sometimes
+		// serialises venue/stage relations as IDs) — never a display name.
+		$parts = array_filter(
+			array_unique( array_map( 'trim', $parts ) ),
+			static fn( string $part ): bool => '' !== $part && ! preg_match( '/^\d+$/', $part )
+		);
+
+		return implode( ', ', $parts );
 	}
 }

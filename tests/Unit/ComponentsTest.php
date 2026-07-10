@@ -1674,6 +1674,103 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'hidden', $extras, 'the toggle stays hidden until JS reveals it' );
 	}
 
+	public function test_status_badges_never_duplicate_a_category(): void {
+		$this->assertSame(
+			[ 'Open access' ],
+			Components::status_badges(
+				[
+					'inperson'    => true,
+					'open_access' => true,
+					'categories'  => [ (object) [ 'slug' => 'in-person', 'name' => 'In Person' ] ],
+				]
+			),
+			'a category saying the same thing silences the built-in pill, case and punctuation ignored'
+		);
+
+		$this->assertSame(
+			[ 'In person', 'VIP' ],
+			Components::status_badges(
+				[
+					'inperson'   => true,
+					'custom_tag' => 'VIP',
+					'categories' => [ (object) [ 'slug' => 'strategy', 'name' => 'Strategy' ] ],
+				]
+			)
+		);
+	}
+
+	public function test_a_numeric_venue_id_never_renders_as_a_location(): void {
+		$mapped = \Emailexpert\Events\Mappers\TalkMapper::map(
+			[
+				'id'                 => 777,
+				'title'              => 'Venue test',
+				'stage'              => [ 'title' => 'Main Stage' ],
+				'inperson_venue'     => '12970',
+				'inperson_available' => true,
+			]
+		);
+
+		$this->assertSame( 'Main Stage', $mapped['venue'], 'a bare record ID is dropped from the location line' );
+	}
+
+	public function test_stats_custom_labels_manual_figures_and_members(): void {
+		$this->make_linked_talk();
+		eex_test_create_user( 'member-one', 'one@example.com' );
+		eex_test_create_user( 'member-two', 'two@example.com' );
+
+		$html = Components::render(
+			'stats',
+			[
+				'event' => '101',
+				'items' => 'sessions:Talks,members,1200:Newsletter subscribers',
+			]
+		);
+
+		$this->assertStringContainsString( 'Talks', $html, 'a colon renames a stat' );
+		$this->assertStringNotContainsString( 'Sessions', $html );
+		$this->assertStringContainsString( 'Members', $html );
+		$this->assertStringContainsString( '>2<', $html, 'members counts registered users' );
+		$this->assertStringContainsString( 'Newsletter subscribers', $html, 'operators can add their own figures' );
+		$this->assertStringContainsString( '1,200', $html );
+	}
+
+	public function test_a_company_already_named_in_the_headline_is_not_repeated(): void {
+		$talk_id    = $this->make_talk( 'Dedupe session', 3600 );
+		$speaker_id = $this->make_speaker( 'Corporate Speaker' );
+		update_post_meta( $speaker_id, '_eex_headline', 'VP Deliverability at Example Corp' );
+		update_post_meta( $speaker_id, '_eex_company', 'Example Corp' );
+		update_post_meta( $talk_id, '_eex_speaker_ids', [ $speaker_id ] );
+
+		$html = Components::render( 'speakers', [] );
+
+		$this->assertSame( 1, substr_count( $html, 'Example Corp' ), 'the company line yields when the headline already names it' );
+	}
+
+	public function test_the_bar_countdown_is_bare_and_the_feature_address_drops_a_repeated_venue_name(): void {
+		$talk_id = $this->make_linked_talk();
+		update_post_meta( $talk_id, '_eex_talk_venue', 'Main Stage, The Exchange' );
+
+		$bar = Components::render( 'register-bar', [ 'event' => '101' ] );
+		$this->assertStringContainsString( 'data-eex-countdown', $bar );
+		$this->assertStringNotContainsString( 'Linked session —', $bar, 'the bar countdown carries no label of its own' );
+
+		$event_post = get_posts(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'any',
+				'numberposts' => 1,
+				'fields'      => 'ids',
+			]
+		)[0];
+		update_post_meta( $event_post, '_eex_venue_name', 'The Exchange' );
+		update_post_meta( $event_post, '_eex_venue_locality', 'Croydon' );
+
+		$card = Components::render( 'featured-session', [ 'event' => '101' ] );
+		$this->assertStringContainsString( 'Main Stage, The Exchange', $card );
+		$this->assertStringContainsString( 'eex-venue-address">Croydon', $card, 'the address drops its first line when the venue line already names it' );
+		$this->assertStringContainsString( rawurlencode( 'The Exchange' ), $card, 'the maps query keeps the full address' );
+	}
+
 	public function test_speaker_links_render_only_when_opted_in(): void {
 		$talk_id    = $this->make_talk( 'Social session', 3600 );
 		$speaker_id = $this->make_speaker( 'Networked Speaker' );

@@ -19,10 +19,15 @@ if ( empty( $eex_speaker['name'] ) ) {
 	return;
 }
 
-$eex_name      = (string) $eex_speaker['name'];
-$eex_link      = (string) ( $eex_speaker['url'] ?? '' );
-$eex_headline  = (string) ( $eex_speaker['headline'] ?? '' );
-$eex_company   = (string) ( $eex_speaker['company'] ?? '' );
+$eex_name     = (string) $eex_speaker['name'];
+$eex_link     = (string) ( $eex_speaker['url'] ?? '' );
+$eex_headline = (string) ( $eex_speaker['headline'] ?? '' );
+$eex_company  = (string) ( $eex_speaker['company'] ?? '' );
+// A headline that already names the company ("VP at Example Corp") makes
+// a separate company line pure repetition.
+if ( '' !== $eex_company && false !== stripos( $eex_headline, $eex_company ) ) {
+	$eex_company = '';
+}
 $eex_bio       = ! empty( $args['show_bio'] ) ? (string) ( $eex_speaker['bio'] ?? '' ) : '';
 $eex_photo_id  = (int) ( $eex_speaker['photo_id'] ?? 0 );
 $eex_photo_url = (string) ( $eex_speaker['photo_url'] ?? '' );

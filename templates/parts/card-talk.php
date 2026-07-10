@@ -60,18 +60,7 @@ if ( '' === $eex_register_text ) {
 		<p class="eex-card-venue"><?php echo esc_html( (string) $eex_data['venue'] ); ?></p>
 	<?php endif; ?>
 
-	<?php
-	$eex_status_badges = [];
-	if ( ! empty( $eex_data['inperson'] ) ) {
-		$eex_status_badges[] = __( 'In person', 'emailexpert-events' );
-	}
-	if ( ! empty( $eex_data['open_access'] ) ) {
-		$eex_status_badges[] = __( 'Open access', 'emailexpert-events' );
-	}
-	if ( '' !== (string) ( $eex_data['custom_tag'] ?? '' ) ) {
-		$eex_status_badges[] = (string) $eex_data['custom_tag'];
-	}
-	?>
+	<?php $eex_status_badges = Components::status_badges( $eex_data ); ?>
 	<?php if ( $eex_show['categories'] && ( ! empty( $eex_data['categories'] ) || ! empty( $eex_status_badges ) ) ) : ?>
 		<p class="eex-badges">
 			<?php foreach ( (array) $eex_data['categories'] as $eex_term ) : ?>
