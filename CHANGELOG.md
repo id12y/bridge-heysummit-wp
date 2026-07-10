@@ -3,6 +3,34 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.24.0
+- **Choose how much speaker detail session cards show.** A new Speaker
+  detail option on session lists, the schedule and the featured session
+  card: names only (the default, unchanged), names and job titles, or
+  photos, names and job titles — alongside the existing show/hide
+  toggle.
+- **In-person sessions can carry the venue address.** Turn on "Show the
+  event venue address on in-person sessions" and any session detected
+  as in-person gains the event venue's address and a Directions link on
+  its card — virtual sessions stay clean.
+- **Stats strip customisation.** Rename any stat with a colon
+  (`speakers:Experts`), count this site's registered users with
+  `members` (narrow it via the `eex_stats_members` filter), or add your
+  own figure (`1200:Newsletter subscribers`).
+- **Fixed (field-reported): the "In person" pill no longer doubles up**
+  on accounts that also have an "In Person" category — a category
+  saying the same thing (case and punctuation ignored) silences the
+  built-in badge, on session cards and the featured session card alike.
+- **Fixed (field-reported): numeric venue IDs no longer render.** When
+  HeySummit serialises a stage/venue relation as a bare record ID, it
+  is dropped from the location line instead of displayed. The same
+  guard covers Lite category badges and the event venue name.
+- More of the same polish: a speaker's company line yields when their
+  headline already names the company; the featured card's address
+  drops its first line when the venue line already names the venue;
+  the register bar's countdown carries no duplicate title; speaker
+  chips without a link are no longer empty-href anchors.
+
 ## 1.23.0
 - **Six new widgets** (every one also a shortcode and a block, with the
   full Style tab in Elementor):
@@ -21,10 +49,7 @@ Notable changes per released version. Design reasoning lives in
     view; all the design presets apply.
   - **Event stats strip** — "40 speakers · 30 sessions · 2 days" social
     proof from numbers the plugin already has, with an optional
-    count-up animation. Zero stats stay hidden. Rename any stat with a
-    colon (`speakers:Experts`), count this site's registered users with
-    `members` (narrow it via the `eex_stats_members` filter), or add
-    your own figure (`1200:Newsletter subscribers`).
+    count-up animation. Zero stats stay hidden.
   - **Replay gallery** — past sessions that have replays, as cards with
     a play overlay; sessions still awaiting their replay can show a
     "Replay available soon" badge.
@@ -38,13 +63,6 @@ Notable changes per released version. Design reasoning lives in
   session images work in Full mode via featured images.
 - **Elementor**: every widget has its own icon, and the event picker now
   works in Lite mode (event titles are remembered from live fetches).
-- **Fixed (field-reported): the "In person" pill no longer doubles up**
-  on accounts that also have an "In Person" category — a category
-  saying the same thing (case and punctuation ignored) silences the
-  built-in badge, on session cards and the featured session card alike.
-- **Fixed (field-reported): numeric venue IDs no longer render.** When
-  HeySummit serialises a stage/venue relation as a bare record ID, it
-  is dropped from the location line instead of displayed.
 
 ## 1.22.0
 - **Coupon codes bake into your buy buttons.** Create a coupon in

@@ -110,7 +110,15 @@ $eex_session_url = 'tickets' === $eex_buttons ? '' : Components::session_url( $e
 		<?php if ( ! empty( $eex_show['speakers'] ) && ! empty( $eex_data['speakers'] ) ) : ?>
 			<p class="eex-speaker-chips">
 				<?php foreach ( (array) $eex_data['speakers'] as $eex_speaker ) : ?>
-					<?php TemplateLoader::part( 'speaker-chip', [ 'speaker' => $eex_speaker ] ); ?>
+					<?php
+					TemplateLoader::part(
+						'speaker-chip',
+						[
+							'speaker' => $eex_speaker,
+							'info'    => (string) ( $eex_show['speaker_info'] ?? 'names' ),
+						]
+					);
+					?>
 				<?php endforeach; ?>
 			</p>
 		<?php endif; ?>

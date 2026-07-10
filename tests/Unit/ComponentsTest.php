@@ -1771,6 +1771,81 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( rawurlencode( 'The Exchange' ), $card, 'the maps query keeps the full address' );
 	}
 
+	public function test_speaker_detail_levels_on_session_cards(): void {
+		$talk_id    = $this->make_talk( 'Detail session', 3600 );
+		$speaker_id = $this->make_speaker( 'Detailed Speaker' );
+		update_post_meta( $speaker_id, '_eex_headline', 'Head of Email' );
+		update_post_meta( $talk_id, '_eex_speaker_ids', [ $speaker_id ] );
+
+		// Default: names only, exactly as before.
+		$names = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( 'Detailed Speaker', $names );
+		$this->assertStringNotContainsString( 'eex-chip-headline', $names );
+		$this->assertStringNotContainsString( 'eex-chip-full', $names );
+
+		// Hidden entirely.
+		Cache::flush();
+		$hidden = Components::render( 'upcoming-sessions', [ 'show_speakers' => 0 ] );
+		$this->assertStringNotContainsString( 'Detailed Speaker', $hidden );
+
+		// Names and job titles.
+		Cache::flush();
+		$jobs = Components::render( 'upcoming-sessions', [ 'speaker_info' => 'headline' ] );
+		$this->assertStringContainsString( 'eex-chip-headline', $jobs );
+		$this->assertStringContainsString( 'Head of Email', $jobs );
+		$this->assertStringNotContainsString( 'eex-chip-full', $jobs );
+
+		// Photos, names and job titles.
+		Cache::flush();
+		$full = Components::render( 'upcoming-sessions', [ 'speaker_info' => 'full' ] );
+		$this->assertStringContainsString( 'eex-chip-full', $full );
+		$this->assertStringContainsString( 'Head of Email', $full );
+	}
+
+	public function test_in_person_cards_can_show_the_event_venue_address(): void {
+		$talk_id = $this->make_linked_talk();
+		update_post_meta( $talk_id, '_eex_inperson', 1 );
+
+		$event_post = get_posts(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'any',
+				'numberposts' => 1,
+				'fields'      => 'ids',
+			]
+		)[0];
+		update_post_meta( $event_post, '_eex_venue_name', 'The Exchange' );
+		update_post_meta( $event_post, '_eex_venue_locality', 'Croydon' );
+
+		// Off by default: cards are unchanged.
+		$plain = Components::render( 'upcoming-sessions', [ 'event' => '101' ] );
+		$this->assertStringNotContainsString( 'eex-venue-address', $plain );
+
+		Cache::flush();
+		$with = Components::render(
+			'upcoming-sessions',
+			[
+				'event'        => '101',
+				'show_address' => 1,
+			]
+		);
+		$this->assertStringContainsString( 'eex-venue-address', $with );
+		$this->assertStringContainsString( 'The Exchange', $with );
+		$this->assertStringContainsString( 'google.com/maps/search', $with );
+
+		// A virtual session gets no address even with the flag on.
+		update_post_meta( $talk_id, '_eex_inperson', 0 );
+		Cache::flush();
+		$virtual = Components::render(
+			'upcoming-sessions',
+			[
+				'event'        => '101',
+				'show_address' => 1,
+			]
+		);
+		$this->assertStringNotContainsString( 'eex-venue-address', $virtual, 'only detected in-person sessions carry the address' );
+	}
+
 	public function test_speaker_links_render_only_when_opted_in(): void {
 		$talk_id    = $this->make_talk( 'Social session', 3600 );
 		$speaker_id = $this->make_speaker( 'Networked Speaker' );

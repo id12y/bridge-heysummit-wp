@@ -110,6 +110,16 @@ final class Components {
 		};
 
 		$show_speakers   = $flag( __( 'Show speakers', 'emailexpert-events' ) );
+		$speaker_info    = [
+			'type'    => 'string',
+			'default' => 'names',
+			'label'   => __( 'Speaker detail', 'emailexpert-events' ),
+			'options' => [
+				'names'    => __( 'Names only', 'emailexpert-events' ),
+				'headline' => __( 'Names and job titles', 'emailexpert-events' ),
+				'full'     => __( 'Photos, names and job titles', 'emailexpert-events' ),
+			],
+		];
 		$show_categories = $flag( __( 'Show category badges', 'emailexpert-events' ) );
 		$show_ics        = $flag( __( 'Show "Add to calendar (.ics)" link', 'emailexpert-events' ) );
 		$show_google     = $flag( __( 'Show Google Calendar link', 'emailexpert-events' ) );
@@ -195,9 +205,11 @@ final class Components {
 						'default' => $empty_sessions,
 					],
 					'show_speakers'   => $show_speakers,
+					'speaker_info'    => $speaker_info,
 					'show_categories' => $show_categories,
 					'show_image'      => $flag( __( 'Show session images', 'emailexpert-events' ), 0 ),
 					'show_venue'      => $flag( __( 'Show venue/stage', 'emailexpert-events' ) ),
+					'show_address'    => $flag( __( 'Show the event venue address on in-person sessions', 'emailexpert-events' ), 0 ),
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
 					'buttons'         => $buttons,
@@ -235,9 +247,11 @@ final class Components {
 					'layout'          => $talk_layout,
 					'columns'         => $talk_columns,
 					'show_speakers'   => $show_speakers,
+					'speaker_info'    => $speaker_info,
 					'show_categories' => $show_categories,
 					'show_image'      => $flag( __( 'Show session images', 'emailexpert-events' ), 0 ),
 					'show_venue'      => $flag( __( 'Show venue/stage', 'emailexpert-events' ) ),
+					'show_address'    => $flag( __( 'Show the event venue address on in-person sessions', 'emailexpert-events' ), 0 ),
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
 					'register_text'   => $register_text,
@@ -328,6 +342,7 @@ final class Components {
 						'default' => '',
 					],
 					'show_speakers'   => $show_speakers,
+					'speaker_info'    => $speaker_info,
 					'show_categories' => $show_categories,
 					'day_nav'         => $flag( __( 'Show jump-to-day links above the schedule', 'emailexpert-events' ), 0 ),
 					'show_tz_toggle'  => $flag( __( 'Show a timezone toggle (your time / event time)', 'emailexpert-events' ), 0 ),
@@ -427,9 +442,11 @@ final class Components {
 					'layout'          => $talk_layout,
 					'columns'         => $talk_columns,
 					'show_speakers'   => $show_speakers,
+					'speaker_info'    => $speaker_info,
 					'show_categories' => $show_categories,
 					'show_image'      => $flag( __( 'Show session images', 'emailexpert-events' ), 0 ),
 					'show_venue'      => $flag( __( 'Show venue/stage', 'emailexpert-events' ) ),
+					'show_address'    => $flag( __( 'Show the event venue address on in-person sessions', 'emailexpert-events' ), 0 ),
 					'show_ics'        => $show_ics,
 					'show_google'     => $show_google,
 					'buttons'         => $buttons,
@@ -1034,6 +1051,7 @@ final class Components {
 					'show_image'       => $flag( __( 'Show the session image', 'emailexpert-events' ) ),
 					'show_description' => $flag( __( 'Show the description', 'emailexpert-events' ) ),
 					'show_speakers'    => $show_speakers,
+					'speaker_info'     => $speaker_info,
 					'show_categories'  => $show_categories,
 					'show_venue'       => $flag( __( 'Show the location (stage / venue)', 'emailexpert-events' ) ),
 					'show_address'     => $flag( __( 'Show the event venue address and map link', 'emailexpert-events' ) ),
@@ -1380,6 +1398,54 @@ final class Components {
 	}
 
 	/**
+	 * The event venue address for a talk, for display beside the session:
+	 * the operator-owned venue meta in Full mode, the venue name Lite knows.
+	 * The display lines drop the venue name when the talk's own venue line
+	 * already names it; the maps URL always uses the full address.
+	 *
+	 * @param array<string,mixed> $data Talk data.
+	 * @return array{lines:array<int,string>,map_url:string}
+	 */
+	public static function event_address( array $data ): array {
+		$lines         = [];
+		$event_post_id = (int) ( $data['event_post_id'] ?? 0 );
+
+		if ( $event_post_id > 0 ) {
+			foreach ( [ 'name', 'street', 'locality', 'postcode', 'country' ] as $field ) {
+				$value = (string) get_post_meta( $event_post_id, '_eex_venue_' . $field, true );
+				if ( '' !== $value ) {
+					$lines[] = $value;
+				}
+			}
+		} else {
+			$event = self::repo()->event_summary( (string) ( $data['event_hs_id'] ?? '' ) );
+			if ( null !== $event && '' !== (string) ( $event['venue'] ?? '' ) ) {
+				$lines[] = (string) $event['venue'];
+			}
+		}
+
+		if ( empty( $lines ) ) {
+			return [
+				'lines'   => [],
+				'map_url' => '',
+			];
+		}
+
+		$map_url = 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( implode( ', ', $lines ) );
+
+		$fold  = static fn( string $text ): string => (string) preg_replace( '/[^a-z0-9]+/', '', strtolower( $text ) );
+		$venue = $fold( (string) ( $data['venue'] ?? '' ) );
+		if ( '' !== $venue && str_contains( $venue, $fold( $lines[0] ) ) ) {
+			array_shift( $lines );
+		}
+
+		return [
+			'lines'   => $lines,
+			'map_url' => $map_url,
+		];
+	}
+
+	/**
 	 * A talk's status badges (In person / Open access / custom tag), minus
 	 * any that would duplicate one of its category badges — an account with
 	 * an "In Person" category must not show the pill twice.
@@ -1577,12 +1643,14 @@ final class Components {
 	 */
 	private static function show_flags( array $atts ): array {
 		return [
-			'speakers'   => ! isset( $atts['show_speakers'] ) || ! empty( $atts['show_speakers'] ),
-			'categories' => ! isset( $atts['show_categories'] ) || ! empty( $atts['show_categories'] ),
-			'ics'        => ! isset( $atts['show_ics'] ) || ! empty( $atts['show_ics'] ),
-			'google'     => ! isset( $atts['show_google'] ) || ! empty( $atts['show_google'] ),
-			'image'      => ! empty( $atts['show_image'] ),
-			'venue'      => ! isset( $atts['show_venue'] ) || ! empty( $atts['show_venue'] ),
+			'speakers'     => ! isset( $atts['show_speakers'] ) || ! empty( $atts['show_speakers'] ),
+			'speaker_info' => (string) ( $atts['speaker_info'] ?? 'names' ),
+			'categories'   => ! isset( $atts['show_categories'] ) || ! empty( $atts['show_categories'] ),
+			'ics'          => ! isset( $atts['show_ics'] ) || ! empty( $atts['show_ics'] ),
+			'google'       => ! isset( $atts['show_google'] ) || ! empty( $atts['show_google'] ),
+			'image'        => ! empty( $atts['show_image'] ),
+			'venue'        => ! isset( $atts['show_venue'] ) || ! empty( $atts['show_venue'] ),
+			'address'      => ! empty( $atts['show_address'] ),
 		];
 	}
 
@@ -3489,34 +3557,7 @@ final class Components {
 		$map_url = '';
 
 		if ( ! empty( $atts['show_address'] ) ) {
-			$event_post_id = (int) ( $data['event_post_id'] ?? 0 );
-
-			if ( $event_post_id > 0 ) {
-				foreach ( [ 'name', 'street', 'locality', 'postcode', 'country' ] as $field ) {
-					$value = (string) get_post_meta( $event_post_id, '_eex_venue_' . $field, true );
-					if ( '' !== $value ) {
-						$address[] = $value;
-					}
-				}
-			} else {
-				$event = self::repo()->event_summary( (string) ( $data['event_hs_id'] ?? '' ) );
-				if ( null !== $event && '' !== (string) ( $event['venue'] ?? '' ) ) {
-					$address[] = (string) $event['venue'];
-				}
-			}
-
-			// The maps query wants the full address; the display drops its
-			// first line when the session's own venue line already names it
-			// ("Main Stage, The Exchange" + "The Exchange, …" reads twice).
-			if ( ! empty( $address ) ) {
-				$map_url = 'https://www.google.com/maps/search/?api=1&query=' . rawurlencode( implode( ', ', $address ) );
-
-				$fold  = static fn( string $text ): string => (string) preg_replace( '/[^a-z0-9]+/', '', strtolower( $text ) );
-				$venue = $fold( (string) ( $data['venue'] ?? '' ) );
-				if ( '' !== $venue && str_contains( $venue, $fold( $address[0] ) ) ) {
-					array_shift( $address );
-				}
-			}
+			[ 'lines' => $address, 'map_url' => $map_url ] = self::event_address( $data );
 		}
 
 		ob_start();
