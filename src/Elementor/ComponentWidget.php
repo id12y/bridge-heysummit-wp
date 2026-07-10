@@ -60,10 +60,34 @@ class ComponentWidget extends \Elementor\Widget_Base {
 	}
 
 	/**
-	 * Widget icon.
+	 * Widget icon: one per component so the panel reads at a glance.
 	 */
 	public function get_icon(): string {
-		return 'eicon-calendar';
+		$icons = [
+			'past-sessions'     => 'eicon-history',
+			'past-events'       => 'eicon-archive',
+			'countdown'         => 'eicon-countdown',
+			'schedule'          => 'eicon-time-line',
+			'speakers'          => 'eicon-person',
+			'featured-talks'    => 'eicon-star',
+			'sponsors'          => 'eicon-gallery-grid',
+			'sponsor-spotlight' => 'eicon-banner',
+			'next-session'      => 'eicon-flash',
+			'pricing'           => 'eicon-price-table',
+			'speaker-spotlight' => 'eicon-testimonial',
+			'events-portfolio'  => 'eicon-gallery-grid',
+			'live-now'          => 'eicon-play',
+			'session-filter'    => 'eicon-filter',
+			'reg-counter'       => 'eicon-counter',
+			'register-bar'      => 'eicon-call-to-action',
+			'register-inline'   => 'eicon-form-horizontal',
+			'stats'             => 'eicon-number-field',
+			'replay-gallery'    => 'eicon-video-playlist',
+			'venue'             => 'eicon-map-pin',
+			'featured-session'  => 'eicon-single-post',
+		];
+
+		return $icons[ $this->component ] ?? 'eicon-calendar';
 	}
 
 	/**
@@ -985,7 +1009,9 @@ class ComponentWidget extends \Elementor\Widget_Base {
 	}
 
 	/**
-	 * Synced events as select options (HeySummit ID => title).
+	 * Events as select options (HeySummit ID => title): synced posts in
+	 * Full mode; in Lite (no local posts) the titles remembered from live
+	 * fetches, so the picker works there too.
 	 *
 	 * @return array<string,string>
 	 */
@@ -1006,6 +1032,10 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			if ( '' !== $hs_id ) {
 				$options[ $hs_id ] = (string) $event->post_title;
 			}
+		}
+
+		if ( empty( $options ) ) {
+			$options = \Emailexpert\Events\Data\EventTitles::known();
 		}
 
 		return $options;

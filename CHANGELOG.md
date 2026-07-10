@@ -3,6 +3,39 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.23.0
+- **Six new widgets** (every one also a shortcode and a block, with the
+  full Style tab in Elementor):
+  - **Sticky register bar** — a slim Get-tickets bar that pins to the top
+    or bottom of the screen once the visitor scrolls, with an optional
+    countdown, a "Join now" flip while a session is live, and a
+    dismissal that sticks for the browsing session. Opens the ticket
+    panel or deep-links to checkout (coupons included).
+  - **Registration form** — the ticket panel's free-registration form as
+    a standalone widget for heroes, footers and sidebars. Paid-only
+    events show a checkout button instead of a dead form.
+  - **Featured session card** — one session, hand-picked or the next
+    upcoming, with its physical location given equal billing: stage and
+    venue line, "In person" badge, the event venue's address and a
+    Directions link. A wide feature-card view and a compact sidebar
+    view; all the design presets apply.
+  - **Event stats strip** — "40 speakers · 30 sessions · 2 days" social
+    proof from numbers the plugin already has, with an optional
+    count-up animation. Zero stats stay hidden.
+  - **Replay gallery** — past sessions that have replays, as cards with
+    a play overlay; sessions still awaiting their replay can show a
+    "Replay available soon" badge.
+  - **Venue card** — the event venue's name and address (Full mode's
+    venue fields) with a Directions link.
+- **Schedule**: optional jump-to-day links and a your-time/event-time
+  toggle (both off by default; existing schedules are unchanged).
+- **Speakers**: optional social/web link chips on grid, list and
+  spotlight (off by default). Session cards can now show stage/venue
+  and In-person badges in Full mode too (synced from HeySummit), and
+  session images work in Full mode via featured images.
+- **Elementor**: every widget has its own icon, and the event picker now
+  works in Lite mode (event titles are remembered from live fetches).
+
 ## 1.22.0
 - **Coupon codes bake into your buy buttons.** Create a coupon in
   HeySummit (Revenue area) as usual, then set `coupon="CODE"` on any

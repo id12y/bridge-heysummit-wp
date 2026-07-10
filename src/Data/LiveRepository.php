@@ -1365,6 +1365,9 @@ class LiveRepository extends BaseMapper implements Repository {
 		$url      = self::url_str( $raw, [ 'event_url', 'url', 'public_url' ] );
 		$timezone = self::str( $raw, [ 'timezone', 'time_zone', 'tz' ] );
 
+		// Editor pickers need titles for events that exist nowhere locally.
+		EventTitles::remember( self::id_of( $raw, [ 'id' ] ), self::str( $raw, [ 'title', 'name' ] ) );
+
 		return [
 			'id'            => 0,
 			'hs_id'         => self::id_of( $raw, [ 'id' ] ),
@@ -1543,6 +1546,25 @@ class LiveRepository extends BaseMapper implements Repository {
 			$name = trim( self::str( $raw, [ 'first_name' ] ) . ' ' . self::str( $raw, [ 'last_name' ] ) );
 		}
 
+		// The same link harvesting as the sync-mode SpeakerMapper.
+		$links = [];
+		if ( isset( $raw['links'] ) && is_array( $raw['links'] ) ) {
+			foreach ( $raw['links'] as $link ) {
+				$url = self::url_of( $link );
+				if ( '' !== $url ) {
+					$links[] = $url;
+				}
+			}
+		}
+		foreach ( [ 'twitter', 'linkedin', 'website', 'facebook', 'instagram' ] as $network ) {
+			if ( isset( $raw[ $network ] ) ) {
+				$url = self::url_of( $raw[ $network ] );
+				if ( '' !== $url && ! in_array( $url, $links, true ) ) {
+					$links[] = $url;
+				}
+			}
+		}
+
 		return [
 			'id'        => (int) self::id_of( $raw, [ 'id' ] ),
 			'name'      => $name,
@@ -1553,6 +1575,7 @@ class LiveRepository extends BaseMapper implements Repository {
 			'slug'      => sanitize_title( self::str( $raw, [ 'slug' ] ) ),
 			'photo_id'  => 0,
 			'photo_url' => self::url_str( $raw, [ 'headshot', 'avatar', 'photo_url' ] ),
+			'links'     => $links,
 		];
 	}
 

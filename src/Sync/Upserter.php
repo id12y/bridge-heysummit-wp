@@ -203,6 +203,8 @@ final class Upserter {
 					// Manual _eex_replay_url always wins at render time; the
 					// synced value lands in its own key (docs/decisions.md D13).
 					'_eex_replay_url_synced' => (string) ( $mapped['replay_url'] ?? '' ),
+					'_eex_talk_venue'        => (string) ( $mapped['venue'] ?? '' ),
+					'_eex_inperson'          => empty( $mapped['inperson'] ) ? 0 : 1,
 				];
 
 			case PostTypes::SPEAKER:

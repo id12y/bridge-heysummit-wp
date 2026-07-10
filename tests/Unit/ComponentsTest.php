@@ -1407,6 +1407,291 @@ final class ComponentsTest extends TestCase {
 		$this->assertNotEmpty( $hidden_fragments, 'the real empty fragment is cached even when hidden' );
 	}
 
+	public function test_register_bar_renders_countdown_live_slot_and_cta(): void {
+		$this->make_linked_talk();
+
+		$html = Components::render( 'register-bar', [ 'event' => '101' ] );
+
+		$this->assertStringContainsString( 'eex-register-bar', $html );
+		$this->assertStringContainsString( 'eex-bar-bottom', $html, 'pins to the bottom by default' );
+		$this->assertStringContainsString( 'data-eex-bar-offset="400"', $html );
+		$this->assertStringContainsString( 'Linked event', $html, 'the bar text defaults to the event title' );
+		$this->assertStringContainsString( 'summit.example.com/checkout/select-tickets/', $html );
+		$this->assertStringContainsString( 'data-eex-countdown', $html, 'the countdown chip rides along by default' );
+		$this->assertStringContainsString( 'data-eex-session="1"', $html, 'session attributes power the live flip' );
+		$this->assertStringContainsString( 'data-eex-bar-dismiss', $html, 'dismissible by default' );
+		$this->assertStringContainsString( 'role="region"', $html );
+
+		// Options: top position, no extras, not dismissible, custom text.
+		Cache::flush();
+		$plain = Components::render(
+			'register-bar',
+			[
+				'event'          => '101',
+				'position'       => 'top',
+				'text'           => 'Last chance!',
+				'show_countdown' => 0,
+				'show_live'      => 0,
+				'dismissible'    => 0,
+			]
+		);
+		$this->assertStringContainsString( 'eex-bar-top', $plain );
+		$this->assertStringContainsString( 'Last chance!', $plain );
+		$this->assertStringNotContainsString( 'data-eex-countdown', $plain );
+		$this->assertStringNotContainsString( 'data-eex-session', $plain );
+		$this->assertStringNotContainsString( 'data-eex-bar-dismiss', $plain );
+	}
+
+	public function test_register_bar_panel_mode_carries_the_ticket_drawer(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'register-bar',
+			[
+				'event'           => '101',
+				'register_action' => 'panel',
+			]
+		);
+
+		$this->assertStringContainsString( 'data-eex-drawer="eex-drawer-', $html );
+		$this->assertStringContainsString( 'eex-drawer-panel', $html );
+	}
+
+	public function test_register_inline_renders_the_free_form_or_a_paid_cta(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'register-inline',
+			[
+				'event'   => '101',
+				'heading' => 'Join us free',
+			]
+		);
+
+		$this->assertStringContainsString( 'Join us free', $html );
+		$this->assertStringContainsString( 'data-eex-reg="1"', $html );
+		$this->assertStringNotContainsString( '<form class="eex-reg-form" data-eex-reg="1" hidden>', $html, 'the inline form is visible, not toggled' );
+		$this->assertStringContainsString( 'name="ticket" value="9002"', $html, 'the free ticket is picked automatically' );
+		$this->assertStringContainsString( 'name="website"', $html, 'honeypot present' );
+		$this->assertStringContainsString( 'name="consent"', $html );
+
+		// Paid-only event: a checkout CTA, never a dead form.
+		Cache::flush();
+		delete_transient( 'eex_tickets_' . md5( 'v2|c1|101' ) );
+		\EEX_Test_State::$filters['pre_http_request'] = [];
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'            => 9001,
+									'title'         => 'All access',
+									'is_paid'       => 'true',
+									'prices'        => '[]',
+									'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-abc/',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$paid = Components::render( 'register-inline', [ 'event' => '101' ] );
+		$this->assertStringNotContainsString( 'data-eex-reg', $paid );
+		$this->assertStringContainsString( 'checkout/ticket/9001-abc/', $paid, 'paid-only events fall back to the checkout link' );
+	}
+
+	public function test_stats_strip_counts_and_suppresses_zeroes(): void {
+		$talk_id = $this->make_linked_talk();
+		update_post_meta( $talk_id, '_eex_speaker_ids', [ $this->make_speaker( 'Stat Speaker' ) ] );
+
+		$html = Components::render(
+			'stats',
+			[
+				'event' => '101',
+				'items' => 'speakers,sessions,days,registered',
+			]
+		);
+
+		$this->assertStringContainsString( 'eex-stats', $html );
+		$this->assertStringContainsString( 'Speakers', $html );
+		$this->assertStringContainsString( 'Sessions', $html );
+		$this->assertStringContainsString( 'Days', $html );
+		$this->assertStringNotContainsString( 'Registered', $html, 'a zero stat renders nothing' );
+		$this->assertStringNotContainsString( 'data-eex-countup', $html, 'animation is opt-in' );
+
+		Cache::flush();
+		$animated = Components::render(
+			'stats',
+			[
+				'event'   => '101',
+				'items'   => 'sessions',
+				'animate' => 1,
+			]
+		);
+		$this->assertStringContainsString( 'data-eex-countup="1"', $animated );
+	}
+
+	public function test_replay_gallery_lists_only_sessions_with_replays(): void {
+		$this->make_linked_talk();
+
+		$with = $this->make_talk( 'Recorded session', -7200 );
+		update_post_meta( $with, '_eex_source_event_id', '101' );
+		update_post_meta( $with, '_eex_replay_url', 'https://videos.example.com/recorded-session' );
+
+		$without = $this->make_talk( 'Unrecorded session', -7200 );
+		update_post_meta( $without, '_eex_source_event_id', '101' );
+
+		$html = Components::render( 'replay-gallery', [ 'event' => '101' ] );
+
+		$this->assertStringContainsString( 'eex-replay-grid', $html );
+		$this->assertStringContainsString( 'Recorded session', $html );
+		$this->assertStringNotContainsString( 'Unrecorded session', $html );
+		$this->assertStringContainsString( 'Watch the replay', $html );
+		$this->assertStringContainsString( 'eex-replay-play', $html, 'the play overlay renders with the image slot' );
+	}
+
+	public function test_venue_card_renders_address_and_is_absent_in_lite(): void {
+		$this->make_linked_talk();
+
+		$event_post = get_posts(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'any',
+				'numberposts' => 1,
+				'fields'      => 'ids',
+			]
+		)[0];
+		update_post_meta( $event_post, '_eex_venue_name', 'The Exchange' );
+		update_post_meta( $event_post, '_eex_venue_street', '1 Exchange Square' );
+		update_post_meta( $event_post, '_eex_venue_locality', 'Croydon' );
+		update_post_meta( $event_post, '_eex_venue_postcode', 'CR0 1UH' );
+
+		$html = Components::render( 'venue', [ 'event' => '101' ] );
+
+		$this->assertStringContainsString( 'eex-venue-card', $html );
+		$this->assertStringContainsString( 'The Exchange', $html );
+		$this->assertStringContainsString( '1 Exchange Square', $html );
+		$this->assertStringContainsString( 'google.com/maps/search', $html );
+		$this->assertStringContainsString( 'Directions', $html );
+
+		// A Full-only component: Lite offers and renders nothing.
+		Options::update_settings( [ 'mode' => 'lite' ] );
+		$this->assertSame( '', Components::render( 'venue', [ 'event' => '101' ] ) );
+	}
+
+	public function test_featured_session_shows_location_and_compact_view(): void {
+		$talk_id = $this->make_linked_talk();
+		update_post_meta( $talk_id, '_eex_talk_venue', 'Main Stage, The Exchange' );
+		update_post_meta( $talk_id, '_eex_inperson', 1 );
+
+		$event_post = get_posts(
+			[
+				'post_type'   => 'eex_event',
+				'post_status' => 'any',
+				'numberposts' => 1,
+				'fields'      => 'ids',
+			]
+		)[0];
+		update_post_meta( $event_post, '_eex_venue_name', 'The Exchange' );
+		update_post_meta( $event_post, '_eex_venue_locality', 'Croydon' );
+
+		// Default: the next upcoming session, wide card view.
+		$html = Components::render( 'featured-session', [ 'event' => '101' ] );
+
+		$this->assertStringContainsString( 'eex-feature-card', $html );
+		$this->assertStringContainsString( 'Linked session', $html );
+		$this->assertStringContainsString( 'Main Stage, The Exchange', $html );
+		$this->assertStringContainsString( 'In person', $html );
+		$this->assertStringContainsString( 'Croydon', $html, 'the event venue address joins the card' );
+		$this->assertStringContainsString( 'google.com/maps/search', $html );
+		$this->assertStringContainsString( 'data-eex-session="1"', $html );
+		$this->assertStringContainsString( 'summit.example.com/checkout/select-tickets/', $html );
+
+		// Compact sidebar view, hand-picked by HeySummit ID.
+		Cache::flush();
+		$compact = Components::render(
+			'featured-session',
+			[
+				'talk' => '777',
+				'view' => 'compact',
+			]
+		);
+		$this->assertStringContainsString( 'eex-feature-compact', $compact );
+		$this->assertStringContainsString( 'Linked session', $compact );
+	}
+
+	public function test_schedule_extras_are_absent_until_opted_in(): void {
+		$this->make_linked_talk();
+		$second = $this->make_talk( 'Second day session', 90000 );
+		update_post_meta( $second, '_eex_source_event_id', '101' );
+
+		$plain = Components::render( 'schedule', [ 'event' => '101' ] );
+		$this->assertStringNotContainsString( 'eex-day-nav', $plain );
+		$this->assertStringNotContainsString( 'eex-tz-toggle', $plain );
+		$this->assertStringNotContainsString( ' id="eex-day-', $plain );
+
+		Cache::flush();
+		$extras = Components::render(
+			'schedule',
+			[
+				'event'          => '101',
+				'day_nav'        => 1,
+				'show_tz_toggle' => 1,
+			]
+		);
+		$this->assertStringContainsString( 'eex-day-nav', $extras );
+		$this->assertStringContainsString( '#eex-day-', $extras );
+		$this->assertStringContainsString( ' id="eex-day-', $extras, 'day sections gain jump anchors' );
+		$this->assertStringContainsString( 'data-eex-tz-toggle', $extras );
+		$this->assertStringContainsString( 'hidden', $extras, 'the toggle stays hidden until JS reveals it' );
+	}
+
+	public function test_speaker_links_render_only_when_opted_in(): void {
+		$talk_id    = $this->make_talk( 'Social session', 3600 );
+		$speaker_id = $this->make_speaker( 'Networked Speaker' );
+		update_post_meta( $speaker_id, '_eex_links', [ 'https://www.linkedin.com/in/networked', 'https://example.org/blog' ] );
+		update_post_meta( $talk_id, '_eex_speaker_ids', [ $speaker_id ] );
+
+		$plain = Components::render( 'speakers', [] );
+		$this->assertStringNotContainsString( 'eex-speaker-links', $plain );
+
+		Cache::flush();
+		$linked = Components::render( 'speakers', [ 'show_links' => 1 ] );
+		$this->assertStringContainsString( 'eex-speaker-links', $linked );
+		$this->assertStringContainsString( 'LinkedIn', $linked );
+		$this->assertStringContainsString( 'example.org', $linked, 'unknown hosts fall back to their domain' );
+		$this->assertStringContainsString( 'rel="noopener"', $linked );
+		$this->assertStringContainsString( 'Networked Speaker on LinkedIn', $linked, 'accessible labels name speaker and network' );
+	}
+
 	/**
 	 * Two tickets on event 101: 9001 (paid, popular) and 9002 (free).
 	 */

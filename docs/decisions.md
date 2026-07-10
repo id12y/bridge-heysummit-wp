@@ -1401,3 +1401,45 @@ operator-approved coupon allowlist, the same reasoning as the D-series
 cache-stuffing guards), and any coupon admin UI (the API's coupon
 list/create abilities are unconfirmed — asked of HeySummit; a widget
 dropdown of live codes could follow).
+
+## D92. The widget release: six new components on the one render pipeline (v1.23.0)
+
+A survey of the data layer against the 17 existing components found real
+assets nothing displayed: replay URLs and replay_planned (both modes),
+session promo images and stage/inperson_venue (Lite mapped them; sync
+did not), the operator-owned event venue meta (schema-only until now),
+speaker links (mapped, stored, never rendered), and the free-registration
+REST that lived only inside the drawer. This release surfaces them as six
+new components — sticky register bar, inline registration form, featured
+session card, stats strip, replay gallery, venue card — plus opt-in
+upgrades to schedule (day nav, timezone toggle) and speakers (link
+chips). Everything rides the existing pipeline: a definitions() entry IS
+the shortcode, the block and the Elementor widget, style presets
+included; no component gained bespoke registration code.
+
+Rules reaffirmed and applied: upgrades to existing components hide
+behind flags that default off, so rendered pages change only when an
+operator opts in (tested: schedule and speakers markup carries none of
+the new markers without the flags). New data keys (talk venue/inperson
+via _eex_talk_venue/_eex_inperson, talk_data image from the featured
+image, speaker links in both repositories) are additive; sync writes
+stay in sync-owned keys. The sticky bar is server-rendered in normal
+flow and only pinned by JS — no-JS visitors see an ordinary banner where
+it was placed, the Elementor editor keeps it selectable, dismissal is
+sessionStorage, and reduced-motion visitors get no slide animation. The
+drawer's form moved to a shared part (register-form) consumed by both
+the drawer and the inline component — same fields, honeypot, consent
+and aria-live status. Stats suppress zeroes ("0 speakers" sells no
+tickets) and the count-up is opt-in, IntersectionObserver-driven and
+disabled under prefers-reduced-motion. The replay gallery links to the
+session page by default (keeping VideoObject schema pages in the
+journey) with direct replay links as the explicit alternative; no
+embedded players — component pages stay free of third-party requests,
+which is also why venue/featured-session map links are links, never
+iframes. The timezone toggle keeps both renderings (the server's
+event-local markup and the JS visitor-local rewrite) and flips between
+them, so no-JS output is untouched and the choice persists per session.
+Venue is Full-only (the address meta lives on event posts) and joined
+FULL_ONLY; the featured session card shows the Lite venue name line in
+Lite. Elementor's event picker now works in Lite via eex_event_titles,
+remembered on every live event map — the ticket-titles pattern.

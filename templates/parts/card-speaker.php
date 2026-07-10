@@ -55,4 +55,15 @@ $eex_photo_url = (string) ( $eex_speaker['photo_url'] ?? '' );
 	<?php if ( '' !== $eex_company ) : ?>
 		<p class="eex-speaker-company"><?php echo esc_html( $eex_company ); ?></p>
 	<?php endif; ?>
+	<?php if ( ! empty( $args['show_links'] ) ) : ?>
+		<?php
+		\Emailexpert\Events\Frontend\TemplateLoader::part(
+			'speaker-links',
+			[
+				'links' => (array) ( $eex_speaker['links'] ?? [] ),
+				'name'  => $eex_name,
+			]
+		);
+		?>
+	<?php endif; ?>
 </article>
