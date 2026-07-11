@@ -310,3 +310,17 @@ enable a coupon picker in the editor)? (2) does the POST reject a
 coupon that does not apply to the ticket, or does checkout simply
 ignore it? (3) are generated links durable or expiring? Observed
 behaviour to be recorded after the first live campaign.
+
+## Coupons are listable now — the editor picker uses it (v1.25.0)
+
+Answering open question (1) above: HeySummit enabled
+`GET events/<id>/coupons/`. `Data\Coupons` reads it (15-minute cache,
+nested route lead with a top-level `coupons/?event=` fallback — the
+spec documents only the nested form), and the Elementor coupon control
+turns it into a dropdown so operators pick a coupon by title instead of
+typing the code (which still feeds the same checkout-link generator).
+`coupons` is registered in `Shapes::RESOURCES` and the discovery
+nested-route fallback, so Test connection samples the live shape. The
+Coupon fields consumed: `coupon_code` (the value baked into links),
+`title` (the picker label), `is_active` (inactive coupons are hidden).
+Writes (create/update/delete) remain outside the allowlist (D45/D91).

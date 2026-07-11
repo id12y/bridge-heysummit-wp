@@ -1473,3 +1473,36 @@ The rule this reaffirms: display fields sourced from the API are
 untrusted PRESENTATIONALLY as well as structurally — validated not
 just for safety (schemes, escaping) but for whether they read as
 human text.
+
+## D94. The live coupon dropdown lands (v1.25.0)
+
+D91 shipped coupon-baked checkout links but deliberately deferred one
+piece — the operator still typed `coupon="CODE"` by hand, because the
+API's coupon-list ability was then unconfirmed ("a widget dropdown of
+live codes could follow"). HeySummit has since enabled
+`GET events/<id>/coupons/`, so the dropdown lands.
+
+A read-only `Data\Coupons` fetcher mirrors `Data\Tickets` (15-minute
+transient; nested-route lead with a top-level `coupons/?event=`
+fallback, since the spec documents coupons only under the event) and
+exposes `code_options()`: one row per redeemable coupon — active, with a
+`coupon_code` — shaped `{ id, code, title }`. The Elementor coupon
+control builds a dropdown from it; the operator picks a coupon by title
+and its code flows into the existing `coupon` attribute, which the buy
+buttons already bake into checkout links via the generate-only
+`checkout-link/` POST (unchanged). Codeless or inactive coupons are
+dropped — they cannot mint a usable link. The control degrades to the
+old text field before the connection has loaded any coupons, so manual
+entry, blocks and shortcodes are untouched: this changes only how the
+code is chosen, never how it is used.
+
+The picker live-fetches at editor-build time (like the event picker's
+`all_events()`), so there is no remembered store to pre-warm, and the
+per-event fetches are cached so repeat editor loads cost nothing.
+`coupons` joins `Shapes::RESOURCES` and the discovery nested-route
+fallback, so Test connection samples the real shape and reports it.
+
+Still no writes: the coupon create/update/delete the API exposes stay
+outside the allowlist (D45), which keeps its three entries — attendee
+create, ticket attach, and the generate-only checkout-link (D91).
+Pick-by-name-never-by-ID is D71; this is its coupon instance.

@@ -758,6 +758,57 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			return;
 		}
 
+		// Coupon picker: a dropdown of the event's live coupon codes instead
+		// of a raw code box. The picked code feeds the same coupon attribute
+		// the buy buttons already bake into checkout links (D91). Falls back
+		// to a text field before the connection has loaded any coupons, so
+		// manual entry (and blocks/shortcodes) keep working.
+		if ( 'coupon' === $key ) {
+			$options = [];
+			foreach ( \Emailexpert\Events\Data\Repositories::current()->all_events( [] ) as $event ) {
+				$conn  = (string) ( $event['connection'] ?? '' );
+				$hs_id = (string) ( $event['hs_id'] ?? '' );
+				if ( '' === $conn || '' === $hs_id ) {
+					continue;
+				}
+
+				$codes = \Emailexpert\Events\Data\Coupons::code_options( $conn, $hs_id );
+				if ( is_wp_error( $codes ) ) {
+					continue;
+				}
+
+				foreach ( $codes as $option ) {
+					$options[ (string) $option['code'] ] = sprintf( '%s (%s)', (string) $option['title'], (string) $option['code'] );
+				}
+			}
+
+			if ( ! empty( $options ) ) {
+				$this->add_control(
+					$key,
+					[
+						'label'   => __( 'Coupon', 'emailexpert-events' ),
+						'type'    => \Elementor\Controls_Manager::SELECT,
+						'options' => [ '' => __( 'No coupon', 'emailexpert-events' ) ] + $options,
+						'default' => '',
+					]
+				);
+
+				return;
+			}
+
+			$this->add_control(
+				$key,
+				[
+					'label'       => (string) ( $spec['label'] ?? $key ),
+					'type'        => \Elementor\Controls_Manager::TEXT,
+					'default'     => (string) $spec['default'],
+					'description' => __( 'Coupon codes appear here as a dropdown once the connection has loaded this event\'s coupons.', 'emailexpert-events' ),
+				]
+			);
+
+			return;
+		}
+
 		// Sponsor picker for the spotlight: names seen on any sponsor fetch.
 		if ( 'sponsor' === $key && 'sponsor-spotlight' === $this->component ) {
 			$names = \Emailexpert\Events\Data\Sponsors::known_names();

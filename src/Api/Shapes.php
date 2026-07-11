@@ -232,6 +232,53 @@ final class Shapes {
 				'optional' => true,
 			],
 		],
+		'coupons'    => [
+			'id'                           => [ 'type' => 'int|string' ],
+			'coupon_code'                  => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'title'                        => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'description'                  => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'event'                        => [
+				'type'     => 'int|string|array',
+				'optional' => true,
+			],
+			'is_active'                    => [
+				'type'     => 'bool',
+				'optional' => true,
+			],
+			'type_discount'                => [
+				'type'     => 'int|string',
+				'optional' => true,
+			],
+			'amount_discount'              => [
+				'type'     => 'string|float',
+				'optional' => true,
+			],
+			'max_purchases'                => [
+				'type'     => 'int|string',
+				'optional' => true,
+			],
+			'restrict_to_specific_tickets' => [
+				'type'     => 'array',
+				'optional' => true,
+			],
+			'active_from'                  => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+			'active_to'                    => [
+				'type'     => 'string',
+				'optional' => true,
+			],
+		],
 		'attendees'  => [
 			'id'                  => [ 'type' => 'int|string' ],
 			'email'               => [

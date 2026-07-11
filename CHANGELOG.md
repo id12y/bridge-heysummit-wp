@@ -3,6 +3,17 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.25.0
+- **Pick a coupon from a dropdown instead of typing the code.** In the
+  Elementor editor, the Coupon field on the pricing table and the
+  ticket-panel session widgets is now a dropdown of the event's live
+  coupons (pulled straight from HeySummit) — choose one by name and its
+  code is baked into every buy button exactly as before. Shortcodes,
+  blocks and manual entry keep the plain text field, and the dropdown
+  falls back to it until the connection has loaded the event's coupons.
+  Coupons with no code, or marked inactive, are hidden. Needs
+  HeySummit's coupons API (enabled July 2026).
+
 ## 1.24.0
 - **Choose how much speaker detail session cards show.** A new Speaker
   detail option on session lists, the schedule and the featured session
