@@ -1506,3 +1506,46 @@ Still no writes: the coupon create/update/delete the API exposes stay
 outside the allowlist (D45), which keeps its three entries — attendee
 create, ticket attach, and the generate-only checkout-link (D91).
 Pick-by-name-never-by-ID is D71; this is its coupon instance.
+
+## D95. Registering for a session, not just the event (v1.26.0)
+
+Field report: a session's Register button sent people to the event
+checkout, which registers them for the event but never for the session
+they clicked — the operator had disabled buy buttons and leaned on the
+talk landing page (which HeySummit uses to add the talk) as a stopgap.
+HeySummit then shipped two ways to close the gap: an optional `talk_id`
+on the generate-only `POST events/<id>/tickets/<pk>/checkout-link/`
+(the checkout preselects the talk and schedules it on registration), and
+an event-scoped, idempotent `POST events/<id>/attendees/<pk>/talks/<talk>/`
+that adds an EXISTING attendee to a talk, respecting their ticket access
+and the talk's capacity.
+
+This release wires the second — the plugin's own free in-drawer
+registration. The ticket drawer is event-level and shared across every
+session card in a component (one cached fragment, not one per session),
+so the clicked session travels client-side: each session card's
+Register button carries `data-eex-talk`, and eex-time.js stamps it onto
+every registration form in the drawer as it opens. `RegisterController`
+gained a `talk` field; after a successful attendee-create it attaches
+that talk (best-effort — the visitor is already registered, so a failed
+attach only forgoes the session, never the registration), and a
+returning "already exists" attendee is found by email and attached too,
+so a repeat visitor adding a new session still works. The talk is
+validated as a real talk of the event before any call
+(`Repositories::known_talk()`) — a form-supplied ID is never trusted.
+The allowlist gains its fourth entry, the talk attach; the hard rule
+holds because it mutates no event or ticket data, only a schedule the
+attendee is entitled to.
+
+Deliberately NOT done here: baking `talk_id` into the paid/hosted
+checkout link (endpoint #1). It reads clean but is not — a session card
+has no single ticket, so a per-session paid link means resolving a
+ticket AND generating a link per card at render, which is one POST per
+session on top of the events/talks fetches: it breaks the "at most two
+cold API calls per page" guarantee (D36) that keeps session listings
+cheap, and no in-render gate fixes it without a multi-second warm-render
+spike (and Full mode has no such budget at all). The correct home for
+endpoint #1 is a lazy, on-click REST generator (zero render cost,
+deterministic, cached) — its own change when wanted. Until then, free
+sessions register in-drawer (this change) and paid tickets keep the
+event-level checkout with the talk landing page carrying the session.

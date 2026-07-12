@@ -280,6 +280,15 @@
 		drawer.hidden = false;
 		document.documentElement.classList.add( 'eex-drawer-open' );
 
+		// The shared event-level drawer is opened from a specific session's
+		// button; stamp that session onto every free-registration form so the
+		// talk is added to the attendee's schedule on submit.
+		var talk = button.getAttribute( 'data-eex-talk' ) || '';
+		var talkInputs = drawer.querySelectorAll( 'input[name="talk"]' );
+		for ( var i = 0; i < talkInputs.length; i++ ) {
+			talkInputs[ i ].value = talk;
+		}
+
 		var panel = drawer.querySelector( '.eex-drawer-panel' );
 		if ( panel ) {
 			panel.focus();

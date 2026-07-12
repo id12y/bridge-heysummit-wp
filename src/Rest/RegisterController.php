@@ -9,6 +9,7 @@ namespace Emailexpert\Events\Rest;
 
 use Emailexpert\Events\Data\Repositories;
 use Emailexpert\Events\Data\Tickets;
+use Emailexpert\Events\Api\AttendeeLookup;
 use Emailexpert\Events\Api\HeySummitClient;
 use Emailexpert\Events\Logging\Logger;
 use Emailexpert\Events\Mappers\AttendeeRequestBuilder;
@@ -55,6 +56,7 @@ final class RegisterController {
 					'event'   => [ 'type' => 'string' ],
 					'ticket'  => [ 'type' => 'string' ],
 					'price'   => [ 'type' => 'string' ],
+					'talk'    => [ 'type' => 'string' ],
 					'name'    => [ 'type' => 'string' ],
 					'email'   => [ 'type' => 'string' ],
 					'consent' => [ 'type' => 'string' ],
@@ -130,6 +132,10 @@ final class RegisterController {
 			]
 		);
 
+		// The clicked session to add to the schedule, only when it is a real
+		// talk of this event — a visitor-supplied ID is never trusted.
+		$talk_hs_id = $this->valid_talk( sanitize_text_field( (string) $request['talk'] ), $event_hs_id );
+
 		$client   = HeySummitClient::for_connection( $connection );
 		$response = $client->post( (string) $req['path'], (array) $req['body'] );
 
@@ -138,6 +144,12 @@ final class RegisterController {
 
 			// A duplicate registration is a success from the visitor's side.
 			if ( false !== stripos( $detail, 'already' ) || false !== stripos( $detail, 'exist' ) ) {
+				// A returning attendee who clicked a session still gets it
+				// added: find them by email, then attach (idempotent).
+				if ( '' !== $talk_hs_id ) {
+					$this->attach_talk( $client, $event_hs_id, AttendeeLookup::find_id( $client, $event_hs_id, $email ), $talk_hs_id );
+				}
+
 				return $this->respond( [ 'status' => 'already' ], 200 );
 			}
 
@@ -166,7 +178,70 @@ final class RegisterController {
 			]
 		);
 
+		// Add the clicked session to the new attendee's schedule. Best-effort:
+		// the registration already succeeded, so a failed attach only forgoes
+		// the session preselect, never the registration itself.
+		if ( '' !== $talk_hs_id ) {
+			$this->attach_talk( $client, $event_hs_id, (string) ( $response['id'] ?? '' ), $talk_hs_id );
+		}
+
 		return $this->respond( [ 'status' => 'registered' ], 200 );
+	}
+
+	/**
+	 * A talk ID from the form, returned only when it is a known talk of this
+	 * event; '' otherwise. Registration proceeds either way — an unrecognised
+	 * session is simply not attached, never an error the visitor sees.
+	 *
+	 * @param string $talk_hs_id  Talk ID from the form.
+	 * @param string $event_hs_id Event the registration is for.
+	 */
+	private function valid_talk( string $talk_hs_id, string $event_hs_id ): string {
+		if ( '' === $talk_hs_id ) {
+			return '';
+		}
+
+		$talk = Repositories::current()->known_talk( $talk_hs_id );
+
+		if ( null !== $talk && (string) ( $talk['event_hs_id'] ?? '' ) === $event_hs_id ) {
+			return $talk_hs_id;
+		}
+
+		return '';
+	}
+
+	/**
+	 * Add an attendee to a talk's schedule through the allowlisted, idempotent
+	 * POST events/<id>/attendees/<pk>/talks/<talk>/ (HeySummit respects the
+	 * attendee's ticket access and the talk's capacity). Best-effort: a
+	 * failure is logged, never surfaced — the attendee is already registered.
+	 *
+	 * @param HeySummitClient $client       Keyed client.
+	 * @param string          $event_hs_id  Event ID.
+	 * @param string          $attendee_id  HeySummit attendee ID ('' skips).
+	 * @param string          $talk_hs_id   Talk ID (already validated).
+	 */
+	private function attach_talk( HeySummitClient $client, string $event_hs_id, string $attendee_id, string $talk_hs_id ): void {
+		if ( '' === $attendee_id ) {
+			return;
+		}
+
+		$response = $client->post(
+			'events/' . rawurlencode( $event_hs_id ) . '/attendees/' . rawurlencode( $attendee_id ) . '/talks/' . rawurlencode( $talk_hs_id ) . '/',
+			[]
+		);
+
+		if ( is_wp_error( $response ) ) {
+			Logger::log(
+				Logger::CONTEXT_API,
+				'warning',
+				'drawer session attach failed: ' . $response->get_error_message(),
+				[
+					'event' => $event_hs_id,
+					'talk'  => $talk_hs_id,
+				]
+			);
+		}
 	}
 
 	/**

@@ -11,6 +11,8 @@
  *     @type string $event_id    HeySummit event ID.
  *     @type string $ticket_id   HeySummit ticket ID.
  *     @type string $price_id    Ticket price ID ('' when unknown).
+ *     @type string $talk_id     Talk to add to the schedule ('' = none; the
+ *                               drawer stamps the clicked session in via JS).
  *     @type string $submit_text Submit label ('' = "Complete registration").
  *     @type bool   $hidden      Start hidden (the drawer's toggle reveals it).
  * }
@@ -34,6 +36,7 @@ if ( '' === $eex_submit ) {
 	<input type="hidden" name="event" value="<?php echo esc_attr( $eex_event_id ); ?>" />
 	<input type="hidden" name="ticket" value="<?php echo esc_attr( $eex_ticket_id ); ?>" />
 	<input type="hidden" name="price" value="<?php echo esc_attr( (string) ( $args['price_id'] ?? '' ) ); ?>" />
+	<input type="hidden" name="talk" value="<?php echo esc_attr( (string) ( $args['talk_id'] ?? '' ) ); ?>" />
 	<p class="eex-reg-hp" aria-hidden="true">
 		<label><?php esc_html_e( 'Leave this field empty', 'emailexpert-events' ); ?><input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
 	</p>

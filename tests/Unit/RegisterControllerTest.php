@@ -183,4 +183,53 @@ final class RegisterControllerTest extends TestCase {
 		$this->assertNotSame( '', (string) $response->get_data()['message'] );
 		$this->assertCount( 0, $this->posts );
 	}
+
+	/**
+	 * Seed a synced talk so known_talk() resolves it to its event.
+	 *
+	 * @param string $hs_id       Talk HeySummit ID.
+	 * @param string $event_hs_id Owning event HeySummit ID.
+	 */
+	private function seed_talk( string $hs_id, string $event_hs_id ): void {
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_talk',
+				'post_status' => 'publish',
+				'post_title'  => 'Keynote ' . $hs_id,
+				'meta_input'  => [
+					'_eex_heysummit_id'    => $hs_id,
+					'_eex_source_event_id' => $event_hs_id,
+				],
+			]
+		);
+	}
+
+	public function test_a_clicked_session_is_added_to_the_new_attendee(): void {
+		$this->seed_talk( '7001', '101' );
+
+		$response = ( new RegisterController() )->create( $this->request( [ 'talk' => '7001' ] ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'registered', $response->get_data()['status'] );
+
+		// Two writes: the attendee create, then the schedule attach.
+		$this->assertCount( 2, $this->posts );
+		$this->assertStringContainsString( 'events/101/attendees/', $this->posts[0][0], 'create first' );
+		$this->assertStringContainsString( 'events/101/attendees/9000001/talks/7001/', $this->posts[1][0], 'then attach the clicked session to the new attendee' );
+	}
+
+	public function test_an_unknown_session_is_never_attached(): void {
+		// No talk seeded: a form-supplied talk ID is not trusted.
+		( new RegisterController() )->create( $this->request( [ 'talk' => '9999' ] ) );
+
+		$this->assertCount( 1, $this->posts, 'only the create — an unknown talk is silently not attached' );
+	}
+
+	public function test_a_talk_from_another_event_is_not_attached(): void {
+		$this->seed_talk( '7002', '202' );
+
+		( new RegisterController() )->create( $this->request( [ 'talk' => '7002' ] ) );
+
+		$this->assertCount( 1, $this->posts, 'a talk belonging to a different event is rejected before any attach' );
+	}
 }

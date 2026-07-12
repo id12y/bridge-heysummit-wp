@@ -3,6 +3,23 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.26.0
+- **Free registration now signs people up for the session they clicked,
+  not just the event.** When a visitor registers through the ticket
+  panel's free form after opening it from a session, that session is
+  added to their HeySummit schedule (with the usual reminders) — a
+  first-party version of the talk-landing-page workaround. Works for
+  returning attendees too. HeySummit added the endpoints for this on
+  11 Jul 2026; the plugin validates the session belongs to the event
+  before calling, and a hiccup adding the session never blocks the
+  registration itself.
+- Note: baking the session into *paid* checkout links (so a bought
+  ticket also preselects the session) is intentionally not in this
+  release — doing it at page-render time would breach the plugin's
+  strict per-page API-call budget. It belongs in an on-click link
+  generator and will come separately; paid buttons keep the event
+  checkout for now.
+
 ## 1.25.0
 - **Pick a coupon from a dropdown instead of typing the code.** In the
   Elementor editor, the Coupon field on the pricing table and the
