@@ -257,7 +257,7 @@ final class SelfTest {
 
 		// -- Live API probes: only on an explicit run. --------------------------
 		if ( $probe ) {
-			$out = array_merge( $out, self::probe_api( $keyed, $chosen, $lite ) );
+			$out = array_merge( $out, self::probe_api( $keyed, $chosen ) );
 		}
 
 		return $out;
@@ -268,11 +268,10 @@ final class SelfTest {
 	 * checkout-link generation, which mints a URL and mutates nothing.
 	 *
 	 * @param array<int,array<string,string>> $keyed  Connections with keys.
-	 * @param array<int,string>               $chosen Configured event keys.
-	 * @param bool                            $lite   Lite mode.
+	 * @param array<int,string>               $chosen Configured "connection|event" keys.
 	 * @return array<int,array{id:string,label:string,status:string,detail:string}>
 	 */
-	private static function probe_api( array $keyed, array $chosen, bool $lite ): array {
+	private static function probe_api( array $keyed, array $chosen ): array {
 		$out = [];
 
 		foreach ( $keyed as $connection ) {
@@ -304,14 +303,10 @@ final class SelfTest {
 		}
 
 		// Per-event commerce surfaces, bounded to the first three events.
+		// Keys are "connection|event" in BOTH modes (Lite's lite_events and
+		// Full's SyncEngine::enabled_event_keys() share the shape).
 		foreach ( array_slice( array_values( $chosen ), 0, 3 ) as $key ) {
 			[ $conn_id, $event_id ] = array_pad( explode( '|', (string) $key, 2 ), 2, '' );
-
-			// Full-mode keys are event IDs on a single connection.
-			if ( '' === $event_id && ! $lite ) {
-				$event_id = $conn_id;
-				$conn_id  = (string) ( $keyed[0]['id'] ?? '' );
-			}
 
 			if ( '' === $conn_id || '' === $event_id ) {
 				continue;

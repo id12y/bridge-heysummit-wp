@@ -232,4 +232,82 @@ final class RegisterControllerTest extends TestCase {
 
 		$this->assertCount( 1, $this->posts, 'a talk belonging to a different event is rejected before any attach' );
 	}
+
+	public function test_a_non_numeric_talk_id_never_reaches_the_api_or_breaks_registration(): void {
+		// The allowlisted attach path takes numeric segments only; a
+		// non-numeric ID must degrade to "registered, session not attached" —
+		// never a thrown write refusal after the registration succeeded.
+		$this->seed_talk( 'weird-slug', '101' );
+
+		$response = ( new RegisterController() )->create( $this->request( [ 'talk' => 'weird-slug' ] ) );
+
+		$this->assertSame( 200, $response->get_status(), 'the visitor is registered regardless' );
+		$this->assertSame( 'registered', $response->get_data()['status'] );
+		$this->assertCount( 1, $this->posts, 'only the create — no attach attempt with a non-numeric id' );
+	}
+
+	public function test_a_returning_attendee_clicking_a_session_is_found_and_attached(): void {
+		$this->seed_talk( '7001', '101' );
+
+		// Replace the default mock: the create answers "already exists", the
+		// email lookup finds the existing attendee, the attach is captured.
+		remove_all_filters( 'pre_http_request' );
+		$posts = &$this->posts;
+		$this->mock_http(
+			static function ( $url, $args ) use ( &$posts ) {
+				$url = (string) $url;
+
+				if ( 'POST' === strtoupper( (string) ( $args['method'] ?? 'GET' ) ) ) {
+					if ( str_contains( $url, '/talks/' ) ) {
+						$posts[] = [ $url, [] ];
+
+						return self::json_response( [ 'status' => 'added' ], 200 ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+					}
+
+					$posts[] = [ $url, (array) json_decode( (string) ( $args['body'] ?? '' ), true ) ];
+
+					return self::json_response( [ 'detail' => 'Attendee already exists for this event.' ], 400 ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				if ( str_contains( $url, 'attendees/' ) && str_contains( $url, 'email' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'    => 8123,
+									'email' => 'pat@example.org',
+								],
+							],
+						]
+					);
+				}
+
+				if ( str_contains( $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'      => 9002,
+									'title'   => 'Free pass',
+									'is_paid' => 'false',
+									'prices'  => '[{"id": 502, "title": "Guest", "price": "0.00"}]',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$response = ( new RegisterController() )->create( $this->request( [ 'talk' => '7001' ] ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'already', $response->get_data()['status'], 'a duplicate registration reads as success' );
+
+		$this->assertCount( 2, $this->posts );
+		$this->assertStringContainsString( 'events/101/attendees/', $this->posts[0][0], 'the create was attempted' );
+		$this->assertStringContainsString( 'events/101/attendees/8123/talks/7001/', $this->posts[1][0], 'the clicked session is attached to the attendee found by email' );
+	}
 }

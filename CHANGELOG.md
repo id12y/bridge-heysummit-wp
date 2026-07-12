@@ -21,6 +21,12 @@ Notable changes per released version. Design reasoning lives in
 - **New: `wp eex health`** runs the same full check from the command line
   and exits non-zero when anything fails, so a cron job or uptime monitor
   can alert on it.
+- Hardening from the pre-release review: adding a session to a schedule
+  can never turn a successful registration into an error response (IDs
+  are validated numeric and the attach is fully contained); a session
+  that could not be attached is now always named in the log; the
+  duplicate-registration lookup uses a short timeout so a returning
+  visitor is never kept waiting on a slow API.
 
 ## 1.26.0
 - **Free registration now signs people up for the session they clicked,

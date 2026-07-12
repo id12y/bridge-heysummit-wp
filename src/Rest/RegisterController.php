@@ -145,9 +145,23 @@ final class RegisterController {
 			// A duplicate registration is a success from the visitor's side.
 			if ( false !== stripos( $detail, 'already' ) || false !== stripos( $detail, 'exist' ) ) {
 				// A returning attendee who clicked a session still gets it
-				// added: find them by email, then attach (idempotent).
+				// added: find them by email, then attach (idempotent). Short
+				// timeout, no retries — a visitor is waiting on this response.
 				if ( '' !== $talk_hs_id ) {
-					$this->attach_talk( $client, $event_hs_id, AttendeeLookup::find_id( $client, $event_hs_id, $email ), $talk_hs_id );
+					$this->attach_talk(
+						$client,
+						$event_hs_id,
+						AttendeeLookup::find_id(
+							$client,
+							$event_hs_id,
+							$email,
+							[
+								'timeout' => 5,
+								'retries' => 0,
+							]
+						),
+						$talk_hs_id
+					);
 				}
 
 				return $this->respond( [ 'status' => 'already' ], 200 );
@@ -201,11 +215,30 @@ final class RegisterController {
 			return '';
 		}
 
-		$talk = Repositories::current()->known_talk( $talk_hs_id );
+		// Numeric only: the allowlisted attach path is events/<d>/attendees/
+		// <d>/talks/<d>/, and a non-numeric segment would make the client
+		// refuse the write by throwing — after the registration succeeded.
+		if ( preg_match( '/^\d+$/', $talk_hs_id ) ) {
+			$talk = Repositories::current()->known_talk( $talk_hs_id );
 
-		if ( null !== $talk && (string) ( $talk['event_hs_id'] ?? '' ) === $event_hs_id ) {
-			return $talk_hs_id;
+			if ( null !== $talk && (string) ( $talk['event_hs_id'] ?? '' ) === $event_hs_id ) {
+				return $talk_hs_id;
+			}
 		}
+
+		// Requested but not validated (unknown talk, another event's talk, or
+		// the cached collections could not resolve it right now): register
+		// without the session, and say so in the log — a silently missing
+		// schedule entry is otherwise undiagnosable.
+		Logger::log(
+			Logger::CONTEXT_API,
+			'warning',
+			'drawer registration: session not attached (talk not validated against the event)',
+			[
+				'event' => $event_hs_id,
+				'talk'  => $talk_hs_id,
+			]
+		);
 
 		return '';
 	}
@@ -222,14 +255,32 @@ final class RegisterController {
 	 * @param string          $talk_hs_id   Talk ID (already validated).
 	 */
 	private function attach_talk( HeySummitClient $client, string $event_hs_id, string $attendee_id, string $talk_hs_id ): void {
-		if ( '' === $attendee_id ) {
+		// The visitor is registered by the time this runs; nothing here may
+		// surface as a failure to them. Non-numeric IDs would make the
+		// allowlisted client refuse the write by throwing, so guard first and
+		// contain everything else — a lost attach is logged, never a 500.
+		if ( ! preg_match( '/^\d+$/', $attendee_id ) || ! preg_match( '/^\d+$/', $event_hs_id ) || ! preg_match( '/^\d+$/', $talk_hs_id ) ) {
+			Logger::log(
+				Logger::CONTEXT_API,
+				'warning',
+				'drawer session attach skipped: attendee/event/talk id unresolved or non-numeric',
+				[
+					'event' => $event_hs_id,
+					'talk'  => $talk_hs_id,
+				]
+			);
+
 			return;
 		}
 
-		$response = $client->post(
-			'events/' . rawurlencode( $event_hs_id ) . '/attendees/' . rawurlencode( $attendee_id ) . '/talks/' . rawurlencode( $talk_hs_id ) . '/',
-			[]
-		);
+		try {
+			$response = $client->post(
+				'events/' . rawurlencode( $event_hs_id ) . '/attendees/' . rawurlencode( $attendee_id ) . '/talks/' . rawurlencode( $talk_hs_id ) . '/',
+				[]
+			);
+		} catch ( \Throwable $e ) {
+			$response = new \WP_Error( 'eex_attach_refused', $e->getMessage() );
+		}
 
 		if ( is_wp_error( $response ) ) {
 			Logger::log(

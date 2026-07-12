@@ -20,17 +20,21 @@ final class AttendeeLookup {
 	/**
 	 * Find an attendee ID by email on an event.
 	 *
-	 * @param HeySummitClient $client      Client.
-	 * @param string          $event_hs_id Event ID.
-	 * @param string          $email       Attendee email.
+	 * @param HeySummitClient     $client      Client.
+	 * @param string              $event_hs_id Event ID.
+	 * @param string              $email       Attendee email.
+	 * @param array<string,mixed> $options     Request options (timeout,
+	 *                                         retries). Background jobs keep
+	 *                                         the patient defaults; visitor-
+	 *                                         facing callers pass short ones.
 	 * @return string Attendee ID, '' when not found or on error.
 	 */
-	public static function find_id( HeySummitClient $client, string $event_hs_id, string $email ): string {
+	public static function find_id( HeySummitClient $client, string $event_hs_id, string $email, array $options = [] ): string {
 		if ( '' === $event_hs_id || '' === $email ) {
 			return '';
 		}
 
-		$response = $client->get( 'events/' . rawurlencode( $event_hs_id ) . '/attendees/', [ 'email' => $email ] );
+		$response = $client->get( 'events/' . rawurlencode( $event_hs_id ) . '/attendees/', [ 'email' => $email ], $options );
 
 		if ( is_wp_error( $response ) ) {
 			return '';
