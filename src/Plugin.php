@@ -99,6 +99,7 @@ final class Plugin {
 			$services[] = new Admin\Notices();
 			$services[] = new Admin\Dashboard();
 			$services[] = new Admin\ExportImport();
+			$services[] = new Admin\SelfTest();
 
 			if ( ! $lite ) {
 				$services[] = new Admin\AttributionReport();

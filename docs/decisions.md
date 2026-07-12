@@ -1549,3 +1549,47 @@ endpoint #1 is a lazy, on-click REST generator (zero render cost,
 deterministic, cached) — its own change when wanted. Until then, free
 sessions register in-drawer (this change) and paid tickets keep the
 event-level checkout with the talk landing page carrying the session.
+
+## D96. The integration tests itself in the admin (v1.27.0)
+
+Operator ask, verbatim intent: comprehensive testing in the admin so
+problems are detected and everything provably works. The pattern this
+project keeps re-learning (D46, D50, D54: the harvest shows its working)
+is that self-explaining state beats inference — but that principle only
+covered the display pipeline. Registration, coupons, the generator, the
+allowlist, caches and cron had no operator-visible verification at all,
+and Site Health had no test in Lite mode — the mode production runs.
+
+`Admin\SelfTest` is one engine with two tiers, because Site Health loads
+its direct tests on every view of that screen. Cheap checks (no HTTP):
+a keyed connection exists; events are chosen/enabled; PHP/WP versions;
+**transients persist** (write-read-back — a broken object-cache drop-in
+silently voids every cache, budget and stampede guarantee the plugin is
+built on, and looks exactly like "it worked last night"); version
+bookkeeping ran (D60); the **write allowlist still permits all four
+sanctioned writes** (a refactor that broke a pattern would kill
+registration silently); the /eex/v1/register route is registered; sync
+cron and webhook secret (Full); live-cache degradation (Lite). API
+probes (explicit Run button or `wp eex health` only): events per
+connection with latency, tickets per event (warning when no row carries
+a checkout_link), coupons (warning only — optional surface), the
+display-pipeline diagnosis (`LiveRepository::diagnose()`, reused whole),
+and the checkout-link generator exercised through the REAL production
+path — `Tickets::couponed_checkout_link()` with the event's first live
+coupon — never a guessed request body ({} vs [] matters to DRF), and
+skipped honestly when there is no coupon to test with. Probes are
+read-only except that one generate-only POST (D91's classification).
+
+Surfaces: a health page (Settings → Events health) with a Run button
+(admin_post + nonce + capability), stored timestamped results
+(non-autoloaded option); a Site Health "direct" test in BOTH modes built
+from the cheap tier, critical on any fail; `wp eex health` printing
+every row and exiting non-zero on failure so cron/CI can alert — the
+"detect problems without a human looking" half of the ask. Per-event
+probes are bounded to the first three configured events so a many-event
+account cannot turn the button into a minute-long stall. The engine is
+pure enough to unit-test: SelfTestTest covers unconfigured-fail,
+configured-pass, version-mismatch warn, allowlist coverage of all four
+writes, probe pass/fail/warn (dead generator warns, unreachable API
+fails with the transport reason), Site Health registration and
+criticality, and result storage.

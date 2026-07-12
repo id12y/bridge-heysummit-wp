@@ -577,6 +577,7 @@ if ( ! function_exists( 'get_bloginfo' ) ) {
 		return match ( $show ) {
 			'admin_email' => 'admin@example.test',
 			'name'        => 'Test Site',
+			'version'     => '6.5',
 			default       => 'Test Site',
 		};
 	}

@@ -31,6 +31,7 @@ final class Commands {
 	public function register(): void {
 		WP_CLI::add_command( 'eex sync', [ $this, 'sync' ] );
 		WP_CLI::add_command( 'eex status', [ $this, 'status' ] );
+		WP_CLI::add_command( 'eex health', [ $this, 'health' ] );
 		WP_CLI::add_command( 'eex orphans', [ $this, 'orphans' ] );
 		WP_CLI::add_command( 'eex discover', [ $this, 'discover' ] );
 		WP_CLI::add_command( 'eex webhooks:replay', [ $this, 'replay' ] );
@@ -194,6 +195,45 @@ final class Commands {
 		$engine->run_keys( $keys, $force );
 
 		WP_CLI::success( sprintf( 'Sync completed for %d event(s). See the sync log for detail.', count( $keys ) ) );
+	}
+
+	/**
+	 * Run the full integration self-test (both modes): configuration,
+	 * persistence, the write allowlist, the registration route, and live
+	 * probes of every API surface. Exits non-zero when any check fails, so
+	 * a cron or CI job can alert on it.
+	 *
+	 * ## EXAMPLES
+	 *
+	 *     wp eex health
+	 */
+	public function health(): void {
+		$failed = false;
+
+		foreach ( \Emailexpert\Events\Admin\SelfTest::checks( true ) as $row ) {
+			$line = sprintf( '%s: %s', (string) $row['label'], (string) $row['detail'] );
+
+			switch ( (string) $row['status'] ) {
+				case 'fail':
+					$failed = true;
+					WP_CLI::warning( 'FAIL ' . $line );
+					break;
+				case 'warn':
+					WP_CLI::warning( 'WARN ' . $line );
+					break;
+				case 'skip':
+					WP_CLI::log( ' —   ' . $line );
+					break;
+				default:
+					WP_CLI::log( ' ok  ' . $line );
+			}
+		}
+
+		if ( $failed ) {
+			WP_CLI::error( 'One or more health checks failed.' ); // Exits 1.
+		}
+
+		WP_CLI::success( 'All health checks passed.' );
 	}
 
 	/**

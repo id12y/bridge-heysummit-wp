@@ -3,6 +3,25 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.27.0
+- **New: Events health page (Settings → Events health).** One button runs
+  the whole integration through its paces and reports each check in plain
+  sentences: configuration, PHP/WordPress versions, whether caches
+  actually persist (a broken object cache silently disables every
+  guarantee), version bookkeeping, the write allowlist, the registration
+  endpoint, cron/webhooks (Full mode), the live display pipeline, and
+  live probes of every HeySummit surface — events, tickets (with checkout
+  links), coupons, and the checkout-link generator (exercised with a real
+  coupon; generate-only, nothing is modified). Results are timestamped
+  and kept for the next visit.
+- **Site Health now covers Lite mode.** WordPress's own Site Health screen
+  gains an "emailexpert Events integration" test in both modes (Lite
+  previously had none), using the cheap checks only — no API calls on a
+  passive page view.
+- **New: `wp eex health`** runs the same full check from the command line
+  and exits non-zero when anything fails, so a cron job or uptime monitor
+  can alert on it.
+
 ## 1.26.0
 - **Free registration now signs people up for the session they clicked,
   not just the event.** When a visitor registers through the ticket
