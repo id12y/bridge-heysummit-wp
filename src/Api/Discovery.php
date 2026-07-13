@@ -143,7 +143,7 @@ final class Discovery {
 		// Some accounts refuse top-level collection routes (403) but serve
 		// the same resources nested under an event (DRF hyperlinked style,
 		// verified live). Sample the nested route before reporting an error.
-		if ( is_wp_error( $response ) && in_array( $resource_slug, [ 'talks', 'speakers', 'categories', 'tickets', 'attendees', 'sponsors' ], true ) ) {
+		if ( is_wp_error( $response ) && in_array( $resource_slug, [ 'talks', 'speakers', 'categories', 'tickets', 'attendees', 'sponsors', 'coupons' ], true ) ) {
 			$event_id = self::sample_event_id( $client );
 
 			if ( '' !== $event_id ) {

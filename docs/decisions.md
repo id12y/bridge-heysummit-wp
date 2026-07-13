@@ -1473,3 +1473,158 @@ The rule this reaffirms: display fields sourced from the API are
 untrusted PRESENTATIONALLY as well as structurally — validated not
 just for safety (schemes, escaping) but for whether they read as
 human text.
+
+## D94. The live coupon dropdown lands (v1.25.0)
+
+D91 shipped coupon-baked checkout links but deliberately deferred one
+piece — the operator still typed `coupon="CODE"` by hand, because the
+API's coupon-list ability was then unconfirmed ("a widget dropdown of
+live codes could follow"). HeySummit has since enabled
+`GET events/<id>/coupons/`, so the dropdown lands.
+
+A read-only `Data\Coupons` fetcher mirrors `Data\Tickets` (15-minute
+transient; nested-route lead with a top-level `coupons/?event=`
+fallback, since the spec documents coupons only under the event) and
+exposes `code_options()`: one row per redeemable coupon — active, with a
+`coupon_code` — shaped `{ id, code, title }`. The Elementor coupon
+control builds a dropdown from it; the operator picks a coupon by title
+and its code flows into the existing `coupon` attribute, which the buy
+buttons already bake into checkout links via the generate-only
+`checkout-link/` POST (unchanged). Codeless or inactive coupons are
+dropped — they cannot mint a usable link. The control degrades to the
+old text field before the connection has loaded any coupons, so manual
+entry, blocks and shortcodes are untouched: this changes only how the
+code is chosen, never how it is used.
+
+The picker live-fetches at editor-build time (like the event picker's
+`all_events()`), so there is no remembered store to pre-warm, and the
+per-event fetches are cached so repeat editor loads cost nothing.
+`coupons` joins `Shapes::RESOURCES` and the discovery nested-route
+fallback, so Test connection samples the real shape and reports it.
+
+Still no writes: the coupon create/update/delete the API exposes stay
+outside the allowlist (D45), which keeps its three entries — attendee
+create, ticket attach, and the generate-only checkout-link (D91).
+Pick-by-name-never-by-ID is D71; this is its coupon instance.
+
+## D95. Registering for a session, not just the event (v1.26.0)
+
+Field report: a session's Register button sent people to the event
+checkout, which registers them for the event but never for the session
+they clicked — the operator had disabled buy buttons and leaned on the
+talk landing page (which HeySummit uses to add the talk) as a stopgap.
+HeySummit then shipped two ways to close the gap: an optional `talk_id`
+on the generate-only `POST events/<id>/tickets/<pk>/checkout-link/`
+(the checkout preselects the talk and schedules it on registration), and
+an event-scoped, idempotent `POST events/<id>/attendees/<pk>/talks/<talk>/`
+that adds an EXISTING attendee to a talk, respecting their ticket access
+and the talk's capacity.
+
+This release wires the second — the plugin's own free in-drawer
+registration. The ticket drawer is event-level and shared across every
+session card in a component (one cached fragment, not one per session),
+so the clicked session travels client-side: each session card's
+Register button carries `data-eex-talk`, and eex-time.js stamps it onto
+every registration form in the drawer as it opens. `RegisterController`
+gained a `talk` field; after a successful attendee-create it attaches
+that talk (best-effort — the visitor is already registered, so a failed
+attach only forgoes the session, never the registration), and a
+returning "already exists" attendee is found by email and attached too,
+so a repeat visitor adding a new session still works. The talk is
+validated as a real talk of the event before any call
+(`Repositories::known_talk()`) — a form-supplied ID is never trusted.
+The allowlist gains its fourth entry, the talk attach; the hard rule
+holds because it mutates no event or ticket data, only a schedule the
+attendee is entitled to.
+
+Deliberately NOT done here: baking `talk_id` into the paid/hosted
+checkout link (endpoint #1). It reads clean but is not — a session card
+has no single ticket, so a per-session paid link means resolving a
+ticket AND generating a link per card at render, which is one POST per
+session on top of the events/talks fetches: it breaks the "at most two
+cold API calls per page" guarantee (D36) that keeps session listings
+cheap, and no in-render gate fixes it without a multi-second warm-render
+spike (and Full mode has no such budget at all). The correct home for
+endpoint #1 is a lazy, on-click REST generator (zero render cost,
+deterministic, cached) — its own change when wanted. Until then, free
+sessions register in-drawer (this change) and paid tickets keep the
+event-level checkout with the talk landing page carrying the session.
+
+## D96. The integration tests itself in the admin (v1.27.0)
+
+Operator ask, verbatim intent: comprehensive testing in the admin so
+problems are detected and everything provably works. The pattern this
+project keeps re-learning (D46, D50, D54: the harvest shows its working)
+is that self-explaining state beats inference — but that principle only
+covered the display pipeline. Registration, coupons, the generator, the
+allowlist, caches and cron had no operator-visible verification at all,
+and Site Health had no test in Lite mode — the mode production runs.
+
+`Admin\SelfTest` is one engine with two tiers, because Site Health loads
+its direct tests on every view of that screen. Cheap checks (no HTTP):
+a keyed connection exists; events are chosen/enabled; PHP/WP versions;
+**transients persist** (write-read-back — a broken object-cache drop-in
+silently voids every cache, budget and stampede guarantee the plugin is
+built on, and looks exactly like "it worked last night"); version
+bookkeeping ran (D60); the **write allowlist still permits all four
+sanctioned writes** (a refactor that broke a pattern would kill
+registration silently); the /eex/v1/register route is registered; sync
+cron and webhook secret (Full); live-cache degradation (Lite). API
+probes (explicit Run button or `wp eex health` only): events per
+connection with latency, tickets per event (warning when no row carries
+a checkout_link), coupons (warning only — optional surface), the
+display-pipeline diagnosis (`LiveRepository::diagnose()`, reused whole),
+and the checkout-link generator exercised through the REAL production
+path — `Tickets::couponed_checkout_link()` with the event's first live
+coupon — never a guessed request body ({} vs [] matters to DRF), and
+skipped honestly when there is no coupon to test with. Probes are
+read-only except that one generate-only POST (D91's classification).
+
+Surfaces: a health page (Settings → Events health) with a Run button
+(admin_post + nonce + capability), stored timestamped results
+(non-autoloaded option); a Site Health "direct" test in BOTH modes built
+from the cheap tier, critical on any fail; `wp eex health` printing
+every row and exiting non-zero on failure so cron/CI can alert — the
+"detect problems without a human looking" half of the ask. Per-event
+probes are bounded to the first three configured events so a many-event
+account cannot turn the button into a minute-long stall. The engine is
+pure enough to unit-test: SelfTestTest covers unconfigured-fail,
+configured-pass, version-mismatch warn, allowlist coverage of all four
+writes, probe pass/fail/warn (dead generator warns, unreachable API
+fails with the transport reason), Site Health registration and
+criticality, and result storage.
+
+## D97. Widgets are reviewed in a browser, not inferred from code (v1.28.0)
+
+The operator asked for a critical review of the rendered output of every
+Elementor widget as both a demanding site owner and a subscriber. Since
+the widgets are thin mappers over Components::render() (D10), the review
+rendered every component through the real pipeline (wp-stubs + Lite
+fixtures deliberately hostile: 120-character titles, five categories, no
+speakers, paid-only, API-dead) into standalone pages carrying the shipped
+CSS/JS, then exercised them in Chromium at 1180px and 375px — clicks,
+keyboard, fetch-intercepted success/failure — rather than trusting code
+reading. Kept as scratch tooling, not shipped: the fixtures would drift.
+
+What the browser caught that code review had not: (1) the drawer panel
+overflowed a 375px viewport on themes without a global border-box reset —
+the plugin now owns its box model (.eex/.eex-drawer subtree box-sizing);
+(2) the session silently attached by D95 was invisible — the drawer now
+carries a context line ("Registering for: <session>") stamped by
+eex-time.js from the opener's data-eex-talk-title, hidden for event-level
+openers, so the write the visitor triggers is the write they can see;
+(3) the standalone registration form never said what it registered for —
+it now names the event and free ticket (unless the operator's own heading
+does), and the paid-only fallback button explains why there is no form;
+(4) sub-44px touch targets throughout (CTAs 32px, close 31px, secondary
+links 15px, inputs 21px) — all controls now meet 44px, filterable via
+--eex-cta-min-height, and .eex-cta moved to inline-flex so full-width
+variants centre; (5) the free-form toggle stacked two identical primary
+buttons — it is now a disclosure (aria-expanded) that yields to the form;
+(6) bare "499" amounts — a currency attribute (default '', byte-identical
+output until set) prefixes numeric amounts only, never the Free label.
+Verified after the fixes by a scripted re-run: drawer fits at 375px with
+zero clipped elements, context line correct, stamp/Escape/focus-trap
+regressions green, currency renders, 44px measured. Not "fixed" because
+unbroken: focus-visible outlines, dialog semantics, Escape/focus-return,
+and empty-state honesty all passed the audit as shipped.

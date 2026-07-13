@@ -18,8 +18,12 @@ defined( 'ABSPATH' ) || exit;
  * POST events/<id>/attendees/<pk>/tickets/; the originally assumed
  * external-ticket-sales endpoint does not exist. The third entry,
  * checkout-link, is a generate-only POST (docs/decisions.md D91): it mints
- * a checkout URL — optionally with a coupon baked in — and mutates no
- * attendee, ticket or event data. HeySummitClient::post() consults this
+ * a checkout URL — optionally with a coupon and/or a talk baked in — and
+ * mutates no attendee, ticket or event data. The fourth entry, talk attach
+ * (docs/decisions.md D95), adds an EXISTING attendee to a talk's schedule:
+ * a HeySummit-provided, idempotent write that respects the attendee's
+ * ticket access and the talk's capacity — the session-registration
+ * counterpart to ticket assignment. HeySummitClient::post() consults this
  * list and throws for anything else — including event create/update (which
  * the spec exposes and this plugin must never touch), every other
  * resource, and anything with traversal or query noise.
@@ -34,6 +38,7 @@ final class WriteEndpoints {
 		'#^events/\d+/attendees/$#',
 		'#^events/\d+/attendees/\d+/tickets/$#',
 		'#^events/\d+/tickets/\d+/checkout-link/$#',
+		'#^events/\d+/attendees/\d+/talks/\d+/$#',
 	];
 
 	/**

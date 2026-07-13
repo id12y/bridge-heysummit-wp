@@ -3,6 +3,85 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.28.0
+Front-end review release: every widget was rendered with hostile realistic
+data and exercised in a real browser (desktop and 375px mobile, keyboard,
+success/failure/empty states). Fixes, all verified in-browser:
+- **Fixed: the ticket panel could overflow narrow screens.** The plugin now
+  owns its own box model instead of relying on the theme's CSS reset — on
+  reset-less themes the drawer was wider than the viewport and clipped
+  content off-screen at phone sizes.
+- **The ticket panel names the session.** Opening it from a session's
+  button shows "Registering for: <session>" — the session that joins the
+  attendee's schedule is now visible, not silent. Event-level buttons
+  (register bar) show no line, exactly as before.
+- **The registration form explains itself.** The standalone widget now
+  names the event and the free ticket it registers for (suppressed when
+  you set your own heading), and on paid-only events the checkout button
+  carries a sentence saying why there is no form.
+- **Comfortable touch targets.** All buttons, the panel close, and form
+  fields now meet the 44px touch minimum (overridable via
+  --eex-cta-min-height); the free-form toggle is a proper disclosure
+  (aria-expanded, hides once the form is open instead of stacking two
+  primary buttons).
+- **New: Currency symbol control.** Prices arrive from HeySummit as bare
+  numbers ("499"); a new Currency setting on ticket-bearing widgets
+  prefixes them ("€499"). Empty by default — nothing changes until set;
+  "Free" never gets a symbol.
+
+## 1.27.0
+- **New: Events health page (Settings → Events health).** One button runs
+  the whole integration through its paces and reports each check in plain
+  sentences: configuration, PHP/WordPress versions, whether caches
+  actually persist (a broken object cache silently disables every
+  guarantee), version bookkeeping, the write allowlist, the registration
+  endpoint, cron/webhooks (Full mode), the live display pipeline, and
+  live probes of every HeySummit surface — events, tickets (with checkout
+  links), coupons, and the checkout-link generator (exercised with a real
+  coupon; generate-only, nothing is modified). Results are timestamped
+  and kept for the next visit.
+- **Site Health now covers Lite mode.** WordPress's own Site Health screen
+  gains an "emailexpert Events integration" test in both modes (Lite
+  previously had none), using the cheap checks only — no API calls on a
+  passive page view.
+- **New: `wp eex health`** runs the same full check from the command line
+  and exits non-zero when anything fails, so a cron job or uptime monitor
+  can alert on it.
+- Hardening from the pre-release review: adding a session to a schedule
+  can never turn a successful registration into an error response (IDs
+  are validated numeric and the attach is fully contained); a session
+  that could not be attached is now always named in the log; the
+  duplicate-registration lookup uses a short timeout so a returning
+  visitor is never kept waiting on a slow API.
+
+## 1.26.0
+- **Free registration now signs people up for the session they clicked,
+  not just the event.** When a visitor registers through the ticket
+  panel's free form after opening it from a session, that session is
+  added to their HeySummit schedule (with the usual reminders) — a
+  first-party version of the talk-landing-page workaround. Works for
+  returning attendees too. HeySummit added the endpoints for this on
+  11 Jul 2026; the plugin validates the session belongs to the event
+  before calling, and a hiccup adding the session never blocks the
+  registration itself.
+- Note: baking the session into *paid* checkout links (so a bought
+  ticket also preselects the session) is intentionally not in this
+  release — doing it at page-render time would breach the plugin's
+  strict per-page API-call budget. It belongs in an on-click link
+  generator and will come separately; paid buttons keep the event
+  checkout for now.
+
+## 1.25.0
+- **Pick a coupon from a dropdown instead of typing the code.** In the
+  Elementor editor, the Coupon field on the pricing table and the
+  ticket-panel session widgets is now a dropdown of the event's live
+  coupons (pulled straight from HeySummit) — choose one by name and its
+  code is baked into every buy button exactly as before. Shortcodes,
+  blocks and manual entry keep the plain text field, and the dropdown
+  falls back to it until the connection has loaded the event's coupons.
+  Coupons with no code, or marked inactive, are hidden. Needs
+  HeySummit's coupons API (enabled July 2026).
+
 ## 1.24.0
 - **Choose how much speaker detail session cards show.** A new Speaker
   detail option on session lists, the schedule and the featured session

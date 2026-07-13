@@ -310,3 +310,40 @@ enable a coupon picker in the editor)? (2) does the POST reject a
 coupon that does not apply to the ticket, or does checkout simply
 ignore it? (3) are generated links durable or expiring? Observed
 behaviour to be recorded after the first live campaign.
+
+## Coupons are listable now — the editor picker uses it (v1.25.0)
+
+Answering open question (1) above: HeySummit enabled
+`GET events/<id>/coupons/`. `Data\Coupons` reads it (15-minute cache,
+nested route lead with a top-level `coupons/?event=` fallback — the
+spec documents only the nested form), and the Elementor coupon control
+turns it into a dropdown so operators pick a coupon by title instead of
+typing the code (which still feeds the same checkout-link generator).
+`coupons` is registered in `Shapes::RESOURCES` and the discovery
+nested-route fallback, so Test connection samples the live shape. The
+Coupon fields consumed: `coupon_code` (the value baked into links),
+`title` (the picker label), `is_active` (inactive coupons are hidden).
+Writes (create/update/delete) remain outside the allowlist (D45/D91).
+
+## Talk-specific registration endpoints (founder-confirmed, 11 Jul 2026)
+
+Two additions for registering a person for a specific session, not just
+the event (see docs/decisions.md D95):
+
+- `POST events/<id>/tickets/<ticket_pk>/checkout-link/` now takes an
+  optional **`talk_id`** alongside `coupon`. The generated checkout
+  visibly preselects that talk and adds it to the attendee's schedule
+  after successful registration (with the usual reminders). Same
+  allowlist entry as the coupon generator (path unchanged).
+- **`POST events/<id>/attendees/<attendee_pk>/talks/<talk_id>/`** — adds
+  an existing attendee to a talk. Idempotent; respects the attendee's
+  ticket access and the talk's capacity. Everything is in the path;
+  the plugin sends an empty body. Allowlisted as the fourth write
+  pattern — a schedule write, not event/ticket data (D45 holds).
+
+In use as of v1.26.0: the second endpoint backs the in-drawer free
+registration (the attendee we just created is attached to the clicked
+session). The first (`talk_id` on the checkout link) is NOT wired yet —
+per-session paid links would cost one generate-POST per card at render,
+against the render budget (D36); it belongs in a lazy on-click generator
+when wanted (D95).

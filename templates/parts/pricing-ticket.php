@@ -13,6 +13,7 @@
  *     @type bool   $show_covers      Show coverage badges.
  *     @type bool   $show_remaining   Show remaining quantity.
  *     @type string $register_text    CTA label ('' = "Register").
+ *     @type string $currency         Prefix for numeric amounts ('' = bare).
  * }
  */
 
@@ -59,6 +60,9 @@ $eex_covers = array_keys(
 				// "0.00" is not a price anyone wants to read.
 				if ( is_numeric( $eex_amount ) && 0.0 === (float) $eex_amount ) {
 					$eex_amount = __( 'Free', 'emailexpert-events' );
+				} elseif ( is_numeric( $eex_amount ) && '' !== (string) ( $args['currency'] ?? '' ) ) {
+					// The API sends bare numbers; "499" without a symbol reads wrong.
+					$eex_amount = (string) $args['currency'] . $eex_amount;
 				}
 				?>
 				<span class="eex-pricing-price">
