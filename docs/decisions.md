@@ -1628,3 +1628,32 @@ zero clipped elements, context line correct, stamp/Escape/focus-trap
 regressions green, currency renders, 44px measured. Not "fixed" because
 unbroken: focus-visible outlines, dialog semantics, Escape/focus-return,
 and empty-state honesty all passed the audit as shipped.
+
+## D98. Venue data is triple-sourced; caches are version-keyed (v1.29.0)
+
+Field report round two: "in person event, venue details ticked,
+nothing displayed". Root cause: HeySummit serialises the venue
+relation as a name on some accounts, an object on others, and a bare
+record ID on the rest. v1.24.0's ID filter correctly stopped
+displaying "12970" — leaving accounts with ID-only serialisation
+nothing to show and the operator no way to supply it. The fix makes
+venue data triple-sourced, most explicit first: (1) details typed
+into the venue widget itself (name/street/city/postcode/country —
+works everywhere, including Lite, so the component left FULL_ONLY);
+(2) the event post's venue fields (Full); (3) whatever readable venue
+the API sent — mappers now take the name and address lines out of
+venue OBJECTS on both talks and events, in both modes. Presentation
+is granular (name / address / Directions / image each toggleable) and
+an empty venue card explains its three sources to administrators in
+an HTML comment appended outside the cache — "ticked but nothing"
+must diagnose itself.
+
+Same round, cache posture: operators should never flush anything
+after an update. Upgrade::check already flushed fragments and the
+live cache per version change; the remaining holdouts (raw tickets,
+generated coupon links) now carry EEX_VERSION in their transient
+keys, so every deploy reads fresh data immediately and orphaned
+entries expire on their own TTLs. Anything still stale after an
+update is host/CDN page caching, outside the plugin. Sweep of the
+same class found replay_planned unmapped in sync — show_soon was a
+dead flag in Full mode; now synced as _eex_replay_soon.

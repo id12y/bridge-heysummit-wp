@@ -55,6 +55,7 @@ final class TalkMapper extends BaseMapper {
 			'ends_at'         => self::datetime( $raw, [ 'ends_at', 'end_time', 'end_date' ], $event_timezone ),
 			'talk_url'        => self::url_str( $raw, [ 'talk_url', 'url', 'public_url' ] ),
 			'replay_url'      => self::url_str( $raw, [ 'replay_url', 'recording_url', 'video_url' ] ),
+			'replay_soon'     => ! empty( $raw['replay_planned'] ),
 			'venue'           => self::venue_of( $raw ),
 			'inperson'        => ! empty( $raw['inperson_available'] ),
 			'event_hs_id'     => self::id_of( $raw, [ 'event', 'event_id' ] ),
@@ -81,7 +82,15 @@ final class TalkMapper extends BaseMapper {
 			$parts[] = sanitize_text_field( $stage );
 		}
 
-		$parts[] = self::str( $raw, [ 'inperson_venue' ] );
+		// The venue relation arrives as a name on some accounts, an object
+		// on others (take its name), and a bare ID on the rest (nothing
+		// displayable — the numeric filter below drops it).
+		$venue = $raw['inperson_venue'] ?? null;
+		if ( is_array( $venue ) ) {
+			$parts[] = self::str( $venue, [ 'title', 'name', 'venue_name' ] );
+		} else {
+			$parts[] = self::str( $raw, [ 'inperson_venue' ] );
+		}
 		$parts[] = self::str( $raw, [ 'inperson_venue_area' ] );
 
 		// A bare number is a record ID leaking through (the API sometimes

@@ -1383,10 +1383,55 @@ class LiveRepository extends BaseMapper implements Repository {
 			'evergreen'     => self::boolish( $raw, 'is_evergreen' ),
 			'live'          => self::boolish( $raw, 'is_live' ),
 			'archived'      => self::boolish( $raw, 'is_archived' ),
-			'venue'         => preg_match( '/^\d+$/', self::str( $raw, [ 'venue_name', 'venue' ] ) ) ? '' : self::str( $raw, [ 'venue_name', 'venue' ] ),
+			'venue'         => self::venue_name_of( $raw ),
+			'venue_address' => self::venue_address_of( $raw ),
 			'reg_count'     => 0,
 			'series'        => [],
 		];
+	}
+
+	/**
+	 * The event's venue name: a plain field on some accounts, an object on
+	 * others; a bare-numeric ID is never displayable.
+	 *
+	 * @param array<string,mixed> $raw Raw event record.
+	 */
+	protected static function venue_name_of( array $raw ): string {
+		$venue = $raw['venue'] ?? null;
+		$name  = is_array( $venue )
+			? self::str( $venue, [ 'title', 'name', 'venue_name' ] )
+			: self::str( $raw, [ 'venue_name', 'venue' ] );
+
+		return preg_match( '/^\d+$/', $name ) ? '' : $name;
+	}
+
+	/**
+	 * Address lines from an event's venue object, when the account
+	 * serialises one — the only address source Lite has.
+	 *
+	 * @param array<string,mixed> $raw Raw event record.
+	 * @return array<int,string>
+	 */
+	protected static function venue_address_of( array $raw ): array {
+		$venue = $raw['venue'] ?? null;
+
+		if ( ! is_array( $venue ) ) {
+			return [];
+		}
+
+		$lines = [
+			self::str( $venue, [ 'address', 'address_1', 'street' ] ),
+			self::str( $venue, [ 'address_2' ] ),
+			trim( self::str( $venue, [ 'city', 'locality', 'town' ] ) . ' ' . self::str( $venue, [ 'postcode', 'zip', 'postal_code' ] ) ),
+			self::str( $venue, [ 'country' ] ),
+		];
+
+		return array_values(
+			array_filter(
+				array_map( 'trim', $lines ),
+				static fn( string $line ): bool => '' !== $line && ! preg_match( '/^\d+$/', $line )
+			)
+		);
 	}
 
 	/**
@@ -1468,7 +1513,12 @@ class LiveRepository extends BaseMapper implements Repository {
 		} elseif ( is_string( $stage ) ) {
 			$venue_parts[] = sanitize_text_field( $stage );
 		}
-		$venue_parts[] = self::str( $raw, [ 'inperson_venue' ] );
+		$lite_venue = $raw['inperson_venue'] ?? null;
+		if ( is_array( $lite_venue ) ) {
+			$venue_parts[] = self::str( $lite_venue, [ 'title', 'name', 'venue_name' ] );
+		} else {
+			$venue_parts[] = self::str( $raw, [ 'inperson_venue' ] );
+		}
 		$venue_parts[] = self::str( $raw, [ 'inperson_venue_area' ] );
 		// A bare number is a record ID leaking through (the API sometimes
 		// serialises venue/stage relations as IDs) — never a display name.

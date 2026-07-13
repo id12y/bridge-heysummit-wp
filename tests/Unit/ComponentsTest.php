@@ -882,7 +882,7 @@ final class ComponentsTest extends TestCase {
 			]
 		);
 		Cache::flush();
-		delete_transient( 'eex_tickets_' . md5( 'v2|c1|101' ) );
+		delete_transient( 'eex_tickets_' . md5( EEX_VERSION . '|c1|101' ) );
 
 		$default = Components::render( 'pricing', [ 'event' => '101' ] );
 		$this->assertStringContainsString( 'checkout/ticket/9001-abc/', $default, 'HeySummit checkout stays the default despite the mapping' );
@@ -1408,7 +1408,7 @@ final class ComponentsTest extends TestCase {
 		// the API is now down: the last good fragment must be served, not a
 		// fresh empty state.
 		Cache::flush();
-		delete_transient( 'eex_tickets_' . md5( 'v2|c1|101' ) );
+		delete_transient( 'eex_tickets_' . md5( EEX_VERSION . '|c1|101' ) );
 		\EEX_Test_State::$filters['pre_http_request'] = [];
 		$this->mock_http( static fn() => new \WP_Error( 'http_request_failed', 'timed out' ) );
 
@@ -1537,7 +1537,7 @@ final class ComponentsTest extends TestCase {
 
 		// Paid-only event: a checkout CTA, never a dead form.
 		Cache::flush();
-		delete_transient( 'eex_tickets_' . md5( 'v2|c1|101' ) );
+		delete_transient( 'eex_tickets_' . md5( EEX_VERSION . '|c1|101' ) );
 		\EEX_Test_State::$filters['pre_http_request'] = [];
 		$this->mock_http(
 			static function ( $url ) {
@@ -1616,7 +1616,7 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'eex-replay-play', $html, 'the play overlay renders with the image slot' );
 	}
 
-	public function test_venue_card_renders_address_and_is_absent_in_lite(): void {
+	public function test_venue_card_renders_address_with_granular_controls(): void {
 		$this->make_linked_talk();
 
 		$event_post = get_posts(
@@ -1640,9 +1640,46 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'google.com/maps/search', $html );
 		$this->assertStringContainsString( 'Directions', $html );
 
-		// A Full-only component: Lite offers and renders nothing.
+		// Granular pieces switch off independently; the widget image joins.
+		Cache::flush();
+		$partial = Components::render(
+			'venue',
+			[
+				'event'         => '101',
+				'show_name'     => 0,
+				'show_map_link' => 0,
+				'image'         => 'https://example.com/venue.jpg',
+			]
+		);
+		$this->assertStringNotContainsString( 'eex-venue-name', $partial );
+		$this->assertStringNotContainsString( 'Directions', $partial );
+		$this->assertStringContainsString( '1 Exchange Square', $partial );
+		$this->assertStringContainsString( 'https://example.com/venue.jpg', $partial );
+	}
+
+	public function test_venue_card_works_in_lite_from_widget_data_and_explains_emptiness(): void {
 		Options::update_settings( [ 'mode' => 'lite' ] );
-		$this->assertSame( '', Components::render( 'venue', [ 'event' => '101' ] ) );
+		\EEX_Test_State::$user_can = true;
+
+		// No API data, no manual data: the empty state, plus an
+		// admin-visible explanation of where venue data can come from.
+		$empty = Components::render( 'venue', [] );
+		$this->assertStringContainsString( 'eex-empty', $empty );
+		$this->assertStringContainsString( 'no venue data found', $empty );
+
+		// Operator-typed venue details render without any API help.
+		Cache::flush();
+		$manual = Components::render(
+			'venue',
+			[
+				'name'     => 'The Weeping Tower',
+				'street'   => 'Prins Hendrikkade 94',
+				'locality' => 'Amsterdam',
+			]
+		);
+		$this->assertStringContainsString( 'The Weeping Tower', $manual );
+		$this->assertStringContainsString( 'Prins Hendrikkade 94', $manual );
+		$this->assertStringContainsString( 'google.com/maps/search', $manual );
 	}
 
 	public function test_featured_session_shows_location_and_compact_view(): void {
@@ -1749,6 +1786,32 @@ final class ComponentsTest extends TestCase {
 		);
 
 		$this->assertSame( 'Main Stage', $mapped['venue'], 'a bare record ID is dropped from the location line' );
+
+		// Accounts that serialise the venue as an object get its name.
+		$object_venue = \Emailexpert\Events\Mappers\TalkMapper::map(
+			[
+				'id'             => 778,
+				'title'          => 'Object venue test',
+				'inperson_venue' => [
+					'id'    => 12970,
+					'title' => 'The Weeping Tower',
+				],
+			]
+		);
+		$this->assertSame( 'The Weeping Tower', $object_venue['venue'] );
+	}
+
+	public function test_replay_soon_badge_works_in_full_mode(): void {
+		$this->make_linked_talk();
+
+		$soon = $this->make_talk( 'Awaiting replay', -7200 );
+		update_post_meta( $soon, '_eex_source_event_id', '101' );
+		update_post_meta( $soon, '_eex_replay_soon', 1 );
+
+		$html = Components::render( 'replay-gallery', [ 'event' => '101' ] );
+
+		$this->assertStringContainsString( 'Awaiting replay', $html );
+		$this->assertStringContainsString( 'Replay available soon', $html );
 	}
 
 	public function test_stats_custom_labels_manual_figures_and_members(): void {
