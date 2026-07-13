@@ -1230,6 +1230,37 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( 'COUPONED', $html );
 	}
 
+	public function test_pricing_currency_prefixes_numeric_amounts_only(): void {
+		$this->make_linked_talk();
+		update_option(
+			'eex_connections',
+			[
+				[
+					'id'      => 'c1',
+					'label'   => 'Primary',
+					'api_key' => 'k',
+				],
+			]
+		);
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'pricing',
+			[
+				'event'    => '101',
+				'currency' => '€',
+			]
+		);
+
+		$this->assertStringContainsString( '€99', $html, 'numeric amounts carry the operator currency' );
+		$this->assertStringNotContainsString( '€Free', $html, 'the Free label never gets a symbol' );
+
+		// Default stays byte-identical: bare numbers, exactly as the API sends.
+		Cache::flush();
+		$bare = Components::render( 'pricing', [ 'event' => '101' ] );
+		$this->assertStringNotContainsString( '€', $bare );
+	}
+
 	public function test_register_panel_renders_the_ticket_drawer(): void {
 		$this->make_linked_talk();
 		update_option(
@@ -1264,6 +1295,13 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'name="website"', $html, 'honeypot present' );
 		$this->assertSame( 1, substr_count( $html, 'data-eex-reg="1"' ), 'only the free ticket gets a form' );
 		$this->assertStringContainsString( 'checkout/ticket/9001-abc/', $html, 'the paid ticket links to its API checkout link' );
+
+		// The drawer says which session it registers for (filled by JS from
+		// the opening button), and the free-form toggle is a disclosure.
+		$this->assertStringContainsString( 'data-eex-drawer-context', $html, 'the session context line is in the drawer' );
+		$this->assertStringContainsString( 'data-eex-prefix=', $html, 'the translatable prefix rides on the context line' );
+		$this->assertStringContainsString( 'data-eex-talk-title=', $html, 'openers carry the session title for the context line' );
+		$this->assertStringContainsString( 'aria-expanded="false"', $html, 'the register toggle is a disclosure button' );
 
 		// The drawer honours the ticket filters.
 		Cache::flush();

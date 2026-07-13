@@ -3,6 +3,32 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.28.0
+Front-end review release: every widget was rendered with hostile realistic
+data and exercised in a real browser (desktop and 375px mobile, keyboard,
+success/failure/empty states). Fixes, all verified in-browser:
+- **Fixed: the ticket panel could overflow narrow screens.** The plugin now
+  owns its own box model instead of relying on the theme's CSS reset — on
+  reset-less themes the drawer was wider than the viewport and clipped
+  content off-screen at phone sizes.
+- **The ticket panel names the session.** Opening it from a session's
+  button shows "Registering for: <session>" — the session that joins the
+  attendee's schedule is now visible, not silent. Event-level buttons
+  (register bar) show no line, exactly as before.
+- **The registration form explains itself.** The standalone widget now
+  names the event and the free ticket it registers for (suppressed when
+  you set your own heading), and on paid-only events the checkout button
+  carries a sentence saying why there is no form.
+- **Comfortable touch targets.** All buttons, the panel close, and form
+  fields now meet the 44px touch minimum (overridable via
+  --eex-cta-min-height); the free-form toggle is a proper disclosure
+  (aria-expanded, hides once the form is open instead of stacking two
+  primary buttons).
+- **New: Currency symbol control.** Prices arrive from HeySummit as bare
+  numbers ("499"); a new Currency setting on ticket-bearing widgets
+  prefixes them ("€499"). Empty by default — nothing changes until set;
+  "Free" never gets a symbol.
+
 ## 1.27.0
 - **New: Events health page (Settings → Events health).** One button runs
   the whole integration through its paces and reports each check in plain

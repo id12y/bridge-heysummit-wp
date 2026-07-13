@@ -179,6 +179,11 @@ final class Components {
 			'default' => '',
 			'label'   => __( 'Coupon code baked into ticket checkout links (HeySummit checkout only)', 'emailexpert-events' ),
 		];
+		$currency        = [
+			'type'    => 'string',
+			'default' => '',
+			'label'   => __( 'Currency symbol shown before prices (empty = bare numbers, as the API sends them)', 'emailexpert-events' ),
+		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		$definitions = [
@@ -219,6 +224,7 @@ final class Components {
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
 					'coupon'          => $coupon,
+					'currency'        => $currency,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -456,6 +462,7 @@ final class Components {
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
 					'coupon'          => $coupon,
+					'currency'        => $currency,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -709,6 +716,7 @@ final class Components {
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
 					'coupon'          => $coupon,
+					'currency'        => $currency,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -773,6 +781,7 @@ final class Components {
 					'register_url'      => $register_url,
 					'buy_on'            => $buy_on,
 					'coupon'            => $coupon,
+					'currency'          => $currency,
 					'empty_text'        => [
 						'type'    => 'string',
 						'default' => __( 'Tickets go on sale soon.', 'emailexpert-events' ),
@@ -921,6 +930,7 @@ final class Components {
 					'register_action' => $register_action,
 					'buy_on'          => $buy_on,
 					'coupon'          => $coupon,
+					'currency'        => $currency,
 					'tickets'         => [
 						'type'    => 'string',
 						'default' => '',
@@ -952,6 +962,7 @@ final class Components {
 					],
 					'register_text' => $register_text,
 					'coupon'        => $coupon,
+					'currency'      => $currency,
 					'empty_text'    => [
 						'type'    => 'string',
 						'default' => __( 'Registration opens soon.', 'emailexpert-events' ),
@@ -1062,6 +1073,7 @@ final class Components {
 					'register_url'     => $register_url,
 					'buy_on'           => $buy_on,
 					'coupon'           => $coupon,
+					'currency'         => $currency,
 					'empty_text'       => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
@@ -1871,6 +1883,8 @@ final class Components {
 					<h2 class="eex-drawer-title"><?php esc_html_e( 'Choose your ticket', 'emailexpert-events' ); ?></h2>
 					<button type="button" class="eex-drawer-close" data-eex-drawer-close="1" aria-label="<?php esc_attr_e( 'Close', 'emailexpert-events' ); ?>">&#215;</button>
 				</div>
+				<?php // Which session this registration is for — filled by eex-time.js from the opening button, hidden when the opener is event-level. ?>
+				<p class="eex-drawer-context" data-eex-drawer-context data-eex-prefix="<?php esc_attr_e( 'Registering for:', 'emailexpert-events' ); ?>" hidden></p>
 				<ul class="eex-list eex-pricing eex-pricing-rows eex-drawer-tickets" role="list">
 					<?php foreach ( $tickets as $ticket ) : ?>
 						<?php
@@ -1895,6 +1909,7 @@ final class Components {
 									),
 									'hero'             => false,
 									'ribbon'           => ! empty( $ticket['popular'] ) ? __( 'Most popular', 'emailexpert-events' ) : '',
+									'currency'         => (string) ( $atts['currency'] ?? '' ),
 									'show_description' => true,
 									'show_covers'      => false,
 									'show_remaining'   => true,
@@ -1903,7 +1918,7 @@ final class Components {
 							);
 							?>
 							<?php if ( $is_free && '' !== $event_id ) : ?>
-								<button type="button" class="eex-cta eex-reg-toggle" data-eex-reg-toggle="1"><?php esc_html_e( 'Register free', 'emailexpert-events' ); ?></button>
+								<button type="button" class="eex-cta eex-reg-toggle" data-eex-reg-toggle="1" aria-expanded="false"><?php esc_html_e( 'Register free', 'emailexpert-events' ); ?></button>
 								<?php
 								TemplateLoader::part(
 									'register-form',
@@ -2727,6 +2742,7 @@ final class Components {
 					'ticket'           => $ticket,
 					'hero'             => $is_hero,
 					'ribbon'           => $has_ribbon ? $ribbon : '',
+					'currency'         => (string) ( $atts['currency'] ?? '' ),
 					'show_description' => ! empty( $atts['show_description'] ),
 					'show_covers'      => ! empty( $atts['show_covers'] ),
 					'show_remaining'   => ! empty( $atts['show_remaining'] ),
@@ -3316,8 +3332,11 @@ final class Components {
 			? sprintf( '<h3 class="eex-reg-inline-heading">%s</h3>', esc_html( (string) $atts['heading'] ) )
 			: '';
 
+		$event_title = null !== $event ? (string) ( $event['title'] ?? '' ) : '';
+
 		if ( null === $free ) {
-			// Paid-only event: a working checkout button beats a dead form.
+			// Paid-only event: a working checkout button beats a dead form —
+			// but a bare button explains nothing, so say why there is no form.
 			$paid = $tickets[0];
 			$url  = self::ticket_register_url( $paid, self::register_args( $atts ) );
 
@@ -3325,9 +3344,18 @@ final class Components {
 				return self::empty_state( (string) $atts['empty_text'] );
 			}
 
+			$context = '' !== $event_title
+				? sprintf(
+					/* translators: %s: event title. */
+					esc_html__( 'Tickets for %s are paid — checkout happens on the event site.', 'emailexpert-events' ),
+					esc_html( $event_title )
+				)
+				: esc_html__( 'Tickets for this event are paid — checkout happens on the event site.', 'emailexpert-events' );
+
 			return sprintf(
-				'%s<p class="eex-reg-inline-cta"><a class="eex-cta eex-cta-register" href="%s">%s</a></p>',
+				'%s<p class="eex-reg-inline-context">%s</p><p class="eex-reg-inline-cta"><a class="eex-cta eex-cta-register" href="%s">%s</a></p>',
 				$heading, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+				$context, // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
 				esc_url( $url ),
 				esc_html( '' !== (string) $atts['register_text'] ? (string) $atts['register_text'] : __( 'Get tickets', 'emailexpert-events' ) )
 			);
@@ -3353,7 +3381,23 @@ final class Components {
 			]
 		);
 
-		return sprintf( '%s<div class="eex-reg-inline">%s</div>', $heading, (string) ob_get_clean() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped parts.
+		// Without context the bare form never says WHAT it registers for;
+		// name the event and the (free) ticket unless the operator supplied
+		// their own heading, which is assumed to do that job.
+		$context = '';
+		if ( '' === (string) $atts['heading'] && '' !== $event_title ) {
+			$context = sprintf(
+				'<p class="eex-reg-inline-context">%s</p>',
+				sprintf(
+					/* translators: 1: event title, 2: ticket title. */
+					esc_html__( 'Free registration for %1$s — %2$s.', 'emailexpert-events' ),
+					esc_html( $event_title ),
+					esc_html( (string) ( $free['title'] ?? __( 'free ticket', 'emailexpert-events' ) ) )
+				)
+			);
+		}
+
+		return sprintf( '%s%s<div class="eex-reg-inline">%s</div>', $heading, $context, (string) ob_get_clean() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped parts.
 	}
 
 	/**

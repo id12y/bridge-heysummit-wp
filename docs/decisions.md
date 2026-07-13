@@ -1593,3 +1593,38 @@ configured-pass, version-mismatch warn, allowlist coverage of all four
 writes, probe pass/fail/warn (dead generator warns, unreachable API
 fails with the transport reason), Site Health registration and
 criticality, and result storage.
+
+## D97. Widgets are reviewed in a browser, not inferred from code (v1.28.0)
+
+The operator asked for a critical review of the rendered output of every
+Elementor widget as both a demanding site owner and a subscriber. Since
+the widgets are thin mappers over Components::render() (D10), the review
+rendered every component through the real pipeline (wp-stubs + Lite
+fixtures deliberately hostile: 120-character titles, five categories, no
+speakers, paid-only, API-dead) into standalone pages carrying the shipped
+CSS/JS, then exercised them in Chromium at 1180px and 375px — clicks,
+keyboard, fetch-intercepted success/failure — rather than trusting code
+reading. Kept as scratch tooling, not shipped: the fixtures would drift.
+
+What the browser caught that code review had not: (1) the drawer panel
+overflowed a 375px viewport on themes without a global border-box reset —
+the plugin now owns its box model (.eex/.eex-drawer subtree box-sizing);
+(2) the session silently attached by D95 was invisible — the drawer now
+carries a context line ("Registering for: <session>") stamped by
+eex-time.js from the opener's data-eex-talk-title, hidden for event-level
+openers, so the write the visitor triggers is the write they can see;
+(3) the standalone registration form never said what it registered for —
+it now names the event and free ticket (unless the operator's own heading
+does), and the paid-only fallback button explains why there is no form;
+(4) sub-44px touch targets throughout (CTAs 32px, close 31px, secondary
+links 15px, inputs 21px) — all controls now meet 44px, filterable via
+--eex-cta-min-height, and .eex-cta moved to inline-flex so full-width
+variants centre; (5) the free-form toggle stacked two identical primary
+buttons — it is now a disclosure (aria-expanded) that yields to the form;
+(6) bare "499" amounts — a currency attribute (default '', byte-identical
+output until set) prefixes numeric amounts only, never the Free label.
+Verified after the fixes by a scripted re-run: drawer fits at 375px with
+zero clipped elements, context line correct, stamp/Escape/focus-trap
+regressions green, currency renders, 44px measured. Not "fixed" because
+unbroken: focus-visible outlines, dialog semantics, Escape/focus-return,
+and empty-state honesty all passed the audit as shipped.

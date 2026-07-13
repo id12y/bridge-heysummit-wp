@@ -289,6 +289,21 @@
 			talkInputs[ i ].value = talk;
 		}
 
+		// Say so, too: name the session in the drawer header so the visitor
+		// can see what the registration will cover. Event-level openers
+		// (register bar, hero without a session) leave the line hidden.
+		var context = drawer.querySelector( '[data-eex-drawer-context]' );
+		if ( context ) {
+			var talkTitle = button.getAttribute( 'data-eex-talk-title' ) || '';
+			if ( talk && talkTitle ) {
+				context.textContent = ( context.getAttribute( 'data-eex-prefix' ) || 'Registering for:' ) + ' ' + talkTitle;
+				context.hidden = false;
+			} else {
+				context.textContent = '';
+				context.hidden = true;
+			}
+		}
+
 		var panel = drawer.querySelector( '.eex-drawer-panel' );
 		if ( panel ) {
 			panel.focus();
@@ -325,6 +340,12 @@
 			var form = toggle.parentNode.querySelector( '[data-eex-reg]' );
 			if ( form ) {
 				form.hidden = ! form.hidden;
+				toggle.setAttribute( 'aria-expanded', form.hidden ? 'false' : 'true' );
+
+				// Once the form is open the toggle has done its job — two
+				// stacked primary buttons otherwise read as competing actions.
+				toggle.hidden = ! form.hidden;
+
 				if ( ! form.hidden ) {
 					var first = form.querySelector( 'input[name="name"]' );
 					if ( first ) {
