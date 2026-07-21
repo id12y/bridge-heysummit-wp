@@ -3,6 +3,18 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.31.0
+- **Pickers fill themselves in the editor.** Empty sponsor-category and
+  ticket dropdowns now fetch their names from your configured events
+  the moment the Elementor editor asks for them — no more "view the
+  widget once, then reload the editor" dance. Editor-only; front-end
+  page loads are untouched.
+- **An empty category-filtered sponsors wall now explains itself
+  visibly.** Administrators (and only administrators) see a small
+  inline note naming the filter value and every category the site
+  knows — in the editor preview and on the page — instead of a
+  view-source HTML comment.
+
 ## 1.30.0
 - **Fixed (field-reported): the sponsor category filter "did not
   actually work".** Three compounding causes: the editor dropdown had

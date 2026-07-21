@@ -1248,10 +1248,19 @@ final class Components {
 			&& current_user_can( 'manage_options' ) ) {
 			$known = \Emailexpert\Events\Data\Sponsors::known_categories();
 
+			// Visible (admins only, appended outside the cache): an operator
+			// staring at an empty wall in the editor must see WHY, not have
+			// to hunt through view-source.
 			return sprintf(
-				"\n<!-- emailexpert Events (visible to administrators only): the sponsor category filter %s matched no sponsors. Filters accept a category name, a tier name or a category ID. Category names this site has seen: %s. -->",
-				esc_html( str_replace( '--', '- -', (string) $atts['sponsor_category'] ) ),
-				esc_html( str_replace( '--', '- -', empty( $known ) ? '(none yet - view the sponsor wall once so they can be learned)' : implode( ', ', $known ) ) )
+				'<p class="eex-admin-note">%s</p>',
+				esc_html(
+					sprintf(
+						/* translators: 1: the filter value, 2: known category names. */
+						__( 'Visible to administrators only: the sponsor category filter "%1$s" matched no sponsors. Filters accept a category name, a tier name or a category ID. Categories this site has seen: %2$s.', 'emailexpert-events' ),
+						(string) $atts['sponsor_category'],
+						empty( $known ) ? __( '(none learned yet)', 'emailexpert-events' ) : implode( ', ', $known )
+					)
+				)
 			);
 		}
 
