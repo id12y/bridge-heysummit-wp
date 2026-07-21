@@ -1220,13 +1220,13 @@ final class Components {
 				return sprintf(
 					"\n<!-- emailexpert Events (visible to administrators only): the %s widget is empty and hidden by its hide_empty setting. -->",
 					esc_html( $name )
-				) . self::admin_debug_note( $name, $html );
+				) . self::admin_debug_note( $name, $html, $atts );
 			}
 
 			return '';
 		}
 
-		return $html . self::admin_debug_note( $name, $html );
+		return $html . self::admin_debug_note( $name, $html, $atts );
 	}
 
 	/**
@@ -1238,7 +1238,23 @@ final class Components {
 	 * @param string $name Component name.
 	 * @param string $html The rendered (possibly cached) fragment.
 	 */
-	private static function admin_debug_note( string $name, string $html ): string {
+	private static function admin_debug_note( string $name, string $html, array $atts = [] ): string {
+		// A category filter that matched nothing explains itself in both
+		// modes: field-reported as "category does not actually work".
+		if ( str_contains( $html, 'eex-empty' )
+			&& in_array( $name, [ 'sponsors', 'sponsor-spotlight' ], true )
+			&& '' !== (string) ( $atts['sponsor_category'] ?? '' )
+			&& function_exists( 'current_user_can' )
+			&& current_user_can( 'manage_options' ) ) {
+			$known = \Emailexpert\Events\Data\Sponsors::known_categories();
+
+			return sprintf(
+				"\n<!-- emailexpert Events (visible to administrators only): the sponsor category filter %s matched no sponsors. Filters accept a category name, a tier name or a category ID. Category names this site has seen: %s. -->",
+				esc_html( str_replace( '--', '- -', (string) $atts['sponsor_category'] ) ),
+				esc_html( str_replace( '--', '- -', empty( $known ) ? '(none yet - view the sponsor wall once so they can be learned)' : implode( ', ', $known ) ) )
+			);
+		}
+
 		// The venue card explains its emptiness in both modes: this was a
 		// field-reported head-scratcher ("venue ticked, nothing displayed").
 		if ( 'venue' === $name
@@ -2484,6 +2500,26 @@ final class Components {
 	}
 
 	/**
+	 * Whether a sponsor matches a category filter: by category name, tier
+	 * name (both case-insensitive) or raw category ID — operators have
+	 * stored all three over time, and every one of them should just work.
+	 *
+	 * @param array<string,mixed> $sponsor  Display-shaped sponsor row.
+	 * @param string              $category Filter value, lowercased.
+	 */
+	private static function sponsor_matches_category( array $sponsor, string $category ): bool {
+		if ( '' === $category ) {
+			return true;
+		}
+
+		$names = array_map( 'strtolower', (array) ( $sponsor['sponsor_categories'] ?? [] ) );
+
+		return in_array( $category, $names, true )
+			|| strtolower( (string) ( $sponsor['tier_name'] ?? '' ) ) === $category
+			|| in_array( $category, array_map( 'strval', (array) ( $sponsor['sponsor_category_ids'] ?? [] ) ), true );
+	}
+
+	/**
 	 * Sponsors wall grouped by tier.
 	 *
 	 * @param array<string,mixed> $atts Attributes.
@@ -2511,12 +2547,8 @@ final class Components {
 				continue;
 			}
 
-			if ( '' !== $category ) {
-				$names = array_map( 'strtolower', (array) ( $sponsor['sponsor_categories'] ?? [] ) );
-
-				if ( ! in_array( $category, $names, true ) && strtolower( (string) $sponsor['tier_name'] ) !== $category ) {
-					continue;
-				}
+			if ( ! self::sponsor_matches_category( $sponsor, $category ) ) {
+				continue;
 			}
 
 			$rows[] = $sponsor;
@@ -2875,11 +2907,7 @@ final class Components {
 			$sponsors = array_values(
 				array_filter(
 					$sponsors,
-					static function ( array $sponsor ) use ( $category ): bool {
-						$names = array_map( 'strtolower', (array) ( $sponsor['sponsor_categories'] ?? [] ) );
-
-						return in_array( $category, $names, true ) || strtolower( (string) ( $sponsor['tier_name'] ?? '' ) ) === $category;
-					}
+					static fn( array $sponsor ): bool => self::sponsor_matches_category( $sponsor, $category )
 				)
 			);
 		}

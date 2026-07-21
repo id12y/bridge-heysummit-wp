@@ -1481,6 +1481,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			}
 		}
 
+		// Editor pickers need these names; Lite has no taxonomy terms.
+		CategoryTitles::remember( $categories );
+
 		$speakers     = [];
 		$raw_speakers = [];
 		foreach ( (array) ( $raw['speakers'] ?? [] ) as $speaker ) {

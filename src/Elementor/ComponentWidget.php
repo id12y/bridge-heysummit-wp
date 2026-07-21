@@ -1112,6 +1112,12 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			}
 		}
 
+		// Lite has no terms: the names remembered from live fetches fill
+		// the picker instead (the event/ticket-titles pattern).
+		if ( empty( $options ) ) {
+			$options = \Emailexpert\Events\Data\CategoryTitles::known();
+		}
+
 		return $options;
 	}
 
