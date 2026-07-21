@@ -845,9 +845,15 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			return;
 		}
 
-		// Sponsor category picker: names seen on any sponsor fetch.
+		// Sponsor category picker: names seen on any sponsor fetch — and
+		// when none are known yet, fetched right now (editor only).
 		if ( 'sponsor_category' === $key ) {
 			$categories = \Emailexpert\Events\Data\Sponsors::known_categories();
+
+			if ( empty( $categories ) ) {
+				$this->seed_commerce_names();
+				$categories = \Emailexpert\Events\Data\Sponsors::known_categories();
+			}
 
 			if ( ! empty( $categories ) ) {
 				$options = [];
@@ -923,8 +929,13 @@ class ComponentWidget extends \Elementor\Widget_Base {
 			return;
 		}
 
-		if ( in_array( $key, [ 'tickets', 'exclude', 'featured' ], true ) && in_array( $this->component, [ 'pricing', 'upcoming-sessions', 'featured-talks', 'next-session' ], true ) ) {
+		if ( in_array( $key, [ 'tickets', 'exclude', 'featured' ], true ) && in_array( $this->component, [ 'pricing', 'upcoming-sessions', 'featured-talks', 'next-session', 'register-bar' ], true ) ) {
 			$titles = \Emailexpert\Events\Data\Tickets::known_titles();
+
+			if ( empty( $titles ) ) {
+				$this->seed_commerce_names();
+				$titles = \Emailexpert\Events\Data\Tickets::known_titles();
+			}
 
 			if ( ! empty( $titles ) ) {
 				$options = [];
@@ -1057,6 +1068,67 @@ class ComponentWidget extends \Elementor\Widget_Base {
 				'label_block' => true,
 			]
 		);
+	}
+
+	/**
+	 * Editor-only: when a picker's learned names are empty, fetch them now
+	 * from the configured events instead of sending the operator off to
+	 * view a widget first. Cached fetches, bounded to the first three
+	 * events, once per request; never runs on the front end.
+	 */
+	private function seed_commerce_names(): void {
+		static $seeded = false;
+
+		if ( $seeded || ! is_admin() ) {
+			return;
+		}
+		$seeded = true;
+
+		foreach ( array_slice( $this->configured_event_pairs(), 0, 3 ) as [ $conn_id, $event_id ] ) {
+			\Emailexpert\Events\Data\Sponsors::for_display( $conn_id, $event_id );
+			\Emailexpert\Events\Data\Tickets::raw( $conn_id, $event_id );
+		}
+	}
+
+	/**
+	 * The configured events as [connection_id, event_hs_id] pairs, in both
+	 * modes.
+	 *
+	 * @return array<int,array{0:string,1:string}>
+	 */
+	private function configured_event_pairs(): array {
+		$pairs = [];
+
+		if ( \Emailexpert\Events\Options::is_lite() ) {
+			foreach ( (array) \Emailexpert\Events\Options::setting( 'lite_events' ) as $key ) {
+				[ $conn_id, $event_id ] = array_pad( explode( '|', (string) $key, 2 ), 2, '' );
+				if ( '' !== $conn_id && '' !== $event_id ) {
+					$pairs[] = [ $conn_id, $event_id ];
+				}
+			}
+
+			return $pairs;
+		}
+
+		$events = get_posts(
+			[
+				'post_type'      => PostTypes::EVENT,
+				'post_status'    => 'publish',
+				'posts_per_page' => 3,
+				'no_found_rows'  => true,
+				'fields'         => 'ids',
+			]
+		);
+
+		foreach ( $events as $post_id ) {
+			$conn_id  = (string) get_post_meta( (int) $post_id, '_eex_connection_id', true );
+			$event_id = (string) get_post_meta( (int) $post_id, '_eex_heysummit_id', true );
+			if ( '' !== $conn_id && '' !== $event_id ) {
+				$pairs[] = [ $conn_id, $event_id ];
+			}
+		}
+
+		return $pairs;
 	}
 
 	/**

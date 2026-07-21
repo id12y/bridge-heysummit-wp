@@ -1653,3 +1653,14 @@
 	margin-left: 0.5em;
 	white-space: nowrap;
 }
+
+/* Admin-only diagnostics (never rendered for visitors) */
+.eex-admin-note {
+	background: #fef8ee;
+	border: 1px dashed #b8860b;
+	border-radius: var(--eex-radius);
+	color: #5f4200;
+	font-size: 0.85em;
+	padding: 0.6rem 0.9rem;
+	margin: 0.5rem 0;
+}
