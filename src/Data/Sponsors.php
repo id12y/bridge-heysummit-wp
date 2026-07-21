@@ -88,7 +88,8 @@ final class Sponsors {
 		$known = self::known_categories();
 
 		foreach ( $names as $name ) {
-			if ( ! in_array( $name, $known, true ) ) {
+			$name = trim( (string) $name );
+			if ( '' !== $name && ! ctype_digit( $name ) && ! in_array( $name, $known, true ) ) {
 				$known[] = $name;
 			}
 		}
@@ -104,7 +105,18 @@ final class Sponsors {
 	public static function known_categories(): array {
 		$known = get_option( 'eex_sponsor_categories', [] );
 
-		return is_array( $known ) ? array_values( array_map( 'strval', $known ) ) : [];
+		if ( ! is_array( $known ) ) {
+			return [];
+		}
+
+		// Older builds remembered raw category IDs; a bare number is never a
+		// pickable name. Filtering on read heals polluted options in place.
+		return array_values(
+			array_filter(
+				array_map( 'strval', $known ),
+				static fn( string $name ): bool => '' !== $name && ! ctype_digit( $name )
+			)
+		);
 	}
 
 	/**
@@ -153,7 +165,9 @@ final class Sponsors {
 			}
 		}
 
-		set_transient( $key, $map, 15 * MINUTE_IN_SECONDS );
+		// An errored fetch must not block category names for a quarter hour:
+		// negative-cache it briefly and retry.
+		set_transient( $key, $map, is_wp_error( $rows ) ? 2 * MINUTE_IN_SECONDS : 15 * MINUTE_IN_SECONDS );
 
 		return $map;
 	}
@@ -200,30 +214,31 @@ final class Sponsors {
 			}
 
 			$out[] = [
-				'id'                 => (int) $sponsor['id'],
-				'name'               => $name,
-				'url'                => self::first_url( $sponsor, [ 'url', 'website', 'website_url', 'link' ] ),
-				'link_title'         => self::first_string( $sponsor, [ 'link_title' ] ),
-				'logo_id'            => 0,
-				'logo_url'           => self::first_url( $sponsor, [ 'logo', 'logo_url', 'image' ] ),
-				'blurb'              => self::first_string( $sponsor, [ 'short_description', 'description', 'blurb', 'long_description' ] ),
-				'tier_name'          => '' !== $tier['name'] ? $tier['name'] : __( 'Partner', 'emailexpert-events' ),
-				'tier_order'         => $main ? 0 : $tier['order'],
-				'main'               => $main,
-				'sponsor_categories' => self::category_names( $sponsor, $map ),
-				'slug'               => sanitize_title( self::first_string( $sponsor, [ 'slug' ] ) ),
-				'hub_url'            => self::hub_url( $event_url, self::first_string( $sponsor, [ 'slug' ] ) ),
-				'banner'             => self::first_url( $sponsor, [ 'promo_banner', 'custom_promo_image_primary', 'page_header_graphic' ] ),
-				'long_blurb'         => self::first_html( $sponsor, [ 'long_description' ] ),
-				'video'              => [
+				'id'                   => (int) $sponsor['id'],
+				'name'                 => $name,
+				'url'                  => self::first_url( $sponsor, [ 'url', 'website', 'website_url', 'link' ] ),
+				'link_title'           => self::first_string( $sponsor, [ 'link_title' ] ),
+				'logo_id'              => 0,
+				'logo_url'             => self::first_url( $sponsor, [ 'logo', 'logo_url', 'image' ] ),
+				'blurb'                => self::first_string( $sponsor, [ 'short_description', 'description', 'blurb', 'long_description' ] ),
+				'tier_name'            => '' !== $tier['name'] ? $tier['name'] : __( 'Partner', 'emailexpert-events' ),
+				'tier_order'           => $main ? 0 : $tier['order'],
+				'main'                 => $main,
+				'sponsor_categories'   => self::category_names( $sponsor, $map ),
+				'sponsor_category_ids' => self::category_ids( $sponsor ),
+				'slug'                 => sanitize_title( self::first_string( $sponsor, [ 'slug' ] ) ),
+				'hub_url'              => self::hub_url( $event_url, self::first_string( $sponsor, [ 'slug' ] ) ),
+				'banner'               => self::first_url( $sponsor, [ 'promo_banner', 'custom_promo_image_primary', 'page_header_graphic' ] ),
+				'long_blurb'           => self::first_html( $sponsor, [ 'long_description' ] ),
+				'video'                => [
 					'type'     => strtolower( self::first_string( $sponsor, [ 'intro_source_type' ] ) ),
 					'id'       => self::first_string( $sponsor, [ 'intro_video_id' ] ),
 					'autoplay' => ! empty( $sponsor['intro_video_autoplay'] ),
 				],
-				'books_url'          => self::first_url( $sponsor, [ 'books_url' ] ),
-				'phone'              => self::first_string( $sponsor, [ 'phone_number' ] ),
-				'booth'              => ! empty( $sponsor['booth_enabled'] ),
-				'show'               => [
+				'books_url'            => self::first_url( $sponsor, [ 'books_url' ] ),
+				'phone'                => self::first_string( $sponsor, [ 'phone_number' ] ),
+				'booth'                => ! empty( $sponsor['booth_enabled'] ),
+				'show'                 => [
 					'landing'    => ! isset( $sponsor['show_on_landing_page'] ) || ! empty( $sponsor['show_on_landing_page'] ),
 					'talks'      => ! isset( $sponsor['show_on_talk_pages'] ) || ! empty( $sponsor['show_on_talk_pages'] ),
 					'categories' => ! isset( $sponsor['show_on_category_pages'] ) || ! empty( $sponsor['show_on_category_pages'] ),
@@ -232,7 +247,10 @@ final class Sponsors {
 			];
 		}
 
-		self::remember_categories( array_values( $map ) );
+		// The editor memory learns from the categories endpoint AND from the
+		// names resolved on rows — accounts whose categories endpoint is
+		// missing still get a working picker.
+		self::remember_categories( array_merge( array_values( $map ), ...array_map( static fn( array $row ): array => (array) $row['sponsor_categories'], $out ) ) );
 		self::remember_names( $out );
 
 		return $out;
@@ -331,6 +349,27 @@ final class Sponsors {
 		}
 
 		return $names;
+	}
+
+	/**
+	 * The sponsor's raw category IDs, whatever shape they arrive in —
+	 * filters accept an ID as well as a name.
+	 *
+	 * @param array<string,mixed> $row Raw row.
+	 * @return array<int,string>
+	 */
+	private static function category_ids( array $row ): array {
+		$ids = [];
+
+		foreach ( (array) ( $row['sponsor_categories'] ?? [] ) as $category ) {
+			if ( is_array( $category ) && isset( $category['id'] ) && is_scalar( $category['id'] ) ) {
+				$ids[] = (string) $category['id'];
+			} elseif ( is_scalar( $category ) && '' !== trim( (string) $category ) ) {
+				$ids[] = trim( (string) $category );
+			}
+		}
+
+		return array_values( array_unique( $ids ) );
 	}
 
 	/**

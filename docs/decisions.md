@@ -1657,3 +1657,30 @@ entries expire on their own TTLs. Anything still stale after an
 update is host/CDN page caching, outside the plugin. Sweep of the
 same class found replay_planned unmapped in sync — show_soon was a
 dead flag in Full mode; now synced as _eex_replay_soon.
+
+## D99. Sponsor category filters accept every identifier ever stored (v1.30.0)
+
+Field report: the sponsors wall's category picker "does not actually
+work, does not show all categories, shows cat IDs instead of names" —
+with a wall rendering its empty state under a heading while an
+unfiltered wall below showed everyone. Three causes compounded. The
+eex_sponsor_categories editor memory is append-only and was polluted
+with raw IDs by older builds that remembered unresolved values; it now
+drops bare-numeric entries on read (healing existing options in place)
+and never stores them again. The memory also only learned from the
+sponsor-categories endpoint — whose failures were cached as an empty
+map for 15 minutes, blocking names entirely; it now also learns from
+the names resolved on sponsor rows, and an errored fetch is
+negative-cached for two minutes. And the filter compared the stored
+value against names only, so an ID stored by an older dropdown (or a
+pasted one) could never match: sponsor_matches_category() now accepts
+a category name, a tier name or a raw category ID — display rows carry
+sponsor_category_ids for exactly this — shared by the wall and the
+spotlight so the two can never diverge.
+
+The rule this extends (D93's presentation classes, D94's self-
+diagnosis): every stored identifier an operator could plausibly have —
+including ones our own older builds put there — must keep working, and
+a filter that matches nothing must say so: an empty filtered wall now
+tells administrators the filter value and every category name the
+site knows.

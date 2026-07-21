@@ -3,6 +3,29 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.30.0
+- **Fixed (field-reported): the sponsor category filter "did not
+  actually work".** Three compounding causes: the editor dropdown had
+  been polluted with raw category IDs by older builds, new category
+  names could be blocked for 15 minutes by a failed categories fetch,
+  and the filter itself only matched names — so a stored ID matched
+  nothing and the wall showed its empty state. Now: the filter accepts
+  a category name, a tier name or a category ID (so every previously
+  stored value works); the dropdown memory drops numeric pollution on
+  read and also learns names straight from sponsor rows; and a failed
+  categories fetch is retried within two minutes instead of a quarter
+  hour.
+- **An empty category-filtered wall explains itself**: administrators
+  see an HTML comment naming the filter value and every category name
+  the site knows — on the wall and the sponsor spotlight alike.
+- **Every category picker now fills in Lite mode.** Session category
+  dropdowns (sessions, schedule, speakers, featured talks, replay
+  gallery, session filter) previously read taxonomy terms that only
+  exist in Full mode; category names are now remembered from live
+  fetches — the same pattern as event and ticket names — so custom
+  categories appear in every dropdown after any page using them has
+  rendered once.
+
 ## 1.29.0
 - **Fixed (field-reported): venue details showed nothing on some
   accounts.** HeySummit serialises the venue relation three different

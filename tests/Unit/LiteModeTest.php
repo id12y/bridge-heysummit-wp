@@ -2597,4 +2597,120 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'hidden by its hide_empty setting', $hidden );
 		$this->assertStringContainsString( 'no sponsors came back from the HeySummit API', $hidden, 'the diagnosis rides along' );
 	}
+
+	/**
+	 * The sponsor mock for category-filter tests: two categorised sponsors,
+	 * with the categories endpoint optionally failing (some accounts lack it).
+	 */
+	private function mock_sponsor_endpoints( bool $categories_fail = false ): void {
+		$this->mock_http(
+			static function ( $url ) use ( $categories_fail ) {
+				if ( str_contains( (string) $url, 'sponsor-categories/' ) ) {
+					if ( $categories_fail ) {
+						return self::json_response( [ 'detail' => 'Not found.' ], 404 );
+					}
+
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'    => 6708,
+									'title' => 'Gold',
+								],
+								[
+									'id'    => 6709,
+									'title' => 'Media Partners',
+								],
+							],
+						]
+					);
+				}
+
+				if ( str_contains( (string) $url, 'sponsors/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'                 => 1,
+									'title'              => 'Acme',
+									'sponsor_categories' => [ 6708 ],
+									'is_active'          => true,
+								],
+								[
+									'id'                 => 2,
+									'title'              => 'Beta Ltd',
+									'sponsor_categories' => [ 6709 ],
+									'is_active'          => true,
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+	}
+
+	public function test_sponsor_category_filter_matches_ids_names_and_explains_misses(): void {
+		$this->go_lite();
+		$this->mock_api();
+		$this->mock_sponsor_endpoints();
+
+		// By raw category ID — the value older widget settings stored.
+		$by_id = Components::render( 'sponsors', [ 'sponsor_category' => '6708' ] );
+		$this->assertStringContainsString( 'Acme', $by_id );
+		$this->assertStringNotContainsString( 'Beta Ltd', $by_id );
+
+		// By name, case-insensitive.
+		Cache::flush();
+		$by_name = Components::render( 'sponsors', [ 'sponsor_category' => 'gold' ] );
+		$this->assertStringContainsString( 'Acme', $by_name );
+		$this->assertStringNotContainsString( 'Beta Ltd', $by_name );
+
+		// A filter that matches nothing explains itself to administrators,
+		// naming the category names this site knows.
+		Cache::flush();
+		$miss = Components::render( 'sponsors', [ 'sponsor_category' => 'platinum' ] );
+		$this->assertStringContainsString( 'eex-empty', $miss );
+		$this->assertStringContainsString( 'matched no sponsors', $miss );
+		$this->assertStringContainsString( 'Gold, Media Partners', $miss );
+	}
+
+	public function test_sponsor_category_id_filter_works_without_the_categories_endpoint(): void {
+		$this->go_lite();
+		$this->mock_api();
+		$this->mock_sponsor_endpoints( true );
+
+		$html = Components::render( 'sponsors', [ 'sponsor_category' => '6708' ] );
+
+		$this->assertStringContainsString( 'Acme', $html, 'raw IDs match even when no names could be resolved' );
+		$this->assertStringNotContainsString( 'Beta Ltd', $html );
+	}
+
+	public function test_known_sponsor_categories_heal_numeric_pollution(): void {
+		update_option( 'eex_sponsor_categories', [ '6708', 'Gold', '42', 'Media Partners' ] );
+
+		$this->assertSame(
+			[ 'Gold', 'Media Partners' ],
+			\Emailexpert\Events\Data\Sponsors::known_categories(),
+			'IDs remembered by older builds never reach the editor dropdown'
+		);
+	}
+
+	public function test_lite_fetches_teach_the_category_picker(): void {
+		$this->go_lite();
+		$this->mock_api();
+
+		delete_option( 'eex_category_titles' );
+		Components::render( 'upcoming-sessions', [] );
+
+		$known = \Emailexpert\Events\Data\CategoryTitles::known();
+		$this->assertNotEmpty( $known, 'category names are remembered from live talk fetches' );
+
+		foreach ( $known as $slug => $name ) {
+			$this->assertFalse( ctype_digit( (string) $name ), 'no ID ever becomes a picker label' );
+			$this->assertSame( sanitize_title( $name ), (string) $slug, 'stored slugs match the filter values Lite uses' );
+		}
+	}
 }

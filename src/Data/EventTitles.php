@@ -48,6 +48,13 @@ final class EventTitles {
 	}
 
 	/**
+	 * Clear the per-request memo (tests; a real request never needs it).
+	 */
+	public static function reset_request_state(): void {
+		self::$seen = [];
+	}
+
+	/**
 	 * Every event title this site has seen (event ID => title).
 	 *
 	 * @return array<string,string>
