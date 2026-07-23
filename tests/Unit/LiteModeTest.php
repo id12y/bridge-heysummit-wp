@@ -1989,6 +1989,97 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'last complete result is being shown', $this->harvest_line(), 'the status row explains the truncation' );
 	}
 
+	public function test_a_version_upgrade_keeps_last_good_so_the_first_post_deploy_sweep_survives(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		// Same shape as the shallow-sweep test above: the sole upcoming
+		// session sits on page 20, past the front-end budget. The deep sweep
+		// caches it — then the site DEPLOYS A NEW PLUGIN VERSION. The upgrade
+		// flush used to bump the shared generation, orphaning the last-good
+		// tier too, so the first front-end visitor's shallow sweep found
+		// nothing upcoming and had nothing to fall back on: the homepage
+		// showed its empty state after every release until someone opened
+		// wp-admin. The upgrade flush must invalidate fresh copies only.
+		$this->mock_http(
+			function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				$rows = 20 === $page
+					? [ [ 'id' => 2000, 'title' => 'Upcoming keynote', 'date' => $future, 'event' => 101 ] ] // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+					: [ [ 'id' => 1000 + $page, 'title' => 'Old session ' . $page, 'date' => '2020-12-10T16:00:00Z', 'event' => 101 ] ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+				return self::json_response(
+					[
+						'count'   => 30,
+						'next'    => $page < 30 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'results' => $rows,
+					]
+				);
+			}
+		);
+
+		add_filter( 'eex_live_max_pages', static fn(): int => 40 );
+		$deep = array_map( static fn( array $t ): string => (string) $t['title'], Repositories::current()->upcoming_talks( [] ) );
+		$this->assertSame( [ 'Upcoming keynote' ], $deep, 'the deep sweep seeds the cache' );
+
+		// Deploy: new plugin files, stored version behind, Upgrade::check()
+		// runs on the next load.
+		Options::update_settings( [ 'version' => '0.0.1' ] );
+		\Emailexpert\Events\Install\Upgrade::check();
+		$this->assertSame( EEX_VERSION, Options::setting( 'version' ), 'the upgrade ran' );
+
+		LiveCache::reset_request_state();
+		Repositories::reset();
+
+		// First post-deploy render: a front-end visitor at the shallow budget.
+		remove_all_filters( 'eex_live_max_pages' );
+		add_filter( 'eex_live_max_pages', static fn(): int => 12 );
+
+		$shallow = array_map( static fn( array $t ): string => (string) $t['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		$this->assertSame( [ 'Upcoming keynote' ], $shallow, 'the post-deploy shallow sweep serves the preserved last-good copy, not the empty state' );
+	}
+
+	public function test_soft_flush_invalidates_fresh_copies_but_keeps_last_good(): void {
+		$this->go_lite();
+
+		LiveCache::remember( 'talks|c1|101', static fn(): array => [ 'seeded' ] );
+
+		LiveCache::flush( true );
+		LiveCache::reset_request_state();
+
+		// The fresh copy is gone: a working fetch runs again and wins...
+		$this->assertSame( [ 'refetched' ], LiveCache::remember( 'talks|c1|101', static fn(): array => [ 'refetched' ] ), 'soft flush invalidates the fresh tier' );
+
+		LiveCache::flush( true );
+		LiveCache::reset_request_state();
+
+		// ...and when the refetch fails, the last-good copy still answers.
+		$this->assertSame( [ 'refetched' ], LiveCache::remember( 'talks|c1|101', static fn() => new \WP_Error( 'down', 'API down' ) ), 'soft flush preserves the last-good tier' );
+		$this->assertSame( [ 'refetched' ], LiveCache::peek_good( 'talks|c1|101' ), 'the truncated-sweep guard can still peek at it' );
+	}
+
+	public function test_hard_flush_still_drops_both_tiers(): void {
+		$this->go_lite();
+
+		LiveCache::remember( 'talks|c1|101', static fn(): array => [ 'seeded' ] );
+
+		LiveCache::flush();
+		LiveCache::reset_request_state();
+
+		$this->assertNull( LiveCache::peek_good( 'talks|c1|101' ), 'the operator flush button erases last-good too' );
+		$this->assertNull( LiveCache::remember( 'talks|c1|101', static fn() => new \WP_Error( 'down', 'API down' ) ), 'nothing survives a hard flush' );
+	}
+
 	/**
 	 * The harvest account line for the sole configured event, for assertions.
 	 */

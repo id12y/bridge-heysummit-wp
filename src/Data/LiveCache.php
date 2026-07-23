@@ -24,8 +24,9 @@ final class LiveCache {
 
 	public const COLD_BUDGET = 2;
 
-	private const GENERATION  = 'eex_live_generation';
-	private const LOCK_WINDOW = 30;
+	private const GENERATION      = 'eex_live_generation';
+	private const GOOD_GENERATION = 'eex_live_good_generation';
+	private const LOCK_WINDOW     = 30;
 
 	/**
 	 * Cold fetches performed during this request.
@@ -97,10 +98,24 @@ final class LiveCache {
 	}
 
 	/**
-	 * Flush every live transient at once (generation bump: O(1); orphaned
+	 * Flush the live transients at once (generation bump: O(1); orphaned
 	 * rows expire by their own TTL). Also resets the request budget.
+	 *
+	 * Each tier has its own generation counter. A hard flush (default) bumps
+	 * both — nothing survives; the operator's "flush live cache" button and
+	 * connection changes need that. A soft flush bumps only the fresh tier:
+	 * new code refetches promptly, but the last-good copies stay readable so
+	 * the truncated-sweep guard has something to defer to on the first
+	 * post-deploy render — otherwise every version bump opens a window where
+	 * a shallow front-end sweep can publish an empty homepage.
+	 *
+	 * @param bool $keep_good Preserve the last-good tier (soft flush).
 	 */
-	public static function flush(): void {
+	public static function flush( bool $keep_good = false ): void {
+		// Materialise the good-tier counter before the fresh bump moves its
+		// fallback: entries written before the tiers split were keyed by the
+		// shared counter, and adopting its current value keeps them readable.
+		update_option( self::GOOD_GENERATION, self::good_generation() + ( $keep_good ? 0 : 1 ), false );
 		update_option( self::GENERATION, (int) get_option( self::GENERATION, 0 ) + 1, false );
 		delete_transient( 'eex_live_status' );
 		self::reset_request_state();
@@ -247,12 +262,29 @@ final class LiveCache {
 	}
 
 	/**
-	 * Build a generation-scoped transient key.
+	 * The last-good tier's generation. Sites upgraded from builds where both
+	 * tiers shared one counter have no good-tier option yet; adopting the
+	 * shared counter's value keeps their existing last-good entries readable
+	 * across that first upgrade instead of orphaning them.
+	 */
+	private static function good_generation(): int {
+		$generation = get_option( self::GOOD_GENERATION, false );
+
+		return false === $generation
+			? (int) get_option( self::GENERATION, 0 )
+			: (int) $generation;
+	}
+
+	/**
+	 * Build a generation-scoped transient key (each tier has its own
+	 * counter so a soft flush can invalidate one without the other).
 	 *
 	 * @param string $prefix 'live' or 'lg'.
 	 * @param string $key    Resource key.
 	 */
 	private static function key( string $prefix, string $key ): string {
-		return 'eex_' . $prefix . '_' . md5( $key . '|' . (int) get_option( self::GENERATION, 0 ) );
+		$generation = 'lg' === $prefix ? self::good_generation() : (int) get_option( self::GENERATION, 0 );
+
+		return 'eex_' . $prefix . '_' . md5( $key . '|' . $generation );
 	}
 }

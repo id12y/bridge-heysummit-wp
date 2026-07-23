@@ -3,6 +3,20 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.32.0
+- **Fixed (field-reported): the homepage session widget could show its
+  empty state right after a plugin update.** Every version change
+  flushed the entire live cache, including the 24-hour last-good
+  copies — so the first visitor after a deploy triggered a shallow
+  budget-capped re-sweep with nothing to fall back on, and on large
+  events whose upcoming sessions sit on middle pages the widget
+  rendered "New sessions are announced soon" until someone opened
+  wp-admin. The upgrade flush is now soft: fresh copies are
+  invalidated (the new build refetches promptly) but the last-good
+  tier survives, so pages keep showing the last complete data through
+  a deploy. The Settings-page **Flush live cache** button still wipes
+  everything, deliberately.
+
 ## 1.31.0
 - **Pickers fill themselves in the editor.** Empty sponsor-category and
   ticket dropdowns now fetch their names from your configured events
