@@ -3,6 +3,28 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.33.0
+- **Fixed (field-reported): every upcoming session vanished after a
+  session without a date was added on HeySummit.** On oldest-first
+  accounts the newest sessions live on the last pages, and the sweep
+  walks backwards from the end to find them — but a session saved with
+  no date sorts to the very end, made the last page date-less, and the
+  walk read that one page and stopped, concluding everything further
+  back was older. Date-less pages are now treated as inconclusive: the
+  walk carries on past them and stops only at a page whose dated
+  sessions are all in the past. The Live status harvest line showed
+  the whole story (pages read, per-page date spans, HeySummit's own
+  first/last session dates) — worth a look whenever a widget surprises.
+- **A truncated sweep can no longer make "next session" jump to the
+  far future.** A budget-capped backwards walk reads the far end of
+  the collection first, so its partial result can know a 2029 session
+  but not next week's. The cached last-good copy now wins whenever it
+  carries a sooner upcoming session than the partial; only a complete
+  sweep replaces it outright (so sessions cancelled on HeySummit still
+  drop out).
+- The unordered-collection fallback sweep now reads high pages first —
+  both production failure shapes kept recent content near the end.
+
 ## 1.32.0
 - **Fixed (field-reported): the homepage session widget could show its
   empty state right after a plugin update.** Every version change
