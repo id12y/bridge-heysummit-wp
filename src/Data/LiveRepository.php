@@ -989,6 +989,45 @@ class LiveRepository extends BaseMapper implements Repository {
 					return false;
 				};
 
+				// Whether any row on a page carries a date at all. A page of
+				// undated rows says nothing about where it sits in time — on
+				// production, one session saved without a date sorted to the
+				// collection's last page and made it date-less, and treating
+				// that as "everything further back is older" stopped the
+				// backwards walk one page in, hiding every upcoming session.
+				$dated = static function ( array $rows ): bool {
+					foreach ( $rows as $row ) {
+						foreach ( [ 'starts_at', 'date' ] as $field ) {
+							if ( isset( $row[ $field ] ) && is_string( $row[ $field ] ) && '' !== $row[ $field ] ) {
+								return true;
+							}
+						}
+					}
+
+					return false;
+				};
+
+				// The soonest upcoming start in a collection (PHP_INT_MAX when
+				// none): lets a truncated sweep's result be compared against
+				// the last-good copy so partial data never replaces better.
+				$nearest_future = static function ( array $rows ) use ( $now ): int {
+					$best = PHP_INT_MAX;
+
+					foreach ( $rows as $row ) {
+						foreach ( [ 'starts_at', 'date' ] as $field ) {
+							if ( isset( $row[ $field ] ) && is_string( $row[ $field ] ) && '' !== $row[ $field ] ) {
+								$start = (int) strtotime( $row[ $field ] );
+
+								if ( $start >= $now && $start < $best ) {
+									$best = $start;
+								}
+							}
+						}
+					}
+
+					return $best;
+				};
+
 				// A wall-clock stop for the whole harvest: a slow API must
 				// degrade to partial data, never hang the page.
 				$deadline = microtime( true ) + max(
@@ -1014,7 +1053,7 @@ class LiveRepository extends BaseMapper implements Repository {
 				// matter how much history the summit has. Every page read or
 				// failed is recorded so the Live status row can show the
 				// harvest instead of leaving the operator guessing.
-				$harvest = static function ( string $path, array $args ) use ( $client, $options, $normalise, $has_future, $budget, $deadline, &$meta ) {
+				$harvest = static function ( string $path, array $args ) use ( $client, $options, $normalise, $has_future, $dated, $budget, $deadline, &$meta ) {
 					$meta = [
 						'count'  => 0,
 						'pages'  => 1,
@@ -1181,7 +1220,11 @@ class LiveRepository extends BaseMapper implements Repository {
 						$collected     = array_merge( $collected, $page_rows );
 						$seen[ $page ] = true;
 
-						if ( ! $has_future( $page_rows ) ) {
+						// Only a page that HAS dates and none in the future
+						// proves the walk has passed today — a date-less page
+						// (undated sessions sort to the end) is inconclusive
+						// and the walk must carry on past it.
+						if ( $dated( $page_rows ) && ! $has_future( $page_rows ) ) {
 							break; // Everything from here back is older still.
 						}
 					}
@@ -1202,7 +1245,7 @@ class LiveRepository extends BaseMapper implements Repository {
 							$collected     = array_merge( $collected, $page_rows );
 							$seen[ $page ] = true;
 
-							if ( ! $has_future( $page_rows ) ) {
+							if ( $dated( $page_rows ) && ! $has_future( $page_rows ) ) {
 								break;
 							}
 						}
@@ -1212,10 +1255,12 @@ class LiveRepository extends BaseMapper implements Repository {
 					// more rows than were read? The list may not be ordered
 					// by date at all — upcoming sessions scattered through
 					// the middle pages. Sweep the rest within budget and
-					// deadline; with the admin budget this reads the whole
-					// collection once per cache lifetime.
+					// deadline, high pages first (both failure shapes seen
+					// on production kept recent content near the end); with
+					// the admin budget this reads the whole collection once
+					// per cache lifetime.
 					if ( ! $echoed && ! $has_future( $collected ) && count( $collected ) < (int) $meta['count'] ) {
-						for ( $page = 2; $page <= $last && $fetched < $budget; $page++ ) {
+						for ( $page = $last; $page >= 2 && $fetched < $budget; $page-- ) {
 							if ( microtime( true ) >= $deadline ) {
 								break;
 							}
@@ -1279,21 +1324,24 @@ class LiveRepository extends BaseMapper implements Repository {
 					if ( ! empty( $results ) && $usable( $results ) ) {
 						\Emailexpert\Events\Api\PathStyles::remember( $conn_id, 'talks', $style );
 
-						// A budget- or deadline-truncated sweep that surfaced
-						// nothing upcoming is not authoritative: on accounts whose
-						// talks are not ordered by date, the upcoming sessions sit
-						// on pages this sweep never reached (production event
-						// 181590: 273 sessions over 28 pages, the newest NOT last).
-						// Caching that partial as last-good is exactly what let a
-						// front-end sweep — capped at 12 pages — blank the very
-						// sessions a deeper admin-budget sweep had found, until the
-						// next Flush live cache. Prefer the last-good collection
-						// while it still carries upcoming sessions, so a shallow
-						// sweep can only preserve them, never erase them.
-						if ( empty( $meta['complete'] ) && ! $has_future( $results ) ) {
+						// A budget- or deadline-truncated sweep is not
+						// authoritative: the upcoming sessions may sit on pages it
+						// never reached (production event 181590: 274 sessions over
+						// 28 pages). Caching a partial as last-good is exactly what
+						// let a front-end sweep — capped at 12 pages — blank the
+						// very sessions a deeper admin-budget sweep had found. And
+						// a truncated backwards walk collects the FAR end of the
+						// collection first, so its "nearest upcoming" can be a 2029
+						// session while next week's sits on an unread page. Prefer
+						// the last-good collection whenever it knows a SOONER
+						// upcoming session than the partial does — a truncated
+						// sweep can improve on the cache, never degrade it. (A
+						// complete sweep always wins: sessions cancelled on
+						// HeySummit must drop out.)
+						if ( empty( $meta['complete'] ) ) {
 							$previous = LiveCache::peek_good( 'talks|' . $conn_id . '|' . $event_hs_id );
 
-							if ( is_array( $previous ) && $has_future( $previous ) ) {
+							if ( is_array( $previous ) && $has_future( $previous ) && $nearest_future( $previous ) < $nearest_future( $results ) ) {
 								$meta['style']  = $style;
 								$meta['served'] = 'last-good';
 								set_transient( self::harvest_key( $conn_id . '|' . $event_hs_id ), $meta, DAY_IN_SECONDS );

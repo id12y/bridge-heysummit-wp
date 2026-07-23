@@ -1715,3 +1715,37 @@ front end populated — destroying last-good data is reserved for a
 human explicitly asking for it. This also answers the earlier field
 comment that "flushing cache every plugin update doesn't feel
 production": the update flush now costs visitors nothing visible.
+
+## D101. A date-less page is inconclusive, and partial data never outranks better (v1.33.0)
+
+Field report, one day after D100: "definitely do have events in the
+future" — homepage empty, and this time the pasted Live status line
+held the entire story. Event 181590's collection is ordered oldest-
+first: 16 pages of 2020–2025 history, upcoming sessions to 2029 on the
+tail pages. The backwards walk exists precisely for that shape — but
+the day before, a session had been saved on HeySummit with no date.
+Undated rows sort to the end of the collection, the last page became
+date-less, and the walk's stop rule ("no future dates on this page ⇒
+everything further back is older") read that single page and gave up.
+The fallback front-to-back sweep then spent the whole 25-second
+deadline reading 2020–2024 history and never reached page 17. The
+count going 273→274 while everything broke was the tell.
+
+Two rules replace the one that failed. A walk may stop only at a page
+whose DATED sessions are all past — a page with no dates at all says
+nothing about where it sits in time and the walk carries on past it.
+And D89's guard graduates from "don't cache empty over data" to a
+nearest-session comparison: a truncated backwards walk reads the far
+end first, so its partial can know a 2029 session but not next
+week's; the last-good copy now wins whenever it carries a SOONER
+upcoming session than the incomplete sweep found. A complete sweep
+still replaces the cache unconditionally — cancellations must drop
+out. The unordered-collection fallback sweep also flips to read high
+pages first, since both production failure shapes kept recent content
+near the end.
+
+The meta-lesson repeats D89's: every stop rule in the harvest is a
+claim about collection ordering, and each one must state what evidence
+justifies it. "Absence of future dates" was read as "past" when it
+sometimes means "no date yet" — the cheapest data entry on HeySummit's
+side (a draft session) was enough to falsify the claim.

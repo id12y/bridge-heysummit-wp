@@ -1929,25 +1929,25 @@ final class LiteModeTest extends TestCase {
 				preg_match( '/[?&]page=(\d+)/', $url, $m );
 				$page = isset( $m[1] ) ? (int) $m[1] : 1;
 
-				// The one upcoming session is on page 20: beyond the 12-page
+				// The one upcoming session is on page 30: beyond the 12-page
 				// front-end budget, within the 40-page admin budget. Both ends
 				// (pages 1 and 30) and everything the shallow sweep can reach
 				// are old.
-				$rows = 20 === $page
+				$rows = 30 === $page
 					? [ [ 'id' => 2000, 'title' => 'Upcoming keynote', 'date' => $future, 'event' => 101 ] ] // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 					: [ [ 'id' => 1000 + $page, 'title' => 'Old session ' . $page, 'date' => '2020-12-10T16:00:00Z', 'event' => 101 ] ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 
 				return self::json_response(
 					[
-						'count'   => 30,
-						'next'    => $page < 30 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'count'   => 60,
+						'next'    => $page < 60 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
 						'results' => $rows,
 					]
 				);
 			}
 		);
 
-		// The deep sweep reaches page 20 and caches the upcoming session as
+		// The deep sweep reaches page 30 and caches the upcoming session as
 		// both the fresh and the 24-hour last-good copy.
 		add_filter( 'eex_live_max_pages', static fn(): int => 40 );
 
@@ -1970,7 +1970,7 @@ final class LiteModeTest extends TestCase {
 
 		$shallow = array_map( static fn( array $t ): string => (string) $t['title'], Repositories::current()->upcoming_talks( [] ) );
 
-		// The shallow sweep never reached page 20...
+		// The shallow sweep never reached page 30...
 		$reached = array_map(
 			static function ( string $url ): int {
 				preg_match( '/[?&]page=(\d+)/', $url, $m );
@@ -1979,7 +1979,7 @@ final class LiteModeTest extends TestCase {
 			},
 			$this->requests
 		);
-		$this->assertNotContains( 20, $reached, 'the shallow sweep is budget-capped before page 20' );
+		$this->assertNotContains( 30, $reached, 'the shallow sweep is budget-capped before page 30' );
 
 		// ...yet the upcoming session still shows, served from last-good.
 		$this->assertSame( [ 'Upcoming keynote' ], $shallow, 'the shallow sweep preserves the cached upcoming session instead of blanking it' );
@@ -1989,13 +1989,126 @@ final class LiteModeTest extends TestCase {
 		$this->assertStringContainsString( 'last complete result is being shown', $this->harvest_line(), 'the status row explains the truncation' );
 	}
 
+	public function test_an_undated_last_page_does_not_stop_the_backwards_walk(): void {
+		$this->go_lite();
+
+		// Production incident, 2026-07-23: the collection is ordered oldest-
+		// first (28 pages of history, upcoming sessions on the tail pages),
+		// and one session saved on HeySummit WITHOUT a date sorted to the
+		// very end — making the last page date-less. The backwards walk read
+		// that one page, concluded "nothing future here, everything further
+		// back is older", and stopped: every genuinely upcoming session on
+		// pages 17–27 vanished from the homepage. A date-less page must be
+		// treated as inconclusive, and the walk must carry on past it.
+		$this->mock_http(
+			function ( $url ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				if ( 28 === $page ) {
+					// The tail: undated sessions only.
+					$rows = [ [ 'id' => 4000, 'title' => 'Draft session, no date yet', 'event' => 101 ] ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				} elseif ( $page >= 17 ) {
+					// Pages 17–27: the upcoming sessions, soonest on page 17.
+					$rows = [ [ 'id' => 3000 + $page, 'title' => 'Upcoming ' . $page, 'date' => gmdate( 'Y-m-d\TH:i:s\Z', time() + ( $page - 16 ) * DAY_IN_SECONDS ), 'event' => 101 ] ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				} else {
+					// Pages 1–16: years of history.
+					$rows = [ [ 'id' => 1000 + $page, 'title' => 'Old session ' . $page, 'date' => '2020-12-10T16:00:00Z', 'event' => 101 ] ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				return self::json_response(
+					[
+						'count'   => 28,
+						'next'    => $page < 28 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'results' => $rows,
+					]
+				);
+			}
+		);
+
+		// Near the front-end budget, totally cold cache: page 1, the undated
+		// tail, then the eleven upcoming pages = 13 fetches. The walk must
+		// read the whole future tail and stop only at the first all-past page.
+		add_filter( 'eex_live_max_pages', static fn(): int => 13 );
+
+		$titles = array_map( static fn( array $t ): string => (string) $t['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		$this->assertNotEmpty( $titles, 'the backwards walk carries on past the date-less tail page' );
+		$this->assertSame( 'Upcoming 17', $titles[0], 'the soonest upcoming session leads' );
+		$this->assertCount( 11, $titles, 'every upcoming session on the tail pages is collected' );
+	}
+
+	public function test_a_truncated_sweep_never_replaces_a_sooner_upcoming_session_with_a_farther_one(): void {
+		$this->go_lite();
+
+		$tomorrow = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		// The good tier knows tomorrow's session (a deep sweep found it).
+		LiveCache::remember(
+			'talks|c1|101',
+			static fn(): array => [ [ 'id' => 5000, 'title' => 'Tomorrow keynote', 'date' => $tomorrow, 'event' => 101 ] ] // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		);
+
+		// Fresh copies expire; the last-good tier (eex_lg_*) survives.
+		foreach ( array_keys( \EEX_Test_State::$transients ) as $key ) {
+			if ( str_starts_with( (string) $key, 'eex_live_' ) ) {
+				unset( \EEX_Test_State::$transients[ $key ] );
+			}
+		}
+		LiveCache::reset_request_state();
+		Repositories::reset();
+
+		// The re-sweep is truncated and only reaches FAR-future sessions: a
+		// backwards walk reads the far end of an oldest-first collection
+		// first, so a budget-capped walk can surface a 2029 session while
+		// next week's sits on an unread page. Serving that partial would
+		// flip the homepage from "next session tomorrow" to "next session
+		// in 2029" — the last-good copy with the sooner session must win.
+		$this->mock_http(
+			function ( $url ) {
+				$url = (string) $url;
+
+				if ( ! str_contains( $url, 'talks/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				preg_match( '/[?&]page=(\d+)/', $url, $m );
+				$page = isset( $m[1] ) ? (int) $m[1] : 1;
+
+				$rows = $page >= 50
+					? [ [ 'id' => 6000 + $page, 'title' => 'Far future ' . $page, 'date' => gmdate( 'Y-m-d\TH:i:s\Z', time() + 3 * YEAR_IN_SECONDS ), 'event' => 101 ] ] // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+					: [ [ 'id' => 1000 + $page, 'title' => 'Old session ' . $page, 'date' => '2020-12-10T16:00:00Z', 'event' => 101 ] ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+				return self::json_response(
+					[
+						'count'   => 60,
+						'next'    => $page < 60 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'results' => $rows,
+					]
+				);
+			}
+		);
+
+		add_filter( 'eex_live_max_pages', static fn(): int => 12 );
+
+		$titles = array_map( static fn( array $t ): string => (string) $t['title'], Repositories::current()->upcoming_talks( [] ) );
+
+		$this->assertSame( [ 'Tomorrow keynote' ], $titles, 'the sooner last-good session outranks the truncated far-future partial' );
+	}
+
 	public function test_a_version_upgrade_keeps_last_good_so_the_first_post_deploy_sweep_survives(): void {
 		$this->go_lite();
 
 		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
 
 		// Same shape as the shallow-sweep test above: the sole upcoming
-		// session sits on page 20, past the front-end budget. The deep sweep
+		// session sits on page 30, past the front-end budget. The deep sweep
 		// caches it — then the site DEPLOYS A NEW PLUGIN VERSION. The upgrade
 		// flush used to bump the shared generation, orphaning the last-good
 		// tier too, so the first front-end visitor's shallow sweep found
@@ -2013,14 +2126,14 @@ final class LiteModeTest extends TestCase {
 				preg_match( '/[?&]page=(\d+)/', $url, $m );
 				$page = isset( $m[1] ) ? (int) $m[1] : 1;
 
-				$rows = 20 === $page
+				$rows = 30 === $page
 					? [ [ 'id' => 2000, 'title' => 'Upcoming keynote', 'date' => $future, 'event' => 101 ] ] // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 					: [ [ 'id' => 1000 + $page, 'title' => 'Old session ' . $page, 'date' => '2020-12-10T16:00:00Z', 'event' => 101 ] ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 
 				return self::json_response(
 					[
-						'count'   => 30,
-						'next'    => $page < 30 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
+						'count'   => 60,
+						'next'    => $page < 60 ? \Emailexpert\Events\Api\HeySummitClient::BASE_URL . 'events/101/talks/?page=' . ( $page + 1 ) : null,
 						'results' => $rows,
 					]
 				);
