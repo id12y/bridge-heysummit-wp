@@ -1684,3 +1684,34 @@ including ones our own older builds put there — must keep working, and
 a filter that matches nothing must say so: an empty filtered wall now
 tells administrators the filter value and every category name the
 site knows.
+
+## D100. The upgrade flush keeps the last-good tier (v1.32.0)
+
+Field report, minutes after a day of rapid releases: "something
+happened, now our homepage widget shows next session soon — something
+broke". Nothing was broken in the new code; the deploys themselves
+were the trigger. Upgrade::check() flushed the live cache on every
+version change by bumping the single generation counter both cache
+tiers were keyed by — erasing the fresh copies *and* the 24-hour
+last-good copies in one move. That reopened, on every release, the
+exact cold-start window D89 closed: the first post-deploy visitor
+runs the shallow front-end sweep (12 pages, 8 s), on event 181590 the
+upcoming sessions sit on middle pages past that budget, the D89 guard
+reaches for peek_good() and finds nothing, and the homepage publishes
+its empty state until an admin page view runs the deep sweep.
+
+The tiers now have separate generation counters. flush() takes a
+$keep_good flag: hard (default — the operator's Flush button,
+activation, connection changes) bumps both; soft (Upgrade::check())
+bumps only the fresh tier, so a deploy forces a prompt refetch under
+the new code while the last complete result keeps answering until it
+succeeds. Sites upgrading from single-counter builds adopt the shared
+counter's value as the good tier's starting point, so even the deploy
+that ships this fix keeps its existing last-good entries readable.
+
+The rule: a cache invalidation triggered by routine operations
+(deploys, cron, TTLs) must never discard the only copy that keeps the
+front end populated — destroying last-good data is reserved for a
+human explicitly asking for it. This also answers the earlier field
+comment that "flushing cache every plugin update doesn't feel
+production": the update flush now costs visitors nothing visible.

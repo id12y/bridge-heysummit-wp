@@ -23,6 +23,11 @@ final class Upgrade {
 
 	/**
 	 * Flush the display and live caches once per version change.
+	 *
+	 * The live flush is soft: fresh copies are invalidated so the new build
+	 * refetches promptly, but the last-good tier survives — a deploy must
+	 * not leave the first visitor's shallow sweep with nothing to fall back
+	 * on, or the homepage flashes its empty state after every update.
 	 */
 	public static function check(): void {
 		if ( (string) Options::setting( 'version' ) === EEX_VERSION ) {
@@ -30,7 +35,7 @@ final class Upgrade {
 		}
 
 		\Emailexpert\Events\Frontend\Cache::flush();
-		\Emailexpert\Events\Data\LiveCache::flush();
+		\Emailexpert\Events\Data\LiveCache::flush( true );
 
 		Options::update_settings( [ 'version' => EEX_VERSION ] );
 	}
