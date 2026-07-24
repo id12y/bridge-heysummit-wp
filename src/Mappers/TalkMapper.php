@@ -54,6 +54,7 @@ final class TalkMapper extends BaseMapper {
 			'starts_at'       => self::datetime( $raw, [ 'starts_at', 'date', 'start_time', 'start_date', 'scheduled_at' ], $event_timezone ),
 			'ends_at'         => self::datetime( $raw, [ 'ends_at', 'end_time', 'end_date' ], $event_timezone ),
 			'talk_url'        => self::url_str( $raw, [ 'talk_url', 'url', 'public_url' ] ),
+			'external_url'    => self::url_str( $raw, [ 'external_url' ] ),
 			'replay_url'      => self::url_str( $raw, [ 'replay_url', 'recording_url', 'video_url' ] ),
 			'replay_soon'     => ! empty( $raw['replay_planned'] ),
 			'venue'           => self::venue_of( $raw ),

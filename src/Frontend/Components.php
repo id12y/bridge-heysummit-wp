@@ -1276,9 +1276,19 @@ final class Components {
 			&& '' !== trim( $html )
 			&& function_exists( 'current_user_can' )
 			&& current_user_can( 'manage_options' ) ) {
+			$reason = '' !== trim( (string) ( $atts['register_url'] ?? '' ) )
+				? __( 'this widget has an external ticketing URL, so registration happens there — the in-place RSVP form only registers HeySummit free tickets', 'emailexpert-events' )
+				: __( 'no free ticket was found for the event (check the widget\'s ticket filters too) — the RSVP form can only register free tickets; paid and external tickets check out where they are sold', 'emailexpert-events' );
+
 			return sprintf(
 				'<p class="eex-admin-note">%s</p>',
-				esc_html__( 'Visible to administrators only: this widget is set to "RSVP form", but no free ticket was found for the event (check the widget\'s ticket filters too), so the button follows the ticket link instead. The RSVP form can only register free tickets — paid tickets check out on the platform.', 'emailexpert-events' )
+				esc_html(
+					sprintf(
+						/* translators: %s: the reason the form did not render. */
+						__( 'Visible to administrators only: this widget is set to "RSVP form", but %s. The button follows the relevant link instead.', 'emailexpert-events' ),
+						$reason
+					)
+				)
 			);
 		}
 
@@ -1477,6 +1487,9 @@ final class Components {
 			'starts_at'     => (string) get_post_meta( $post_id, '_eex_starts_at', true ),
 			'ends_at'       => (string) get_post_meta( $post_id, '_eex_ends_at', true ),
 			'talk_url'      => Utm::tag( (string) get_post_meta( $post_id, '_eex_talk_url', true ) ),
+			// Externally ticketed sessions replace both CTAs' destinations
+			// (and never offer the in-place RSVP form) — same as Lite.
+			'external_url'  => Utm::tag( (string) get_post_meta( $post_id, '_eex_external_url', true ) ),
 			'replay_url'    => $replay,
 			'replay_soon'   => (bool) get_post_meta( $post_id, '_eex_replay_soon', true ),
 			'venue'         => (string) get_post_meta( $post_id, '_eex_talk_venue', true ),
@@ -1971,6 +1984,15 @@ final class Components {
 	 */
 	private static function rsvp_context( array $atts ): array {
 		if ( 'form' !== (string) ( $atts['register_action'] ?? 'link' ) ) {
+			return [];
+		}
+
+		// An external-ticketing override means registration does not happen
+		// on HeySummit at all — the in-place form would register the
+		// visitor on a HeySummit free ticket for an event sold elsewhere.
+		// Same rule as paid tickets: follow the link. (Sessions carrying
+		// their own external_url are excluded per card in the templates.)
+		if ( '' !== trim( (string) ( $atts['register_url'] ?? '' ) ) ) {
 			return [];
 		}
 

@@ -2019,6 +2019,51 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( '>RSVP<', $html, 'the form submit is labelled RSVP' );
 	}
 
+	public function test_an_externally_ticketed_session_never_gets_the_rsvp_form(): void {
+		$this->make_linked_talk();
+
+		// A second session sold elsewhere: external_url set on the talk.
+		$external_id = $this->make_talk( 'External workshop', 7200 );
+		update_post_meta( $external_id, '_eex_source_event_id', '101' );
+		update_post_meta( $external_id, '_eex_heysummit_id', '888' );
+		update_post_meta( $external_id, '_eex_external_url', 'https://tickets.example.com/workshop/' );
+
+		update_option( 'eex_connections', [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'upcoming-sessions',
+			[
+				'register_action' => 'form',
+				'event'           => '101',
+			]
+		);
+
+		// The HeySummit session keeps its form; the external one links out.
+		$this->assertStringContainsString( 'name="talk" value="777"', $html, 'the HeySummit session still offers the in-place RSVP' );
+		$this->assertStringNotContainsString( 'name="talk" value="888"', $html, 'no form ever registers the externally ticketed session' );
+		$this->assertStringContainsString( 'https://tickets.example.com/workshop/', $html, 'the external session links to its own ticketing' );
+	}
+
+	public function test_an_external_ticketing_override_disables_the_rsvp_form_and_says_why(): void {
+		$this->make_linked_talk();
+		update_option( 'eex_connections', [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'featured-session',
+			[
+				'register_action' => 'form',
+				'event'           => '101',
+				'register_url'    => 'https://tickets.example.com/forum/',
+			]
+		);
+
+		$this->assertStringNotContainsString( 'data-eex-reg-toggle', $html, 'external ticketing means no in-place form' );
+		$this->assertStringContainsString( 'https://tickets.example.com/forum/', $html, 'the CTA follows the external URL' );
+		$this->assertStringContainsString( 'external ticketing URL', $html, 'admins learn why the form did not render' );
+	}
+
 	public function test_register_form_mode_falls_back_to_the_link_and_tells_admins_why(): void {
 		$this->make_linked_talk();
 		update_option( 'eex_connections', [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound

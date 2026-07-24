@@ -3,6 +3,17 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.36.1
+- **Fixed (field-reported): externally ticketed sessions never offer
+  the quick RSVP form.** A session carrying its own external URL (or a
+  widget with the external-ticketing override) is sold elsewhere — the
+  in-place form would have registered visitors onto a HeySummit free
+  ticket for it. Such sessions now behave like paid tickets: the
+  button follows the external link, per session, so other sessions in
+  the same widget keep their forms. Full mode also gains the
+  external_url mapping (synced, displayed, and honoured by both CTAs)
+  that previously existed only in Lite.
+
 ## 1.36.0
 - **GDPR-correct registration forms.** The single bundled checkbox
   becomes unbundled choices: a required disclosure that names the free

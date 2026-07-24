@@ -38,7 +38,11 @@ $eex_venue   = ! empty( $eex_show['venue'] ) ? (string) ( $eex_data['venue'] ?? 
 $eex_address = (array) ( $args['address'] ?? [] );
 $eex_link    = (string) ( ( $eex_data['permalink'] ?? '' ) ?: ( $eex_data['talk_url'] ?? '' ) );
 
-$eex_rsvp      = (array) ( $args['rsvp'] ?? [] );
+$eex_rsvp = (array) ( $args['rsvp'] ?? [] );
+if ( '' !== (string) ( $eex_data['external_url'] ?? '' ) ) {
+	// Externally ticketed session: link out, never the in-place form.
+	$eex_rsvp = [];
+}
 $eex_drawer_id = (string) ( $args['drawer'] ?? '' );
 
 $eex_register_text = (string) ( $args['register_text'] ?? '' );

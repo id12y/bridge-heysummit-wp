@@ -200,6 +200,7 @@ final class Upserter {
 					'_eex_starts_at'         => (string) ( $mapped['starts_at'] ?? '' ),
 					'_eex_ends_at'           => (string) ( $mapped['ends_at'] ?? '' ),
 					'_eex_talk_url'          => (string) ( $mapped['talk_url'] ?? '' ),
+					'_eex_external_url'      => (string) ( $mapped['external_url'] ?? '' ),
 					// Manual _eex_replay_url always wins at render time; the
 					// synced value lands in its own key (docs/decisions.md D13).
 					'_eex_replay_url_synced' => (string) ( $mapped['replay_url'] ?? '' ),
