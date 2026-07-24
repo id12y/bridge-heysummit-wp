@@ -164,7 +164,14 @@ final class RegisterController {
 					);
 				}
 
-				return $this->respond( [ 'status' => 'already' ], 200 );
+				// The SAME body as a fresh registration, deliberately: a
+				// distinguishable "already registered" answer on a public
+				// endpoint is an email-enumeration oracle — anyone could probe
+				// which addresses are registered. The visitor-facing outcome
+				// is identical either way (registered, session on schedule),
+				// so nothing is lost by saying it identically. Same rule as
+				// the suppression branch above.
+				return $this->respond( [ 'status' => 'registered' ], 200 );
 			}
 
 			Logger::log(

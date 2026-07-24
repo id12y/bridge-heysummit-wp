@@ -337,8 +337,17 @@
 
 		var toggle = event.target.closest( '[data-eex-reg-toggle]' );
 		if ( toggle ) {
+			// The form sits next to the toggle (drawer rows) or just outside
+			// its actions container (cards, the feature card, the bar) — one
+			// level up covers both without ever reaching a neighbouring card.
 			var form = toggle.parentNode.querySelector( '[data-eex-reg]' );
+			if ( ! form && toggle.parentNode.parentNode ) {
+				form = toggle.parentNode.parentNode.querySelector( '[data-eex-reg]' );
+			}
 			if ( form ) {
+				// RSVP toggles are anchors keeping a real ticket-page href as
+				// the no-JS fallback; with JS the form opens instead.
+				event.preventDefault();
 				form.hidden = ! form.hidden;
 				toggle.setAttribute( 'aria-expanded', form.hidden ? 'false' : 'true' );
 
@@ -408,12 +417,28 @@
 			} )
 			.then( function ( result ) {
 				if ( result.ok ) {
+					// Remember locally so later page views can confirm the
+					// RSVP without a click (see the RSVP memory section).
+					if ( window.eexRsvpRemember ) {
+						window.eexRsvpRemember( data );
+					}
+
 					var done = document.createElement( 'p' );
 					done.className = 'eex-reg-done';
 					done.setAttribute( 'role', 'status' );
+
+					// A session-scoped form (talk field filled) confirms the
+					// schedule, not just the registration — the difference a
+					// returning member actually cares about.
+					var talkField = form.querySelector( 'input[name="talk"]' );
+					var forTalk = talkField && '' !== talkField.value;
 					done.textContent = 'already' === ( result.json && result.json.status )
-						? ( config.i18n.regAlready || 'You are already registered.' )
-						: ( config.i18n.regDone || 'You are registered.' );
+						? ( forTalk
+							? ( config.i18n.regAlreadyTalk || 'You are already registered — this session is on your schedule.' )
+							: ( config.i18n.regAlready || 'You are already registered.' ) )
+						: ( forTalk
+							? ( config.i18n.regDoneTalk || 'You are registered — this session is on your schedule.' )
+							: ( config.i18n.regDone || 'You are registered.' ) );
 					form.replaceWith( done );
 					return;
 				}
@@ -642,4 +667,174 @@
 			}
 		}
 	} );
+}() );
+
+// RSVP memory: confirming an RSVP without a click, from two safe sources.
+// (1) localStorage — what THIS browser submitted through these forms;
+// nothing leaves the visitor's machine. (2) For logged-in visitors only,
+// the self-only my-schedule endpoint — the server derives the email from
+// the authenticated session, so a caller can only ever ask about
+// themselves. Registered-state is never queryable for arbitrary emails:
+// the public register endpoint answers identically for new and existing
+// registrations, precisely so it cannot be used to enumerate attendees.
+( function () {
+	var KEY = 'eex-rsvp-v1';
+	var config = window.eexTime || { i18n: {} };
+	var viewer = config.viewer || {};
+
+	function load() {
+		try {
+			return JSON.parse( window.localStorage.getItem( KEY ) ) || {};
+		} catch ( e ) {
+			return {};
+		}
+	}
+
+	function save( data ) {
+		try {
+			window.localStorage.setItem( KEY, JSON.stringify( data ) );
+		} catch ( e ) {
+			// Private mode / full disk: memory is a nicety, never an error.
+		}
+	}
+
+	// Called by the submit handler on success with the submitted fields.
+	window.eexRsvpRemember = function ( data ) {
+		var store = load();
+		store.name = data.name || store.name || '';
+		store.email = data.email || store.email || '';
+		store.talks = store.talks || {};
+		store.events = store.events || {};
+		if ( data.talk ) {
+			store.talks[ data.talk ] = true;
+		} else if ( data.event ) {
+			store.events[ data.event ] = true;
+		}
+		save( store );
+	};
+
+	if ( document.body.classList.contains( 'elementor-editor-active' ) ) {
+		return;
+	}
+
+	var store = load();
+
+	// Swap a form's toggle for a quiet confirmation, once.
+	function confirmKnown( form, isTalk ) {
+		if ( form.eexKnown || ! form.parentNode ) {
+			return;
+		}
+
+		var toggle = form.parentNode.querySelector( '[data-eex-reg-toggle]' );
+		if ( ! toggle ) {
+			return;
+		}
+
+		form.eexKnown = true;
+
+		var chip = document.createElement( 'p' );
+		chip.className = 'eex-reg-done eex-rsvp-known';
+		chip.setAttribute( 'role', 'status' );
+		chip.textContent = isTalk
+			? ( config.i18n.rsvpKnownTalk || 'You\u2019re going \u2014 this session is on your schedule.' )
+			: ( config.i18n.rsvpKnownEvent || 'You\u2019re registered for this event.' );
+
+		var other = document.createElement( 'button' );
+		other.type = 'button';
+		other.className = 'eex-rsvp-other';
+		other.textContent = config.i18n.rsvpOther || 'Not you? RSVP someone else';
+		other.addEventListener( 'click', function () {
+			chip.remove();
+			form.eexKnown = false;
+			toggle.hidden = false;
+			var nameInput = form.querySelector( 'input[name="name"]' );
+			var emailInput = form.querySelector( 'input[name="email"]' );
+			if ( nameInput ) {
+				nameInput.value = '';
+			}
+			if ( emailInput ) {
+				emailInput.value = '';
+			}
+		} );
+		chip.appendChild( document.createTextNode( ' ' ) );
+		chip.appendChild( other );
+
+		toggle.hidden = true;
+		toggle.parentNode.insertBefore( chip, toggle );
+	}
+
+	document.querySelectorAll( '[data-eex-reg]' ).forEach( function ( form ) {
+		var nameInput = form.querySelector( 'input[name="name"]' );
+		var emailInput = form.querySelector( 'input[name="email"]' );
+
+		// The authenticated identity outranks whatever this browser last
+		// typed; both only ever fill still-empty fields.
+		if ( nameInput && ! nameInput.value ) {
+			nameInput.value = viewer.name || store.name || '';
+		}
+		if ( emailInput && ! emailInput.value ) {
+			emailInput.value = viewer.email || store.email || '';
+		}
+
+		var talkField = form.querySelector( 'input[name="talk"]' );
+		var eventField = form.querySelector( 'input[name="event"]' );
+		var talkId = talkField ? talkField.value : '';
+		var eventId = eventField ? eventField.value : '';
+
+		var known = ( talkId && store.talks && store.talks[ talkId ] ) ||
+			( ! talkId && eventId && store.events && store.events[ eventId ] );
+
+		if ( known ) {
+			confirmKnown( form, !! talkId );
+		}
+	} );
+
+	// Server truth for logged-in visitors: one self-only lookup per event
+	// on the page (cached server-side), catching RSVPs made on HeySummit
+	// itself or from another browser.
+	if ( viewer.email && config.restBase && window.fetch ) {
+		var eventIds = {};
+		document.querySelectorAll( '[data-eex-reg]' ).forEach( function ( form ) {
+			var eventField = form.querySelector( 'input[name="event"]' );
+			if ( eventField && eventField.value ) {
+				eventIds[ eventField.value ] = true;
+			}
+		} );
+
+		Object.keys( eventIds ).forEach( function ( eventId ) {
+			// restBase may already carry a query (plain permalinks use
+			// ?rest_route=), so the event parameter joins with & there.
+			var separator = -1 !== config.restBase.indexOf( '?' ) ? '&' : '?';
+			window
+				.fetch( config.restBase + 'my-schedule' + separator + 'event=' + encodeURIComponent( eventId ), {
+					headers: { 'X-WP-Nonce': viewer.nonce || '' }
+				} )
+				.then( function ( response ) {
+					return response.ok ? response.json() : null;
+				} )
+				.then( function ( json ) {
+					if ( ! json || ! json.registered ) {
+						return;
+					}
+
+					var talks = json.talks || [];
+					document.querySelectorAll( '[data-eex-reg]' ).forEach( function ( form ) {
+						var eventField = form.querySelector( 'input[name="event"]' );
+						if ( ! eventField || eventField.value !== eventId ) {
+							return;
+						}
+
+						var talkField = form.querySelector( 'input[name="talk"]' );
+						var talkId = talkField ? talkField.value : '';
+
+						if ( talkId ? -1 !== talks.indexOf( talkId ) : true ) {
+							confirmKnown( form, !! talkId );
+						}
+					} );
+				} )
+				.catch( function () {
+					// The confirmation is a nicety; the form still works.
+				} );
+		} );
+	}
 }() );

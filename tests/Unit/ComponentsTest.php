@@ -1968,6 +1968,154 @@ final class ComponentsTest extends TestCase {
 	/**
 	 * Two tickets on event 101: 9001 (paid, popular) and 9002 (free).
 	 */
+	public function test_register_form_mode_renders_an_in_place_rsvp_form_on_cards(): void {
+		$this->make_linked_talk();
+		update_option( 'eex_connections', [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->mock_ticket_endpoint();
+
+		// The default stays a plain link: no toggle, no form.
+		$default = Components::render( 'upcoming-sessions', [ 'event' => '101' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringNotContainsString( 'data-eex-reg-toggle', $default, 'link mode is untouched' );
+
+		Cache::flush();
+		$html = Components::render(
+			'upcoming-sessions',
+			[
+				'register_action' => 'form',
+				'event'           => '101',
+			]
+		);
+
+		// The CTA is a disclosure that still links to the ticket page (the
+		// no-JS fallback), and the form registers THIS session.
+		$this->assertStringContainsString( 'eex-rsvp-toggle', $html );
+		$this->assertStringContainsString( 'data-eex-reg-toggle="1"', $html );
+		$this->assertStringContainsString( 'aria-expanded="false"', $html );
+		$this->assertStringContainsString( 'checkout/select-tickets/', $html, 'the toggle keeps a real ticket-page href for no-JS visitors' );
+		$this->assertStringContainsString( '<form class="eex-reg-form" data-eex-reg="1" hidden>', $html );
+		$this->assertStringContainsString( 'name="talk" value="777"', $html, 'the clicked session is prefilled server-side' );
+		$this->assertStringContainsString( 'name="ticket" value="9002"', $html, 'the free ticket is chosen, never the paid one' );
+		$this->assertStringContainsString( '>RSVP free<', $html, 'the default label says what the button does' );
+		$this->assertStringNotContainsString( 'data-eex-drawer=', $html, 'form mode does not also render the drawer' );
+	}
+
+	public function test_register_form_mode_on_the_featured_session_card(): void {
+		$this->make_linked_talk();
+		update_option( 'eex_connections', [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'featured-session',
+			[
+				'register_action' => 'form',
+				'event'           => '101',
+			]
+		);
+
+		$this->assertStringContainsString( 'eex-feature-session', $html );
+		$this->assertStringContainsString( 'data-eex-reg-toggle="1"', $html );
+		$this->assertStringContainsString( 'name="talk" value="777"', $html );
+		$this->assertStringContainsString( 'name="ticket" value="9002"', $html );
+		$this->assertStringContainsString( '>RSVP<', $html, 'the form submit is labelled RSVP' );
+	}
+
+	public function test_register_form_mode_falls_back_to_the_link_and_tells_admins_why(): void {
+		$this->make_linked_talk();
+		update_option( 'eex_connections', [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		// A paid-only event: a dead form must never render — the button
+		// follows the ticket link instead, and admins learn why.
+		$this->mock_http(
+			static function ( $url ) {
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'            => 9001,
+									'title'         => 'All access',
+									'is_paid'       => 'true',
+									'prices'        => '[{"id": 501, "title": "Standard", "price": "99"}]',
+									'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-abc/',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$html = Components::render(
+			'featured-session',
+			[
+				'register_action' => 'form',
+				'event'           => '101',
+			]
+		);
+
+		$this->assertStringNotContainsString( 'data-eex-reg-toggle', $html );
+		$this->assertStringNotContainsString( 'data-eex-reg="1"', $html );
+		$this->assertStringContainsString( 'eex-cta-register', $html, 'the plain ticket link CTA remains' );
+
+		// The stubbed current_user_can() returns true: admins see why.
+		$this->assertStringContainsString( 'no free ticket', $html );
+		$this->assertStringContainsString( 'administrators only', $html );
+	}
+
+	public function test_register_form_mode_on_the_register_bar(): void {
+		$this->make_linked_talk();
+		update_option( 'eex_connections', [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'register-bar',
+			[
+				'register_action' => 'form',
+				'event'           => '101',
+			]
+		);
+
+		$this->assertStringContainsString( 'eex-register-bar', $html );
+		$this->assertStringContainsString( 'data-eex-reg-toggle="1"', $html );
+		$this->assertStringContainsString( 'name="ticket" value="9002"', $html );
+		// show_live defaults on, so the bar is presenting the next session —
+		// an RSVP from it puts that session on the schedule.
+		$this->assertStringContainsString( 'name="talk" value="777"', $html, 'the presented session rides along' );
+		$this->assertStringContainsString( '>RSVP free<', $html );
+
+		// With the live flip off the bar is event-level: no session attach.
+		Cache::flush();
+		$plain = Components::render(
+			'register-bar',
+			[
+				'register_action' => 'form',
+				'event'           => '101',
+				'show_live'       => 0,
+			]
+		);
+		$this->assertStringContainsString( 'name="talk" value=""', $plain, 'an event-level bar forces no session onto the schedule' );
+	}
+
+	public function test_featured_session_panel_mode_gets_the_ticket_drawer(): void {
+		$this->make_linked_talk();
+		update_option( 'eex_connections', [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->mock_ticket_endpoint();
+
+		$html = Components::render(
+			'featured-session',
+			[
+				'register_action' => 'panel',
+				'event'           => '101',
+			]
+		);
+
+		$this->assertStringContainsString( 'data-eex-drawer="eex-drawer-', $html, 'the CTA opens the drawer' );
+		$this->assertStringContainsString( 'data-eex-talk="777"', $html, 'the opener carries the session for the drawer context line' );
+		$this->assertStringContainsString( 'eex-drawer-panel', $html );
+	}
+
 	private function mock_ticket_endpoint(): void {
 		$this->mock_http(
 			static function ( $url ) {

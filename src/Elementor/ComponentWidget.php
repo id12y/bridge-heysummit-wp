@@ -984,29 +984,37 @@ class ComponentWidget extends \Elementor\Widget_Base {
 		}
 
 		if ( ! empty( $spec['options'] ) ) {
-			$this->add_control(
-				$key,
-				[
-					'label'   => (string) ( $spec['label'] ?? ucwords( str_replace( '_', ' ', $key ) ) ),
-					'type'    => \Elementor\Controls_Manager::SELECT,
-					'options' => (array) $spec['options'],
-					'default' => (string) $spec['default'],
-				]
-			);
+			$args = [
+				'label'   => (string) ( $spec['label'] ?? ucwords( str_replace( '_', ' ', $key ) ) ),
+				'type'    => \Elementor\Controls_Manager::SELECT,
+				'options' => (array) $spec['options'],
+				'default' => (string) $spec['default'],
+			];
+
+			// Definitions may carry help text (free-ticket caveats and the
+			// like) — surface it under the control like Elementor's own.
+			if ( ! empty( $spec['description'] ) ) {
+				$args['description'] = (string) $spec['description'];
+			}
+
+			$this->add_control( $key, $args );
 
 			return;
 		}
 
 		if ( ! empty( $spec['flag'] ) ) {
-			$this->add_control(
-				$key,
-				[
-					'label'        => (string) ( $spec['label'] ?? ucwords( str_replace( '_', ' ', $key ) ) ),
-					'type'         => \Elementor\Controls_Manager::SWITCHER,
-					'return_value' => '1',
-					'default'      => $spec['default'] ? '1' : '',
-				]
-			);
+			$flag_args = [
+				'label'        => (string) ( $spec['label'] ?? ucwords( str_replace( '_', ' ', $key ) ) ),
+				'type'         => \Elementor\Controls_Manager::SWITCHER,
+				'return_value' => '1',
+				'default'      => $spec['default'] ? '1' : '',
+			];
+
+			if ( ! empty( $spec['description'] ) ) {
+				$flag_args['description'] = (string) $spec['description'];
+			}
+
+			$this->add_control( $key, $flag_args );
 
 			return;
 		}

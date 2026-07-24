@@ -1749,3 +1749,88 @@ claim about collection ordering, and each one must state what evidence
 justifies it. "Absence of future dates" was read as "past" when it
 sometimes means "no date yet" — the cheapest data entry on HeySummit's
 side (a draft session) was enough to falsify the claim.
+
+## D102. RSVP happens on this site, not in the platform's wizard (v1.34.0)
+
+Field report with a screenshot: a member clicked the featured card's
+register button, landed on HeySummit's select-tickets wizard, and hit
+a dead end — "please select at least 1 membership" over a membership
+marked "Already Purchased" that cannot be selected again. Nothing we
+sent was wrong; the wizard simply has no path for a returning member
+who wants to RSVP to a session. The plugin, however, already owned the
+right machinery: the drawer's free registration posts to our own REST
+endpoint, which on "attendee already exists" looks the member up by
+email and idempotently attaches the clicked session to their schedule
+(D95). The gap was reach — that path only existed inside the ticket
+panel.
+
+register_action gains a third value, 'form', on every component with a
+register button; the featured session card gains register_action
+itself (all three behaviours, panel included, with the session carried
+into the drawer's context line). In form mode the button becomes a
+disclosure that expands the shared register-form partial in place,
+with the session prefilled server-side — new visitors register free
+and get the session scheduled; returning members get "already
+registered — this session has been added to your schedule". The
+choice is per-widget and defaults to 'link': a public landing page
+for a paid event keeps its checkout button while the member hub's
+homepage runs RSVP, and nothing changes anywhere until an operator
+opts in (the D92 rule).
+
+The guardrails stay where they were: the form only ever registers a
+FREE ticket (resolved at render; the REST endpoint re-verifies), so a
+paid-only event silently keeps its link — with a visible admins-only
+note explaining the fallback rather than a dead form or an
+unexplained button. No JS: the toggle is an anchor to the real ticket
+page. The Elementor dropdown explains all of this in its help text,
+because a behaviour with a data prerequisite that falls back silently
+is exactly the kind of setting that otherwise generates "does not
+actually work" reports (D99's lesson, applied preemptively).
+
+Addendum (same release): "will it detect I've already RSVP'd, ideally
+without clicking?" Yes, within the privacy boundary. After a successful
+RSVP the browser stores name/email/session locally (localStorage);
+later views swap that session's RSVP button for a zero-click "you're
+going" confirmation and prefill future forms, with a "not you?" reset.
+What it deliberately does NOT do is ask the server whether an email is
+registered: the register endpoint keeps registered-state (and
+suppression) unprobeable by design, and an anonymous-visitor lookup
+would break exactly that. So the widget knows what this browser did
+through this site — RSVPs made directly on HeySummit still surface the
+moment the member submits the form ("already registered — session
+added to your schedule"), one step, no wizard.
+
+## D103. Registered-state answers one question only: "am I registered?" (v1.35.0)
+
+Field-raised while reviewing v1.34: "I'm worried about enumeration of
+users." Correctly so. The register endpoint answered a duplicate
+registration with status "already" and a fresh one with "registered" —
+on a public endpoint that is an email-enumeration oracle: submit any
+address, learn whether it is registered for the event. The suppression
+branch had already established the principle (indistinguishable from
+success, deliberately); the duplicate branch violated it, and had since
+the drawer first shipped. Both now return byte-identical bodies —
+enforced by a test that compares the whole response — and nothing of
+value is lost, because the visitor-facing truth is the same sentence
+either way: registered, session on schedule. Rate limiting stays as
+depth, not as the defence.
+
+The legitimate version of the question — "am I registered?" — is
+answered properly for visitors who can prove who they are: a self-only
+my-schedule endpoint derives the email from the authenticated WordPress
+user (never from the request), so a caller can only ask about
+themselves. Widgets use it for zero-click "you're going" confirmations
+even in a fresh browser, alongside the localStorage memory for
+anonymous visitors. The resulting matrix: logged in → server-truth,
+zero clicks; anonymous but RSVP'd here before → browser memory, zero
+clicks; anonymous, registered elsewhere → detected at the email step,
+which is the floor privacy permits — an anonymous zero-step lookup and
+an enumeration oracle are the same mechanism wearing different hats.
+
+Incidentally: the add_query_arg() TEST STUB encoded query values where
+real WordPress does not (build_query runs with urlencode=false). Fixing
+the stub to match reality surfaced that attendee-by-email lookups were
+correct in production but double-encoded in tests, and that Google
+Calendar links carried a raw (legal, now canonically encoded) slash.
+A stub that is friendlier than the real API hides exactly the bugs
+tests exist to catch.

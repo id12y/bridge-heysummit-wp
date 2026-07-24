@@ -3,6 +3,64 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.35.0
+- **Security (field-raised): registration state can no longer be probed
+  by email.** The register endpoint used to answer differently for a
+  new registration ("registered") and an existing one ("already") —
+  a public oracle that let anyone test which email addresses are
+  registered. Both cases now return byte-identical responses (this
+  hole predates v1.34; it shipped with the drawer's registration).
+  The visitor-facing message is accurate either way: "You're
+  registered — this session is on your schedule."
+- **New: logged-in visitors get zero-click detection from the server.**
+  A new self-only endpoint (`my-schedule`) reports whether the
+  *authenticated* user is registered and which sessions are on their
+  schedule — the email always comes from their WordPress login, never
+  from the request, so it cannot be pointed at anyone else. Widgets
+  use it to show "You're going" with no clicks even in a fresh
+  browser, and RSVP forms prefill from the account. Results are cached
+  per user for ten minutes.
+- Fixed (test-infra): the WordPress test stub for add_query_arg()
+  encoded query values where real WordPress does not, hiding a
+  double-encoding in attendee-by-email lookups from the tests and
+  masking a raw slash in Google Calendar links (now canonically
+  encoded).
+
+## 1.34.0
+- **New: "RSVP form" register-button behaviour, selectable per widget.**
+  Every widget with a register button (upcoming sessions, featured
+  talks, next-session hero, agenda, sticky register bar, and the
+  featured session card) now offers a third behaviour alongside the
+  link and the ticket panel: the button expands a compact name+email
+  form in place. It registers the visitor on this site using the
+  event's free ticket and puts the clicked session on their HeySummit
+  schedule — and a returning member is recognised ("already
+  registered") and simply gets the session added to their schedule.
+  Nobody is sent into HeySummit's checkout wizard, which dead-ends
+  members who already hold the membership ticket ("select at least 1
+  membership" + "Already Purchased").
+- The form needs a free ticket: if the event has none, the button
+  quietly follows the ticket link instead and administrators see an
+  inline note explaining why. Paid tickets always check out on the
+  platform. Without JavaScript the RSVP button is a normal link to the
+  ticket page.
+- The featured session card also gains the ticket panel option, with
+  the session context carried into the panel like the other widgets.
+- Elementor: register-behaviour dropdowns now carry help text
+  explaining the free-ticket requirement and fallback; definitions can
+  ship help text on any select/switch control.
+- Success messages are session-aware: an RSVP against a session
+  confirms "this session is on your schedule", not just "registered".
+- **Return visits are zero-click.** After a successful RSVP the browser
+  remembers it (localStorage — nothing leaves the visitor's machine):
+  next time the page loads, the RSVP button for that session is
+  already a quiet "You're going — this session is on your schedule"
+  confirmation, with a "Not you? RSVP someone else" escape hatch, and
+  future forms prefill the name and email. Registered-state is never
+  looked up server-side for anonymous visitors — that would make
+  registrations probeable by email — so the memory covers RSVPs made
+  through this site's own widgets, in the same browser.
+
 ## 1.33.0
 - **Fixed (field-reported): every upcoming session vanished after a
   session without a date was added on HeySummit.** On oldest-first

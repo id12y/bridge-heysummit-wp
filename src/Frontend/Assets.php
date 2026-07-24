@@ -34,22 +34,41 @@ final class Assets {
 		wp_register_style( 'eex-frontend', EEX_PLUGIN_URL . 'assets/css/eex.css', [], EEX_VERSION );
 		wp_register_script( 'eex-time', EEX_PLUGIN_URL . 'assets/js/eex-time.js', [], EEX_VERSION, true );
 
+		// The logged-in visitor's own identity, for prefilling RSVP forms and
+		// the self-only my-schedule lookup. Localised per request — never part
+		// of any cached fragment — and absent entirely for anonymous visitors.
+		$viewer = [];
+		if ( function_exists( 'is_user_logged_in' ) && is_user_logged_in() ) {
+			$account = wp_get_current_user();
+			$viewer  = [
+				'name'  => (string) $account->display_name,
+				'email' => (string) $account->user_email,
+				'nonce' => wp_create_nonce( 'wp_rest' ),
+			];
+		}
+
 		wp_localize_script(
 			'eex-time',
 			'eexTime',
 			[
 				'restBase'    => rest_url( 'eex/v1/' ),
+				'viewer'      => $viewer,
 				'soonMinutes' => 60,
 				'i18n'        => [
-					'joinNow'      => __( 'Join now', 'emailexpert-events' ),
-					'startingSoon' => __( 'Starting soon', 'emailexpert-events' ),
-					'liveNow'      => __( 'Live now', 'emailexpert-events' ),
-					'days'         => __( 'days', 'emailexpert-events' ),
-					'hours'        => __( 'hours', 'emailexpert-events' ),
-					'minutes'      => __( 'minutes', 'emailexpert-events' ),
-					'regDone'      => __( "You're registered — check your inbox for the confirmation.", 'emailexpert-events' ),
-					'regAlready'   => __( "You're already registered for this event — check your inbox.", 'emailexpert-events' ),
-					'regError'     => __( 'Something went wrong — please try again.', 'emailexpert-events' ),
+					'joinNow'        => __( 'Join now', 'emailexpert-events' ),
+					'startingSoon'   => __( 'Starting soon', 'emailexpert-events' ),
+					'liveNow'        => __( 'Live now', 'emailexpert-events' ),
+					'days'           => __( 'days', 'emailexpert-events' ),
+					'hours'          => __( 'hours', 'emailexpert-events' ),
+					'minutes'        => __( 'minutes', 'emailexpert-events' ),
+					'regDone'        => __( "You're registered — check your inbox for the confirmation.", 'emailexpert-events' ),
+					'regAlready'     => __( "You're already registered for this event — check your inbox.", 'emailexpert-events' ),
+					'regDoneTalk'    => __( "You're registered — this session is on your schedule. Check your inbox for the confirmation.", 'emailexpert-events' ),
+					'regAlreadyTalk' => __( "You're already registered — this session has been added to your schedule.", 'emailexpert-events' ),
+					'regError'       => __( 'Something went wrong — please try again.', 'emailexpert-events' ),
+					'rsvpKnownTalk'  => __( "You're going — this session is on your schedule.", 'emailexpert-events' ),
+					'rsvpKnownEvent' => __( "You're registered for this event.", 'emailexpert-events' ),
+					'rsvpOther'      => __( 'Not you? RSVP someone else', 'emailexpert-events' ),
 				],
 			]
 		);
