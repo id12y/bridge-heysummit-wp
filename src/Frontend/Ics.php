@@ -48,7 +48,9 @@ final class Ics {
 			[
 				'action'  => 'TEMPLATE',
 				'text'    => rawurlencode( (string) ( $data['title'] ?? '' ) ),
-				'dates'   => gmdate( 'Ymd\THis\Z', $start ) . '/' . gmdate( 'Ymd\THis\Z', $end ),
+				// Pre-encoded like the other values: real add_query_arg() does
+				// not encode, and the separator slash should travel as %2F.
+				'dates'   => rawurlencode( gmdate( 'Ymd\THis\Z', $start ) . '/' . gmdate( 'Ymd\THis\Z', $end ) ),
 				'details' => rawurlencode( (string) ( $data['permalink'] ?? '' ) ),
 			],
 			'https://calendar.google.com/calendar/render'

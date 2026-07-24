@@ -34,11 +34,25 @@ final class Assets {
 		wp_register_style( 'eex-frontend', EEX_PLUGIN_URL . 'assets/css/eex.css', [], EEX_VERSION );
 		wp_register_script( 'eex-time', EEX_PLUGIN_URL . 'assets/js/eex-time.js', [], EEX_VERSION, true );
 
+		// The logged-in visitor's own identity, for prefilling RSVP forms and
+		// the self-only my-schedule lookup. Localised per request — never part
+		// of any cached fragment — and absent entirely for anonymous visitors.
+		$viewer = [];
+		if ( function_exists( 'is_user_logged_in' ) && is_user_logged_in() ) {
+			$account = wp_get_current_user();
+			$viewer  = [
+				'name'  => (string) $account->display_name,
+				'email' => (string) $account->user_email,
+				'nonce' => wp_create_nonce( 'wp_rest' ),
+			];
+		}
+
 		wp_localize_script(
 			'eex-time',
 			'eexTime',
 			[
 				'restBase'    => rest_url( 'eex/v1/' ),
+				'viewer'      => $viewer,
 				'soonMinutes' => 60,
 				'i18n'        => [
 					'joinNow'        => __( 'Join now', 'emailexpert-events' ),

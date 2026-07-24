@@ -494,7 +494,14 @@ if ( ! function_exists( 'add_query_arg' ) ) {
 			$params                = [ $key => $value ];
 		}
 		$separator = str_contains( $url, '?' ) ? '&' : '?';
-		return $url . $separator . http_build_query( $params );
+		// Real add_query_arg() does NOT urlencode values (build_query() runs
+		// with urlencode=false) — callers pre-encode, and an encoding stub
+		// double-encodes exactly those callers.
+		$pairs = [];
+		foreach ( $params as $param_key => $param_value ) {
+			$pairs[] = $param_key . '=' . $param_value;
+		}
+		return $url . $separator . implode( '&', $pairs );
 	}
 }
 

@@ -669,17 +669,18 @@
 	} );
 }() );
 
-// RSVP memory: after a successful registration through any of this
-// plugin's forms, the browser remembers who registered and for what
-// (localStorage only — nothing leaves the visitor's machine). On later
-// views the RSVP button for a session already on their schedule becomes
-// a quiet confirmation, no clicks needed, and future forms prefill.
-// Registered-state is never queried from the server for an anonymous
-// visitor — that would make it probeable by email (see the suppression
-// rule in the register endpoint); this remembers only what this browser
-// itself submitted.
+// RSVP memory: confirming an RSVP without a click, from two safe sources.
+// (1) localStorage — what THIS browser submitted through these forms;
+// nothing leaves the visitor's machine. (2) For logged-in visitors only,
+// the self-only my-schedule endpoint — the server derives the email from
+// the authenticated session, so a caller can only ever ask about
+// themselves. Registered-state is never queryable for arbitrary emails:
+// the public register endpoint answers identically for new and existing
+// registrations, precisely so it cannot be used to enumerate attendees.
 ( function () {
 	var KEY = 'eex-rsvp-v1';
+	var config = window.eexTime || { i18n: {} };
+	var viewer = config.viewer || {};
 
 	function load() {
 		try {
@@ -717,26 +718,10 @@
 	}
 
 	var store = load();
-	var config = window.eexTime || { i18n: {} };
 
-	document.querySelectorAll( '[data-eex-reg]' ).forEach( function ( form ) {
-		var nameInput = form.querySelector( 'input[name="name"]' );
-		var emailInput = form.querySelector( 'input[name="email"]' );
-		if ( nameInput && ! nameInput.value && store.name ) {
-			nameInput.value = store.name;
-		}
-		if ( emailInput && ! emailInput.value && store.email ) {
-			emailInput.value = store.email;
-		}
-
-		var talkField = form.querySelector( 'input[name="talk"]' );
-		var eventField = form.querySelector( 'input[name="event"]' );
-		var talkId = talkField ? talkField.value : '';
-		var eventId = eventField ? eventField.value : '';
-		var known = ( talkId && store.talks && store.talks[ talkId ] ) ||
-			( ! talkId && eventId && store.events && store.events[ eventId ] );
-
-		if ( ! known || ! form.parentNode ) {
+	// Swap a form's toggle for a quiet confirmation, once.
+	function confirmKnown( form, isTalk ) {
+		if ( form.eexKnown || ! form.parentNode ) {
 			return;
 		}
 
@@ -745,13 +730,14 @@
 			return;
 		}
 
-		// Advise without a single click: the button becomes a confirmation.
+		form.eexKnown = true;
+
 		var chip = document.createElement( 'p' );
 		chip.className = 'eex-reg-done eex-rsvp-known';
 		chip.setAttribute( 'role', 'status' );
-		chip.textContent = talkId
-			? ( config.i18n.rsvpKnownTalk || 'You’re going — this session is on your schedule.' )
-			: ( config.i18n.rsvpKnownEvent || 'You’re registered for this event.' );
+		chip.textContent = isTalk
+			? ( config.i18n.rsvpKnownTalk || 'You\u2019re going \u2014 this session is on your schedule.' )
+			: ( config.i18n.rsvpKnownEvent || 'You\u2019re registered for this event.' );
 
 		var other = document.createElement( 'button' );
 		other.type = 'button';
@@ -759,7 +745,10 @@
 		other.textContent = config.i18n.rsvpOther || 'Not you? RSVP someone else';
 		other.addEventListener( 'click', function () {
 			chip.remove();
+			form.eexKnown = false;
 			toggle.hidden = false;
+			var nameInput = form.querySelector( 'input[name="name"]' );
+			var emailInput = form.querySelector( 'input[name="email"]' );
 			if ( nameInput ) {
 				nameInput.value = '';
 			}
@@ -772,5 +761,80 @@
 
 		toggle.hidden = true;
 		toggle.parentNode.insertBefore( chip, toggle );
+	}
+
+	document.querySelectorAll( '[data-eex-reg]' ).forEach( function ( form ) {
+		var nameInput = form.querySelector( 'input[name="name"]' );
+		var emailInput = form.querySelector( 'input[name="email"]' );
+
+		// The authenticated identity outranks whatever this browser last
+		// typed; both only ever fill still-empty fields.
+		if ( nameInput && ! nameInput.value ) {
+			nameInput.value = viewer.name || store.name || '';
+		}
+		if ( emailInput && ! emailInput.value ) {
+			emailInput.value = viewer.email || store.email || '';
+		}
+
+		var talkField = form.querySelector( 'input[name="talk"]' );
+		var eventField = form.querySelector( 'input[name="event"]' );
+		var talkId = talkField ? talkField.value : '';
+		var eventId = eventField ? eventField.value : '';
+
+		var known = ( talkId && store.talks && store.talks[ talkId ] ) ||
+			( ! talkId && eventId && store.events && store.events[ eventId ] );
+
+		if ( known ) {
+			confirmKnown( form, !! talkId );
+		}
 	} );
+
+	// Server truth for logged-in visitors: one self-only lookup per event
+	// on the page (cached server-side), catching RSVPs made on HeySummit
+	// itself or from another browser.
+	if ( viewer.email && config.restBase && window.fetch ) {
+		var eventIds = {};
+		document.querySelectorAll( '[data-eex-reg]' ).forEach( function ( form ) {
+			var eventField = form.querySelector( 'input[name="event"]' );
+			if ( eventField && eventField.value ) {
+				eventIds[ eventField.value ] = true;
+			}
+		} );
+
+		Object.keys( eventIds ).forEach( function ( eventId ) {
+			// restBase may already carry a query (plain permalinks use
+			// ?rest_route=), so the event parameter joins with & there.
+			var separator = -1 !== config.restBase.indexOf( '?' ) ? '&' : '?';
+			window
+				.fetch( config.restBase + 'my-schedule' + separator + 'event=' + encodeURIComponent( eventId ), {
+					headers: { 'X-WP-Nonce': viewer.nonce || '' }
+				} )
+				.then( function ( response ) {
+					return response.ok ? response.json() : null;
+				} )
+				.then( function ( json ) {
+					if ( ! json || ! json.registered ) {
+						return;
+					}
+
+					var talks = json.talks || [];
+					document.querySelectorAll( '[data-eex-reg]' ).forEach( function ( form ) {
+						var eventField = form.querySelector( 'input[name="event"]' );
+						if ( ! eventField || eventField.value !== eventId ) {
+							return;
+						}
+
+						var talkField = form.querySelector( 'input[name="talk"]' );
+						var talkId = talkField ? talkField.value : '';
+
+						if ( talkId ? -1 !== talks.indexOf( talkId ) : true ) {
+							confirmKnown( form, !! talkId );
+						}
+					} );
+				} )
+				.catch( function () {
+					// The confirmation is a nicety; the form still works.
+				} );
+		} );
+	}
 }() );

@@ -304,10 +304,42 @@ final class RegisterControllerTest extends TestCase {
 		$response = ( new RegisterController() )->create( $this->request( [ 'talk' => '7001' ] ) );
 
 		$this->assertSame( 200, $response->get_status() );
-		$this->assertSame( 'already', $response->get_data()['status'], 'a duplicate registration reads as success' );
+
+		// Deliberately the SAME body as a fresh registration: a public
+		// endpoint that answers "already registered" differently is an
+		// email-enumeration oracle (field-raised concern; D103). The
+		// duplicate is still handled as a success — lookup + attach below.
+		$this->assertSame( 'registered', $response->get_data()['status'], 'a duplicate registration is indistinguishable from a fresh one' );
 
 		$this->assertCount( 2, $this->posts );
 		$this->assertStringContainsString( 'events/101/attendees/', $this->posts[0][0], 'the create was attempted' );
 		$this->assertStringContainsString( 'events/101/attendees/8123/talks/7001/', $this->posts[1][0], 'the clicked session is attached to the attendee found by email' );
+	}
+
+	public function test_fresh_and_duplicate_registrations_answer_with_identical_bodies(): void {
+		// The enumeration guard, asserted end to end: capture the fresh
+		// response (setUp's default mock answers 201) and the duplicate
+		// response and compare them whole.
+		$fresh = ( new RegisterController() )->create( $this->request( [] ) );
+
+		remove_all_filters( 'pre_http_request' );
+		$this->mock_http(
+			static function ( $url, $args ) {
+				if ( 'POST' === strtoupper( (string) ( $args['method'] ?? 'GET' ) ) ) {
+					return self::json_response( [ 'detail' => 'Attendee already exists for this event.' ], 400 ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				if ( str_contains( (string) $url, 'tickets/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 9002, 'title' => 'Free pass', 'is_paid' => 'false', 'prices' => '[]' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				return null;
+			}
+		);
+		$duplicate = ( new RegisterController() )->create( $this->request( [] ) );
+
+		$this->assertSame( 200, $fresh->get_status() );
+		$this->assertSame( $fresh->get_status(), $duplicate->get_status(), 'same HTTP status' );
+		$this->assertSame( $fresh->get_data(), $duplicate->get_data(), 'byte-identical body: registered-state is not probeable' );
 	}
 }

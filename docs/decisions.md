@@ -1799,3 +1799,38 @@ would break exactly that. So the widget knows what this browser did
 through this site — RSVPs made directly on HeySummit still surface the
 moment the member submits the form ("already registered — session
 added to your schedule"), one step, no wizard.
+
+## D103. Registered-state answers one question only: "am I registered?" (v1.35.0)
+
+Field-raised while reviewing v1.34: "I'm worried about enumeration of
+users." Correctly so. The register endpoint answered a duplicate
+registration with status "already" and a fresh one with "registered" —
+on a public endpoint that is an email-enumeration oracle: submit any
+address, learn whether it is registered for the event. The suppression
+branch had already established the principle (indistinguishable from
+success, deliberately); the duplicate branch violated it, and had since
+the drawer first shipped. Both now return byte-identical bodies —
+enforced by a test that compares the whole response — and nothing of
+value is lost, because the visitor-facing truth is the same sentence
+either way: registered, session on schedule. Rate limiting stays as
+depth, not as the defence.
+
+The legitimate version of the question — "am I registered?" — is
+answered properly for visitors who can prove who they are: a self-only
+my-schedule endpoint derives the email from the authenticated WordPress
+user (never from the request), so a caller can only ask about
+themselves. Widgets use it for zero-click "you're going" confirmations
+even in a fresh browser, alongside the localStorage memory for
+anonymous visitors. The resulting matrix: logged in → server-truth,
+zero clicks; anonymous but RSVP'd here before → browser memory, zero
+clicks; anonymous, registered elsewhere → detected at the email step,
+which is the floor privacy permits — an anonymous zero-step lookup and
+an enumeration oracle are the same mechanism wearing different hats.
+
+Incidentally: the add_query_arg() TEST STUB encoded query values where
+real WordPress does not (build_query runs with urlencode=false). Fixing
+the stub to match reality surfaced that attendee-by-email lookups were
+correct in production but double-encoded in tests, and that Google
+Calendar links carried a raw (legal, now canonically encoded) slash.
+A stub that is friendlier than the real API hides exactly the bugs
+tests exist to catch.

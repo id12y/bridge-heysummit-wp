@@ -3,6 +3,29 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.35.0
+- **Security (field-raised): registration state can no longer be probed
+  by email.** The register endpoint used to answer differently for a
+  new registration ("registered") and an existing one ("already") —
+  a public oracle that let anyone test which email addresses are
+  registered. Both cases now return byte-identical responses (this
+  hole predates v1.34; it shipped with the drawer's registration).
+  The visitor-facing message is accurate either way: "You're
+  registered — this session is on your schedule."
+- **New: logged-in visitors get zero-click detection from the server.**
+  A new self-only endpoint (`my-schedule`) reports whether the
+  *authenticated* user is registered and which sessions are on their
+  schedule — the email always comes from their WordPress login, never
+  from the request, so it cannot be pointed at anyone else. Widgets
+  use it to show "You're going" with no clicks even in a fresh
+  browser, and RSVP forms prefill from the account. Results are cached
+  per user for ten minutes.
+- Fixed (test-infra): the WordPress test stub for add_query_arg()
+  encoded query values where real WordPress does not, hiding a
+  double-encoding in attendee-by-email lookups from the tests and
+  masking a raw slash in Google Calendar links (now canonically
+  encoded).
+
 ## 1.34.0
 - **New: "RSVP form" register-button behaviour, selectable per widget.**
   Every widget with a register button (upcoming sessions, featured
