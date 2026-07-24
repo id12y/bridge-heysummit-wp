@@ -7,6 +7,7 @@
 
 namespace Emailexpert\Events\Tests\Unit;
 
+use Emailexpert\Events\Options;
 use Emailexpert\Events\Rest\RegisterController;
 use Emailexpert\Events\Tests\TestCase;
 use WP_REST_Request;
@@ -27,6 +28,11 @@ final class RegisterControllerTest extends TestCase {
 		parent::setUp();
 
 		$_SERVER['REMOTE_ADDR'] = '203.0.113.9';
+
+		// These tests exercise the WRITE path mechanics (create, duplicate
+		// recovery, talk attach) — confirmation off puts every submission on
+		// it directly. The confirmed-opt-in flow has its own test class.
+		Options::update_settings( [ 'reg_confirm_mode' => 'off' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 
 		wp_insert_post(
 			[

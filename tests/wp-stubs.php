@@ -575,7 +575,7 @@ if ( ! function_exists( 'spawn_cron' ) ) {
 }
 if ( ! function_exists( 'wp_mail' ) ) {
 	function wp_mail( $to, $subject, $message, $headers = '', $attachments = [] ) {
-		EEX_Test_State::$mail[] = compact( 'to', 'subject', 'message' );
+		EEX_Test_State::$mail[] = compact( 'to', 'subject', 'message', 'headers', 'attachments' );
 		return true;
 	}
 }
@@ -1353,5 +1353,42 @@ if ( ! function_exists( 'wp_send_json_error' ) ) {
 if ( ! function_exists( 'check_ajax_referer' ) ) {
 	function check_ajax_referer( $action = -1, $query_arg = false, $stop = true ) {
 		return 1;
+	}
+}
+
+if ( ! function_exists( 'wp_salt' ) ) {
+	function wp_salt( $scheme = 'auth' ) {
+		return 'test-salt-' . $scheme;
+	}
+}
+if ( ! function_exists( 'wp_validate_redirect' ) ) {
+	function wp_validate_redirect( $location, $fallback = '' ) {
+		// Real WP allows same-host absolute URLs and relative paths.
+		$host = wp_parse_url( (string) $location, PHP_URL_HOST );
+		return ( null === $host || 'example.test' === $host ) && '' !== (string) $location ? (string) $location : $fallback;
+	}
+}
+if ( ! function_exists( 'get_temp_dir' ) ) {
+	function get_temp_dir() {
+		return sys_get_temp_dir() . '/';
+	}
+}
+if ( ! function_exists( 'wp_delete_file' ) ) {
+	function wp_delete_file( $file ) {
+		if ( file_exists( $file ) ) {
+			unlink( $file );
+		}
+	}
+}
+if ( ! function_exists( 'get_privacy_policy_url' ) ) {
+	function get_privacy_policy_url() {
+		return (string) ( $GLOBALS['eex_test_privacy_url'] ?? 'https://example.test/privacy/' );
+	}
+}
+
+if ( ! function_exists( 'is_user_logged_in' ) ) {
+	function is_user_logged_in() {
+		$user = wp_get_current_user();
+		return $user && $user->ID > 0;
 	}
 }

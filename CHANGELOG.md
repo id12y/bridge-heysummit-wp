@@ -3,6 +3,53 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.36.0
+- **GDPR-correct registration forms.** The single bundled checkbox
+  becomes unbundled choices: a required disclosure that names the free
+  account being created on the events platform, a separate optional and
+  never pre-ticked marketing opt-in, and a privacy policy link (from
+  the WordPress privacy page). All wording is editable under Settings →
+  Registration & consent, and the EXACT wording each visitor saw is
+  stored with their consent receipt (rolling log, hashed emails — no
+  new PII store).
+- **Confirmed opt-in.** Unknown addresses no longer reach HeySummit on
+  submission: the registration is held (48 hours, name and email
+  encrypted at rest, token hashed and single-use) and a confirmation
+  email is sent — one click completes the registration and the session
+  add, then lands back on the originating page with a banner. Logged-in
+  members keep instant one-step RSVP; a "Standard" mode also trusts
+  addresses a CRM reports as double-opt-in confirmed (via the
+  eex_email_is_verified filter), with "Strict" and "Off" available.
+  This also closes third-party registration (subscription bombing) and
+  schedule tampering — nothing happens until the mailbox owner clicks.
+- **Session-added email with calendar attachment.** When a session is
+  added to an existing attendee's schedule (where HeySummit sends
+  nothing), the plugin now emails "You're registered: {session}" with
+  the .ics attached. Transactional; sent through wp_mail(), so a mail
+  plugin/CRM (SES etc.) routes it automatically.
+- **CRM-friendly, CRM-independent.** Three actions
+  (eex_registration_pending / eex_registration_confirmed /
+  eex_session_rsvp) and three filters (eex_email_is_verified /
+  eex_email_is_suppressed / eex_should_send) are the whole integration
+  surface — see docs/crm-integration.md. No CRM present: everything
+  still works.
+- All anonymous submissions now answer with one identical body
+  regardless of outcome (held, instant, honeypot, cooldown) — the
+  enumeration guarantee extended to the new flow. Logged-in members
+  still get real statuses about themselves.
+- **Registration-abuse caps.** The "known RSVP" chip's escape hatch is
+  reworded to "Use a different email" and capped at two uses per
+  browser; server-side (the layer that can't be cleared), one IP may
+  trigger confirmation emails to at most three distinct addresses per
+  hour (`eex_confirm_ip_budget` filter) on top of the existing
+  per-address cooldown and per-IP request limit. Over-budget attempts
+  get the same neutral answer and send nothing.
+- Fixed (field-reported): the "You're going" confirmation chip broke
+  list-layout action rows (block element inside the inline actions
+  container pushed buttons out of the card). The chip now renders as
+  its own block below the action row everywhere, and the text button
+  is hardened against theme button styling.
+
 ## 1.35.0
 - **Security (field-raised): registration state can no longer be probed
   by email.** The register endpoint used to answer differently for a

@@ -9,11 +9,9 @@ namespace Emailexpert\Events\Rest;
 
 use Emailexpert\Events\Data\Repositories;
 use Emailexpert\Events\Data\Tickets;
-use Emailexpert\Events\Api\AttendeeLookup;
-use Emailexpert\Events\Api\HeySummitClient;
 use Emailexpert\Events\Logging\Logger;
-use Emailexpert\Events\Mappers\AttendeeRequestBuilder;
 use Emailexpert\Events\Options;
+use Emailexpert\Events\Registration\Registrar;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -53,14 +51,16 @@ final class RegisterController {
 				'callback'            => [ $this, 'create' ],
 				'permission_callback' => '__return_true',
 				'args'                => [
-					'event'   => [ 'type' => 'string' ],
-					'ticket'  => [ 'type' => 'string' ],
-					'price'   => [ 'type' => 'string' ],
-					'talk'    => [ 'type' => 'string' ],
-					'name'    => [ 'type' => 'string' ],
-					'email'   => [ 'type' => 'string' ],
-					'consent' => [ 'type' => 'string' ],
-					'website' => [ 'type' => 'string' ],
+					'event'     => [ 'type' => 'string' ],
+					'ticket'    => [ 'type' => 'string' ],
+					'price'     => [ 'type' => 'string' ],
+					'talk'      => [ 'type' => 'string' ],
+					'name'      => [ 'type' => 'string' ],
+					'email'     => [ 'type' => 'string' ],
+					'consent'   => [ 'type' => 'string' ],
+					'marketing' => [ 'type' => 'string' ],
+					'return'    => [ 'type' => 'string' ],
+					'website'   => [ 'type' => 'string' ],
 				],
 			]
 		);
@@ -73,9 +73,10 @@ final class RegisterController {
 	 * @return WP_REST_Response
 	 */
 	public function create( WP_REST_Request $request ): WP_REST_Response {
-		// Honeypot: bots that fill every field get a quiet "success".
+		// Honeypot: bots that fill every field get a quiet "success" —
+		// phrased like every other anonymous outcome (see neutral()).
 		if ( '' !== trim( (string) $request['website'] ) ) {
-			return $this->respond( [ 'status' => 'registered' ], 200 );
+			return $this->neutral();
 		}
 
 		if ( '1' !== (string) $request['consent'] ) {
@@ -110,103 +111,137 @@ final class RegisterController {
 			return $this->respond( [ 'message' => __( 'That ticket cannot be registered here — it may be paid or no longer available.', 'emailexpert-events' ) ], 400 );
 		}
 
+		$mode      = (string) Options::setting( 'reg_confirm_mode' );
+		$logged_in = $this->is_own_verified_session( $email );
+
+		// With confirmation off every submission is instant, and the plain
+		// 'registered' status is safe BECAUSE it is uniform across fresh and
+		// duplicate registrations (the D103 guarantee). With confirmation on,
+		// anonymous callers get one neutral body whatever happened.
+		$instant = $logged_in || 'off' === $mode;
+
 		if ( class_exists( '\Emailexpert\Events\Accounts\Suppression' ) && \Emailexpert\Events\Accounts\Suppression::is_suppressed( $email, $event_hs_id ) ) {
 			// Indistinguishable from success on purpose: suppression state
 			// must not be probeable from the outside.
-			return $this->respond( [ 'status' => 'registered' ], 200 );
+			return $instant ? $this->respond( [ 'status' => 'registered' ], 200 ) : $this->neutral();
 		}
 
 		$price_id = $this->price_id_of( $ticket, sanitize_text_field( (string) $request['price'] ) );
-
-		$connection = Options::connection( $connection_id );
-		if ( null === $connection ) {
-			return $this->respond( [ 'message' => __( 'Registration is temporarily unavailable.', 'emailexpert-events' ) ], 503 );
-		}
-
-		$req = AttendeeRequestBuilder::build(
-			[
-				'name'            => $name,
-				'email'           => $email,
-				'event_hs_id'     => $event_hs_id,
-				'ticket_price_id' => $price_id,
-			]
-		);
 
 		// The clicked session to add to the schedule, only when it is a real
 		// talk of this event — a visitor-supplied ID is never trusted.
 		$talk_hs_id = $this->valid_talk( sanitize_text_field( (string) $request['talk'] ), $event_hs_id );
 
-		$client   = HeySummitClient::for_connection( $connection );
-		$response = $client->post( (string) $req['path'], (array) $req['body'] );
+		$marketing = '1' === (string) $request['marketing'] && (bool) Options::setting( 'reg_marketing_show' );
 
-		if ( is_wp_error( $response ) ) {
-			$detail = (string) $response->get_error_message();
+		$registration = [
+			'connection_id' => $connection_id,
+			'event'         => $event_hs_id,
+			'ticket'        => (string) $ticket['id'],
+			'price_id'      => $price_id,
+			'talk'          => $talk_hs_id,
+			'name'          => $name,
+			'email'         => $email,
+			'marketing'     => $marketing,
+			// The receipt records the EXACT wording the visitor agreed to.
+			'consent'       => [
+				'disclosure'     => \Emailexpert\Events\Frontend\Components::consent_disclosure_text(),
+				'marketing_text' => $marketing ? (string) Options::setting( 'reg_marketing_text' ) : '',
+				'ts'             => gmdate( 'Y-m-d\TH:i:s\Z' ),
+			],
+		];
 
-			// A duplicate registration is a success from the visitor's side.
-			if ( false !== stripos( $detail, 'already' ) || false !== stripos( $detail, 'exist' ) ) {
-				// A returning attendee who clicked a session still gets it
-				// added: find them by email, then attach (idempotent). Short
-				// timeout, no retries — a visitor is waiting on this response.
-				if ( '' !== $talk_hs_id ) {
-					$this->attach_talk(
-						$client,
-						$event_hs_id,
-						AttendeeLookup::find_id(
-							$client,
-							$event_hs_id,
-							$email,
-							[
-								'timeout' => 5,
-								'retries' => 0,
-							]
-						),
-						$talk_hs_id
-					);
-				}
+		/**
+		 * Whether this email address belongs to an already-verified person
+		 * (a CRM with confirmed double-opt-in state can answer). Default
+		 * false: unknown addresses confirm by email first.
+		 *
+		 * @param bool   $verified Verified?
+		 * @param string $email    The address.
+		 */
+		$crm_verified = 'standard' === $mode && apply_filters( 'eex_email_is_verified', false, $email );
 
-				// The SAME body as a fresh registration, deliberately: a
-				// distinguishable "already registered" answer on a public
-				// endpoint is an email-enumeration oracle — anyone could probe
-				// which addresses are registered. The visitor-facing outcome
-				// is identical either way (registered, session on schedule),
-				// so nothing is lost by saying it identically. Same rule as
-				// the suppression branch above.
-				return $this->respond( [ 'status' => 'registered' ], 200 );
+		if ( $instant || $crm_verified ) {
+			// Verified identity (or confirmation disabled): register now.
+			$result = Registrar::register( $registration );
+
+			if ( is_wp_error( $result ) ) {
+				return $instant
+					? $this->respond( [ 'message' => __( 'Registration could not be completed — please try again on the event site.', 'emailexpert-events' ) ], 502 )
+					: $this->neutral();
 			}
 
-			Logger::log(
-				Logger::CONTEXT_API,
-				'error',
-				'drawer registration failed: ' . $detail,
-				[
-					'connection' => $connection_id,
-					'event'      => $event_hs_id,
-					'ticket'     => (string) ( $ticket['id'] ?? '' ),
-				]
-			);
+			// A session added to an EXISTING attendee's schedule gets the
+			// transactional session-added email (HeySummit is silent there).
+			if ( 'already' === $result && '' !== $talk_hs_id ) {
+				$talk = Repositories::current()->known_talk( $talk_hs_id );
 
-			return $this->respond( [ 'message' => __( 'Registration could not be completed — please try again on the event site.', 'emailexpert-events' ) ], 502 );
+				if ( null !== $talk ) {
+					\Emailexpert\Events\Registration\Mailer::send_session_added( $email, $talk );
+				}
+			}
+
+			// Logged-in callers (and mode off) get the real status — safe
+			// because it is identical for fresh and duplicate. An anonymous
+			// CRM-verified caller gets the same neutral body as every other
+			// anonymous branch (no oracle on CRM membership either).
+			return $instant ? $this->respond( [ 'status' => 'registered' ], 200 ) : $this->neutral();
 		}
 
-		Logger::log(
-			Logger::CONTEXT_API,
-			'info',
-			'drawer registration completed',
-			[
-				'connection' => $connection_id,
-				'event'      => $event_hs_id,
-				'ticket'     => (string) ( $ticket['id'] ?? '' ),
-			]
-		);
+		// Unverified: hold the registration and ask the mailbox owner.
+		// Nothing reaches HeySummit until they click — which also means
+		// nobody can register or reschedule someone else's address.
+		if ( \Emailexpert\Events\Registration\PendingStore::take_send_slot( $email ) ) {
+			$event = Repositories::current()->event_summary( $event_hs_id );
+			$talk  = '' !== $talk_hs_id ? Repositories::current()->known_talk( $talk_hs_id ) : null;
 
-		// Add the clicked session to the new attendee's schedule. Best-effort:
-		// the registration already succeeded, so a failed attach only forgoes
-		// the session preselect, never the registration itself.
-		if ( '' !== $talk_hs_id ) {
-			$this->attach_talk( $client, $event_hs_id, (string) ( $response['id'] ?? '' ), $talk_hs_id );
+			$registration['event_title'] = null !== $event ? (string) ( $event['title'] ?? '' ) : '';
+			$registration['talk_title']  = null !== $talk ? (string) ( $talk['title'] ?? '' ) : '';
+			$registration['return_url']  = esc_url_raw( (string) $request['return'] );
+
+			$token = \Emailexpert\Events\Registration\PendingStore::create( $registration );
+
+			if ( '' !== $token ) {
+				\Emailexpert\Events\Registration\Mailer::send_confirmation( $registration, $token );
+
+				/**
+				 * A registration is pending email confirmation.
+				 *
+				 * @param array<string,mixed> $registration Payload (includes email).
+				 */
+				do_action( 'eex_registration_pending', $registration );
+			}
 		}
 
-		return $this->respond( [ 'status' => 'registered' ], 200 );
+		// Cooldown-blocked, store-failed and sent all answer identically.
+		return $this->neutral();
+	}
+
+	/**
+	 * The one answer every anonymous submission receives, whatever
+	 * happened: honeypot, suppression, cooldown, instant registration or
+	 * a confirmation email. Distinguishable outcomes on a public endpoint
+	 * are an enumeration oracle; one body tells nothing.
+	 */
+	private function neutral(): WP_REST_Response {
+		return $this->respond( [ 'status' => 'submitted' ], 200 );
+	}
+
+	/**
+	 * Whether the caller is a logged-in user registering their OWN
+	 * verified address (typing someone else's email from a logged-in
+	 * session is still an anonymous claim about another person).
+	 *
+	 * @param string $email Submitted address.
+	 */
+	private function is_own_verified_session( string $email ): bool {
+		if ( ! function_exists( 'is_user_logged_in' ) || ! is_user_logged_in() ) {
+			return false;
+		}
+
+		$user = wp_get_current_user();
+
+		return null !== $user && strtolower( (string) $user->user_email ) === strtolower( $email );
 	}
 
 	/**
@@ -248,58 +283,6 @@ final class RegisterController {
 		);
 
 		return '';
-	}
-
-	/**
-	 * Add an attendee to a talk's schedule through the allowlisted, idempotent
-	 * POST events/<id>/attendees/<pk>/talks/<talk>/ (HeySummit respects the
-	 * attendee's ticket access and the talk's capacity). Best-effort: a
-	 * failure is logged, never surfaced — the attendee is already registered.
-	 *
-	 * @param HeySummitClient $client       Keyed client.
-	 * @param string          $event_hs_id  Event ID.
-	 * @param string          $attendee_id  HeySummit attendee ID ('' skips).
-	 * @param string          $talk_hs_id   Talk ID (already validated).
-	 */
-	private function attach_talk( HeySummitClient $client, string $event_hs_id, string $attendee_id, string $talk_hs_id ): void {
-		// The visitor is registered by the time this runs; nothing here may
-		// surface as a failure to them. Non-numeric IDs would make the
-		// allowlisted client refuse the write by throwing, so guard first and
-		// contain everything else — a lost attach is logged, never a 500.
-		if ( ! preg_match( '/^\d+$/', $attendee_id ) || ! preg_match( '/^\d+$/', $event_hs_id ) || ! preg_match( '/^\d+$/', $talk_hs_id ) ) {
-			Logger::log(
-				Logger::CONTEXT_API,
-				'warning',
-				'drawer session attach skipped: attendee/event/talk id unresolved or non-numeric',
-				[
-					'event' => $event_hs_id,
-					'talk'  => $talk_hs_id,
-				]
-			);
-
-			return;
-		}
-
-		try {
-			$response = $client->post(
-				'events/' . rawurlencode( $event_hs_id ) . '/attendees/' . rawurlencode( $attendee_id ) . '/talks/' . rawurlencode( $talk_hs_id ) . '/',
-				[]
-			);
-		} catch ( \Throwable $e ) {
-			$response = new \WP_Error( 'eex_attach_refused', $e->getMessage() );
-		}
-
-		if ( is_wp_error( $response ) ) {
-			Logger::log(
-				Logger::CONTEXT_API,
-				'warning',
-				'drawer session attach failed: ' . $response->get_error_message(),
-				[
-					'event' => $event_hs_id,
-					'talk'  => $talk_hs_id,
-				]
-			);
-		}
 	}
 
 	/**

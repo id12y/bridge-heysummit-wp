@@ -1834,3 +1834,43 @@ correct in production but double-encoded in tests, and that Google
 Calendar links carried a raw (legal, now canonically encoded) slash.
 A stub that is friendlier than the real API hides exactly the bugs
 tests exist to catch.
+
+## D104. Nothing reaches HeySummit until the mailbox owner clicks (v1.36.0)
+
+Three field-raised concerns landed together: the consent checkbox was
+bundled and silent about the account being created; API-created
+attendees skip every confirmation HeySummit's own checkout performs
+("I think our form bypasses any checks" — correct); and the operator's
+own double-opt-in standards — they run a deliverability business —
+were not met by a form that registered any typed address instantly.
+
+The form now carries unbundled choices (required disclosure naming the
+free account, optional never-pre-ticked marketing opt-in, privacy
+policy link), all wording settings-editable and stored verbatim in a
+consent receipt (rolling log, hashed emails). The flow adopts the
+sibling newsletter plugin's confirmation playbook wholesale — raw
+token out / HMAC hash stored, 48-hour expiry, single-use claim,
+constant-shape neutral responses, atomic per-address send slot — with
+the pending payload encrypted at rest (sodium, keys off the auth
+salts, fails closed). The trust matrix: logged-in members registering
+their own address are instant (typing someone ELSE's address is not —
+that is a claim about another person); Standard mode also trusts
+addresses a CRM answers as double-opt-in confirmed via
+eex_email_is_verified; everyone else gets one email and one click.
+Confirmation also closes subscription bombing and schedule tampering:
+both required acting on an unverified address, and unverified
+addresses now act on nothing.
+
+Coupling to the CRM is three filters and three actions around plain
+wp_mail() (docs/crm-integration.md): the CRM's global mailer takeover
+provides transport; eex_registration_confirmed carries the full
+consent payload so the CRM can be the permanent record; absent CRM,
+everything works with WordPress mail and WP-login-only trust. Consent
+fields stay OFF the HeySummit wire until the field shapes are
+confirmed (a malformed guess would 400 every registration); the
+eex_attendee_request filter is the ready seam.
+
+The session-added email (with the .ics attached) sends exactly where
+HeySummit is silent: a session landing on an existing attendee's
+schedule. Fresh registrations keep HeySummit's own welcome — one
+outcome, one email, never two.

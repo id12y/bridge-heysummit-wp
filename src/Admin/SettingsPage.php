@@ -884,6 +884,7 @@ final class SettingsPage {
 					<p class="description"><?php esc_html_e( 'Campaign is set automatically from the rendering page slug; override per page with the _eex_utm_campaign custom field.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
+			<?php $this->registration_rows(); ?>
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Page cache purging', 'emailexpert-events' ); ?></th>
 				<td>
@@ -962,8 +963,68 @@ final class SettingsPage {
 					<p class="description"><?php esc_html_e( 'Campaign is set automatically from the rendering page slug; override per page with the _eex_utm_campaign custom field.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
+			<?php $this->registration_rows(); ?>
 		</table>
 		<?php
+	}
+
+	/**
+	 * Registration & consent rows, shared by both mode views.
+	 */
+	private function registration_rows(): void {
+		?>
+		<tr>
+			<th scope="row"><?php esc_html_e( 'Registration confirmation', 'emailexpert-events' ); ?></th>
+			<td>
+				<?php $eex_mode = (string) Options::setting( 'reg_confirm_mode' ); ?>
+				<select name="settings[reg_confirm_mode]">
+					<option value="standard" <?php selected( 'standard', $eex_mode ); ?>><?php esc_html_e( 'Standard — unknown addresses confirm by email; logged-in members and CRM-confirmed contacts register instantly', 'emailexpert-events' ); ?></option>
+					<option value="strict" <?php selected( 'strict', $eex_mode ); ?>><?php esc_html_e( 'Strict — every address that is not a logged-in member confirms by email', 'emailexpert-events' ); ?></option>
+					<option value="off" <?php selected( 'off', $eex_mode ); ?>><?php esc_html_e( 'Off — register immediately without email confirmation (not recommended)', 'emailexpert-events' ); ?></option>
+				</select>
+				<p class="description"><?php esc_html_e( 'Confirmed opt-in: unverified submissions are held (48 hours, encrypted) and nothing reaches HeySummit until the mailbox owner clicks the confirmation link. Closes third-party registration and schedule tampering by email.', 'emailexpert-events' ); ?></p>
+			</td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="eex-reg-disclosure"><?php esc_html_e( 'Registration consent wording', 'emailexpert-events' ); ?></label></th>
+			<td>
+				<textarea id="eex-reg-disclosure" name="settings[reg_disclosure_text]" rows="2" class="large-text" placeholder="<?php echo esc_attr( \Emailexpert\Events\Frontend\Components::consent_disclosure_text() ); ?>"><?php echo esc_textarea( (string) Options::setting( 'reg_disclosure_text' ) ); ?></textarea>
+				<p class="description"><?php esc_html_e( 'The required checkbox on registration forms. Say that a free account is created on the events platform. The exact wording shown is stored with every consent receipt. Leave blank for the default.', 'emailexpert-events' ); ?></p>
+			</td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="eex-reg-marketing"><?php esc_html_e( 'Marketing opt-in (optional checkbox)', 'emailexpert-events' ); ?></label></th>
+			<td>
+				<label><input type="checkbox" name="settings[reg_marketing_show]" value="1" <?php checked( (bool) Options::setting( 'reg_marketing_show' ) ); ?> /> <?php esc_html_e( 'Offer a separate, never pre-ticked marketing opt-in on registration forms', 'emailexpert-events' ); ?></label><br />
+				<textarea id="eex-reg-marketing" name="settings[reg_marketing_text]" rows="2" class="large-text" placeholder="<?php esc_attr_e( 'Also email me about future events and content (optional).', 'emailexpert-events' ); ?>"><?php echo esc_textarea( (string) Options::setting( 'reg_marketing_text' ) ); ?></textarea>
+			</td>
+		</tr>
+		<tr>
+			<th scope="row"><label for="eex-reg-subject"><?php esc_html_e( 'Confirmation email subject', 'emailexpert-events' ); ?></label></th>
+			<td>
+				<input type="text" id="eex-reg-subject" name="settings[reg_confirm_subject]" class="regular-text" value="<?php echo esc_attr( (string) Options::setting( 'reg_confirm_subject' ) ); ?>" placeholder="<?php esc_attr_e( 'Confirm your registration — {event}', 'emailexpert-events' ); ?>" />
+				<p class="description"><?php esc_html_e( 'Sent through wp_mail(), so your mail plugin/CRM routes it (SES etc.). Leave blank for the default.', 'emailexpert-events' ); ?></p>
+			</td>
+		</tr>
+		<?php
+	}
+
+	/**
+	 * The registration settings from a posted form, sanitised.
+	 *
+	 * @param array<string,mixed> $posted settings[] from the request.
+	 * @return array<string,mixed>
+	 */
+	private function registration_values( array $posted ): array {
+		$mode = (string) ( $posted['reg_confirm_mode'] ?? 'standard' );
+
+		return [
+			'reg_confirm_mode'    => in_array( $mode, [ 'standard', 'strict', 'off' ], true ) ? $mode : 'standard',
+			'reg_disclosure_text' => sanitize_textarea_field( (string) ( $posted['reg_disclosure_text'] ?? '' ) ),
+			'reg_marketing_text'  => sanitize_textarea_field( (string) ( $posted['reg_marketing_text'] ?? '' ) ),
+			'reg_marketing_show'  => empty( $posted['reg_marketing_show'] ) ? 0 : 1,
+			'reg_confirm_subject' => sanitize_text_field( (string) ( $posted['reg_confirm_subject'] ?? '' ) ),
+		];
 	}
 
 	/**
@@ -1004,7 +1065,7 @@ final class SettingsPage {
 		$sponsors = isset( $_POST['lite_sponsors'] ) && is_array( $_POST['lite_sponsors'] ) ? wp_unslash( $_POST['lite_sponsors'] ) : null;
 		// phpcs:enable
 
-		$values = [
+		$values = $this->registration_values( $posted ) + [
 			'lite_ttl'       => max( 1, min( 1440, (int) ( $posted['lite_ttl'] ?? 15 ) ) ),
 			'date_format'    => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
 			'cache_ttl'      => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
@@ -1190,7 +1251,7 @@ final class SettingsPage {
 		$frequency = in_array( $posted['frequency'] ?? '', array_keys( Scheduler::FREQUENCIES ), true ) ? $posted['frequency'] : 'hourly';
 
 		Options::update_settings(
-			[
+			$this->registration_values( $posted ) + [
 				'frequency'             => $frequency,
 				'date_format'           => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
 				'cache_ttl'             => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),

@@ -65,6 +65,7 @@ final class Plugin {
 			new Frontend\IcsDownload(),
 			new Rest\RegisterController(), // The ticket drawer's free-ticket form, both modes.
 			new Rest\MyScheduleController(), // A logged-in visitor's own RSVP state (self-only).
+			new Registration\ConfirmHandler(), // ?eex_confirm=<token> completes a held registration.
 			new Forms\Module(), // Form plugins → attendees; like the Woo bridge it works in both modes.
 			new Frontend\Feeds(), // Calendar subscribe feed: pretty URL in Full, ?eex_feed=calendar in Lite.
 			new Logging\Retention(), // Handler only; the cron exists only once a table does.
