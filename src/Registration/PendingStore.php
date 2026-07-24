@@ -82,24 +82,51 @@ final class PendingStore {
 	 * per window). add_option is an INSERT — exactly one concurrent
 	 * request wins; stale slots expire by timestamp.
 	 *
+	 * A second, per-IP budget rides on top: one browser asking to
+	 * register a stream of DIFFERENT addresses is the spam-registration
+	 * shape (each one costs a confirmation email from this site), and
+	 * client-side caps are clearable. Three distinct addresses per IP per
+	 * hour covers a household registering together; a blast does not get
+	 * this site's mail stream as its cannon.
+	 *
 	 * @param string $email Address about to be mailed.
 	 * @return bool Whether this caller may send.
 	 */
 	public static function take_send_slot( string $email ): bool {
-		$name = 'eex_regcd_' . Crypto::hash_email( $email );
+		$ip     = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['REMOTE_ADDR'] ) ) : '';
+		$ip_key = 'eex_regip_' . md5( $ip );
+		$sent   = get_transient( $ip_key );
+		$sent   = is_array( $sent ) ? $sent : [];
 
-		if ( add_option( $name, time(), '', false ) ) {
-			return true;
+		$email_hash = Crypto::hash_email( $email );
+
+		/**
+		 * Filter the distinct-address confirmation-email budget per IP per
+		 * hour (default 3).
+		 *
+		 * @param int $budget Distinct addresses.
+		 */
+		$ip_budget = max( 1, (int) apply_filters( 'eex_confirm_ip_budget', 3 ) );
+
+		if ( ! isset( $sent[ $email_hash ] ) && count( $sent ) >= $ip_budget ) {
+			return false;
 		}
 
-		$taken = (int) get_option( $name, 0 );
+		$name = 'eex_regcd_' . $email_hash;
 
-		if ( $taken > 0 && $taken < time() - self::COOLDOWN ) {
+		if ( ! add_option( $name, time(), '', false ) ) {
+			$taken = (int) get_option( $name, 0 );
+
+			if ( $taken <= 0 || $taken >= time() - self::COOLDOWN ) {
+				return false;
+			}
+
 			update_option( $name, time(), false );
-
-			return true;
 		}
 
-		return false;
+		$sent[ $email_hash ] = 1;
+		set_transient( $ip_key, $sent, HOUR_IN_SECONDS );
+
+		return true;
 	}
 }

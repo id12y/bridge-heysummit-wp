@@ -342,6 +342,21 @@ final class ConfirmedOptInTest extends TestCase {
 		$this->assertStringContainsString( 'name="consent"', $plain );
 	}
 
+	public function test_one_ip_cannot_stream_confirmation_emails_to_different_addresses(): void {
+		// Three distinct addresses (a household) go through; the fourth
+		// from the same IP inside the hour does not — and the response
+		// stays the same neutral body, so the cap is not probeable either.
+		foreach ( [ 'a@example.org', 'b@example.org', 'c@example.org', 'd@example.org' ] as $i => $address ) {
+			// Stay under the general 5-per-10-minutes request limit.
+			delete_transient( 'eex_reg_rl_' . md5( '203.0.113.9' ) );
+			$response = ( new RegisterController() )->create( $this->request( [ 'email' => $address ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			$this->assertSame( 'submitted', $response->get_data()['status'], 'attempt ' . ( $i + 1 ) . ' answers neutrally' );
+		}
+
+		$this->assertCount( 3, \EEX_Test_State::$mail, 'the fourth distinct address sends nothing' );
+		$this->assertSame( [ 'a@example.org', 'b@example.org', 'c@example.org' ], array_column( \EEX_Test_State::$mail, 'to' ) );
+	}
+
 	public function test_the_mail_gate_filters_stop_a_send(): void {
 		add_filter( 'eex_should_send', static fn(): bool => false );
 

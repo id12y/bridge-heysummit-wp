@@ -68,7 +68,7 @@ final class Assets {
 					'regError'          => __( 'Something went wrong — please try again.', 'emailexpert-events' ),
 					'rsvpKnownTalk'     => __( "You're going — this session is on your schedule.", 'emailexpert-events' ),
 					'rsvpKnownEvent'    => __( "You're registered for this event.", 'emailexpert-events' ),
-					'rsvpOther'         => __( 'Not you? RSVP someone else', 'emailexpert-events' ),
+					'rsvpOther'         => __( 'Use a different email', 'emailexpert-events' ),
 					'regSubmitted'      => __( 'Almost done — check your inbox for the next step.', 'emailexpert-events' ),
 					'regConfirmDone'    => __( "You're registered — your session is on your schedule.", 'emailexpert-events' ),
 					'regConfirmFailed'  => __( 'That confirmation could not be completed — please register again.', 'emailexpert-events' ),

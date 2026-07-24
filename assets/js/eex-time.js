@@ -747,25 +747,35 @@
 			? ( config.i18n.rsvpKnownTalk || 'You\u2019re going \u2014 this session is on your schedule.' )
 			: ( config.i18n.rsvpKnownEvent || 'You\u2019re registered for this event.' );
 
-		var other = document.createElement( 'button' );
-		other.type = 'button';
-		other.className = 'eex-rsvp-other';
-		other.textContent = config.i18n.rsvpOther || 'Not you? RSVP someone else';
-		other.addEventListener( 'click', function () {
-			chip.remove();
-			form.eexKnown = false;
-			toggle.hidden = false;
-			var nameInput = form.querySelector( 'input[name="name"]' );
-			var emailInput = form.querySelector( 'input[name="email"]' );
-			if ( nameInput ) {
-				nameInput.value = '';
-			}
-			if ( emailInput ) {
-				emailInput.value = '';
-			}
-		} );
-		chip.appendChild( document.createTextNode( ' ' ) );
-		chip.appendChild( other );
+		// The switch-email escape hatch is capped per browser: registering
+		// a second household member is normal, a stream of "different"
+		// emails is not (the server caps confirmation emails per IP too —
+		// this just removes the invitation).
+		var switches = ( load().switches || 0 );
+		if ( switches < 2 ) {
+			var other = document.createElement( 'button' );
+			other.type = 'button';
+			other.className = 'eex-rsvp-other';
+			other.textContent = config.i18n.rsvpOther || 'Use a different email';
+			other.addEventListener( 'click', function () {
+				var current = load();
+				current.switches = ( current.switches || 0 ) + 1;
+				save( current );
+				chip.remove();
+				form.eexKnown = false;
+				toggle.hidden = false;
+				var nameInput = form.querySelector( 'input[name="name"]' );
+				var emailInput = form.querySelector( 'input[name="email"]' );
+				if ( nameInput ) {
+					nameInput.value = '';
+				}
+				if ( emailInput ) {
+					emailInput.value = '';
+				}
+			} );
+			chip.appendChild( document.createTextNode( ' ' ) );
+			chip.appendChild( other );
+		}
 
 		toggle.hidden = true;
 

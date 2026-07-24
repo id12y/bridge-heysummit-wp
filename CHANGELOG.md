@@ -37,6 +37,18 @@ Notable changes per released version. Design reasoning lives in
   regardless of outcome (held, instant, honeypot, cooldown) — the
   enumeration guarantee extended to the new flow. Logged-in members
   still get real statuses about themselves.
+- **Registration-abuse caps.** The "known RSVP" chip's escape hatch is
+  reworded to "Use a different email" and capped at two uses per
+  browser; server-side (the layer that can't be cleared), one IP may
+  trigger confirmation emails to at most three distinct addresses per
+  hour (`eex_confirm_ip_budget` filter) on top of the existing
+  per-address cooldown and per-IP request limit. Over-budget attempts
+  get the same neutral answer and send nothing.
+- Fixed (field-reported): the "You're going" confirmation chip broke
+  list-layout action rows (block element inside the inline actions
+  container pushed buttons out of the card). The chip now renders as
+  its own block below the action row everywhere, and the text button
+  is hardened against theme button styling.
 
 ## 1.35.0
 - **Security (field-raised): registration state can no longer be probed
