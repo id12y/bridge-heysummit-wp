@@ -69,7 +69,7 @@ final class ConfirmHandler {
 		// at the moment of the write, not the moment of the form.
 		$ticket = null;
 		foreach ( Tickets::for_display( (string) $payload['connection_id'], (string) $payload['event'], '' ) as $row ) {
-			if ( (string) $row['id'] === (string) ( $payload['ticket'] ?? '' ) && empty( $row['is_paid'] ) ) {
+			if ( (string) ( $payload['ticket'] ?? '' ) === (string) $row['id'] && empty( $row['is_paid'] ) ) {
 				$ticket = $row;
 				break;
 			}

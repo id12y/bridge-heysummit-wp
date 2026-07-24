@@ -44,6 +44,14 @@ if ( ! in_array( $eex_layout, [ 'panel', 'banner', 'spotlight', 'minimal' ], tru
 
 $eex_rsvp = (array) ( $args['rsvp'] ?? [] );
 
+// An externally hosted session (external_url) is ticketed elsewhere:
+// its register button must follow that link, never the in-place RSVP
+// form (which registers on a HeySummit free ticket). Per session, so
+// other cards in the same widget keep their forms.
+if ( '' !== (string) ( $eex_data['external_url'] ?? '' ) ) {
+	$eex_rsvp = [];
+}
+
 $eex_register_text = (string) ( $args['register_text'] ?? '' );
 if ( '' === $eex_register_text ) {
 	$eex_register_text = empty( $eex_rsvp ) ? __( 'Get tickets', 'emailexpert-events' ) : __( 'RSVP free', 'emailexpert-events' );
