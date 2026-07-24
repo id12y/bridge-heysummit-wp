@@ -1664,3 +1664,47 @@
 	padding: 0.6rem 0.9rem;
 	margin: 0.5rem 0;
 }
+
+/* In-place RSVP (register button behaviour: "RSVP form"): the form drops
+   in just under the action row. Inside wide cards it keeps a readable
+   measure; inside the sticky bar it stays scrollable on short screens. */
+.eex-card > .eex-reg-form,
+.eex-feature-session .eex-reg-form,
+.eex-hero-aside .eex-reg-form {
+	max-width: 26em;
+}
+
+.eex-register-bar .eex-reg-form {
+	max-width: 26em;
+	max-height: 60vh;
+	overflow: auto;
+	margin-top: 0.5em;
+}
+
+.eex-register-bar .eex-reg-done {
+	margin: 0.5em 0 0;
+}
+
+/* The reveal JS hides the toggle while its form is open (two stacked
+   primary buttons read as competing actions) — make the hidden attribute
+   win over the CTA display rules. */
+.eex-cta[hidden],
+.eex-reg-toggle[hidden] {
+	display: none;
+}
+
+/* Zero-click confirmation for a browser that already RSVP'd here. */
+.eex-rsvp-known {
+	margin: 0;
+}
+
+.eex-rsvp-other {
+	border: 0;
+	padding: 0;
+	background: none;
+	font: inherit;
+	font-size: 0.85em;
+	color: var(--eex-muted);
+	text-decoration: underline;
+	cursor: pointer;
+}

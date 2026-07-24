@@ -38,9 +38,12 @@ $eex_venue   = ! empty( $eex_show['venue'] ) ? (string) ( $eex_data['venue'] ?? 
 $eex_address = (array) ( $args['address'] ?? [] );
 $eex_link    = (string) ( ( $eex_data['permalink'] ?? '' ) ?: ( $eex_data['talk_url'] ?? '' ) );
 
+$eex_rsvp      = (array) ( $args['rsvp'] ?? [] );
+$eex_drawer_id = (string) ( $args['drawer'] ?? '' );
+
 $eex_register_text = (string) ( $args['register_text'] ?? '' );
 if ( '' === $eex_register_text ) {
-	$eex_register_text = __( 'Get tickets', 'emailexpert-events' );
+	$eex_register_text = empty( $eex_rsvp ) ? __( 'Get tickets', 'emailexpert-events' ) : __( 'RSVP free', 'emailexpert-events' );
 }
 $eex_session_text = (string) ( $args['session_text'] ?? '' );
 if ( '' === $eex_session_text ) {
@@ -124,8 +127,10 @@ $eex_session_url = 'tickets' === $eex_buttons ? '' : Components::session_url( $e
 		<?php endif; ?>
 
 		<p class="eex-card-actions">
-			<?php if ( '' !== $eex_tickets_url ) : ?>
-				<a class="eex-cta eex-cta-register"<?php echo '' === $eex_session_url ? ' data-eex-cta="1"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal. ?> href="<?php echo esc_url( $eex_tickets_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
+			<?php if ( '' !== $eex_tickets_url && ! empty( $eex_rsvp ) ) : ?>
+				<a class="eex-cta eex-cta-register eex-rsvp-toggle" data-eex-reg-toggle="1" aria-expanded="false" href="<?php echo esc_url( $eex_tickets_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
+			<?php elseif ( '' !== $eex_tickets_url ) : ?>
+				<a class="eex-cta eex-cta-register"<?php echo '' === $eex_session_url ? ' data-eex-cta="1"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal. ?><?php echo '' !== $eex_drawer_id ? ' data-eex-drawer="' . esc_attr( $eex_drawer_id ) . '" data-eex-talk="' . esc_attr( (string) ( $eex_data['hs_id'] ?? '' ) ) . '" data-eex-talk-title="' . esc_attr( (string) ( $eex_data['title'] ?? '' ) ) . '"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?> href="<?php echo esc_url( $eex_tickets_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
 			<?php endif; ?>
 			<?php if ( '' !== $eex_session_url ) : ?>
 				<a class="eex-cta eex-cta-session" data-eex-cta="1" href="<?php echo esc_url( $eex_session_url ); ?>"><?php echo esc_html( $eex_session_text ); ?></a>
@@ -134,5 +139,20 @@ $eex_session_url = 'tickets' === $eex_buttons ? '' : Components::session_url( $e
 				<a class="eex-cta-secondary" href="<?php echo esc_url( Ics::download_url( $eex_data ) ); ?>"><?php esc_html_e( 'Add to calendar (.ics)', 'emailexpert-events' ); ?></a>
 			<?php endif; ?>
 		</p>
+		<?php if ( ! empty( $eex_rsvp ) && '' !== $eex_tickets_url ) : ?>
+			<?php
+			TemplateLoader::part(
+				'register-form',
+				[
+					'event_id'    => (string) ( $eex_rsvp['event_id'] ?? '' ),
+					'ticket_id'   => (string) ( $eex_rsvp['ticket_id'] ?? '' ),
+					'price_id'    => (string) ( $eex_rsvp['price_id'] ?? '' ),
+					'talk_id'     => (string) ( $eex_data['hs_id'] ?? '' ),
+					'submit_text' => __( 'RSVP', 'emailexpert-events' ),
+					'hidden'      => true,
+				]
+			);
+			?>
+		<?php endif; ?>
 	</div>
 </article>

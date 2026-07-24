@@ -157,13 +157,15 @@ final class Components {
 			'label'   => __( 'External ticketing URL (empty = HeySummit checkout)', 'emailexpert-events' ),
 		];
 		$register_action = [
-			'type'    => 'string',
-			'default' => 'link',
-			'label'   => __( 'Tickets button behaviour', 'emailexpert-events' ),
-			'options' => [
-				'link'  => __( 'Follow the link', 'emailexpert-events' ),
-				'panel' => __( 'Open the ticket panel (slide-over)', 'emailexpert-events' ),
+			'type'        => 'string',
+			'default'     => 'link',
+			'label'       => __( 'Register button behaviour', 'emailexpert-events' ),
+			'options'     => [
+				'link'  => __( 'Follow the ticket link (HeySummit checkout)', 'emailexpert-events' ),
+				'panel' => __( 'Ticket panel (slide-over; free tickets show an RSVP form)', 'emailexpert-events' ),
+				'form'  => __( 'RSVP form in place (free ticket)', 'emailexpert-events' ),
 			],
+			'description' => __( 'The RSVP form registers visitors on this site using the event\'s free ticket and adds the session to their schedule — returning members are recognised and never sent through checkout. It needs a free ticket: if the event has none, the button follows the ticket link instead (paid tickets always check out on the platform).', 'emailexpert-events' ),
 		];
 		$buy_on          = [
 			'type'    => 'string',
@@ -1103,6 +1105,7 @@ final class Components {
 					'register_text'    => $tickets_text,
 					'session_text'     => $session_text,
 					'register_url'     => $register_url,
+					'register_action'  => $register_action,
 					'buy_on'           => $buy_on,
 					'coupon'           => $coupon,
 					'currency'         => $currency,
@@ -1261,6 +1264,21 @@ final class Components {
 						empty( $known ) ? __( '(none learned yet)', 'emailexpert-events' ) : implode( ', ', $known )
 					)
 				)
+			);
+		}
+
+		// An RSVP form was requested but did not render (the event has no
+		// free ticket after the widget's filters): the button silently kept
+		// the ticket link — a correct fallback that still deserves a why.
+		if ( 'form' === (string) ( $atts['register_action'] ?? '' )
+			&& ! str_contains( $html, 'data-eex-reg-toggle' )
+			&& ! str_contains( $html, 'eex-empty' )
+			&& '' !== trim( $html )
+			&& function_exists( 'current_user_can' )
+			&& current_user_can( 'manage_options' ) ) {
+			return sprintf(
+				'<p class="eex-admin-note">%s</p>',
+				esc_html__( 'Visible to administrators only: this widget is set to "RSVP form", but no free ticket was found for the event (check the widget\'s ticket filters too), so the button follows the ticket link instead. The RSVP form can only register free tickets — paid tickets check out on the platform.', 'emailexpert-events' )
 			);
 		}
 
@@ -1669,6 +1687,7 @@ final class Components {
 			'session_text'  => (string) ( $atts['session_text'] ?? '' ),
 			'register'      => self::register_args( $atts ),
 			'drawer'        => $drawer['id'],
+			'rsvp'          => self::rsvp_context( $atts ),
 		];
 
 		if ( 'agenda' === $layout ) {
@@ -1909,6 +1928,58 @@ final class Components {
 	 * @param array<string,mixed> $atts Attributes.
 	 * @return array{id:string,html:string}
 	 */
+	/**
+	 * The in-place RSVP form context: the event's first free ticket (after
+	 * the component's tickets/exclude filters), resolved once per render.
+	 * Empty when the component is not in form mode or the event has no free
+	 * ticket — callers then keep the plain link CTA, so a paid-only event
+	 * can never show a dead form (the register endpoint refuses paid
+	 * tickets anyway; payment only happens on the platform).
+	 *
+	 * @param array<string,mixed> $atts Attributes.
+	 * @return array{event_id:string,ticket_id:string,price_id:string}|array{}
+	 */
+	private static function rsvp_context( array $atts ): array {
+		if ( 'form' !== (string) ( $atts['register_action'] ?? 'link' ) ) {
+			return [];
+		}
+
+		$event = self::repo()->event_summary( (string) ( $atts['event'] ?? '' ) );
+		if ( null === $event ) {
+			return [];
+		}
+
+		$csv      = static fn( string $value ): array => array_values( array_filter( array_map( 'trim', explode( ',', $value ) ) ) );
+		$only     = $csv( (string) ( $atts['tickets'] ?? '' ) );
+		$excluded = $csv( (string) ( $atts['exclude'] ?? '' ) );
+
+		foreach ( self::repo()->tickets( $atts ) as $ticket ) {
+			$id = (string) $ticket['id'];
+
+			if ( ( ! empty( $only ) && ! in_array( $id, $only, true ) )
+				|| in_array( $id, $excluded, true )
+				|| ! empty( $ticket['is_paid'] ) ) {
+				continue;
+			}
+
+			$price_id = '';
+			foreach ( (array) $ticket['prices'] as $price ) {
+				if ( '' !== (string) ( $price['id'] ?? '' ) ) {
+					$price_id = (string) $price['id'];
+					break;
+				}
+			}
+
+			return [
+				'event_id'  => (string) $event['hs_id'],
+				'ticket_id' => $id,
+				'price_id'  => $price_id,
+			];
+		}
+
+		return [];
+	}
+
 	private static function ticket_drawer( array $atts ): array {
 		$none = [
 			'id'   => '',
@@ -2748,6 +2819,7 @@ final class Components {
 				'session_text'   => (string) ( $atts['session_text'] ?? '' ),
 				'register'       => self::register_args( $atts ),
 				'drawer'         => $drawer['id'],
+				'rsvp'           => self::rsvp_context( $atts ),
 			]
 		);
 
@@ -3338,8 +3410,11 @@ final class Components {
 		}
 
 		$drawer = self::ticket_drawer( $atts );
+		$rsvp   = self::rsvp_context( $atts );
 		$text   = '' !== (string) $atts['text'] ? (string) $atts['text'] : (string) $event['title'];
-		$label  = '' !== (string) $atts['register_text'] ? (string) $atts['register_text'] : __( 'Get tickets', 'emailexpert-events' );
+		$label  = '' !== (string) $atts['register_text']
+			? (string) $atts['register_text']
+			: ( empty( $rsvp ) ? __( 'Get tickets', 'emailexpert-events' ) : __( 'RSVP free', 'emailexpert-events' ) );
 
 		// The next (or current) session powers the live flip and countdown.
 		$next      = ! empty( $atts['show_live'] ) ? self::repo()->current_and_next(
@@ -3374,6 +3449,7 @@ final class Components {
 				'countdown'   => $countdown,
 				'session'     => ! empty( $next ) ? $next[0] : [],
 				'drawer_id'   => $drawer['id'],
+				'rsvp'        => $rsvp,
 			]
 		);
 
@@ -3686,6 +3762,15 @@ final class Components {
 			[ 'lines' => $address, 'map_url' => $map_url ] = self::event_address( $data );
 		}
 
+		// The event attribute may be empty (talk picked directly); the drawer
+		// and RSVP form need the owning event, so resolve it from the talk.
+		$commerce_atts = $atts;
+		if ( '' === (string) ( $commerce_atts['event'] ?? '' ) && '' !== (string) ( $data['event_hs_id'] ?? '' ) ) {
+			$commerce_atts['event'] = (string) $data['event_hs_id'];
+		}
+
+		$drawer = self::ticket_drawer( $commerce_atts );
+
 		ob_start();
 		TemplateLoader::part(
 			'featured-session',
@@ -3699,10 +3784,12 @@ final class Components {
 				'register_text' => (string) $atts['register_text'],
 				'session_text'  => (string) $atts['session_text'],
 				'register'      => self::register_args( $atts ),
+				'drawer'        => $drawer['id'],
+				'rsvp'          => self::rsvp_context( $commerce_atts ),
 			]
 		);
 
-		return (string) ob_get_clean();
+		return (string) ob_get_clean() . $drawer['html'];
 	}
 
 	/**

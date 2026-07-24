@@ -15,6 +15,7 @@
  */
 
 use Emailexpert\Events\Frontend\Components;
+use Emailexpert\Events\Frontend\TemplateLoader;
 use Emailexpert\Events\Frontend\Ics;
 use Emailexpert\Events\Frontend\TimeFormat;
 
@@ -36,9 +37,11 @@ if ( empty( $eex_data['id'] ) ) {
 	return;
 }
 
+$eex_rsvp = (array) ( $args['rsvp'] ?? [] );
+
 $eex_register_text = (string) ( $args['register_text'] ?? '' );
 if ( '' === $eex_register_text ) {
-	$eex_register_text = __( 'Get tickets', 'emailexpert-events' );
+	$eex_register_text = empty( $eex_rsvp ) ? __( 'Get tickets', 'emailexpert-events' ) : __( 'RSVP free', 'emailexpert-events' );
 }
 ?>
 <article class="eex-agenda-row"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
@@ -114,7 +117,9 @@ if ( '' === $eex_register_text ) {
 				$eex_session_text = __( 'View session', 'emailexpert-events' );
 			}
 			?>
-			<?php if ( '' !== $eex_tickets_url ) : ?>
+			<?php if ( '' !== $eex_tickets_url && ! empty( $eex_rsvp ) ) : ?>
+				<a class="eex-cta eex-cta-register eex-rsvp-toggle" data-eex-reg-toggle="1" aria-expanded="false" href="<?php echo esc_url( $eex_tickets_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
+			<?php elseif ( '' !== $eex_tickets_url ) : ?>
 				<a class="eex-cta eex-cta-register"<?php echo '' === $eex_session_url ? ' data-eex-cta="1"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- literal. ?><?php echo '' !== $eex_drawer_id ? ' data-eex-drawer="' . esc_attr( $eex_drawer_id ) . '" data-eex-talk="' . esc_attr( (string) ( $eex_data['hs_id'] ?? '' ) ) . '" data-eex-talk-title="' . esc_attr( (string) ( $eex_data['title'] ?? '' ) ) . '"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above. ?> href="<?php echo esc_url( $eex_tickets_url ); ?>"><?php echo esc_html( $eex_register_text ); ?></a>
 			<?php endif; ?>
 			<?php if ( '' !== $eex_session_url ) : ?>
@@ -130,4 +135,19 @@ if ( '' === $eex_register_text ) {
 			<?php endif; ?>
 		<?php endif; ?>
 	</p>
+	<?php if ( ! empty( $eex_rsvp ) && ! empty( $eex_tickets_url ) ) : ?>
+		<?php
+		TemplateLoader::part(
+			'register-form',
+			[
+				'event_id'    => (string) ( $eex_rsvp['event_id'] ?? '' ),
+				'ticket_id'   => (string) ( $eex_rsvp['ticket_id'] ?? '' ),
+				'price_id'    => (string) ( $eex_rsvp['price_id'] ?? '' ),
+				'talk_id'     => (string) ( $eex_data['hs_id'] ?? '' ),
+				'submit_text' => __( 'RSVP', 'emailexpert-events' ),
+				'hidden'      => true,
+			]
+		);
+		?>
+	<?php endif; ?>
 </article>
