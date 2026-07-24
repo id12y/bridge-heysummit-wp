@@ -55,20 +55,25 @@ final class Assets {
 				'viewer'      => $viewer,
 				'soonMinutes' => 60,
 				'i18n'        => [
-					'joinNow'        => __( 'Join now', 'emailexpert-events' ),
-					'startingSoon'   => __( 'Starting soon', 'emailexpert-events' ),
-					'liveNow'        => __( 'Live now', 'emailexpert-events' ),
-					'days'           => __( 'days', 'emailexpert-events' ),
-					'hours'          => __( 'hours', 'emailexpert-events' ),
-					'minutes'        => __( 'minutes', 'emailexpert-events' ),
-					'regDone'        => __( "You're registered — check your inbox for the confirmation.", 'emailexpert-events' ),
-					'regAlready'     => __( "You're already registered for this event — check your inbox.", 'emailexpert-events' ),
-					'regDoneTalk'    => __( "You're registered — this session is on your schedule. Check your inbox for the confirmation.", 'emailexpert-events' ),
-					'regAlreadyTalk' => __( "You're already registered — this session has been added to your schedule.", 'emailexpert-events' ),
-					'regError'       => __( 'Something went wrong — please try again.', 'emailexpert-events' ),
-					'rsvpKnownTalk'  => __( "You're going — this session is on your schedule.", 'emailexpert-events' ),
-					'rsvpKnownEvent' => __( "You're registered for this event.", 'emailexpert-events' ),
-					'rsvpOther'      => __( 'Not you? RSVP someone else', 'emailexpert-events' ),
+					'joinNow'           => __( 'Join now', 'emailexpert-events' ),
+					'startingSoon'      => __( 'Starting soon', 'emailexpert-events' ),
+					'liveNow'           => __( 'Live now', 'emailexpert-events' ),
+					'days'              => __( 'days', 'emailexpert-events' ),
+					'hours'             => __( 'hours', 'emailexpert-events' ),
+					'minutes'           => __( 'minutes', 'emailexpert-events' ),
+					'regDone'           => __( "You're registered — check your inbox for the confirmation.", 'emailexpert-events' ),
+					'regAlready'        => __( "You're already registered for this event — check your inbox.", 'emailexpert-events' ),
+					'regDoneTalk'       => __( "You're registered — this session is on your schedule. Check your inbox for the confirmation.", 'emailexpert-events' ),
+					'regAlreadyTalk'    => __( "You're already registered — this session has been added to your schedule.", 'emailexpert-events' ),
+					'regError'          => __( 'Something went wrong — please try again.', 'emailexpert-events' ),
+					'rsvpKnownTalk'     => __( "You're going — this session is on your schedule.", 'emailexpert-events' ),
+					'rsvpKnownEvent'    => __( "You're registered for this event.", 'emailexpert-events' ),
+					'rsvpOther'         => __( 'Not you? RSVP someone else', 'emailexpert-events' ),
+					'regSubmitted'      => __( 'Almost done — check your inbox for the next step.', 'emailexpert-events' ),
+					'regConfirmDone'    => __( "You're registered — your session is on your schedule.", 'emailexpert-events' ),
+					'regConfirmFailed'  => __( 'That confirmation could not be completed — please register again.', 'emailexpert-events' ),
+					'regConfirmInvalid' => __( 'That confirmation link is no longer valid — please register again.', 'emailexpert-events' ),
+					'dismiss'           => __( 'Dismiss', 'emailexpert-events' ),
 				],
 			]
 		);
@@ -103,6 +108,13 @@ final class Assets {
 		if ( is_singular( [ PostTypes::EVENT, PostTypes::TALK, PostTypes::SPEAKER, PostTypes::SPONSOR ] )
 			|| is_post_type_archive( [ PostTypes::EVENT, PostTypes::TALK, PostTypes::SPEAKER ] )
 			|| is_tax( [ 'eex_category', 'eex_event_series' ] ) ) {
+			self::mark_needed();
+		}
+
+		// A confirmation-link landing (?eex_reg=...) must show its banner
+		// wherever the redirect ends up, components on the page or not.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- presence check only.
+		if ( isset( $_GET['eex_reg'] ) ) {
 			self::mark_needed();
 		}
 	}

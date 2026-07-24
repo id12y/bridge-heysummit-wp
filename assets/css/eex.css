@@ -1708,3 +1708,88 @@
 	text-decoration: underline;
 	cursor: pointer;
 }
+
+/* Registration consent block: unbundled choices, quiet privacy link. */
+.eex-reg-marketing {
+	margin-top: 0.25em;
+}
+
+.eex-reg-privacy {
+	margin: 0.25em 0 0;
+	font-size: 0.8em;
+}
+
+.eex-reg-privacy a {
+	color: var(--eex-muted);
+}
+
+/* Confirmation-landing banner (?eex_reg=...). */
+.eex-confirm-banner {
+	position: sticky;
+	top: 0;
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 1em;
+	padding: 0.8em 1em;
+	background: var(--eex-badge-bg, #eef2f7);
+	border-bottom: 1px solid var(--eex-border, #d6dce5);
+	font-weight: 600;
+}
+
+.eex-confirm-banner p {
+	margin: 0;
+}
+
+.eex-confirm-bad {
+	background: #fdf3e7;
+}
+
+.eex-confirm-dismiss {
+	border: 0;
+	background: none;
+	font-size: 1.2em;
+	line-height: 1;
+	cursor: pointer;
+}
+
+/* The zero-click chip lives below the action row; keep it a calm,
+   readable block that never stretches the whole row. */
+.eex .eex-rsvp-known {
+	display: block;
+	max-width: 34em;
+	margin: 0.5em 0 0;
+}
+
+/* Theme-proof reset for the "not you?" text button: themes style bare
+   <button> heavily (backgrounds, shadows, uppercase); this must read as
+   a quiet inline link wherever it lands. */
+.eex .eex-rsvp-other,
+.eex-reg-done .eex-rsvp-other {
+	display: inline;
+	width: auto;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	text-shadow: none;
+	font: inherit;
+	font-size: 0.85em;
+	font-weight: 400;
+	letter-spacing: normal;
+	text-transform: none;
+	line-height: inherit;
+	color: var(--eex-muted, #57606a);
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.eex .eex-rsvp-other:hover,
+.eex-reg-done .eex-rsvp-other:hover {
+	background: transparent;
+	color: inherit;
+}

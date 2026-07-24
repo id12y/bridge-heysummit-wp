@@ -429,16 +429,24 @@
 
 					// A session-scoped form (talk field filled) confirms the
 					// schedule, not just the registration — the difference a
-					// returning member actually cares about.
+					// returning member actually cares about. Anonymous
+					// submissions all answer 'submitted' (deliberately
+					// indistinguishable server-side) and get one neutral
+					// next-step message.
+					var status = result.json && result.json.status;
 					var talkField = form.querySelector( 'input[name="talk"]' );
 					var forTalk = talkField && '' !== talkField.value;
-					done.textContent = 'already' === ( result.json && result.json.status )
-						? ( forTalk
+					if ( 'submitted' === status ) {
+						done.textContent = config.i18n.regSubmitted || 'Almost done — check your inbox for the next step.';
+					} else if ( 'already' === status ) {
+						done.textContent = forTalk
 							? ( config.i18n.regAlreadyTalk || 'You are already registered — this session is on your schedule.' )
-							: ( config.i18n.regAlready || 'You are already registered.' ) )
-						: ( forTalk
+							: ( config.i18n.regAlready || 'You are already registered.' );
+					} else {
+						done.textContent = forTalk
 							? ( config.i18n.regDoneTalk || 'You are registered — this session is on your schedule.' )
-							: ( config.i18n.regDone || 'You are registered.' ) );
+							: ( config.i18n.regDone || 'You are registered.' );
+					}
 					form.replaceWith( done );
 					return;
 				}
@@ -760,7 +768,14 @@
 		chip.appendChild( other );
 
 		toggle.hidden = true;
-		toggle.parentNode.insertBefore( chip, toggle );
+
+		// The chip replaces the hidden FORM's slot, not the toggle's: the
+		// toggle often sits inside an inline/flex action row (the list
+		// layout's actions are inline), and a block chip in there breaks
+		// the row apart — siblings escape their container. The form is
+		// always a block-level sibling below the row, exactly where a
+		// full-width confirmation belongs.
+		form.parentNode.insertBefore( chip, form );
 	}
 
 	document.querySelectorAll( '[data-eex-reg]' ).forEach( function ( form ) {
@@ -836,5 +851,47 @@
 					// The confirmation is a nicety; the form still works.
 				} );
 		} );
+	}
+}() );
+
+// Confirmation-link landing: ?eex_reg=done|failed|invalid set by the
+// server after a confirmation click. One polite banner, then the flag is
+// scrubbed from the URL so reloads and shares stay clean.
+( function () {
+	var match = window.location.search.match( /[?&]eex_reg=(done|failed|invalid)/ );
+	if ( ! match ) {
+		return;
+	}
+
+	var config = window.eexTime || { i18n: {} };
+	var messages = {
+		done: config.i18n.regConfirmDone || 'You’re registered — your session is on your schedule.',
+		failed: config.i18n.regConfirmFailed || 'That confirmation could not be completed — please register again.',
+		invalid: config.i18n.regConfirmInvalid || 'That confirmation link is no longer valid — please register again.'
+	};
+
+	var banner = document.createElement( 'div' );
+	banner.className = 'eex eex-confirm-banner' + ( 'done' === match[ 1 ] ? ' eex-confirm-ok' : ' eex-confirm-bad' );
+	banner.setAttribute( 'role', 'status' );
+
+	var text = document.createElement( 'p' );
+	text.textContent = messages[ match[ 1 ] ];
+	banner.appendChild( text );
+
+	var close = document.createElement( 'button' );
+	close.type = 'button';
+	close.className = 'eex-confirm-dismiss';
+	close.setAttribute( 'aria-label', config.i18n.dismiss || 'Dismiss' );
+	close.textContent = '×';
+	close.addEventListener( 'click', function () {
+		banner.remove();
+	} );
+	banner.appendChild( close );
+
+	document.body.insertBefore( banner, document.body.firstChild );
+
+	if ( window.history && window.history.replaceState ) {
+		var clean = window.location.href.replace( /([?&])eex_reg=[^&]+&?/, '$1' ).replace( /[?&]$/, '' );
+		window.history.replaceState( null, '', clean );
 	}
 }() );

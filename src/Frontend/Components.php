@@ -1553,6 +1553,36 @@ final class Components {
 	 * @param array<string,mixed> $data Talk data.
 	 * @return string[]
 	 */
+	/**
+	 * The registration disclosure — the exact wording the visitor agrees
+	 * to, shared by the form render and the consent receipt so they can
+	 * never diverge. Operators override it in Settings; the legacy filter
+	 * still applies last.
+	 */
+	public static function consent_disclosure_text(): string {
+		$text = trim( (string) Options::setting( 'reg_disclosure_text' ) );
+
+		if ( '' === $text ) {
+			$text = __( "Register me for this event. If I don't have one yet, this creates my free account on our events platform (HeySummit), which will email me about this registration.", 'emailexpert-events' );
+		}
+
+		/** This filter is documented in templates/parts/register-form.php. */
+		return (string) apply_filters( 'eex_register_consent_text', $text );
+	}
+
+	/**
+	 * The optional marketing opt-in wording ('' = checkbox disabled).
+	 */
+	public static function consent_marketing_text(): string {
+		if ( ! (bool) Options::setting( 'reg_marketing_show' ) ) {
+			return '';
+		}
+
+		$text = trim( (string) Options::setting( 'reg_marketing_text' ) );
+
+		return '' !== $text ? $text : __( 'Also email me about future events and content (optional).', 'emailexpert-events' );
+	}
+
 	public static function status_badges( array $data ): array {
 		$badges = [];
 
