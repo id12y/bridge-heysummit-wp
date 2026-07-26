@@ -322,6 +322,39 @@ final class RegisterControllerTest extends TestCase {
 		$this->assertStringContainsString( 'events/101/attendees/8123/talks/7001/', $this->posts[1][0], 'the clicked session is attached to the attendee found by email' );
 	}
 
+	public function test_marketing_choice_reaches_heysummit_when_the_schema_says_boolean(): void {
+		// Discovery says communication_preferences is a boolean: the ticked
+		// checkbox goes on the wire (founder-confirmed the field is honoured).
+		update_option( 'eex_discovery_c1', [ 'write:attendees' => [ 'found' => [ 'communication_preferences' => [ 'type' => 'boolean' ] ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		Options::update_settings( [ 'reg_marketing_show' => 1 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		( new RegisterController() )->create( $this->request( [ 'marketing' => '1' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertTrue( $this->posts[0][1]['communication_preferences'], 'ticked box travels as boolean true' );
+
+		// Unticked travels too — an explicit false is a recorded choice.
+		$this->posts = [];
+		delete_transient( 'eex_reg_rl_' . md5( '203.0.113.9' ) );
+		( new RegisterController() )->create( $this->request( [ 'email' => 'pat2@example.org' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertFalse( $this->posts[0][1]['communication_preferences'] );
+	}
+
+	public function test_marketing_stays_off_the_wire_when_the_schema_is_ambiguous(): void {
+		// A choice-typed field with an unknown vocabulary: never guess — the
+		// diagnostics show the choices and the filter is the mapping seam.
+		update_option( 'eex_discovery_c1', [ 'write:attendees' => [ 'found' => [ 'communication_preferences' => [ 'type' => 'choice', 'choices' => [ 'all', 'none' ] ] ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		( new RegisterController() )->create( $this->request( [ 'marketing' => '1' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertArrayNotHasKey( 'communication_preferences', $this->posts[0][1], 'ambiguous shape is not guessed' );
+
+		// The filter maps it once the operator knows the vocabulary.
+		add_filter( 'eex_communication_preferences_value', static fn( $value, bool $marketing ) => $marketing ? 'all' : 'none', 10, 2 );
+		$this->posts = [];
+		delete_transient( 'eex_reg_rl_' . md5( '203.0.113.9' ) );
+		( new RegisterController() )->create( $this->request( [ 'email' => 'pat3@example.org', 'marketing' => '1' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertSame( 'all', $this->posts[0][1]['communication_preferences'] );
+	}
+
 	public function test_fresh_and_duplicate_registrations_answer_with_identical_bodies(): void {
 		// The enumeration guard, asserted end to end: capture the fresh
 		// response (setUp's default mock answers 201) and the duplicate

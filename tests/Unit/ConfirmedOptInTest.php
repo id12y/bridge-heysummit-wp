@@ -357,6 +357,55 @@ final class ConfirmedOptInTest extends TestCase {
 		$this->assertSame( [ 'a@example.org', 'b@example.org', 'c@example.org' ], array_column( \EEX_Test_State::$mail, 'to' ) );
 	}
 
+	public function test_the_session_added_email_can_be_handed_to_heysummit(): void {
+		// Operator publishes HeySummit's "Schedule Updated" template and
+		// turns ours off: the attach still happens, no double email.
+		Options::update_settings(
+			[
+				'reg_confirm_mode'    => 'off',
+				'session_added_email' => 0,
+			]
+		);
+
+		remove_all_filters( 'pre_http_request' );
+		$this->mock_http(
+			static function ( $url, $args ) {
+				$url = (string) $url;
+
+				if ( 'POST' === strtoupper( (string) ( $args['method'] ?? 'GET' ) ) ) {
+					if ( str_contains( $url, '/talks/' ) ) {
+						return self::json_response( [ 'status' => 'added' ], 200 ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+					}
+
+					return self::json_response( [ 'detail' => 'Attendee already exists for this event.' ], 400 ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				if ( str_contains( $url, 'attendees/' ) && str_contains( $url, 'email' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 8123, 'email' => 'pat@example.org' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				if ( str_contains( $url, 'tickets/' ) ) {
+					return self::json_response( [ 'results' => [ [ 'id' => 9002, 'title' => 'Free pass', 'is_paid' => 'false', 'prices' => '[]' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				return null;
+			}
+		);
+
+		$rsvp_fired = 0;
+		add_action(
+			'eex_session_rsvp',
+			static function () use ( &$rsvp_fired ) {
+				++$rsvp_fired;
+			}
+		);
+
+		( new RegisterController() )->create( $this->request() );
+
+		$this->assertCount( 0, \EEX_Test_State::$mail, 'our email stands down when the platform owns it' );
+		$this->assertSame( 1, $rsvp_fired, 'the CRM hook still fires' );
+	}
+
 	public function test_the_mail_gate_filters_stop_a_send(): void {
 		add_filter( 'eex_should_send', static fn(): bool => false );
 

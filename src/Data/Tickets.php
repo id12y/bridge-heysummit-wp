@@ -187,21 +187,49 @@ final class Tickets {
 	 * @param string $coupon        Coupon code to bake in.
 	 */
 	public static function couponed_checkout_link( string $connection_id, string $event_id, string $ticket_id, string $coupon ): string {
-		if ( '' === $connection_id || '' === $event_id || '' === $ticket_id || '' === $coupon ) {
+		return self::generated_checkout_link( $connection_id, $event_id, $ticket_id, $coupon, '' );
+	}
+
+	/**
+	 * A generated per-ticket checkout link, optionally coupon-baked and/or
+	 * session-scoped. With a talk_id the checkout preselects the session
+	 * and adds it to the attendee's schedule after registration — and the
+	 * platform now recognises already-registered attendees on such links
+	 * (founder-confirmed 26 Jul 2026: existing ticket covers the session →
+	 * added to schedule → attendee area). Cached like coupon links: one
+	 * generator POST per (ticket, coupon, talk) per cache window (D91).
+	 *
+	 * @param string $connection_id Connection ID.
+	 * @param string $event_id      Event ID.
+	 * @param string $ticket_id     Ticket ID.
+	 * @param string $coupon        Coupon code ('' = none).
+	 * @param string $talk_id       Session to preselect ('' = none).
+	 * @return string Checkout URL, '' when unavailable.
+	 */
+	public static function generated_checkout_link( string $connection_id, string $event_id, string $ticket_id, string $coupon, string $talk_id ): string {
+		if ( '' === $connection_id || '' === $event_id || '' === $ticket_id || ( '' === $coupon && '' === $talk_id ) ) {
 			return '';
 		}
 
-		$key    = 'eex_ticket_link_' . md5( EEX_VERSION . '|' . $connection_id . '|' . $event_id . '|' . $ticket_id . '|' . $coupon );
+		$key    = 'eex_ticket_link_' . md5( EEX_VERSION . '|' . $connection_id . '|' . $event_id . '|' . $ticket_id . '|' . $coupon . '|' . $talk_id );
 		$cached = get_transient( $key );
 		if ( is_string( $cached ) ) {
 			return $cached;
+		}
+
+		$body = [];
+		if ( '' !== $coupon ) {
+			$body['coupon'] = $coupon;
+		}
+		if ( '' !== $talk_id && ctype_digit( $talk_id ) ) {
+			$body['talk_id'] = (int) $talk_id;
 		}
 
 		$connection = Options::connection( $connection_id );
 		$response   = null !== $connection
 			? HeySummitClient::for_connection( $connection )->post(
 				'events/' . rawurlencode( $event_id ) . '/tickets/' . rawurlencode( $ticket_id ) . '/checkout-link/',
-				[ 'coupon' => $coupon ]
+				$body
 			)
 			: null;
 

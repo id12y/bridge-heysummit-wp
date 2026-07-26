@@ -2064,8 +2064,17 @@ final class Components {
 		$register = self::register_args( $atts );
 		$event    = self::repo()->event_summary( (string) ( $atts['event'] ?? '' ) );
 		$event_id = null !== $event ? (string) $event['hs_id'] : '';
+		$conn_id  = null !== $event ? (string) ( $event['connection'] ?? '' ) : '';
 		$coupon   = (string) ( $atts['coupon'] ?? '' );
-		$id       = 'eex-drawer-' . substr( md5( wp_json_encode( [ $event_id, $register, $only, $excluded, $coupon ] ) ), 0, 8 );
+
+		// A drawer rendered for one known session (the featured card, the
+		// hero): paid tickets get session-scoped generated checkout links,
+		// so the platform preselects the session — and recognises members,
+		// adding it straight to their schedule.
+		$drawer_talk = (string) ( $atts['drawer_talk'] ?? '' );
+		$drawer_talk = ctype_digit( $drawer_talk ) ? $drawer_talk : '';
+
+		$id = 'eex-drawer-' . substr( md5( wp_json_encode( [ $event_id, $register, $only, $excluded, $coupon, $drawer_talk ] ) ), 0, 8 );
 
 		ob_start();
 		?>
@@ -2087,6 +2096,14 @@ final class Components {
 							if ( '' !== (string) ( $price['id'] ?? '' ) ) {
 								$price_id = (string) $price['id'];
 								break;
+							}
+						}
+
+						if ( ! $is_free && '' !== $drawer_talk && '' !== $conn_id && '' !== $event_id ) {
+							$talk_link = \Emailexpert\Events\Data\Tickets::generated_checkout_link( $conn_id, $event_id, (string) $ticket['id'], $coupon, $drawer_talk );
+
+							if ( '' !== $talk_link ) {
+								$ticket['checkout_link'] = $talk_link;
 							}
 						}
 						?>
@@ -2856,7 +2873,8 @@ final class Components {
 			'data' => $items[0],
 		];
 
-		$drawer = self::ticket_drawer( $atts );
+		// The hero presents one session: its drawer's paid links carry it.
+		$drawer = self::ticket_drawer( $atts + [ 'drawer_talk' => (string) ( $items[0]['hs_id'] ?? '' ) ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 
 		ob_start();
 		TemplateLoader::part(
@@ -3820,6 +3838,9 @@ final class Components {
 		if ( '' === (string) ( $commerce_atts['event'] ?? '' ) && '' !== (string) ( $data['event_hs_id'] ?? '' ) ) {
 			$commerce_atts['event'] = (string) $data['event_hs_id'];
 		}
+
+		// The drawer belongs to THIS session: paid checkout links carry it.
+		$commerce_atts['drawer_talk'] = (string) ( $data['hs_id'] ?? '' );
 
 		$drawer = self::ticket_drawer( $commerce_atts );
 

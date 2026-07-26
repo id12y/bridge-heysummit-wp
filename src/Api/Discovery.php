@@ -117,7 +117,29 @@ final class Discovery {
 
 		$found = [];
 		foreach ( $post_schema as $field => $meta ) {
-			$found[ (string) $field ] = is_array( $meta ) ? (string) ( $meta['type'] ?? 'unknown' ) : 'unknown';
+			$meta  = is_array( $meta ) ? $meta : [];
+			$entry = [ 'type' => (string) ( $meta['type'] ?? 'unknown' ) ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+			if ( ! empty( $meta['required'] ) ) {
+				$entry['required'] = true;
+			}
+
+			// Choice vocabularies are the difference between "the field
+			// exists" and "we know what to send" — DRF lists them on OPTIONS
+			// and earlier builds threw them away.
+			$choices = [];
+			foreach ( (array) ( $meta['choices'] ?? [] ) as $choice ) {
+				$value = is_array( $choice ) ? ( $choice['value'] ?? '' ) : $choice;
+
+				if ( is_scalar( $value ) && '' !== (string) $value ) {
+					$choices[] = (string) $value;
+				}
+			}
+			if ( ! empty( $choices ) ) {
+				$entry['choices'] = $choices;
+			}
+
+			$found[ (string) $field ] = $entry;
 		}
 
 		return [
@@ -126,6 +148,33 @@ final class Discovery {
 			'missing'       => [],
 			'unmapped'      => [],
 			'type_mismatch' => [],
+		];
+	}
+
+	/**
+	 * One field's stored write schema for a connection: type, required,
+	 * choices. Tolerates snapshots from builds that stored a bare type
+	 * string, and answers empty-typed when discovery has not run.
+	 *
+	 * @param string $connection_id Connection ID.
+	 * @param string $report_key    Report key (e.g. 'write:attendees').
+	 * @param string $field         Field name.
+	 * @return array{type:string,required:bool,choices:array<int,string>}
+	 */
+	public static function write_field( string $connection_id, string $report_key, string $field ): array {
+		$row  = (array) ( self::stored_report( $connection_id )[ $report_key ] ?? [] );
+		$meta = ( (array) ( $row['found'] ?? [] ) )[ $field ] ?? null;
+
+		if ( is_string( $meta ) ) {
+			$meta = [ 'type' => $meta ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		}
+
+		$meta = is_array( $meta ) ? $meta : [];
+
+		return [
+			'type'     => (string) ( $meta['type'] ?? '' ),
+			'required' => ! empty( $meta['required'] ),
+			'choices'  => array_map( 'strval', (array) ( $meta['choices'] ?? [] ) ),
 		];
 	}
 

@@ -1874,3 +1874,34 @@ The session-added email (with the .ics attached) sends exactly where
 HeySummit is silent: a session landing on an existing attendee's
 schedule. Fresh registrations keep HeySummit's own welcome — one
 outcome, one email, never two.
+
+## D105. The wire follows the discovered schema, never a guess (v1.37.0)
+
+HeySummit's founder answered all three asks within a day (checkout now
+recognises registered members on session links; API creates stay
+instant with communication_preferences honoured and agreed_terms
+auto-stamped; a platform "Schedule Updated" email now exists). Each
+answer changed what the plugin should do, and one exposed a gap in our
+own tooling: the discovery inspector captured each write field's TYPE
+but threw away the choice vocabulary and required flag, and the
+diagnostics table rendered only names — the operator pasted the
+write:attendees row and it answered nothing.
+
+Discovery now stores type + required + choices and the table displays
+them, which turns the schema question into a self-serve loop: Test
+connection → read the row → the request builder consumes the SAME
+stored answer. communication_preferences goes on the wire only when
+the snapshot types it boolean; anything else is displayed, not
+guessed, with eex_communication_preferences_value as the mapping seam
+— because the failure mode of a guessed enum is 400 on every
+registration, silently, until someone checks the log. agreed_terms is
+never sent: the platform stamps its own, and our receipts hold the
+wording half of the evidence pair.
+
+The session-scoped checkout links (talk_id on the generator, deferred
+since D95 because the wizard dead-ended members) become worthwhile
+exactly because of Ben's checkout fix: the panel's paid links on
+single-session surfaces now deep-link the session, cached like coupon
+links. And the session-added email gains an off switch so the
+operator picks ONE owner for that notification — two well-meaning
+senders is how members end up with duplicate emails.

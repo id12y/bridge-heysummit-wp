@@ -62,6 +62,33 @@ final class AttendeeRequestBuilder {
 			$body['questions'] = $questions;
 		}
 
+		// The visitor's marketing choice, on the wire ONLY when the stored
+		// discovery schema makes the value unambiguous (HeySummit honours
+		// communication_preferences on create — founder-confirmed 26 Jul
+		// 2026 — but a guessed shape could 400 every registration). A
+		// boolean field sends the checkbox as-is; anything else stays off
+		// the wire unless the filter maps it (the diagnostics table shows
+		// the field's type and choice vocabulary to map against).
+		if ( isset( $purchase['marketing'] ) && '' !== (string) ( $purchase['connection_id'] ?? '' ) ) {
+			$schema = \Emailexpert\Events\Api\Discovery::write_field( (string) $purchase['connection_id'], 'write:attendees', 'communication_preferences' );
+
+			$value = 'boolean' === $schema['type'] ? (bool) $purchase['marketing'] : null;
+
+			/**
+			 * Filter the communication_preferences value sent on attendee
+			 * create. Null = do not send the field.
+			 *
+			 * @param mixed               $value     Value to send (null = omit).
+			 * @param bool                $marketing The visitor's checkbox.
+			 * @param array<string,mixed> $schema    Stored write schema (type/required/choices).
+			 */
+			$value = apply_filters( 'eex_communication_preferences_value', $value, ! empty( $purchase['marketing'] ), $schema );
+
+			if ( null !== $value ) {
+				$body['communication_preferences'] = $value;
+			}
+		}
+
 		/**
 		 * Filter the attendee-create request before it is sent.
 		 *

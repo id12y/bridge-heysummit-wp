@@ -59,6 +59,7 @@ final class Options {
 			// woo_consent_text(), which only runs at render time.
 			'woo_consent_text'      => '',
 			'reg_confirm_mode'      => 'standard',
+			'session_added_email'   => 1,
 			'reg_disclosure_text'   => '',
 			'reg_marketing_text'    => '',
 			'reg_marketing_show'    => 1,
