@@ -3,6 +3,19 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.37.2
+- **Communication channels now follow their meaning, not just their
+  shape.** The live schema's four boolean channels are not all
+  marketing: offers and speaker-offers follow the optional marketing
+  checkbox, while talk reminders and conference info are service
+  emails about the registration itself — covered by the required
+  disclosure ("will email me about this registration") and kept ON
+  even when marketing is declined. v1.37.1's blanket fan-out would
+  have silently switched off session reminders for every registrant
+  who declined marketing — people missing sessions they signed up
+  for. Unrecognised channels follow the marketing checkbox; the
+  eex_communication_preferences_value filter overrides everything.
+
 ## 1.37.1
 - **The consent wiring now handles the real field shape.** The live
   write:attendees schema types communication_preferences as a NESTED
