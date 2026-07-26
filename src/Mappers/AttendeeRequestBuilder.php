@@ -18,6 +18,24 @@ defined( 'ABSPATH' ) || exit;
 final class AttendeeRequestBuilder {
 
 	/**
+	 * One communication channel's value from its platform name and the
+	 * visitor's marketing choice. Names containing 'offer' are marketing;
+	 * 'reminder' and 'conference_info' are service emails covered by the
+	 * required registration disclosure; anything unrecognised follows the
+	 * marketing checkbox (the conservative reading of an unknown channel).
+	 *
+	 * @param string $channel   Platform channel name.
+	 * @param bool   $marketing The visitor's optional marketing choice.
+	 */
+	private static function channel_value( string $channel, bool $marketing ): bool {
+		if ( str_contains( $channel, 'reminder' ) || str_contains( $channel, 'conference_info' ) ) {
+			return true;
+		}
+
+		return $marketing;
+	}
+
+	/**
 	 * Build the request.
 	 *
 	 * @param array<string,mixed> $purchase name, email, event_hs_id,
@@ -74,10 +92,16 @@ final class AttendeeRequestBuilder {
 
 			$value = 'boolean' === $schema['type'] ? (bool) $purchase['marketing'] : null;
 
-			// A nested object whose children are ALL booleans is still
-			// unambiguous in shape: send the checkbox to every child (one
-			// consent question on our form → one answer across the
-			// platform's channels). Mixed-type children stay off the wire.
+			// A nested object whose children are ALL booleans is unambiguous
+			// in shape; each channel then follows its SEMANTICS, read from
+			// the platform's own channel names. Offer channels are marketing
+			// and follow the optional checkbox. Reminder/conference-info
+			// channels are service emails about the registration itself —
+			// the REQUIRED disclosure covers those ("will email me about
+			// this registration"), and switching a visitor's session
+			// reminders off because they declined marketing would make them
+			// miss sessions they asked for. Mixed-type children stay off
+			// the wire.
 			if ( null === $value && ! empty( $schema['children'] ) ) {
 				$flags = [];
 				foreach ( (array) $schema['children'] as $child_name => $child_meta ) {
@@ -85,7 +109,7 @@ final class AttendeeRequestBuilder {
 						$flags = null;
 						break;
 					}
-					$flags[ (string) $child_name ] = (bool) $purchase['marketing'];
+					$flags[ (string) $child_name ] = self::channel_value( (string) $child_name, ! empty( $purchase['marketing'] ) );
 				}
 
 				if ( ! empty( $flags ) ) {

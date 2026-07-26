@@ -1917,3 +1917,18 @@ to one answer everywhere; it never invents per-channel distinctions
 the visitor was not asked about). Anything mixed stays displayed, not
 sent. Verified live against a schema-describing mock: the wire carried
 {"marketing_emails":true,"event_updates":true} from one ticked box.
+
+D105 addendum 2 (v1.37.2): the children arrived and taught the last
+lesson — shape-unambiguous is not semantics-unambiguous. Of the four
+boolean channels, two are marketing (offers, speaker offers) and two
+are service messages about the registration itself (talk reminders,
+conference info). The blanket fan-out would have set
+talk_reminder=false for every registrant who declined marketing:
+polite consent handling that quietly makes people miss the sessions
+they registered for. Channels are now classified by name — offer-*
+follows the optional checkbox, reminder/conference_info ride the
+required disclosure (which literally says "will email me about this
+registration"), unknown channels conservatively follow the checkbox —
+with the value filter overriding everything. Verified live: a
+declined-marketing registration carried offers=false,
+speaker_offers=false, talk_reminder=true, conference_info=true.

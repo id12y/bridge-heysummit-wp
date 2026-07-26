@@ -339,20 +339,41 @@ final class RegisterControllerTest extends TestCase {
 		$this->assertFalse( $this->posts[0][1]['communication_preferences'] );
 	}
 
-	public function test_an_all_boolean_nested_object_carries_the_checkbox_to_every_child(): void {
-		// The production shape: communication_preferences is a nested object.
-		// When every child is a boolean, one consent answer fans out to all
-		// of them; a mixed-type object stays off the wire.
-		update_option( 'eex_discovery_c1', [ 'write:attendees' => [ 'found' => [ 'communication_preferences' => [ 'type' => 'nested object', 'children' => [ 'marketing_emails' => [ 'type' => 'boolean' ], 'event_updates' => [ 'type' => 'boolean' ] ] ] ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+	public function test_an_all_boolean_nested_object_maps_channels_by_semantics(): void {
+		// The LIVE production shape (diagnostics, 26 Jul 2026): four boolean
+		// channels. Offer channels follow the optional marketing checkbox;
+		// reminder and conference-info channels are service emails covered
+		// by the required disclosure — declining marketing must never switch
+		// off the session reminders a registrant relies on.
+		$live_shape = [ 'type' => 'nested object', 'children' => [ 'comms_attendee_offers' => [ 'type' => 'boolean' ], 'comms_attendee_conference_info' => [ 'type' => 'boolean' ], 'comms_attendee_speaker_offers' => [ 'type' => 'boolean' ], 'comms_attendee_talk_reminder' => [ 'type' => 'boolean' ] ] ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		update_option( 'eex_discovery_c1', [ 'write:attendees' => [ 'found' => [ 'communication_preferences' => $live_shape ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 
 		( new RegisterController() )->create( $this->request( [ 'marketing' => '1' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 
 		$this->assertSame(
 			[
-				'marketing_emails' => true,
-				'event_updates'    => true,
+				'comms_attendee_offers'          => true,
+				'comms_attendee_conference_info' => true,
+				'comms_attendee_speaker_offers'  => true,
+				'comms_attendee_talk_reminder'   => true,
 			],
 			$this->posts[0][1]['communication_preferences']
+		);
+
+		// Marketing declined: offers off, service channels stay ON.
+		$this->posts = [];
+		delete_transient( 'eex_reg_rl_' . md5( '203.0.113.9' ) );
+		( new RegisterController() )->create( $this->request( [ 'email' => 'pat5@example.org' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertSame(
+			[
+				'comms_attendee_offers'          => false,
+				'comms_attendee_conference_info' => true,
+				'comms_attendee_speaker_offers'  => false,
+				'comms_attendee_talk_reminder'   => true,
+			],
+			$this->posts[0][1]['communication_preferences'],
+			'declining marketing never disables session reminders'
 		);
 
 		// A child that is not a boolean makes the shape ambiguous again.
