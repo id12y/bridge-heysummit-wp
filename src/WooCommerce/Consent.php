@@ -58,7 +58,7 @@ final class Consent {
 		woocommerce_register_additional_checkout_field(
 			[
 				'id'       => self::BLOCK_FIELD_ID,
-				'label'    => (string) Options::setting( 'woo_consent_text' ),
+				'label'    => Options::woo_consent_text(),
 				'location' => 'order',
 				'type'     => 'checkbox',
 			]
@@ -116,7 +116,7 @@ final class Consent {
 			[
 				'type'     => 'checkbox',
 				'class'    => [ 'form-row', 'eex-consent' ],
-				'label'    => esc_html( (string) Options::setting( 'woo_consent_text' ) ),
+				'label'    => esc_html( Options::woo_consent_text() ),
 				'required' => true,
 			],
 			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- WooCommerce validates the checkout nonce.
