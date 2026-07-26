@@ -74,6 +74,25 @@ final class AttendeeRequestBuilder {
 
 			$value = 'boolean' === $schema['type'] ? (bool) $purchase['marketing'] : null;
 
+			// A nested object whose children are ALL booleans is still
+			// unambiguous in shape: send the checkbox to every child (one
+			// consent question on our form → one answer across the
+			// platform's channels). Mixed-type children stay off the wire.
+			if ( null === $value && ! empty( $schema['children'] ) ) {
+				$flags = [];
+				foreach ( (array) $schema['children'] as $child_name => $child_meta ) {
+					if ( 'boolean' !== (string) ( ( (array) $child_meta )['type'] ?? '' ) ) {
+						$flags = null;
+						break;
+					}
+					$flags[ (string) $child_name ] = (bool) $purchase['marketing'];
+				}
+
+				if ( ! empty( $flags ) ) {
+					$value = $flags;
+				}
+			}
+
 			/**
 			 * Filter the communication_preferences value sent on attendee
 			 * create. Null = do not send the field.

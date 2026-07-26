@@ -339,6 +339,30 @@ final class RegisterControllerTest extends TestCase {
 		$this->assertFalse( $this->posts[0][1]['communication_preferences'] );
 	}
 
+	public function test_an_all_boolean_nested_object_carries_the_checkbox_to_every_child(): void {
+		// The production shape: communication_preferences is a nested object.
+		// When every child is a boolean, one consent answer fans out to all
+		// of them; a mixed-type object stays off the wire.
+		update_option( 'eex_discovery_c1', [ 'write:attendees' => [ 'found' => [ 'communication_preferences' => [ 'type' => 'nested object', 'children' => [ 'marketing_emails' => [ 'type' => 'boolean' ], 'event_updates' => [ 'type' => 'boolean' ] ] ] ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		( new RegisterController() )->create( $this->request( [ 'marketing' => '1' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertSame(
+			[
+				'marketing_emails' => true,
+				'event_updates'    => true,
+			],
+			$this->posts[0][1]['communication_preferences']
+		);
+
+		// A child that is not a boolean makes the shape ambiguous again.
+		update_option( 'eex_discovery_c1', [ 'write:attendees' => [ 'found' => [ 'communication_preferences' => [ 'type' => 'nested object', 'children' => [ 'marketing_emails' => [ 'type' => 'boolean' ], 'frequency' => [ 'type' => 'choice', 'choices' => [ 'daily', 'weekly' ] ] ] ] ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->posts = [];
+		delete_transient( 'eex_reg_rl_' . md5( '203.0.113.9' ) );
+		( new RegisterController() )->create( $this->request( [ 'email' => 'pat4@example.org', 'marketing' => '1' ] ) ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertArrayNotHasKey( 'communication_preferences', $this->posts[0][1] );
+	}
+
 	public function test_marketing_stays_off_the_wire_when_the_schema_is_ambiguous(): void {
 		// A choice-typed field with an unknown vocabulary: never guess — the
 		// diagnostics show the choices and the filter is the mapping seam.

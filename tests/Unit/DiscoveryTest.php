@@ -109,6 +109,42 @@ final class DiscoveryTest extends TestCase {
 		$this->assertTrue( $email['required'] );
 	}
 
+	public function test_nested_write_objects_expose_their_children(): void {
+		$this->mock_http( function ( $url, $args ) {
+			if ( 'OPTIONS' === strtoupper( (string) ( $args['method'] ?? 'GET' ) ) ) {
+				return self::json_response(
+					[
+						'actions' => [
+							'POST' => [
+								'communication_preferences' => [
+									'type'     => 'nested object',
+									'children' => [
+										'marketing_emails' => [ 'type' => 'boolean' ],
+										'event_updates'    => [ 'type' => 'boolean' ],
+									],
+								],
+							],
+						],
+					]
+				);
+			}
+
+			if ( str_contains( (string) $url, 'events/' ) && ! str_contains( (string) $url, '/attendees' ) ) {
+				return self::json_response( [ 'results' => [ [ 'id' => 101, 'title' => 'Hub', 'event_url' => 'https://x.example/', 'is_live' => false ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			}
+
+			return self::json_response( [ 'results' => [] ] );
+		} );
+
+		Discovery::run( new HeySummitClient( 'k', 'conn1' ), 'conn1' );
+
+		$field = Discovery::write_field( 'conn1', 'write:attendees', 'communication_preferences' );
+
+		$this->assertSame( 'nested object', $field['type'] );
+		$this->assertSame( [ 'marketing_emails', 'event_updates' ], array_keys( $field['children'] ) );
+		$this->assertSame( 'boolean', $field['children']['marketing_emails']['type'] );
+	}
+
 	public function test_write_field_tolerates_legacy_bare_type_snapshots(): void {
 		// Reports stored by builds before 1.37 kept a bare type string.
 		update_option( 'eex_discovery_conn1', [ 'write:attendees' => [ 'found' => [ 'communication_preferences' => 'boolean' ] ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound

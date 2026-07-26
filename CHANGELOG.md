@@ -3,6 +3,19 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.37.1
+- **The consent wiring now handles the real field shape.** The live
+  write:attendees schema types communication_preferences as a NESTED
+  OBJECT, which v1.37.0 correctly refused to guess at. Discovery now
+  captures one level of a nested object's children (names, types,
+  choice vocabularies) and the diagnostics display them — and when
+  every child is a boolean, the marketing checkbox fans out to all of
+  them (one consent question, one answer across the platform's
+  channels). Mixed-type children still stay off the wire with the
+  vocabulary displayed and the filter as the mapping seam. Re-run
+  Test connection once after updating; if the row shows all-boolean
+  children, consent is on the wire from that moment.
+
 ## 1.37.0
 - **Marketing consent reaches the attendee record — schema-safely.**
   HeySummit confirmed communication_preferences is honoured on API
