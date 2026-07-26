@@ -17,6 +17,32 @@ use Emailexpert\Events\Tests\TestCase;
  */
 final class BootSmokeTest extends TestCase {
 
+	public function test_no_translations_load_before_init(): void {
+		// WP 6.7+ warns when translations load before the init action, and
+		// Options::defaults() / Options::connections() run from
+		// plugins_loaded (Upgrade::check, service boot). A translated string
+		// inside either is the field-reported "_load_textdomain_just_in_time
+		// called incorrectly" notice. Grep-harness style: prove the
+		// convention holds at the source level.
+		$source = (string) file_get_contents( dirname( __DIR__, 2 ) . '/src/Options.php' );
+
+		preg_match( '/function defaults\(\).*?\n\t\}/s', $source, $defaults );
+		$this->assertNotEmpty( $defaults, 'defaults() found' );
+		$this->assertStringNotContainsString( '__(', $defaults[0], 'defaults() must not translate: it runs before init' );
+
+		preg_match( '/function connections\(\).*?\n\t\}/s', $source, $connections );
+		$this->assertNotEmpty( $connections, 'connections() found' );
+		$this->assertStringNotContainsString( '__(', $connections[0], 'connections() must not translate: it can run before init' );
+	}
+
+	public function test_the_woo_consent_wording_defaults_lazily(): void {
+		$this->assertSame( '', \Emailexpert\Events\Options::defaults()['woo_consent_text'], 'the stored default is empty' );
+		$this->assertStringContainsString( 'Register me for the event', \Emailexpert\Events\Options::woo_consent_text(), 'the translated default resolves at read time' );
+
+		\Emailexpert\Events\Options::update_settings( [ 'woo_consent_text' => 'Custom wording.' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertSame( 'Custom wording.', \Emailexpert\Events\Options::woo_consent_text() );
+	}
+
 	public function test_every_class_loads(): void {
 		$src = dirname( __DIR__, 2 ) . '/src';
 

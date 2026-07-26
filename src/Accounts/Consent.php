@@ -113,7 +113,7 @@ final class Consent {
 		<p class="eex-consent-field">
 			<label>
 				<input type="checkbox" name="eex_event_consent" value="1" <?php checked( ! empty( $_POST['eex_event_consent'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- re-population only; core validates its own registration nonce. ?> />
-				<?php echo esc_html( (string) Options::setting( 'woo_consent_text' ) ); ?>
+				<?php echo esc_html( Options::woo_consent_text() ); ?>
 			</label>
 		</p>
 		<?php

@@ -53,7 +53,11 @@ final class Options {
 			'retention_months'      => 24,
 			'uninstall_delete'      => 0,
 			'woo_push_processing'   => 0,
-			'woo_consent_text'      => __( 'Register me for the event and send me event-related emails.', 'emailexpert-events' ),
+			// No translated strings in defaults(): settings are read from
+			// plugins_loaded (Upgrade::check), and WP 6.7+ forbids loading
+			// translations before init. The default resolves lazily in
+			// woo_consent_text(), which only runs at render time.
+			'woo_consent_text'      => '',
 			'reg_confirm_mode'      => 'standard',
 			'reg_disclosure_text'   => '',
 			'reg_marketing_text'    => '',
@@ -89,6 +93,17 @@ final class Options {
 	 * @param string $key Setting key.
 	 * @return mixed
 	 */
+	/**
+	 * The WooCommerce/accounts consent wording, defaulting lazily so the
+	 * translated fallback loads at render time (post-init), never from
+	 * defaults() on the plugins_loaded path.
+	 */
+	public static function woo_consent_text(): string {
+		$text = trim( (string) self::setting( 'woo_consent_text' ) );
+
+		return '' !== $text ? $text : __( 'Register me for the event and send me event-related emails.', 'emailexpert-events' );
+	}
+
 	public static function setting( string $key ) {
 		$settings = wp_parse_args( (array) get_option( self::SETTINGS, [] ), self::defaults() );
 
@@ -136,7 +151,10 @@ final class Options {
 		if ( empty( $connections ) && defined( 'EEX_HEYSUMMIT_API_KEY' ) ) {
 			$connections[] = [
 				'id'      => 'primary',
-				'label'   => __( 'Primary', 'emailexpert-events' ),
+				// Untranslated by design: connections() can run before init,
+				// where WP 6.7+ forbids translation loading; the label is
+				// operator data, not UI copy.
+				'label'   => 'Primary',
 				'api_key' => '',
 			];
 		}

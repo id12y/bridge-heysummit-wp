@@ -3,6 +3,17 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.36.2
+- **Fixed (field-reported): the WordPress 6.7 "_load_textdomain_just_
+  in_time called incorrectly" notice.** Options::defaults() translated
+  the WooCommerce consent default while settings are read from
+  plugins_loaded (the upgrade check) — before init, where WordPress
+  now forbids loading translations. No translated strings live in
+  defaults() or connections() any more (a source-level test keeps it
+  that way); the consent wording default resolves lazily at render
+  time via Options::woo_consent_text(), used by the checkout field,
+  the accounts consent screen and the settings form alike.
+
 ## 1.36.1
 - **Fixed (field-reported): externally ticketed sessions never offer
   the quick RSVP form.** A session carrying its own external URL (or a

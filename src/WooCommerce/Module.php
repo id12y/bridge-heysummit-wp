@@ -381,7 +381,7 @@ final class Module {
 				<tr>
 					<th scope="row"><label for="eex-woo-consent"><?php esc_html_e( 'Consent checkbox text', 'emailexpert-events' ); ?></label></th>
 					<td>
-						<input type="text" id="eex-woo-consent" class="large-text" name="woo_consent_text" value="<?php echo esc_attr( (string) Options::setting( 'woo_consent_text' ) ); ?>" />
+						<input type="text" id="eex-woo-consent" class="large-text" name="woo_consent_text" value="<?php echo esc_attr( Options::woo_consent_text() ); ?>" />
 						<p class="description"><?php esc_html_e( 'Shown at checkout when the cart contains mapped products. No recorded consent means no push.', 'emailexpert-events' ); ?></p>
 					</td>
 				</tr>
@@ -431,7 +431,7 @@ final class Module {
 				'woo_push_processing' => empty( $_POST['woo_push_processing'] ) ? 0 : 1,
 				'woo_consent_text'    => isset( $_POST['woo_consent_text'] )
 					? sanitize_text_field( wp_unslash( $_POST['woo_consent_text'] ) )
-					: (string) Options::setting( 'woo_consent_text' ),
+					: Options::woo_consent_text(),
 			]
 		);
 
