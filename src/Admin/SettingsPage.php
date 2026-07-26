@@ -532,7 +532,29 @@ final class SettingsPage {
 									} elseif ( ! empty( $row['empty'] ) ) {
 										esc_html_e( 'No records to sample.', 'emailexpert-events' );
 									} else {
-										echo esc_html( implode( ', ', array_keys( (array) ( $row['found'] ?? [] ) ) ) );
+										// Write rows carry the POST schema detail
+										// (type, required, choices) — show it, so
+										// "the field exists" becomes "here is what
+										// to send". Read rows stay name-only.
+										$found_bits = [];
+										foreach ( (array) ( $row['found'] ?? [] ) as $found_field => $field_meta ) {
+											$detail = '';
+
+											if ( is_array( $field_meta ) ) {
+												$detail = (string) ( $field_meta['type'] ?? '' );
+												if ( ! empty( $field_meta['required'] ) ) {
+													$detail .= ', required';
+												}
+												if ( ! empty( $field_meta['choices'] ) ) {
+													$detail .= ': ' . implode( ' | ', array_map( 'strval', (array) $field_meta['choices'] ) );
+												}
+											} elseif ( is_string( $field_meta ) && '' !== $field_meta && str_starts_with( (string) $resource, 'write:' ) ) {
+												$detail = $field_meta; // Legacy snapshots stored a bare type.
+											}
+
+											$found_bits[] = '' !== $detail ? $found_field . ' (' . $detail . ')' : (string) $found_field;
+										}
+										echo esc_html( implode( ', ', $found_bits ) );
 									}
 
 									if ( ! empty( $row['note'] ) ) {
@@ -1000,6 +1022,13 @@ final class SettingsPage {
 			</td>
 		</tr>
 		<tr>
+			<th scope="row"><?php esc_html_e( 'Session-added email', 'emailexpert-events' ); ?></th>
+			<td>
+				<label><input type="checkbox" name="settings[session_added_email]" value="1" <?php checked( (bool) Options::setting( 'session_added_email' ) ); ?> /> <?php esc_html_e( 'Email attendees (with a calendar file) when this site adds a session to their existing schedule', 'emailexpert-events' ); ?></label>
+				<p class="description"><?php esc_html_e( 'HeySummit now offers its own "Schedule Updated" email (unpublished template under the event dashboard → Emails). Enable one sender or the other — both on means members get two emails for the same session add. HeySummit\'s also covers self-service adds made in their hub; this one carries the .ics and sends from your own mail infrastructure.', 'emailexpert-events' ); ?></p>
+			</td>
+		</tr>
+		<tr>
 			<th scope="row"><label for="eex-reg-subject"><?php esc_html_e( 'Confirmation email subject', 'emailexpert-events' ); ?></label></th>
 			<td>
 				<input type="text" id="eex-reg-subject" name="settings[reg_confirm_subject]" class="regular-text" value="<?php echo esc_attr( (string) Options::setting( 'reg_confirm_subject' ) ); ?>" placeholder="<?php esc_attr_e( 'Confirm your registration — {event}', 'emailexpert-events' ); ?>" />
@@ -1024,6 +1053,7 @@ final class SettingsPage {
 			'reg_marketing_text'  => sanitize_textarea_field( (string) ( $posted['reg_marketing_text'] ?? '' ) ),
 			'reg_marketing_show'  => empty( $posted['reg_marketing_show'] ) ? 0 : 1,
 			'reg_confirm_subject' => sanitize_text_field( (string) ( $posted['reg_confirm_subject'] ?? '' ) ),
+			'session_added_email' => empty( $posted['session_added_email'] ) ? 0 : 1,
 		];
 	}
 

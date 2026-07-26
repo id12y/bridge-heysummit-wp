@@ -2161,6 +2161,64 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'eex-drawer-panel', $html );
 	}
 
+	public function test_featured_session_drawer_paid_links_carry_the_session(): void {
+		$this->make_linked_talk();
+		update_option( 'eex_connections', [ [ 'id' => 'c1', 'label' => 'Primary', 'api_key' => 'k' ] ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$generated = [];
+		$this->mock_http(
+			static function ( $url, $args ) use ( &$generated ) {
+				$url = (string) $url;
+
+				if ( str_contains( $url, '/checkout-link/' ) && 'POST' === strtoupper( (string) ( $args['method'] ?? 'GET' ) ) ) {
+					$generated[] = (array) json_decode( (string) ( $args['body'] ?? '' ), true );
+
+					return self::json_response( [ 'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-TALK777/' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+				}
+
+				if ( str_contains( $url, 'tickets/' ) ) {
+					return self::json_response(
+						[
+							'results' => [
+								[
+									'id'            => 9001,
+									'title'         => 'All access',
+									'is_paid'       => 'true',
+									'prices'        => '[{"id": 501, "title": "Standard", "price": "99"}]',
+									'checkout_link' => 'https://summit.example.com/checkout/ticket/9001-abc/',
+								],
+								[
+									'id'      => 9002,
+									'title'   => 'Free pass',
+									'is_paid' => 'false',
+									'prices'  => '[]',
+								],
+							],
+						]
+					);
+				}
+
+				return null;
+			}
+		);
+
+		$html = Components::render(
+			'featured-session',
+			[
+				'register_action' => 'panel',
+				'event'           => '101',
+			]
+		);
+
+		// The paid row's checkout deep-links THIS session: the platform now
+		// preselects it and recognises already-registered members.
+		$this->assertStringContainsString( 'checkout/ticket/9001-TALK777/', $html, 'paid link is the session-scoped generated one' );
+		$this->assertSame( [ [ 'talk_id' => 777 ] ], $generated, 'one generator POST, talk_id as integer, no coupon key when empty' ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		// The free row keeps the in-drawer form path (no generated link).
+		$this->assertStringContainsString( 'data-eex-reg="1"', $html );
+	}
+
 	private function mock_ticket_endpoint(): void {
 		$this->mock_http(
 			static function ( $url ) {

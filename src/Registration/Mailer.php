@@ -133,6 +133,13 @@ final class Mailer {
 	 * @return bool
 	 */
 	public static function send_session_added( string $to, array $talk ): bool {
+		// Operators who publish HeySummit's own "Schedule Updated" template
+		// turn this off to avoid double-emailing; the eex_session_rsvp
+		// action still fires for CRMs either way.
+		if ( ! (bool) Options::setting( 'session_added_email' ) ) {
+			return false;
+		}
+
 		$title = (string) ( $talk['title'] ?? '' );
 
 		/* translators: %s: session title. */

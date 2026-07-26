@@ -59,13 +59,22 @@ add_action( 'eex_registration_confirmed', function ( array $reg, string $result 
 Until those hooks exist on the CRM side, this plugin behaves safely on
 its own: only logged-in WordPress users skip the confirmation email.
 
-## Consent data on the HeySummit wire
+## Consent data on the HeySummit wire (founder-confirmed 26 Jul 2026)
 
-The attendee-create body currently sends `name`, `email`,
-`ticket_price_id` only. HeySummit's write schema lists `agreed_terms`
-and `communication_preferences`, but their accepted shapes are
-unconfirmed — a malformed guess could 400 every registration. Once
-HeySummit confirms (asked 2026-07-24), add them via the existing
-`eex_attendee_request` filter or a follow-up release. Meanwhile consent
-is recorded in the local receipts (`eex_consent_receipts`, hashed
-emails, exact wording) and in the `eex_registration_confirmed` payload.
+- `agreed_terms` is **never sent**: HeySummit stamps its own
+  terms-agreement timestamp on API creates and ignores the field. Our
+  local receipts record *what wording* was agreed — the platform stamp
+  and our receipt together are the evidence pair.
+- `communication_preferences` **is honoured** on create. The plugin
+  sends it only when the stored discovery schema makes the value
+  unambiguous: a `boolean` field carries the marketing checkbox
+  directly. Any other type stays off the wire (a guessed shape would
+  400 every registration) — the diagnostics table now displays the
+  field's type and choice vocabulary, and
+  `eex_communication_preferences_value` (value, marketing, schema) is
+  the one-line mapping seam once the vocabulary is known. Run **Test
+  connection** after HeySummit deploys schema changes; the wiring
+  follows the snapshot automatically.
+- The marketing choice is always in the local receipts
+  (`eex_consent_receipts`) and the `eex_registration_confirmed`
+  payload regardless of what the wire carries.

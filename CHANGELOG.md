@@ -3,6 +3,34 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.37.0
+- **Marketing consent reaches the attendee record — schema-safely.**
+  HeySummit confirmed communication_preferences is honoured on API
+  creates. The plugin sends the visitor's marketing checkbox when the
+  stored discovery schema types the field as a boolean; any other
+  shape stays off the wire (never a guess that could 400
+  registrations) with the eex_communication_preferences_value filter
+  as the mapping seam. agreed_terms is deliberately never sent —
+  HeySummit stamps its own terms timestamp and ignores the field.
+- **API discovery now records and displays the full write schema.**
+  The diagnostics table shows each write field's type, whether it is
+  required, and its choice vocabulary (previously discarded) — so
+  "the field exists" becomes "here is exactly what to send". Re-run
+  Test connection to refresh.
+- **Paid checkout links can carry the session.** Where a widget
+  presents one known session (the featured session card and the
+  next-session hero), the ticket panel's paid links are now generated
+  session-scoped: HeySummit preselects the session, adds it to the
+  schedule after checkout — and, per their July fix, recognises
+  already-registered members and takes them straight to their attendee
+  area. Generated lazily and cached like coupon links.
+- **New setting: Session-added email on/off.** HeySummit now ships its
+  own configurable "Schedule Updated" email (unpublished template on
+  existing events). Choose one sender: keep ours (with the .ics, from
+  your own mail infrastructure) or publish theirs (also covers
+  self-service adds in their hub) and untick ours in Settings →
+  Registration & consent. The eex_session_rsvp hook fires either way.
+
 ## 1.36.2
 - **Fixed (field-reported): the WordPress 6.7 "_load_textdomain_just_
   in_time called incorrectly" notice.** Options::defaults() translated

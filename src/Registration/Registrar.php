@@ -50,10 +50,11 @@ final class Registrar {
 				'email'           => $email,
 				'event_hs_id'     => $event_hs_id,
 				'ticket_price_id' => (string) ( $reg['price_id'] ?? '' ),
-				// Recorded locally and offered to the request filter; not
-				// put on the wire until HeySummit confirms the field shapes
-				// (see docs/crm-integration.md).
+				// On the wire when the discovered schema is unambiguous
+				// (see AttendeeRequestBuilder); always in the local receipt
+				// and the eex_registration_confirmed payload regardless.
 				'marketing'       => ! empty( $reg['marketing'] ),
+				'connection_id'   => (string) ( $reg['connection_id'] ?? '' ),
 			]
 		);
 
