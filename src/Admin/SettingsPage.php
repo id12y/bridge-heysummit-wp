@@ -548,6 +548,21 @@ final class SettingsPage {
 												if ( ! empty( $field_meta['choices'] ) ) {
 													$detail .= ': ' . implode( ' | ', array_map( 'strval', (array) $field_meta['choices'] ) );
 												}
+
+												// Nested objects show their inner fields —
+												// the shape you would actually have to send.
+												$child_bits = [];
+												foreach ( (array) ( $field_meta['children'] ?? [] ) as $child_name => $child_meta ) {
+													$child_meta   = is_array( $child_meta ) ? $child_meta : [];
+													$child_detail = (string) ( $child_meta['type'] ?? '' );
+													if ( ! empty( $child_meta['choices'] ) ) {
+														$child_detail .= ': ' . implode( ' | ', array_map( 'strval', (array) $child_meta['choices'] ) );
+													}
+													$child_bits[] = $child_name . ( '' !== $child_detail ? ' (' . $child_detail . ')' : '' );
+												}
+												if ( ! empty( $child_bits ) ) {
+													$detail .= ' { ' . implode( ', ', $child_bits ) . ' }';
+												}
 											} elseif ( is_string( $field_meta ) && '' !== $field_meta && str_starts_with( (string) $resource, 'write:' ) ) {
 												$detail = $field_meta; // Legacy snapshots stored a bare type.
 											}

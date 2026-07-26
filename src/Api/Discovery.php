@@ -117,29 +117,7 @@ final class Discovery {
 
 		$found = [];
 		foreach ( $post_schema as $field => $meta ) {
-			$meta  = is_array( $meta ) ? $meta : [];
-			$entry = [ 'type' => (string) ( $meta['type'] ?? 'unknown' ) ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
-
-			if ( ! empty( $meta['required'] ) ) {
-				$entry['required'] = true;
-			}
-
-			// Choice vocabularies are the difference between "the field
-			// exists" and "we know what to send" — DRF lists them on OPTIONS
-			// and earlier builds threw them away.
-			$choices = [];
-			foreach ( (array) ( $meta['choices'] ?? [] ) as $choice ) {
-				$value = is_array( $choice ) ? ( $choice['value'] ?? '' ) : $choice;
-
-				if ( is_scalar( $value ) && '' !== (string) $value ) {
-					$choices[] = (string) $value;
-				}
-			}
-			if ( ! empty( $choices ) ) {
-				$entry['choices'] = $choices;
-			}
-
-			$found[ (string) $field ] = $entry;
+			$found[ (string) $field ] = self::field_entry( is_array( $meta ) ? $meta : [], true );
 		}
 
 		return [
@@ -149,6 +127,53 @@ final class Discovery {
 			'unmapped'      => [],
 			'type_mismatch' => [],
 		];
+	}
+
+	/**
+	 * One schema field's stored entry: type, required, choice vocabulary,
+	 * and — for nested objects — one level of children. Choices and
+	 * children are the difference between "the field exists" and "we know
+	 * what to send"; earlier builds threw both away.
+	 *
+	 * @param array<string,mixed> $meta    DRF field metadata.
+	 * @param bool                $recurse Capture children one level deep.
+	 * @return array<string,mixed>
+	 */
+	private static function field_entry( array $meta, bool $recurse ): array {
+		$entry = [ 'type' => (string) ( $meta['type'] ?? 'unknown' ) ]; // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		if ( ! empty( $meta['required'] ) ) {
+			$entry['required'] = true;
+		}
+
+		$choices = [];
+		foreach ( (array) ( $meta['choices'] ?? [] ) as $choice ) {
+			$value = is_array( $choice ) ? ( $choice['value'] ?? '' ) : $choice;
+
+			if ( is_scalar( $value ) && '' !== (string) $value ) {
+				$choices[] = (string) $value;
+			}
+		}
+		if ( ! empty( $choices ) ) {
+			$entry['choices'] = $choices;
+		}
+
+		// DRF describes nested serializers under 'children' (and list
+		// serializers under 'child.children').
+		if ( $recurse ) {
+			$child_schema = (array) ( $meta['children'] ?? ( $meta['child']['children'] ?? [] ) );
+
+			$children = [];
+			foreach ( $child_schema as $child_name => $child_meta ) {
+				$children[ (string) $child_name ] = self::field_entry( is_array( $child_meta ) ? $child_meta : [], false );
+			}
+
+			if ( ! empty( $children ) ) {
+				$entry['children'] = $children;
+			}
+		}
+
+		return $entry;
 	}
 
 	/**
@@ -175,6 +200,7 @@ final class Discovery {
 			'type'     => (string) ( $meta['type'] ?? '' ),
 			'required' => ! empty( $meta['required'] ),
 			'choices'  => array_map( 'strval', (array) ( $meta['choices'] ?? [] ) ),
+			'children' => (array) ( $meta['children'] ?? [] ),
 		];
 	}
 

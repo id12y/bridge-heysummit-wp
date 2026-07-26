@@ -1905,3 +1905,15 @@ single-session surfaces now deep-link the session, cached like coupon
 links. And the session-added email gains an off switch so the
 operator picks ONE owner for that notification — two well-meaning
 senders is how members end up with duplicate emails.
+
+D105 addendum (v1.37.1): the operator's refreshed diagnostics typed
+communication_preferences as a nested object — the display-not-guess
+doctrine caught its first real case one release after shipping.
+Discovery now captures one level of children (DRF 'children' /
+'child.children'), the table renders them, and the builder fans the
+single checkbox out when — and only when — every child is a boolean:
+shape-unambiguous, semantics-conservative (one consent question maps
+to one answer everywhere; it never invents per-channel distinctions
+the visitor was not asked about). Anything mixed stays displayed, not
+sent. Verified live against a schema-describing mock: the wire carried
+{"marketing_emails":true,"event_updates":true} from one ticked box.
