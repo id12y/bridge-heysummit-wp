@@ -157,12 +157,12 @@ final class Discovery {
 	 * string, and answers empty-typed when discovery has not run.
 	 *
 	 * @param string $connection_id Connection ID.
-	 * @param string $resource      Report key (e.g. 'write:attendees').
+	 * @param string $report_key    Report key (e.g. 'write:attendees').
 	 * @param string $field         Field name.
 	 * @return array{type:string,required:bool,choices:array<int,string>}
 	 */
-	public static function write_field( string $connection_id, string $resource, string $field ): array {
-		$row  = (array) ( self::stored_report( $connection_id )[ $resource ] ?? [] );
+	public static function write_field( string $connection_id, string $report_key, string $field ): array {
+		$row  = (array) ( self::stored_report( $connection_id )[ $report_key ] ?? [] );
 		$meta = ( (array) ( $row['found'] ?? [] ) )[ $field ] ?? null;
 
 		if ( is_string( $meta ) ) {
