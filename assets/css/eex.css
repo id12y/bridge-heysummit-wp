@@ -11,8 +11,12 @@
    off-screen at 375px on a reset-less theme). */
 .eex,
 .eex *,
+.eex *::before,
+.eex *::after,
 .eex-drawer,
-.eex-drawer * {
+.eex-drawer *,
+.eex-drawer *::before,
+.eex-drawer *::after {
 	box-sizing: border-box;
 }
 
@@ -90,7 +94,7 @@
 
 .eex-card-title {
 	margin: 0 0 0.5rem;
-	font-size: 1.05em;
+	font-size: var(--eex-step-1, 1.05em);
 	line-height: 1.3;
 }
 
@@ -102,7 +106,7 @@
 .eex-card-venue {
 	margin: 0 0 0.5rem;
 	color: var(--eex-muted);
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 }
 
 /* Badges */
@@ -116,7 +120,7 @@
 	border-radius: 999px;
 	background: var(--eex-badge-bg);
 	color: var(--eex-badge-fg);
-	font-size: 0.78em;
+	font-size: var(--eex-step--1, 0.78em);
 	margin-right: 0.35em;
 }
 
@@ -127,7 +131,7 @@
 
 .eex-chip {
 	display: inline-block;
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 	margin-right: 0.5em;
 	text-decoration: underline;
 }
@@ -182,7 +186,7 @@
 }
 
 .eex-cta-secondary {
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 }
 
 /* The session-page button: same shape as the filled CTA, outlined. */
@@ -229,7 +233,7 @@
 	flex: 0 1 11em;
 	max-width: 14em;
 	color: var(--eex-muted);
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 }
 
 /* Long timezone names (Europe/Madrid) sit under the date instead of
@@ -305,12 +309,12 @@
 
 .eex-agenda-time {
 	color: var(--eex-muted);
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 }
 
 .eex-agenda-title {
 	margin: 0 0 0.35rem;
-	font-size: 1.05em;
+	font-size: var(--eex-step-1, 1.05em);
 	line-height: 1.3;
 }
 
@@ -348,12 +352,12 @@
 .eex-agenda-speaker-name {
 	text-decoration: none;
 	font-weight: 600;
-	font-size: 0.95em;
+	font-size: var(--eex-step-0, 0.95em);
 }
 
 .eex-agenda-speaker-role {
 	color: var(--eex-muted);
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 }
 
 .eex-agenda-actions {
@@ -374,7 +378,7 @@
 	margin: 0 0 0.5rem;
 	color: var(--eex-live);
 	font-weight: 700;
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
@@ -425,7 +429,7 @@
 .eex-speaker-headline,
 .eex-speaker-company {
 	margin: 0;
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 	color: var(--eex-muted);
 }
 
@@ -496,7 +500,7 @@
 
 .eex-hover-shadow .eex .eex-card:hover,
 .eex-hover-liftshadow .eex .eex-card:hover {
-	box-shadow: 0 12px 28px rgba(0, 0, 0, 0.16);
+	box-shadow: var(--eex-shadow-2, 0 12px 28px rgba(0, 0, 0, 0.16));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -521,13 +525,13 @@
 /* Countdown and counter */
 .eex-countdown,
 .eex-reg-counter {
-	font-size: 1.1em;
+	font-size: var(--eex-step-1, 1.1em);
 	margin: 0 0 var(--eex-gap);
 }
 
 .eex-tz {
 	color: var(--eex-muted);
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 }
 
 .eex-view-all {
@@ -555,7 +559,7 @@
 .eex-hero-kicker {
 	margin: 0 0 0.25rem;
 	color: var(--eex-muted);
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	font-weight: 700;
@@ -563,7 +567,7 @@
 
 .eex-hero-title {
 	margin: 0 0 0.35rem;
-	font-size: 1.6em;
+	font-size: var(--eex-step-2, 1.6em);
 	line-height: 1.2;
 }
 
@@ -586,7 +590,7 @@
 
 .eex-hero .eex-countdown {
 	margin: 0;
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 	font-weight: 600;
 	font-variant-numeric: tabular-nums;
 	padding: 0.25em 0.8em;
@@ -638,7 +642,7 @@
 }
 
 .eex-hero-banner .eex-hero-title {
-	font-size: 1.2em;
+	font-size: var(--eex-step-1, 1.2em);
 	margin-bottom: 0.2rem;
 }
 
@@ -665,7 +669,7 @@
 }
 
 .eex-hero-spotlight .eex-hero-title {
-	font-size: 2em;
+	font-size: var(--eex-step-3, 2em);
 }
 
 .eex-hero-spotlight .eex-hero-meta {
@@ -766,7 +770,7 @@
 }
 
 .eex-pricing-rows .eex-pricing-ticket .eex-pricing-amount {
-	font-size: 1.2em;
+	font-size: var(--eex-step-1, 1.2em);
 }
 
 .eex-pricing-rows .eex-pricing-ticket .eex-card-actions {
@@ -809,7 +813,7 @@
 }
 
 .eex-pricing-amount {
-	font-size: 1.5em;
+	font-size: var(--eex-step-2, 1.5em);
 	font-weight: 700;
 }
 
@@ -817,7 +821,7 @@
 .eex-pricing-description,
 .eex-pricing-remaining {
 	color: var(--eex-muted);
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 	margin: 0;
 }
 
@@ -870,7 +874,7 @@
 	font-weight: 700;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 }
 
 .eex .eex-live-bar-title,
@@ -949,7 +953,7 @@
 }
 
 .eex-drawer-title {
-	font-size: 1.35rem;
+	font-size: var(--eex-step-2, 1.35rem);
 	line-height: 1.2;
 }
 
@@ -957,7 +961,7 @@
    from the button that opened the drawer). */
 .eex-drawer-context {
 	margin: 0.25em 0 var(--eex-gap);
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 	color: var(--eex-muted);
 }
 
@@ -975,12 +979,12 @@
 }
 
 .eex-drawer .eex-card-title {
-	font-size: 1.15rem;
+	font-size: var(--eex-step-1, 1.15rem);
 	line-height: 1.3;
 }
 
 .eex-drawer .eex-pricing-description {
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 	color: var(--eex-muted);
 }
 
@@ -1018,7 +1022,7 @@
 
 .eex-drawer-title {
 	margin: 0;
-	font-size: 1.2em;
+	font-size: var(--eex-step-1, 1.2em);
 }
 
 .eex-drawer-close {
@@ -1026,7 +1030,7 @@
 	background: transparent;
 	cursor: pointer;
 	color: inherit;
-	font-size: 1.6em;
+	font-size: var(--eex-step-2, 1.6em);
 	line-height: 1;
 	padding: 0.1em 0.35em;
 	border-radius: 0.3em;
@@ -1085,7 +1089,7 @@
 
 .eex-reg-field label {
 	display: block;
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 	font-weight: 600;
 }
 
@@ -1102,7 +1106,7 @@
 }
 
 .eex-reg-consent {
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 }
 
 .eex-reg-consent label {
@@ -1123,13 +1127,13 @@
 /* The standalone registration widget names what it registers for. */
 .eex-reg-inline-context {
 	margin: 0 0 0.75em;
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 	color: var(--eex-muted);
 }
 
 .eex-reg-msg {
 	margin: 0.5em 0 0;
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 	color: var(--eex-live);
 }
 
@@ -1183,19 +1187,19 @@
 .eex-sponsor-card-name {
 	margin: 0;
 	font-weight: 600;
-	font-size: 0.95em;
+	font-size: var(--eex-step-0, 0.95em);
 }
 
 .eex-sponsor-blurb {
 	display: block;
 	margin: 0;
 	color: var(--eex-muted);
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 }
 
 .eex-tier-heading {
 	margin: 0 0 0.75rem;
-	font-size: 1.1em;
+	font-size: var(--eex-step-1, 1.1em);
 }
 
 .eex-sponsor-tier {
@@ -1237,12 +1241,12 @@
 	border-radius: calc(var(--eex-radius) * 0.75);
 	padding: 0.6em 1em;
 	width: fit-content;
-	box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+	box-shadow: var(--eex-shadow-1, 0 6px 18px rgba(0, 0, 0, 0.08));
 }
 
 .eex-spotlight-name {
 	margin: 0;
-	font-size: 1.2em;
+	font-size: var(--eex-step-1, 1.2em);
 }
 
 .eex-spotlight-video {
@@ -1262,7 +1266,7 @@
 
 .eex-spotlight-description {
 	color: var(--eex-muted);
-	font-size: 0.95em;
+	font-size: var(--eex-step-0, 0.95em);
 }
 
 .eex-spotlight-description p:last-child {
@@ -1288,7 +1292,7 @@
 .eex-agenda-venue {
 	display: block;
 	color: var(--eex-muted);
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 }
 
 .eex-agenda-venue {
@@ -1409,7 +1413,7 @@
 .eex-bar-text .eex-countdown {
 	display: inline;
 	margin-left: 0.5em;
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 	opacity: 0.9;
 }
 
@@ -1428,7 +1432,7 @@
 	background: transparent;
 	border: 0;
 	color: inherit;
-	font-size: 1.4rem;
+	font-size: var(--eex-step-2, 1.4rem);
 	line-height: 1;
 	cursor: pointer;
 	padding: 0.2rem 0.4rem;
@@ -1492,14 +1496,14 @@
 
 .eex-stat-number {
 	display: block;
-	font-size: 2rem;
+	font-size: var(--eex-step-3, 2rem);
 	font-weight: 700;
 	line-height: 1.1;
 }
 
 .eex-stat-label {
 	color: var(--eex-muted);
-	font-size: 0.9em;
+	font-size: var(--eex-step-0, 0.9em);
 }
 
 /* Replay gallery */
@@ -1581,7 +1585,7 @@
 }
 
 .eex-feature-compact {
-	font-size: 0.95em;
+	font-size: var(--eex-step-0, 0.95em);
 }
 
 /* Schedule extras: day jump links and the timezone toggle */
@@ -1639,7 +1643,7 @@
 
 .eex-chip-headline {
 	color: var(--eex-muted);
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 }
 
 .eex-chip-full {
@@ -1660,7 +1664,7 @@
 	border: 1px dashed #b8860b;
 	border-radius: var(--eex-radius);
 	color: #5f4200;
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 	padding: 0.6rem 0.9rem;
 	margin: 0.5rem 0;
 }
@@ -1703,7 +1707,7 @@
 	padding: 0;
 	background: none;
 	font: inherit;
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 	color: var(--eex-muted);
 	text-decoration: underline;
 	cursor: pointer;
@@ -1716,7 +1720,7 @@
 
 .eex-reg-privacy {
 	margin: 0.25em 0 0;
-	font-size: 0.8em;
+	font-size: var(--eex-step--1, 0.8em);
 }
 
 .eex-reg-privacy a {
@@ -1733,8 +1737,8 @@
 	justify-content: center;
 	gap: 1em;
 	padding: 0.8em 1em;
-	background: var(--eex-badge-bg, #eef2f7);
-	border-bottom: 1px solid var(--eex-border, #d6dce5);
+	background: var(--eex-surface, #eef2f7);
+	border-bottom: 1px solid var(--eex-line, #d6dce5);
 	font-weight: 600;
 }
 
@@ -1749,7 +1753,7 @@
 .eex-confirm-dismiss {
 	border: 0;
 	background: none;
-	font-size: 1.2em;
+	font-size: var(--eex-step-1, 1.2em);
 	line-height: 1;
 	cursor: pointer;
 }
@@ -1778,7 +1782,7 @@
 	box-shadow: none;
 	text-shadow: none;
 	font: inherit;
-	font-size: 0.85em;
+	font-size: var(--eex-step--1, 0.85em);
 	font-weight: 400;
 	letter-spacing: normal;
 	text-transform: none;
@@ -1792,4 +1796,44 @@
 .eex-reg-done .eex-rsvp-other:hover {
 	background: transparent;
 	color: inherit;
+}
+
+/* ---- Container-width responsiveness -------------------------------------
+   Widgets land in sidebars and narrow Theme Builder columns where the
+   viewport is wide but the container is not; the 600/900 viewport rules
+   above never fire there (verified: a 340px container on a 1440px viewport
+   kept a 3-column grid overflowing by 27px). Component roots become size
+   containers so the rules below track the ACTUAL available width. Roots
+   hosting position:fixed descendants (the ticket drawer, the sticky bar)
+   are excluded: containment would trap those fixed elements inside the
+   widget box. For them, and for browsers without container queries, the
+   viewport rules above remain the fallback. */
+.eex:not(:has(.eex-drawer, .eex-register-bar)) {
+	container-type: inline-size;
+}
+
+@container (max-width: 520px) {
+	.eex-grid {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.eex-card-actions {
+		flex-wrap: wrap;
+	}
+
+	.eex-feature-card {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.eex-hero {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+@container (min-width: 521px) and (max-width: 899px) {
+	.eex-grid {
+		/* As many columns as genuinely fit, capped by card readability —
+		   never more than the operator's column setting produces above. */
+		grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+	}
 }

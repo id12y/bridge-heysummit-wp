@@ -3,6 +3,26 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.38.0
+- **Every widget now shares one visual language.** A new, deletable
+  skin stylesheet (eex-skin.css) gives all widgets the emailexpert
+  look: one token set (ink, muted, navy accent, surface, line), a
+  five-step fluid type scale replacing sixteen ad-hoc font sizes,
+  serif display headings, unified buttons and badges, and exactly two
+  shadows. The base stylesheet was rewired so every hard-coded value
+  became a token with the old literal as its fallback — dequeue the
+  skin (filter `eex_skin_enabled` to false) and every widget renders
+  exactly as it did in 1.37.x. Elementor style controls keep working
+  and still win: they write the same tokens at page scope.
+- **Widgets now adapt to their container, not the viewport.** A
+  widget in a 340px sidebar on a desktop screen used to render its
+  desktop three-column grid and overflow its column; grids and the
+  feature card now use container queries, so layout follows the space
+  the widget actually has. Roots containing the ticket drawer or the
+  register bar are excluded from containment (containment would trap
+  their fixed-position panels); the old viewport rules remain as a
+  fallback for browsers without container query support.
+
 ## 1.37.2
 - **Communication channels now follow their meaning, not just their
   shape.** The live schema's four boolean channels are not all

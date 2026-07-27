@@ -1,0 +1,275 @@
+/**
+ * emailexpert Events — site skin.
+ *
+ * The deliberate emailexpert look for every widget: one token set, an
+ * editorial type scale, serif display headings, unified buttons, badges
+ * and surfaces. Additive by design — every rule either sets an --eex-*
+ * token that eex.css already consumes, or styles an existing eex- class.
+ * Deleting this file reverts all widgets to the neutral base look.
+ * Elementor style controls keep working: they write the same tokens at
+ * higher (page-scoped) specificity, so operator choices win over these
+ * defaults.
+ */
+
+/* ---- Tokens -------------------------------------------------------------- */
+.eex,
+.eex-confirm-banner {
+	/* Palette: follows the live site. The accent stays the established
+	   emailexpert navy rather than the brief's generic blue. */
+	--eex-ink: #132038;
+	--eex-muted: #5d6b82;
+	--eex-accent: #0a4b78;
+	--eex-accent-fg: #ffffff;
+	--eex-surface: #f3f6fb;
+	--eex-line: #d9e0eb;
+	--eex-border: var(--eex-line);
+	--eex-badge-bg: var(--eex-surface);
+	--eex-badge-fg: var(--eex-ink);
+
+	/* Type: serif for editorial display, sans for everything else. */
+	--eex-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+	--eex-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+	/* Scale: five steps, fluid, replacing sixteen ad-hoc sizes. */
+	--eex-step--1: clamp(0.79rem, 0.76rem + 0.15vw, 0.85rem);
+	--eex-step-0: clamp(0.9rem, 0.88rem + 0.15vw, 0.95rem);
+	--eex-step-1: clamp(1.05rem, 1rem + 0.3vw, 1.2rem);
+	--eex-step-2: clamp(1.3rem, 1.15rem + 0.8vw, 1.6rem);
+	--eex-step-3: clamp(1.6rem, 1.35rem + 1.3vw, 2rem);
+
+	/* Rhythm. */
+	--eex-section-gap: clamp(2rem, 1.5rem + 2vw, 3rem);
+	--eex-row-gap: 1.25rem;
+	--eex-inline: clamp(1rem, 0.75rem + 1vw, 1.5rem);
+
+	/* Elevation: exactly two shadows. */
+	--eex-shadow-1: 0 1px 2px rgba(19, 32, 56, 0.06), 0 6px 18px rgba(19, 32, 56, 0.07);
+	--eex-shadow-2: 0 2px 6px rgba(19, 32, 56, 0.08), 0 14px 32px rgba(19, 32, 56, 0.12);
+
+	--eex-radius: 10px;
+}
+
+/* ---- Base voice ---------------------------------------------------------- */
+.eex {
+	font-family: var(--eex-sans);
+	color: var(--eex-ink);
+	line-height: 1.6;
+}
+
+/* ---- Editorial display headings ------------------------------------------ */
+.eex .eex-card-title,
+.eex .eex-hero-title,
+.eex .eex-agenda-title,
+.eex .eex-list-title,
+.eex .eex-compact-title,
+.eex .eex-drawer-title,
+.eex .eex-reg-inline-heading,
+.eex .eex-agenda-heading,
+.eex .eex-schedule-heading,
+.eex .eex-wall-heading,
+.eex .eex-tier-heading,
+.eex .eex-spotlight-name,
+.eex .eex-sponsor-card-name,
+.eex-drawer .eex-drawer-title {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var(--eex-ink);
+	text-wrap: balance;
+}
+
+.eex .eex-hero-title {
+	font-size: var(--eex-step-3, 2rem);
+	line-height: 1.15;
+}
+
+.eex .eex-card-title,
+.eex .eex-agenda-title {
+	line-height: 1.25;
+}
+
+.eex .eex-card-title a,
+.eex .eex-hero-title a,
+.eex .eex-agenda-title a {
+	color: inherit;
+}
+
+/* ---- Eyebrow labels: badges, kickers, section furniture ------------------ */
+.eex .eex-badge,
+.eex .eex-hero-kicker,
+.eex .eex-live-bar-label,
+.eex .eex-pricing-price-label,
+.eex .eex-sponsor-tier,
+.eex .eex-stat-label {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1, 0.78em);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.eex .eex-badge {
+	border: 1px solid var(--eex-line);
+	background: var(--eex-badge-bg);
+	color: var(--eex-badge-fg);
+	padding: 0.25em 0.7em;
+}
+
+.eex .eex-badge-status {
+	background: var(--eex-ink);
+	border-color: var(--eex-ink);
+	color: #ffffff;
+}
+
+/* ---- Metadata ------------------------------------------------------------ */
+.eex .eex-card-time,
+.eex .eex-card-venue,
+.eex .eex-list-time,
+.eex .eex-compact-time,
+.eex .eex-agenda-time,
+.eex .eex-hero-time,
+.eex .eex-hero-meta {
+	color: var(--eex-muted);
+}
+
+/* ---- Cards and surfaces -------------------------------------------------- */
+.eex .eex-card {
+	background: var(--eex-card-bg, #ffffff);
+	border-color: var(--eex-line);
+	box-shadow: var(--eex-shadow-1);
+	transition: box-shadow 160ms ease;
+}
+
+.eex .eex-card:hover {
+	box-shadow: var(--eex-shadow-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.eex .eex-card {
+		transition: none;
+	}
+}
+
+.eex .eex-agenda-row,
+.eex .eex-drawer-panel,
+.eex .eex-reg-inline {
+	border-color: var(--eex-line);
+}
+
+/* The feature card: the flagship editorial surface. */
+.eex .eex-feature-session {
+	background: #ffffff;
+	border-color: var(--eex-line);
+	box-shadow: var(--eex-shadow-1);
+	padding: var(--eex-inline);
+}
+
+.eex .eex-feature-session .eex-card-title {
+	font-size: var(--eex-step-3, 1.6em);
+	line-height: 1.15;
+}
+
+.eex .eex-feature-compact .eex-card-title {
+	font-size: var(--eex-step-2, 1.35rem);
+}
+
+.eex .eex-feature-location {
+	background: var(--eex-surface);
+	border-left: 3px solid var(--eex-accent);
+	border-radius: calc(var(--eex-radius) * 0.5);
+	padding: 0.75em 1em;
+}
+
+/* ---- Buttons: one system ------------------------------------------------- */
+.eex .eex-cta,
+.eex-drawer .eex-cta {
+	font-family: var(--eex-sans);
+	font-weight: 600;
+	font-size: var(--eex-cta-font, var(--eex-step-0, 1em));
+	border-radius: calc(var(--eex-radius) * 0.6);
+	transition: filter 120ms ease;
+}
+
+.eex .eex-cta:hover {
+	filter: brightness(1.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.eex .eex-cta {
+		transition: none;
+	}
+}
+
+.eex .eex-cta-secondary,
+.eex .eex-view-all {
+	color: var(--eex-accent);
+	font-weight: 600;
+	text-decoration: none;
+	border-bottom: 1px solid var(--eex-line);
+}
+
+.eex .eex-cta-secondary:hover,
+.eex .eex-view-all:hover {
+	border-bottom-color: var(--eex-accent);
+}
+
+/* ---- Forms --------------------------------------------------------------- */
+.eex .eex-reg-form {
+	font-family: var(--eex-sans);
+}
+
+.eex .eex-reg-field input {
+	border-color: var(--eex-line);
+	border-radius: calc(var(--eex-radius) * 0.5);
+	background: #ffffff;
+}
+
+.eex .eex-reg-field input:focus-visible {
+	outline: 2px solid var(--eex-accent);
+	outline-offset: 1px;
+	border-color: var(--eex-accent);
+}
+
+.eex .eex-reg-done {
+	background: var(--eex-surface);
+	border-left: 3px solid var(--eex-accent);
+}
+
+/* ---- Pricing ------------------------------------------------------------- */
+.eex .eex-pricing-amount {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+}
+
+/* ---- Stats --------------------------------------------------------------- */
+.eex .eex-stat-number {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+	color: var(--eex-ink);
+}
+
+/* ---- Pagination and day navigation --------------------------------------- */
+.eex .eex-pagination a,
+.eex .eex-day-nav a {
+	border-radius: calc(var(--eex-radius) * 0.5);
+}
+
+.eex .eex-pagination .eex-current {
+	background: var(--eex-accent);
+	color: var(--eex-accent-fg);
+}
+
+/* ---- Dividers ------------------------------------------------------------ */
+.eex .eex-list-row,
+.eex .eex-compact-row {
+	border-bottom-color: var(--eex-line);
+}
+
+/* ---- Empty states -------------------------------------------------------- */
+.eex .eex-empty {
+	color: var(--eex-muted);
+	background: var(--eex-surface);
+	border: 1px dashed var(--eex-line);
+	border-radius: var(--eex-radius);
+	padding: var(--eex-inline);
+}

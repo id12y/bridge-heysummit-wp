@@ -32,6 +32,11 @@ final class Assets {
 	 */
 	public function register_assets(): void {
 		wp_register_style( 'eex-frontend', EEX_PLUGIN_URL . 'assets/css/eex.css', [], EEX_VERSION );
+
+		// The site skin: tokens + the deliberate emailexpert look, layered
+		// over the neutral base. Deleting/dequeuing it reverts every widget
+		// to the base rendering (all base rules carry their own fallbacks).
+		wp_register_style( 'eex-skin', EEX_PLUGIN_URL . 'assets/css/eex-skin.css', [ 'eex-frontend' ], EEX_VERSION );
 		wp_register_script( 'eex-time', EEX_PLUGIN_URL . 'assets/js/eex-time.js', [], EEX_VERSION, true );
 
 		// The logged-in visitor's own identity, for prefilling RSVP forms and
@@ -97,6 +102,17 @@ final class Assets {
 	public static function mark_needed(): void {
 		if ( function_exists( 'wp_enqueue_style' ) ) {
 			wp_enqueue_style( 'eex-frontend' );
+
+			/**
+			 * Filter whether the emailexpert site skin loads (default true).
+			 * false = neutral base styling only.
+			 *
+			 * @param bool $enabled Load the skin stylesheet.
+			 */
+			if ( apply_filters( 'eex_skin_enabled', true ) ) {
+				wp_enqueue_style( 'eex-skin' );
+			}
+
 			wp_enqueue_script( 'eex-time' );
 		}
 	}
