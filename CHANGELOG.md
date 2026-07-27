@@ -3,6 +3,18 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.38.2
+- **Widgets can now sit on dark page sections.** Add the CSS class
+  `eex-dark` to a section, column or widget wrapper (Elementor:
+  Advanced, then CSS Classes) and every widget inside it switches to
+  a dark-context palette: near-white ink, a lighter accent blue with
+  dark button text, and translucent surfaces that work over any dark
+  background colour rather than one assumed shade. The ticket drawer
+  and the sticky register bar deliberately keep the light palette —
+  they overlay the page, not the section they are coded inside.
+  Pure CSS in the skin stylesheet; nothing changes anywhere until
+  the class is added.
+
 ## 1.38.1
 - **Every widget can carry an eyebrow label.** A new optional Eyebrow
   setting on each content widget renders the small uppercase label

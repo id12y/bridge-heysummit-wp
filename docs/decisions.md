@@ -1981,3 +1981,20 @@ existed keep rendering the historical kicker: a missing args key
 falls back to "Up next", not to empty. Chips, the fixed register bar
 and the search box do not receive the attribute at all — a dead
 switch teaches operators to distrust the controls.
+
+D106 addendum 2 (v1.38.2): the dark-context variant, as one token
+block. Opt-in is a CSS class ("eex-dark") on any ancestor — Elementor
+already provides the input for it, so no control, no attribute, no
+PHP. Two choices matter. Surfaces are translucent white rather than a
+fixed dark shade: the operator's section background is unknown (a
+navy footer, a black band), and rgba overlays read correctly over any
+of them, where a hard-coded panel colour would clash with all but
+one. And the accent inverts its pairing — a lighter blue fill with
+dark text — because white-on-navy stops passing contrast once the
+page around it goes dark. The ticket drawer and sticky register bar
+re-assert the light token set inside the dark scope: they are fixed
+overlays that visually belong to the page, not to the section that
+happens to contain their markup, and without the reset the drawer
+would paint near-white text on its solid white panel. Verified live:
+a drawer opened from inside a dark section reports a white panel and
+navy ink.
