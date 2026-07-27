@@ -1932,3 +1932,52 @@ registration"), unknown channels conservatively follow the checkbox —
 with the value filter overriding everything. Verified live: a
 declined-marketing registration carried offers=false,
 speaker_offers=false, talk_reminder=true, conference_info=true.
+
+
+## D106. The skin is a layer, not a rewrite (v1.38.0)
+
+The design alignment pass had one hard constraint: presentation only,
+zero regressions, removable by deleting one stylesheet. That ruled out
+editing the base look in place. Instead the base stylesheet's
+hard-coded values became var() references with the old literal as the
+fallback — `font-size: var(--eex-step-1, 1.05em)` renders
+byte-identically when no token is defined — and the new eex-skin.css
+does nothing but define tokens and style existing classes. Three
+consequences fall out of that mechanism rather than needing policy:
+deleting or dequeuing the skin (the `eex_skin_enabled` filter) reverts
+every widget to the 1.37.x rendering; Elementor style controls keep
+winning because they write the same tokens at page-scoped (higher)
+specificity; and the skin can never break a widget's layout because it
+owns no structural rules.
+
+Two judgement calls against the written brief. First, the accent: the
+brief specified a generic blue (#2f62e9), but the live site's
+established colour is the emailexpert navy, so the skin follows the
+site (#0a4b78) — the brief's own goal was consistency WITH the site,
+and where the two conflicted the site won. Second, container queries:
+the brief asked for them wholesale, but `container-type: inline-size`
+on a widget root makes that root the containing block for
+position:fixed descendants — and the ticket drawer and register bar
+render INSIDE their widget roots. Containment there visibly traps the
+drawer mid-screen. So containment applies via
+`.eex:not(:has(.eex-drawer, .eex-register-bar))`, the two affected
+roots keep viewport rules, and the drawer was verified to still dock
+at the true viewport edge. Measured proof of the payoff: a widget in a
+340px sidebar at a 1440px viewport went from three overflowing columns
+(+27px past its container) to one clean column.
+
+D106 addendum (v1.38.1): the eyebrow element the design pass flagged
+as out of scope, done the plugin's opt-in way. One shared attribute
+injected at the definitions tail (the hide_empty precedent) and one
+central render step — the label rides inside the root wrapper so the
+skin and Elementor style controls scope to it — rather than edits to
+twenty templates. Blank default renders nothing, so every existing
+page is byte-identical. The hero is the one special case: it already
+had an eyebrow (the hardcoded "Up next" kicker), so there the
+attribute rewords the kicker in place instead of stacking a second
+label, and a show_eyebrow switch (default on) finally lets owners
+hide it. Themes that copied hero-talk.php before the attribute
+existed keep rendering the historical kicker: a missing args key
+falls back to "Up next", not to empty. Chips, the fixed register bar
+and the search box do not receive the attribute at all — a dead
+switch teaches operators to distrust the controls.

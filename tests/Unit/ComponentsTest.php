@@ -520,6 +520,40 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( 'data-eex-countdown', $plain );
 	}
 
+	public function test_eyebrow_label_is_opt_in_everywhere_and_rewords_the_hero_kicker(): void {
+		$this->make_talk( 'Session A', 3600 );
+
+		// Off by default: no widget grows a label.
+		$default = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringNotContainsString( 'eex-eyebrow', $default );
+
+		// Opted in: the label renders inside the root, escaped.
+		$labelled = Components::render( 'upcoming-sessions', [ 'eyebrow' => 'Now & next' ] );
+		$this->assertStringContainsString( '<p class="eex-eyebrow">Now &amp; next</p>', $labelled );
+
+		// The hero's kicker keeps its historical default (and never stacks
+		// a second label on top).
+		$hero = Components::render( 'next-session', [] );
+		$this->assertStringContainsString( 'eex-hero-kicker', $hero );
+		$this->assertStringContainsString( 'Up next', $hero );
+		$this->assertStringNotContainsString( 'eex-eyebrow', $hero );
+
+		// The attribute rewords the kicker in place.
+		$reworded = Components::render( 'next-session', [ 'eyebrow' => 'Happening today' ] );
+		$this->assertStringContainsString( '<p class="eex-hero-kicker">Happening today</p>', $reworded );
+		$this->assertStringNotContainsString( 'Up next', $reworded );
+		$this->assertStringNotContainsString( 'eex-eyebrow', $reworded );
+
+		// The switch removes it outright.
+		$bare = Components::render( 'next-session', [ 'show_eyebrow' => 0 ] );
+		$this->assertStringNotContainsString( 'eex-hero-kicker', $bare );
+
+		// Chips have no surface for a section label: the attribute is not
+		// part of their schema and sanitises away silently.
+		$chip = Components::render( 'countdown', [ 'eyebrow' => 'Ignored' ] );
+		$this->assertStringNotContainsString( 'eex-eyebrow', $chip );
+	}
+
 	public function test_pricing_table_expands_prices_and_flags(): void {
 		$event_id = wp_insert_post(
 			[

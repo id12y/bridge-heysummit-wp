@@ -13,6 +13,7 @@
  *     @type string $register_text  CTA label ('' = "Register").
  *     @type array  $register       Register settings (mode, url).
  *     @type string $drawer         Ticket panel element ID ('' = plain link).
+ *     @type string $eyebrow        Kicker text ('' = no kicker; key absent = "Up next").
  * }
  */
 
@@ -84,7 +85,16 @@ if ( $eex_countdown ) {
 	<div class="eex-hero-main">
 	<p class="eex-live-indicator" data-eex-live-slot="1" hidden aria-live="polite"></p>
 
-	<p class="eex-hero-kicker"><?php esc_html_e( 'Up next', 'emailexpert-events' ); ?></p>
+	<?php
+	// A missing key keeps the historical default, so themes that copied
+	// this part before the eyebrow attribute existed render unchanged.
+	$eex_kicker = array_key_exists( 'eyebrow', $args )
+		? (string) $args['eyebrow']
+		: __( 'Up next', 'emailexpert-events' );
+	?>
+	<?php if ( '' !== $eex_kicker ) : ?>
+	<p class="eex-hero-kicker"><?php echo esc_html( $eex_kicker ); ?></p>
+	<?php endif; ?>
 
 	<h2 class="eex-hero-title">
 		<a href="<?php echo esc_url( (string) $eex_data['permalink'] ); ?>"><?php echo esc_html( (string) $eex_data['title'] ); ?></a>
