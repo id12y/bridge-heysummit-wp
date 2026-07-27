@@ -3,6 +3,17 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.38.1
+- **Every widget can carry an eyebrow label.** A new optional Eyebrow
+  setting on each content widget renders the small uppercase label
+  above the section ("UP NEXT", "OUR SPONSORS") that editorial layouts
+  pair with a heading. Blank by default — no existing page changes.
+  The next-session hero's hardcoded "Up next" kicker becomes the same
+  setting: blank keeps the current text, typing rewords it, and a
+  show/hide switch (on by default) can remove it — previously
+  impossible without a template override. Chips, the sticky bar and
+  the search box are skipped; a section label has no surface there.
+
 ## 1.38.0
 - **Every widget now shares one visual language.** A new, deletable
   skin stylesheet (eex-skin.css) gives all widgets the emailexpert

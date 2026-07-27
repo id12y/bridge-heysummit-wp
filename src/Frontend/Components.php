@@ -1128,6 +1128,28 @@ final class Components {
 			}
 		}
 
+		// Shared attribute: an optional eyebrow — the small uppercase label
+		// above a section ("UP NEXT", "OUR SPONSORS"). Blank (the default)
+		// renders nothing at all, so existing pages are untouched. Chips,
+		// the fixed bar and the search box are skipped — a section label
+		// has no surface there.
+		$eyebrow_skip = [ 'countdown', 'live-now', 'session-filter', 'reg-counter', 'register-bar' ];
+		foreach ( array_keys( $definitions ) as $component ) {
+			if ( ! in_array( $component, $eyebrow_skip, true ) ) {
+				$definitions[ $component ]['atts']['eyebrow'] = [
+					'type'    => 'string',
+					'default' => '',
+					'label'   => __( 'Eyebrow label (small uppercase text above the widget; blank = none)', 'emailexpert-events' ),
+				];
+			}
+		}
+
+		// The hero already carries its own eyebrow (the kicker); there the
+		// attribute rewords it rather than adding a second label, and a
+		// switch hides it outright.
+		$definitions['next-session']['atts']['eyebrow']['label'] = __( 'Kicker text (blank = "Up next")', 'emailexpert-events' );
+		$definitions['next-session']['atts']['show_eyebrow']     = $flag( __( 'Show the kicker label above the title', 'emailexpert-events' ), 1 );
+
 		return $definitions;
 	}
 
@@ -1180,6 +1202,15 @@ final class Components {
 
 		// Lite: the block itself carries Event JSON-LD for what it rendered.
 		$html .= self::inline_schema( $name );
+
+		// The eyebrow rides inside the root so the skin and any Elementor
+		// style controls scope to it. The hero is the one exception: there
+		// the attribute feeds the existing kicker (see render_next_session)
+		// rather than stacking a second label above it.
+		$eyebrow = trim( (string) ( $atts['eyebrow'] ?? '' ) );
+		if ( '' !== $eyebrow && 'next-session' !== $name ) {
+			$html = '<p class="eex-eyebrow">' . esc_html( $eyebrow ) . '</p>' . $html;
+		}
 
 		$html = '<div class="eex eex-' . esc_attr( $name ) . '">' . $html . '</div>';
 
@@ -2890,6 +2921,10 @@ final class Components {
 				'register'       => self::register_args( $atts ),
 				'drawer'         => $drawer['id'],
 				'rsvp'           => self::rsvp_context( $atts ),
+				'eyebrow'        => empty( $atts['show_eyebrow'] ) ? ''
+					: ( '' !== trim( (string) ( $atts['eyebrow'] ?? '' ) )
+						? trim( (string) $atts['eyebrow'] )
+						: __( 'Up next', 'emailexpert-events' ) ),
 			]
 		);
 

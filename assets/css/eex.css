@@ -556,13 +556,19 @@
 	min-width: 0;
 }
 
-.eex-hero-kicker {
+.eex-hero-kicker,
+.eex-eyebrow {
 	margin: 0 0 0.25rem;
 	color: var(--eex-muted);
 	font-size: var(--eex-step--1, 0.85em);
 	text-transform: uppercase;
 	letter-spacing: 0.06em;
 	font-weight: 700;
+}
+
+/* The section-level eyebrow sits above a whole widget, not a hero line. */
+.eex-eyebrow {
+	margin: 0 0 0.5rem;
 }
 
 .eex-hero-title {

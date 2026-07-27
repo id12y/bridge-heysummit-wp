@@ -1965,3 +1965,19 @@ roots keep viewport rules, and the drawer was verified to still dock
 at the true viewport edge. Measured proof of the payoff: a widget in a
 340px sidebar at a 1440px viewport went from three overflowing columns
 (+27px past its container) to one clean column.
+
+D106 addendum (v1.38.1): the eyebrow element the design pass flagged
+as out of scope, done the plugin's opt-in way. One shared attribute
+injected at the definitions tail (the hide_empty precedent) and one
+central render step — the label rides inside the root wrapper so the
+skin and Elementor style controls scope to it — rather than edits to
+twenty templates. Blank default renders nothing, so every existing
+page is byte-identical. The hero is the one special case: it already
+had an eyebrow (the hardcoded "Up next" kicker), so there the
+attribute rewords the kicker in place instead of stacking a second
+label, and a show_eyebrow switch (default on) finally lets owners
+hide it. Themes that copied hero-talk.php before the attribute
+existed keep rendering the historical kicker: a missing args key
+falls back to "Up next", not to empty. Chips, the fixed register bar
+and the search box do not receive the attribute at all — a dead
+switch teaches operators to distrust the controls.
