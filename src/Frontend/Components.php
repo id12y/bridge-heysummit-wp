@@ -121,9 +121,12 @@ final class Components {
 			],
 		];
 		$show_categories = $flag( __( 'Show category badges', 'emailexpert-events' ) );
-		$show_ics        = $flag( __( 'Show "Add to calendar (.ics)" link', 'emailexpert-events' ) );
-		$show_google     = $flag( __( 'Show Google Calendar link', 'emailexpert-events' ) );
-		$register_text   = [
+		// Default off: existing pages gain no badge until asked. The label
+		// is the platform's, not ours (see LiveRepository::format_of).
+		$show_format   = $flag( __( 'Show the format badge (Online / In person / the session\'s HeySummit label)', 'emailexpert-events' ), 0 );
+		$show_ics      = $flag( __( 'Show "Add to calendar (.ics)" link', 'emailexpert-events' ) );
+		$show_google   = $flag( __( 'Show Google Calendar link', 'emailexpert-events' ) );
+		$register_text = [
 			'type'    => 'string',
 			'default' => '',
 			'label'   => __( 'Register button text (empty = "Register")', 'emailexpert-events' ),
@@ -227,6 +230,7 @@ final class Components {
 					'show_speakers'   => $show_speakers,
 					'speaker_info'    => $speaker_info,
 					'show_categories' => $show_categories,
+					'show_format'     => $show_format,
 					'show_image'      => $flag( __( 'Show session images', 'emailexpert-events' ), 0 ),
 					'show_venue'      => $flag( __( 'Show venue/stage', 'emailexpert-events' ) ),
 					'show_address'    => $flag( __( 'Show the event venue address on in-person sessions', 'emailexpert-events' ), 0 ),
@@ -270,6 +274,7 @@ final class Components {
 					'show_speakers'   => $show_speakers,
 					'speaker_info'    => $speaker_info,
 					'show_categories' => $show_categories,
+					'show_format'     => $show_format,
 					'show_image'      => $flag( __( 'Show session images', 'emailexpert-events' ), 0 ),
 					'show_venue'      => $flag( __( 'Show venue/stage', 'emailexpert-events' ) ),
 					'show_address'    => $flag( __( 'Show the event venue address on in-person sessions', 'emailexpert-events' ), 0 ),
@@ -366,6 +371,7 @@ final class Components {
 					'show_speakers'   => $show_speakers,
 					'speaker_info'    => $speaker_info,
 					'show_categories' => $show_categories,
+					'show_format'     => $show_format,
 					'day_nav'         => $flag( __( 'Show jump-to-day links above the schedule', 'emailexpert-events' ), 0 ),
 					'show_tz_toggle'  => $flag( __( 'Show a timezone toggle (your time / event time)', 'emailexpert-events' ), 0 ),
 					'empty_text'      => [
@@ -466,6 +472,7 @@ final class Components {
 					'show_speakers'   => $show_speakers,
 					'speaker_info'    => $speaker_info,
 					'show_categories' => $show_categories,
+					'show_format'     => $show_format,
 					'show_image'      => $flag( __( 'Show session images', 'emailexpert-events' ), 0 ),
 					'show_venue'      => $flag( __( 'Show venue/stage', 'emailexpert-events' ) ),
 					'show_address'    => $flag( __( 'Show the event venue address on in-person sessions', 'emailexpert-events' ), 0 ),
@@ -1539,6 +1546,8 @@ final class Components {
 			'replay_soon'   => (bool) get_post_meta( $post_id, '_eex_replay_soon', true ),
 			'venue'         => (string) get_post_meta( $post_id, '_eex_talk_venue', true ),
 			'inperson'      => (bool) get_post_meta( $post_id, '_eex_inperson', true ),
+			'custom_tag'    => (string) get_post_meta( $post_id, '_eex_custom_tag', true ),
+			'format'        => (string) get_post_meta( $post_id, '_eex_format', true ),
 			'image'         => (string) ( function_exists( 'get_the_post_thumbnail_url' ) ? ( get_the_post_thumbnail_url( $post_id, 'medium_large' ) ?: '' ) : '' ),
 			'speakers'      => $speakers,
 			'categories'    => is_array( $categories ) ? $categories : [],
@@ -1641,8 +1650,25 @@ final class Components {
 		return '' !== $text ? $text : __( 'Also email me about future events and content (optional).', 'emailexpert-events' );
 	}
 
-	public static function status_badges( array $data ): array {
+	public static function status_badges( array $data, bool $with_format = false ): array {
 		$badges = [];
+
+		// The platform's own delivery label leads when the widget asks for
+		// it ("ONLINE", "Conference or Summit" — what the HeySummit hub
+		// shows beside the time). Sessions the account never labelled fall
+		// back to the in-person flag, which is a real field rather than an
+		// inference: absent evidence, no badge at all.
+		if ( $with_format ) {
+			$format = trim( (string) ( $data['format'] ?? '' ) );
+
+			if ( '' === $format ) {
+				$format = ! empty( $data['inperson'] )
+					? __( 'In person', 'emailexpert-events' )
+					: __( 'Online', 'emailexpert-events' );
+			}
+
+			$badges[] = $format;
+		}
 
 		if ( ! empty( $data['inperson'] ) ) {
 			$badges[] = __( 'In person', 'emailexpert-events' );
@@ -1662,10 +1688,26 @@ final class Components {
 			(array) ( $data['categories'] ?? [] )
 		);
 
+		// Filter against the categories AND against badges already emitted:
+		// a session whose format label is "In person" must not also carry
+		// the built-in in-person pill, and a custom_tag repeating either is
+		// the same duplication one line further on.
+		$seen = [];
+
 		return array_values(
 			array_filter(
 				$badges,
-				static fn( string $badge ): bool => ! in_array( $fold( $badge ), $taken, true )
+				static function ( string $badge ) use ( $fold, $taken, &$seen ): bool {
+					$key = $fold( $badge );
+
+					if ( '' === $key || in_array( $key, $taken, true ) || isset( $seen[ $key ] ) ) {
+						return false;
+					}
+
+					$seen[ $key ] = true;
+
+					return true;
+				}
 			)
 		);
 	}
@@ -1835,6 +1877,7 @@ final class Components {
 			'speakers'     => ! isset( $atts['show_speakers'] ) || ! empty( $atts['show_speakers'] ),
 			'speaker_info' => (string) ( $atts['speaker_info'] ?? 'names' ),
 			'categories'   => ! isset( $atts['show_categories'] ) || ! empty( $atts['show_categories'] ),
+			'format'       => ! empty( $atts['show_format'] ),
 			'ics'          => ! isset( $atts['show_ics'] ) || ! empty( $atts['show_ics'] ),
 			'google'       => ! isset( $atts['show_google'] ) || ! empty( $atts['show_google'] ),
 			'image'        => ! empty( $atts['show_image'] ),

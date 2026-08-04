@@ -393,6 +393,26 @@ final class Discovery {
 			$out[ $field ] = $value . ' (' . $verdict . ')';
 		}
 
+		// The account also sends the offset the bare timestamps omit, and a
+		// pre-localised string. Neither is mapped yet BECAUSE their shape is
+		// undocumented — an offset guessed as hours when it is minutes moves
+		// every session by a working day. Show them verbatim, with their
+		// type, so the mapping is written from the value rather than from a
+		// hopeful assumption (the same display-not-guess loop as D105).
+		foreach ( [ 'date_localised', 'date_timezone_offset' ] as $field ) {
+			if ( ! array_key_exists( $field, $sample ) || null === $sample[ $field ] || is_array( $sample[ $field ] ) ) {
+				continue;
+			}
+
+			$raw_value = is_bool( $sample[ $field ] ) ? ( $sample[ $field ] ? 'true' : 'false' ) : (string) $sample[ $field ];
+
+			$out[ $field ] = $raw_value . ' (' . sprintf(
+				/* translators: %s: the value's JSON type, e.g. string or integer. */
+				__( 'raw %s — not mapped yet, send this to support', 'emailexpert-events' ),
+				Shapes::describe_type( $sample[ $field ] )
+			) . ')';
+		}
+
 		return $out;
 	}
 }

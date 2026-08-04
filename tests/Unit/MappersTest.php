@@ -78,6 +78,41 @@ final class MappersTest extends TestCase {
 		$this->assertSame( 'https://www.youtube.com/watch?v=abc123def45', $mapped['replay_url'] );
 	}
 
+	public function test_talk_mapper_carries_the_session_format_and_tag_like_lite(): void {
+		// Full mode never stored these, so the same session badged
+		// differently depending on the operator's mode.
+		$agenda = TalkMapper::map(
+			[
+				'id'             => '9100',
+				'title'          => 'Email cruise',
+				'event'          => '101',
+				'is_agenda_item' => true,
+				'agenda_item_type' => 'Conference or Summit',
+				'custom_tag'     => 'Flagship',
+			]
+		);
+
+		$this->assertSame( 'Conference or Summit', $agenda['format'] );
+		$this->assertSame( 'Flagship', $agenda['custom_tag'] );
+
+		// A webinar carries its delivery mode instead, slug tidied.
+		$webinar = TalkMapper::map(
+			[
+				'id'                    => '9101',
+				'title'                 => 'Double optin',
+				'event'                 => '101',
+				'webinar_delivery_mode' => 'online',
+			]
+		);
+
+		$this->assertSame( 'Online', $webinar['format'] );
+
+		// Neither field present: no invented label.
+		$bare = TalkMapper::map( [ 'id' => '9102', 'title' => 'Bare', 'event' => '101' ] );
+		$this->assertSame( '', $bare['format'] );
+		$this->assertSame( '', $bare['custom_tag'] );
+	}
+
 	public function test_talk_mapper_minimal_record(): void {
 		$mapped = TalkMapper::map( self::fixture( 'talks' )[2] );
 

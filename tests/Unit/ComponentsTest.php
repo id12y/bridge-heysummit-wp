@@ -7,6 +7,7 @@
 
 namespace Emailexpert\Events\Tests\Unit;
 
+use Emailexpert\Events\Data\LiveRepository;
 use Emailexpert\Events\Frontend\Cache;
 use Emailexpert\Events\Frontend\Components;
 use Emailexpert\Events\Options;
@@ -518,6 +519,44 @@ final class ComponentsTest extends TestCase {
 		Cache::flush();
 		$plain = Components::render( 'next-session', [ 'show_countdown' => 0 ] );
 		$this->assertStringNotContainsString( 'data-eex-countdown', $plain );
+	}
+
+	public function test_format_badge_uses_the_platform_label_and_never_duplicates(): void {
+		$badges = static fn( array $data, bool $format ): array => Components::status_badges( $data, $format );
+
+		// Off by default: the format label stays out of the badge row.
+		$this->assertSame( [], $badges( [ 'format' => 'Online' ], false ) );
+
+		// An agenda item's own type wins, verbatim.
+		$this->assertSame( [ 'Conference or Summit' ], $badges( [ 'format' => 'Conference or Summit' ], true ) );
+
+		// No label: the in-person flag decides, and it is a real API field
+		// rather than an inference from a missing venue.
+		$this->assertSame( [ 'In person' ], $badges( [ 'inperson' => true ], true ) );
+		$this->assertSame( [ 'Online' ], $badges( [ 'inperson' => false ], true ) );
+
+		// The format label and the built-in in-person pill must not both
+		// render when they say the same thing.
+		$this->assertSame( [ 'In person' ], $badges( [ 'format' => 'In person', 'inperson' => true ], true ) );
+
+		// A custom_tag repeating the format is the same duplication.
+		$this->assertSame(
+			[ 'Online' ],
+			$badges( [ 'format' => 'Online', 'custom_tag' => 'online' ], true )
+		);
+
+		// Both distinct labels survive, format first.
+		$this->assertSame(
+			[ 'Online', 'Open access' ],
+			$badges( [ 'format' => 'Online', 'open_access' => true ], true )
+		);
+	}
+
+	public function test_slug_formats_become_words_and_human_labels_pass_through(): void {
+		$this->assertSame( 'Pre recorded', LiveRepository::humanise_format( 'pre_recorded' ) );
+		$this->assertSame( 'Online', LiveRepository::humanise_format( 'online' ) );
+		$this->assertSame( 'Conference or Summit', LiveRepository::humanise_format( 'Conference or Summit' ) );
+		$this->assertSame( '', LiveRepository::humanise_format( '' ) );
 	}
 
 	public function test_offset_skips_the_head_of_a_listing_without_changing_the_default(): void {

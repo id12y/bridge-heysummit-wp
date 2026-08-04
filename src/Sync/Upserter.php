@@ -207,6 +207,8 @@ final class Upserter {
 					'_eex_replay_soon'       => empty( $mapped['replay_soon'] ) ? 0 : 1,
 					'_eex_talk_venue'        => (string) ( $mapped['venue'] ?? '' ),
 					'_eex_inperson'          => empty( $mapped['inperson'] ) ? 0 : 1,
+					'_eex_custom_tag'        => (string) ( $mapped['custom_tag'] ?? '' ),
+					'_eex_format'            => (string) ( $mapped['format'] ?? '' ),
 				];
 
 			case PostTypes::SPEAKER:

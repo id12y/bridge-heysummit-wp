@@ -59,6 +59,11 @@ final class TalkMapper extends BaseMapper {
 			'replay_soon'     => ! empty( $raw['replay_planned'] ),
 			'venue'           => self::venue_of( $raw ),
 			'inperson'        => ! empty( $raw['inperson_available'] ),
+			// Both modes must describe a session the same way: Lite has read
+			// these since it shipped, Full never stored them, so the same
+			// session badged differently depending on the operator's mode.
+			'custom_tag'      => self::str( $raw, [ 'custom_tag' ] ),
+			'format'          => self::format_of( $raw ),
 			'event_hs_id'     => self::id_of( $raw, [ 'event', 'event_id' ] ),
 			'speaker_hs_ids'  => self::id_list( $raw['speakers'] ?? null ),
 			'category_hs_ids' => array_values( array_unique( array_column( $categories, 'hs_id' ) ) ),
