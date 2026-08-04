@@ -1,14 +1,15 @@
 <?php
 /**
  * Featured session card: one session with its physical location given
- * equal billing. Two views: 'card' (wide feature) and 'compact' (sidebar).
+ * equal billing. Three views: 'card' (wide, artwork beside the detail),
+ * 'banner' (wide, artwork full width above it) and 'compact' (sidebar).
  * Override by copying to yourtheme/emailexpert-events/parts/.
  *
  * @package Emailexpert\Events
  *
  * @var array $args {
  *     @type array  $data          Talk data (see Components::talk_data()).
- *     @type string $view          'card' or 'compact'.
+ *     @type string $view          'card', 'banner' or 'compact'.
  *     @type array  $show          Display toggles (image/speakers/categories/venue/ics/description).
  *     @type array  $address       Event venue address lines ([] = none).
  *     @type string $map_url       Directions URL ('' = none).
@@ -33,7 +34,12 @@ if ( empty( $eex_data['title'] ) ) {
 	return;
 }
 
-$eex_compact = 'compact' === (string) ( $args['view'] ?? 'card' );
+$eex_view    = (string) ( $args['view'] ?? 'card' );
+$eex_compact = 'compact' === $eex_view;
+// Banner is the wide card with its artwork given the full width, so it
+// keeps eex-feature-card and every style that hangs off it, and adds a
+// modifier that collapses the two columns into one.
+$eex_banner  = 'banner' === $eex_view;
 $eex_venue   = ! empty( $eex_show['venue'] ) ? (string) ( $eex_data['venue'] ?? '' ) : '';
 $eex_address = (array) ( $args['address'] ?? [] );
 $eex_link    = (string) ( ( $eex_data['permalink'] ?? '' ) ?: ( $eex_data['talk_url'] ?? '' ) );
@@ -58,7 +64,7 @@ $eex_buttons     = (string) ( $args['buttons'] ?? 'both' );
 $eex_tickets_url = 'session' === $eex_buttons ? '' : Components::ticketing_url( $eex_data, (array) ( $args['register'] ?? [] ) );
 $eex_session_url = 'tickets' === $eex_buttons ? '' : Components::session_url( $eex_data );
 ?>
-<article class="eex-card eex-feature-session <?php echo $eex_compact ? 'eex-feature-compact' : 'eex-feature-card'; ?>"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
+<article class="eex-card eex-feature-session <?php echo esc_attr( $eex_compact ? 'eex-feature-compact' : ( $eex_banner ? 'eex-feature-card eex-feature-banner' : 'eex-feature-card' ) ); ?>"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
 	<?php if ( ! empty( $eex_show['image'] ) && '' !== (string) ( $eex_data['image'] ?? '' ) ) : ?>
 		<div class="eex-card-image eex-feature-media">
 			<img src="<?php echo esc_url( (string) $eex_data['image'] ); ?>" alt="" loading="lazy" />

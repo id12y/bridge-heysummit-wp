@@ -3,6 +3,26 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.45.0
+- **Fixed: the featured session card cropped its own artwork.** A
+  1920×1080 promo graphic lost roughly 4% of its height, split top and
+  bottom — enough to slice the sponsor strip that runs to the bottom
+  edge. The card's image rule set `height: 100%`, and once both width
+  and height are set the aspect ratio is ignored, so the box took the
+  grid row's height and `object-fit: cover` paid the difference out of
+  the picture. The box now follows the artwork's ratio, and `contain`
+  means it can never crop again.
+- **New View choice: artwork full width above the detail.** The
+  featured session widget's View control now offers a banner as well as
+  the side-by-side card and the compact sidebar — one dropdown, so
+  there is no dead control when the sidebar is chosen. A 1920×1080
+  graphic renders about twice the size it did, which is what makes the
+  type inside it readable.
+- **The side-by-side card is now an even split.** At two parts in five
+  the artwork was too small for its own contents to be read.
+- Pages saved before this release keep the layout they had: `card`
+  still means the side-by-side view.
+
 ## 1.44.2
 - **Fixed: the whisper could render dark and the title in sans.** Two
   of the new tokens were read with a bare `var()` and no fallback. An

@@ -1635,20 +1635,49 @@
 
 .eex-feature-card {
 	display: grid;
-	grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+	/* Even columns. The artwork is 16:9, and at 2fr of a five-part card it
+	   rendered too small for the type inside it — episode title, speaker
+	   names, sponsor marks — to be read at all. */
+	grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 	gap: var(--eex-gap);
 	align-items: start;
 }
 
 .eex-feature-card .eex-feature-media {
 	margin: 0;
+	/* Never stretched to match the text column: a row taller than the
+	   artwork's own ratio is what the crop was being taken from. */
+	align-self: start;
 }
 
 .eex-feature-card .eex-feature-media img {
 	width: 100%;
-	height: 100%;
-	object-fit: cover;
+	/*
+	 * height: 100% here used to cancel the aspect-ratio inherited from
+	 * .eex-card-image img — with both dimensions set, the ratio is
+	 * ignored, so the box took the grid row's height, landed wide of
+	 * 16:9, and object-fit: cover paid the difference out of the
+	 * artwork. Height auto hands the box back to the ratio.
+	 *
+	 * contain rather than cover: on a genuine 16:9 source the two are
+	 * pixel-identical, so it costs nothing, but it cannot crop. Anything
+	 * that is not 16:9 mats instead of losing content — and content is
+	 * exactly what these graphics carry to their bottom edge.
+	 */
+	height: auto;
+	object-fit: contain;
 	border-radius: var(--eex-radius);
+}
+
+/*
+ * Banner: the same wide card with its artwork across the full width. A
+ * 1920x1080 graphic is a banner by design, and at this width the type
+ * inside it is legible, which is the whole reason an operator uploads
+ * one. Single column also means no stacking rule to maintain — the
+ * mobile layout is simply what it already is.
+ */
+.eex-feature-banner {
+	grid-template-columns: minmax(0, 1fr);
 }
 
 .eex-feature-card:not(:has(.eex-feature-media)) {

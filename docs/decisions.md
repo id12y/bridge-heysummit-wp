@@ -2370,3 +2370,43 @@ using Elementor at all: those were left overriding
 before changing anything. A token is one declaration anywhere in the
 cascade. Rendering is unchanged — the fallbacks are the values that
 were already there — so this buys reach, not a new look.
+
+## 1.45.0 — the feature card stops cropping the artwork
+
+The promo graphics are a fixed 1920×1080 and carry information to their
+bottom edge — an episode title, speaker names, a row of sponsor marks.
+The card was losing about 4% of the height, which is invisible at the
+top, where the artwork has margin, and fatal at the bottom, where it
+does not.
+
+ONE OVERRIDE, TWO DIMENSIONS, NO RATIO. .eex-card-image img sets a 16:9
+aspect-ratio with object-fit: cover, which is right in a grid of cards
+where one uniform image shape is what keeps the grid tidy. The feature
+card then overrode height to 100%. With both width and height set the
+aspect-ratio is ignored outright, so the box took its height from the
+grid row instead, landed wide of 16:9, and cover paid the difference
+out of the picture. Handing the height back to auto restores the ratio.
+
+CONTAIN, NOT COVER, THOUGH THEY ARE THE SAME HERE. On a genuine 16:9
+source the two are pixel-identical, so contain costs nothing. What it
+buys is that it cannot crop: a graphic arriving at any other shape mats
+instead of losing content. Given what these images carry, losing edges
+silently is the worse failure.
+
+ONE DROPDOWN, NOT A SECOND CONTROL. Banner and side-by-side are a
+choice about the same wide card, so they joined the existing View
+select rather than arriving as their own toggle. A separate media
+control would sit there dead whenever the compact sidebar view is
+chosen, and this codebase has form for refusing dead switches. 'card'
+still means the side-by-side view, so saved pages keep their layout.
+
+THE SPLIT WAS REBALANCED, WHICH IS A VISIBLE CHANGE. Two parts in five
+left the artwork too small to read the type inside it, which is the
+only reason an operator uploads a designed graphic. Even columns is a
+change to existing pages, and a deliberate one — the crop fix already
+alters them, and shipping a corrected image at an unreadable size would
+have fixed the mechanism without fixing the problem.
+
+Verified in a real WordPress rather than asserted: the rendered box
+measures 1.7778 against the artwork's 1.7778 in both views at 1440 and
+375, with no horizontal overflow.

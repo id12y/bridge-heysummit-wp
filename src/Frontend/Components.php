@@ -1105,12 +1105,18 @@ final class Components {
 						'type'    => 'string',
 						'default' => '',
 					],
+					// Banner and split are one axis with compact, not a second
+					// control beside it: a separate media toggle would sit there
+					// dead whenever the sidebar view is chosen. 'card' still
+					// means the split, so pages saved before the banner existed
+					// keep the layout they had.
 					'view'             => [
 						'type'    => 'string',
 						'default' => 'card',
 						'label'   => __( 'View', 'emailexpert-events' ),
 						'options' => [
-							'card'    => __( 'Feature card (wide)', 'emailexpert-events' ),
+							'card'    => __( 'Feature card — artwork beside the detail', 'emailexpert-events' ),
+							'banner'  => __( 'Feature card — artwork full width above', 'emailexpert-events' ),
 							'compact' => __( 'Compact (sidebar)', 'emailexpert-events' ),
 						],
 					],

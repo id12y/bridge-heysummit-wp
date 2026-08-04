@@ -2061,6 +2061,27 @@ final class ComponentsTest extends TestCase {
 		);
 		$this->assertStringContainsString( 'eex-feature-compact', $compact );
 		$this->assertStringContainsString( 'Linked session', $compact );
+
+		// Banner view: the same wide card, artwork across the full width.
+		Cache::flush();
+		$banner = Components::render(
+			'featured-session',
+			[
+				'event' => '101',
+				'view'  => 'banner',
+			]
+		);
+		$this->assertStringContainsString( 'eex-feature-card', $banner, 'the banner is the wide card with a modifier, not a third kind of card' );
+		$this->assertStringContainsString( 'eex-feature-banner', $banner );
+
+		// A page saved before the banner existed must not switch layout
+		// because the option was added.
+		$this->assertStringNotContainsString( 'eex-feature-banner', $html, 'the default view is still the split' );
+		$this->assertStringNotContainsString( 'eex-feature-banner', $compact );
+
+		// The renderer knowing the view is no use if the editor cannot pick
+		// it: the Elementor control is generated from this list.
+		$this->assertArrayHasKey( 'banner', Components::definitions()['featured-session']['atts']['view']['options'] );
 	}
 
 	public function test_schedule_extras_are_absent_until_opted_in(): void {
