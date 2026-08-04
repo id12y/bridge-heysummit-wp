@@ -467,7 +467,15 @@ final class Discovery {
 		// worth anything. Seeing the literal values is how that gets
 		// settled, rather than by another round of inference.
 		foreach ( [ 'date_localised', 'date_timezone_offset', 'custom_tag', 'webinar_delivery_mode', 'inperson_available' ] as $field ) {
-			if ( ! array_key_exists( $field, $sample ) || null === $sample[ $field ] || is_array( $sample[ $field ] ) ) {
+			if ( ! array_key_exists( $field, $sample ) || is_array( $sample[ $field ] ) ) {
+				continue;
+			}
+
+			// A null is worth a line of its own. Skipping it silently made
+			// an absent tag look like a missing diagnostic rather than the
+			// finding it is.
+			if ( null === $sample[ $field ] ) {
+				$out[ $field ] = __( 'null on the sampled record', 'emailexpert-events' );
 				continue;
 			}
 

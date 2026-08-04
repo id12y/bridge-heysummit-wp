@@ -902,6 +902,25 @@ final class SettingsPage {
 				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session tag labels', 'emailexpert-events' ); ?></label></th>
 				<td>
 					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="2 = Conference or Summit&#10;1 = Online"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
+					<?php $eex_tag_refs = $this->tag_refs_in_use(); ?>
+					<?php if ( ! empty( $eex_tag_refs ) ) : ?>
+						<p class="description"><strong><?php esc_html_e( 'Tag IDs on your sessions right now:', 'emailexpert-events' ); ?></strong></p>
+						<ul class="description" style="margin:0 0 .5em 1em;list-style:disc">
+							<?php foreach ( $eex_tag_refs as $eex_ref => $eex_example ) : ?>
+								<li>
+									<code><?php echo esc_html( (string) $eex_ref ); ?></code>
+									<?php if ( '' !== $eex_example['label'] ) : ?>
+										&rarr; <?php echo esc_html( $eex_example['label'] ); ?>
+									<?php else : ?>
+										&mdash; <em><?php esc_html_e( 'not named yet', 'emailexpert-events' ); ?></em>
+									<?php endif; ?>
+									<?php if ( '' !== $eex_example['title'] ) : ?>
+										<?php printf( /* translators: %s: a session title. */ esc_html__( '(e.g. "%s")', 'emailexpert-events' ), esc_html( $eex_example['title'] ) ); ?>
+									<?php endif; ?>
+								</li>
+							<?php endforeach; ?>
+						</ul>
+					<?php endif; ?>
 					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs in use on this account are listed under Test connection, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
@@ -990,6 +1009,25 @@ final class SettingsPage {
 				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session tag labels', 'emailexpert-events' ); ?></label></th>
 				<td>
 					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="2 = Conference or Summit&#10;1 = Online"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
+					<?php $eex_tag_refs = $this->tag_refs_in_use(); ?>
+					<?php if ( ! empty( $eex_tag_refs ) ) : ?>
+						<p class="description"><strong><?php esc_html_e( 'Tag IDs on your sessions right now:', 'emailexpert-events' ); ?></strong></p>
+						<ul class="description" style="margin:0 0 .5em 1em;list-style:disc">
+							<?php foreach ( $eex_tag_refs as $eex_ref => $eex_example ) : ?>
+								<li>
+									<code><?php echo esc_html( (string) $eex_ref ); ?></code>
+									<?php if ( '' !== $eex_example['label'] ) : ?>
+										&rarr; <?php echo esc_html( $eex_example['label'] ); ?>
+									<?php else : ?>
+										&mdash; <em><?php esc_html_e( 'not named yet', 'emailexpert-events' ); ?></em>
+									<?php endif; ?>
+									<?php if ( '' !== $eex_example['title'] ) : ?>
+										<?php printf( /* translators: %s: a session title. */ esc_html__( '(e.g. "%s")', 'emailexpert-events' ), esc_html( $eex_example['title'] ) ); ?>
+									<?php endif; ?>
+								</li>
+							<?php endforeach; ?>
+						</ul>
+					<?php endif; ?>
 					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs in use on this account are listed under Test connection, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
@@ -1397,5 +1435,40 @@ final class SettingsPage {
 			<?php submit_button( __( 'Preview import', 'emailexpert-events' ), 'secondary', '', false ); ?>
 		</form>
 		<?php
+	}
+
+	/**
+	 * The tag IDs sitting on this site's sessions, each with an example.
+	 *
+	 * HeySummit sends a session's tag as a record ID. Where the account
+	 * names those tags nowhere the API exposes, the operator supplies the
+	 * wording — which they can only do if they know which ID belongs to
+	 * which session. Read from the sessions the site already displays, so
+	 * it costs nothing beyond the cache the front end fills anyway.
+	 *
+	 * @return array<string,array{title:string,label:string}> ref => example + resolved label.
+	 */
+	private function tag_refs_in_use(): array {
+		$repo = \Emailexpert\Events\Data\Repositories::current();
+		$out  = [];
+
+		foreach ( [ $repo->upcoming_talks( [ 'limit' => 0 ] ), $repo->past_talks( [ 'limit' => 20 ] ) ] as $set ) {
+			foreach ( (array) $set as $talk ) {
+				$ref = trim( (string) ( $talk['tag_ref'] ?? '' ) );
+
+				if ( '' === $ref || isset( $out[ $ref ] ) ) {
+					continue;
+				}
+
+				$out[ $ref ] = [
+					'title' => (string) ( $talk['title'] ?? '' ),
+					'label' => (string) ( $talk['custom_tag'] ?? '' ),
+				];
+			}
+		}
+
+		ksort( $out );
+
+		return $out;
 	}
 }

@@ -3,6 +3,16 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.40.1
+- **Settings → Display now lists the tag IDs on your sessions**, each
+  with an example session and whether it has been named yet, so the
+  mapping field can be filled in without hunting. The Test connection
+  list only covers whichever page it sampled; this reads the sessions
+  the site actually displays.
+- Diagnostics: `custom_tag` now reports when the sampled record's tag
+  is null rather than omitting the line, since an absent tag is itself
+  the finding.
+
 ## 1.40.0
 - **Session tag labels (Settings → Display).** HeySummit sends a
   session's tag as a record ID and, on accounts like this one, names
