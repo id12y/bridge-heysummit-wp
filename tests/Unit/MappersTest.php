@@ -114,6 +114,47 @@ final class MappersTest extends TestCase {
 		$this->assertSame( '', $bare['custom_tag'] );
 	}
 
+	public function test_a_tag_sent_as_a_record_id_is_not_a_label(): void {
+		// Live accounts return custom_tag as the tag's ID, not its text,
+		// which put pills reading "2" and "1" on the cards.
+		$by_id = TalkMapper::map(
+			[
+				'id'                    => '9103',
+				'title'                 => 'Deliverability roundtable',
+				'event'                 => '101',
+				'custom_tag'            => 2,
+				'webinar_delivery_mode' => 'online',
+			]
+		);
+
+		$this->assertSame( '', $by_id['custom_tag'] );
+		$this->assertSame( 'Online', $by_id['format'], 'An ID must fall through to the delivery mode.' );
+
+		// With nothing else to say, silence beats a number.
+		$only_id = TalkMapper::map(
+			[
+				'id'         => '9104',
+				'title'      => 'Forum',
+				'event'      => '101',
+				'custom_tag' => '17',
+			]
+		);
+
+		$this->assertSame( '', $only_id['format'] );
+
+		// A tag that merely CONTAINS digits is still the organiser's words.
+		$worded = TalkMapper::map(
+			[
+				'id'         => '9105',
+				'title'      => 'Roundtable',
+				'event'      => '101',
+				'custom_tag' => 'Track 2',
+			]
+		);
+
+		$this->assertSame( 'Track 2', $worded['format'] );
+	}
+
 	public function test_talk_mapper_minimal_record(): void {
 		$mapped = TalkMapper::map( self::fixture( 'talks' )[2] );
 

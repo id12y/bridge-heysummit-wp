@@ -33,6 +33,26 @@ abstract class BaseMapper {
 	}
 
 	/**
+	 * Like str(), but for values that will be SHOWN to a visitor.
+	 *
+	 * The API serialises some relations as their record ID rather than as
+	 * the object: `custom_tag` comes back as `2` on accounts where the
+	 * organiser typed "Conference or Summit", because the tag lives in
+	 * another table. A bare number is an identifier, never a label, and
+	 * printing one puts a meaningless pill on the card. The same guard
+	 * already protects venue names and category names in LiveRepository;
+	 * this is that rule, shared.
+	 *
+	 * @param array<string,mixed> $raw  Raw record.
+	 * @param string[]            $keys Candidate keys, first match wins.
+	 */
+	protected static function label( array $raw, array $keys ): string {
+		$value = self::str( $raw, $keys );
+
+		return preg_match( '/^\d+$/', $value ) ? '' : $value;
+	}
+
+	/**
 	 * Truthiness tolerant of "true"/"1"/1/true.
 	 *
 	 * @param array<string,mixed> $raw Raw record.
@@ -125,16 +145,20 @@ abstract class BaseMapper {
 	 * are never used as public labels; only the delivery mode is, because
 	 * "online" is a fact about the session rather than a bookkeeping type.
 	 *
+	 * Both are read through label(), so an account whose `custom_tag`
+	 * arrives as a bare record ID falls through to the delivery mode
+	 * instead of badging the number.
+	 *
 	 * Absent on both counts means no label, and the caller decides whether
 	 * to fall back to the in-person flag.
 	 *
 	 * @param array<string,mixed> $raw Raw talk record.
 	 */
 	protected static function format_of( array $raw ): string {
-		$label = self::str( $raw, [ 'custom_tag' ] );
+		$label = self::label( $raw, [ 'custom_tag' ] );
 
 		if ( '' === $label ) {
-			$label = self::str( $raw, [ 'webinar_delivery_mode' ] );
+			$label = self::label( $raw, [ 'webinar_delivery_mode' ] );
 		}
 
 		$label = self::humanise_format( $label );

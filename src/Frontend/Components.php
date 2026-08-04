@@ -1706,6 +1706,15 @@ final class Components {
 				static function ( string $badge ) use ( $fold, $taken, &$seen ): bool {
 					$key = $fold( $badge );
 
+					// A bare number is a record ID the API sent instead of
+					// the related object (custom_tag does this), or one
+					// already stored in post meta by an earlier sync. The
+					// mappers drop it now, but a badge reading "2" must not
+					// reach a card while that meta is still on disk.
+					if ( preg_match( '/^\d+$/', $key ) ) {
+						return false;
+					}
+
 					if ( '' === $key || in_array( $key, $taken, true ) || isset( $seen[ $key ] ) ) {
 						return false;
 					}

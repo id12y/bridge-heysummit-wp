@@ -2096,3 +2096,23 @@ Second fix in the same release: the badge de-duplication compared
 against category terms even when category badges were switched off, so
 a session whose category matched its format rendered no label at all.
 Only what the visitor can actually see may silence something else.
+
+D107 addendum 3 (v1.39.3): the corrected field was still not a label on
+this account. `custom_tag` is a relation, and the API serialises it as
+the tag's record ID unless the tag object is expanded, so the badge
+read "2" and "1". The rule was already written down twice in the same
+file — venue parts and category names both drop bare numbers, with a
+comment saying a record ID leaking through is never a display name —
+but the tag was mapped with the plain string helper and inherited
+none of it. That rule now lives in one shared `BaseMapper::label()`
+used by every value destined for a visitor's eyes, and the badge
+filter repeats it at render time, because a Full-mode site keeps
+whatever an earlier sync wrote to post meta until it syncs again.
+
+Guessing the tag's text from its ID is not available: nothing in the
+payload carries the wording, and the plugin does not invent labels
+(D105). So the ID is dropped and the badge says the truthful,
+lesser thing — the delivery mode, or Online / In person. Test
+connection now prints the raw `custom_tag` value with its JSON type,
+the same display-not-guess loop used for the timezone offset: if the
+account can be made to send the words, the diagnostics will show it.

@@ -1590,7 +1590,7 @@ class LiveRepository extends BaseMapper implements Repository {
 			'venue'         => $venue,
 			'inperson'      => ! empty( $raw['inperson_available'] ),
 			'open_access'   => ! empty( $raw['is_open_access'] ) || ! empty( $raw['is_public_access'] ),
-			'custom_tag'    => self::str( $raw, [ 'custom_tag' ] ),
+			'custom_tag'    => self::label( $raw, [ 'custom_tag' ] ),
 			'format'        => self::format_of( $raw ),
 			'replay_soon'   => ! empty( $raw['replay_planned'] ),
 			'cancelled'     => ! empty( $raw['talk_cancelled'] ),

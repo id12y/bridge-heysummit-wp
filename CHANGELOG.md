@@ -3,6 +3,21 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.39.3
+- **Fixed: badges reading "2" or "1".** On this account HeySummit
+  sends `custom_tag` as the tag's record ID rather than its text, so
+  cards were badged with a bare number. An identifier is never a
+  label: the tag is now ignored when it arrives as a number, and the
+  badge falls back to the session's delivery mode, or to Online / In
+  person. Tags written in words are unaffected, including ones that
+  contain a digit ("Track 2"). The same guard already protected venue
+  and category names; it now covers tags too, and the render path
+  refuses numbers as well, so a Full-mode site shows the right badge
+  before its next sync rewrites the stored value.
+- **Test connection now prints the raw `custom_tag`** alongside the
+  timestamp samples, so whether an account sends the tag's words or
+  its ID is visible rather than inferred.
+
 ## 1.39.2
 - **The badge now shows the organiser's tag, not HeySummit's internal
   type.** 1.39.0 read `agenda_item_type`, which is an internal enum:

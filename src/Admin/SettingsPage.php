@@ -576,10 +576,14 @@ final class SettingsPage {
 										printf( '<br /><em>%s</em>', esc_html( (string) $row['note'] ) );
 									}
 
-									// Raw timestamp samples: the offset (or its
-									// absence) decides how times are parsed.
-									foreach ( (array) ( $row['time_samples'] ?? [] ) as $time_field => $time_sample ) {
-										printf( '<br /><em>%s: %s</em>', esc_html( (string) $time_field ), esc_html( (string) $time_sample ) );
+									// Literal values for the fields whose shape decides
+									// how the plugin treats them (an offset's absence
+									// changes how times parse; a tag arriving as an ID
+									// cannot be shown). Reports stored by an older
+									// version still use the narrower key.
+									$eex_samples = (array) ( $row['raw_samples'] ?? $row['time_samples'] ?? [] );
+									foreach ( $eex_samples as $eex_sample_field => $eex_sample_value ) {
+										printf( '<br /><em>%s: %s</em>', esc_html( (string) $eex_sample_field ), esc_html( (string) $eex_sample_value ) );
 									}
 									?>
 								</td>
