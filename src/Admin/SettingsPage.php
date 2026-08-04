@@ -921,7 +921,7 @@ final class SettingsPage {
 							<?php endforeach; ?>
 						</ul>
 					<?php endif; ?>
-					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs in use on this account are listed under Test connection, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs on your sessions are listed above, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
 			<tr>
@@ -1028,7 +1028,7 @@ final class SettingsPage {
 							<?php endforeach; ?>
 						</ul>
 					<?php endif; ?>
-					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs in use on this account are listed under Test connection, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
+					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs on your sessions are listed above, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
 			<tr>

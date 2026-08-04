@@ -3,6 +3,11 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.40.2
+- The tag labels field points at the list of IDs directly above it,
+  rather than at Test connection — which is the route that came back
+  empty on a live account and prompted the list in the first place.
+
 ## 1.40.1
 - **Settings → Display now lists the tag IDs on your sessions**, each
   with an example session and whether it has been named yet, so the
