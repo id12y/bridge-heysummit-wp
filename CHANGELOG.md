@@ -3,6 +3,21 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.39.2
+- **The badge now shows the organiser's tag, not HeySummit's internal
+  type.** 1.39.0 read `agenda_item_type`, which is an internal enum:
+  on the live account it reads "marker", so agenda sessions were
+  badged "Marker" instead of "Conference or Summit". The label now
+  comes from `custom_tag` (what the organiser typed, and what
+  HeySummit's own hub displays), then the delivery mode. Internal
+  enums are never used as public labels. A new
+  `eex_session_format_label` filter remaps any label per site.
+- **Fixed: a hidden category could delete the badge.** Badges are
+  suppressed when they merely repeat a visible category term, but the
+  check ran even when category badges were switched off, so a session
+  whose category matched its format rendered no label at all. Only
+  categories actually on screen can silence a badge now.
+
 ## 1.39.1
 - **Fixed: the agenda layout labelled every session "Online".** The
   agenda row hard-coded that badge on every session, in-person ones

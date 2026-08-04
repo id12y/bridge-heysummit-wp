@@ -82,7 +82,7 @@ if ( '' === $eex_register_text ) {
 		<?php endif; ?>
 	<?php endif; ?>
 
-	<?php $eex_status_badges = ( $eex_show['categories'] || ! empty( $eex_show['format'] ) ) ? Components::status_badges( $eex_data, ! empty( $eex_show['format'] ) ) : []; ?>
+	<?php $eex_status_badges = ( $eex_show['categories'] || ! empty( $eex_show['format'] ) ) ? Components::status_badges( $eex_data, ! empty( $eex_show['format'] ), ! empty( $eex_show['categories'] ) ) : []; ?>
 	<?php if ( ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) || ! empty( $eex_status_badges ) ) : ?>
 		<p class="eex-badges">
 			<?php foreach ( $eex_show['categories'] ? (array) $eex_data['categories'] : [] as $eex_term ) : ?>
