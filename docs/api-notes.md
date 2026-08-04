@@ -347,3 +347,19 @@ session). The first (`talk_id` on the checkout link) is NOT wired yet —
 per-session paid links would cost one generate-POST per card at render,
 against the render budget (D36); it belongs in a lazy on-click generator
 when wanted (D95).
+
+## Talk tags arrive as IDs; events name them (v1.39.4)
+
+A talk's `custom_tag` is a relation serialised as the tag's record ID
+(`2`), not its text. The talk payload carries the wording nowhere. The
+EVENT payload does — its inline `tags` list, seen in the first live
+discovery run — so `Data\TagNames` remembers id => name from every
+event fetch (both modes) and the mappers translate the talk's ID
+through it. Unresolvable IDs show nothing.
+
+Also observed live: the badge's fallbacks are weaker than they look.
+`inperson_available` sits on the talk record, and an in-person event's
+talks do not necessarily set it, so its absence cannot be read as
+"online". Discovery now prints `custom_tag`, `webinar_delivery_mode`
+and `inperson_available` verbatim, plus the event's first tag entry,
+to settle what each account actually sends.

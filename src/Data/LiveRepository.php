@@ -1416,6 +1416,9 @@ class LiveRepository extends BaseMapper implements Repository {
 		// Editor pickers need titles for events that exist nowhere locally.
 		EventTitles::remember( self::id_of( $raw, [ 'id' ] ), self::str( $raw, [ 'title', 'name' ] ) );
 
+		// Talks reference their tag by ID; the wording is only here.
+		TagNames::remember( $raw['tags'] ?? null );
+
 		return [
 			'id'            => 0,
 			'hs_id'         => self::id_of( $raw, [ 'id' ] ),
@@ -1590,7 +1593,7 @@ class LiveRepository extends BaseMapper implements Repository {
 			'venue'         => $venue,
 			'inperson'      => ! empty( $raw['inperson_available'] ),
 			'open_access'   => ! empty( $raw['is_open_access'] ) || ! empty( $raw['is_public_access'] ),
-			'custom_tag'    => self::label( $raw, [ 'custom_tag' ] ),
+			'custom_tag'    => self::tag_label( $raw ),
 			'format'        => self::format_of( $raw ),
 			'replay_soon'   => ! empty( $raw['replay_planned'] ),
 			'cancelled'     => ! empty( $raw['talk_cancelled'] ),

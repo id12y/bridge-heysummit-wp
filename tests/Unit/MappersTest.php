@@ -7,6 +7,7 @@
 
 namespace Emailexpert\Events\Tests\Unit;
 
+use Emailexpert\Events\Data\TagNames;
 use Emailexpert\Events\Mappers\AttendeeMapper;
 use Emailexpert\Events\Mappers\CategoryMapper;
 use Emailexpert\Events\Mappers\EventMapper;
@@ -153,6 +154,70 @@ final class MappersTest extends TestCase {
 		);
 
 		$this->assertSame( 'Track 2', $worded['format'] );
+	}
+
+	public function test_a_tag_id_is_translated_through_the_event_that_named_it(): void {
+		// The talk payload carries the ID; the event payload is the only
+		// place the wording appears, so mapping the event teaches the site
+		// what its tags are called.
+		EventMapper::map(
+			[
+				'id'    => '101',
+				'title' => 'emailexpert FORUM',
+				'tags'  => [
+					[
+						'id'    => 2,
+						'title' => 'Conference or Summit',
+					],
+					[
+						'id'   => 3,
+						'name' => 'Roundtable',
+					],
+				],
+			]
+		);
+
+		$tagged = TalkMapper::map(
+			[
+				'id'         => '9106',
+				'title'      => 'Emailexpert Forum',
+				'event'      => '101',
+				'custom_tag' => 2,
+			]
+		);
+
+		$this->assertSame( 'Conference or Summit', $tagged['custom_tag'] );
+		$this->assertSame( 'Conference or Summit', $tagged['format'] );
+
+		// An ID this site has never seen resolves to nothing rather than
+		// to the number, and nothing is what the badge shows.
+		$unknown = TalkMapper::map(
+			[
+				'id'         => '9107',
+				'title'      => 'Mystery',
+				'event'      => '101',
+				'custom_tag' => 99,
+			]
+		);
+
+		$this->assertSame( '', $unknown['format'] );
+
+		// The lookup is tried on any value, not only digits: whether this
+		// account's IDs are integers is an observation, not a promise.
+		TagNames::remember( [ [ 'id' => 'tag-abc', 'title' => 'Workshop' ] ] );
+
+		$slugged = TalkMapper::map(
+			[
+				'id'         => '9108',
+				'title'      => 'Hands on',
+				'event'      => '101',
+				'custom_tag' => 'tag-abc',
+			]
+		);
+
+		$this->assertSame( 'Workshop', $slugged['format'] );
+
+		TagNames::reset_request_state();
 	}
 
 	public function test_talk_mapper_minimal_record(): void {

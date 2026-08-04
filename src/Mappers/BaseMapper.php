@@ -53,6 +53,38 @@ abstract class BaseMapper {
 	}
 
 	/**
+	 * The organiser's tag for a session, as words.
+	 *
+	 * `custom_tag` is a relation and arrives as the tag's record ID. The
+	 * wording lives on the EVENT record, which lists its tags inline, so
+	 * the ID is translated through what those fetches remembered.
+	 *
+	 * The lookup is tried on ANY value, not only numeric ones: whether
+	 * this account's IDs are integers is an observation, not a promise,
+	 * and a reference in some other shape would otherwise be printed as
+	 * though it were words. What the lookup cannot resolve is shown only
+	 * if it reads like words — an unresolved identifier shows nothing,
+	 * and is never badged as itself.
+	 *
+	 * @param array<string,mixed> $raw Raw talk record.
+	 */
+	protected static function tag_label( array $raw ): string {
+		$value = self::str( $raw, [ 'custom_tag' ] );
+
+		if ( '' === $value ) {
+			return '';
+		}
+
+		$resolved = \Emailexpert\Events\Data\TagNames::name( $value );
+
+		if ( '' !== $resolved ) {
+			return $resolved;
+		}
+
+		return preg_match( '/^\d+$/', $value ) ? '' : $value;
+	}
+
+	/**
 	 * Truthiness tolerant of "true"/"1"/1/true.
 	 *
 	 * @param array<string,mixed> $raw Raw record.
@@ -145,17 +177,19 @@ abstract class BaseMapper {
 	 * are never used as public labels; only the delivery mode is, because
 	 * "online" is a fact about the session rather than a bookkeeping type.
 	 *
-	 * Both are read through label(), so an account whose `custom_tag`
-	 * arrives as a bare record ID falls through to the delivery mode
-	 * instead of badging the number.
+	 * The tag is read through tag_label(), which translates a record ID
+	 * into the wording the event named it with, so an unresolvable tag
+	 * falls through to the delivery mode rather than badging a number.
 	 *
-	 * Absent on both counts means no label, and the caller decides whether
-	 * to fall back to the in-person flag.
+	 * Absent on both counts means no label, and no format badge: the
+	 * caller does NOT fall back to the in-person flag. It used to, reading
+	 * an unset flag as proof of an online session, which stamped "Online"
+	 * on every row of a live listing including the in-person event.
 	 *
 	 * @param array<string,mixed> $raw Raw talk record.
 	 */
 	protected static function format_of( array $raw ): string {
-		$label = self::label( $raw, [ 'custom_tag' ] );
+		$label = self::tag_label( $raw );
 
 		if ( '' === $label ) {
 			$label = self::label( $raw, [ 'webinar_delivery_mode' ] );
