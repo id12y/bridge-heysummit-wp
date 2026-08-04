@@ -2168,3 +2168,14 @@ Discovery now lists the tag IDs in use with an example session for
 each. A diagnostic that reports "2" without saying which session
 carries it is not actionable, and the mapping setting is unusable
 without it.
+
+D107 addendum 6 (v1.40.1): the operator mapping shipped without a
+reliable way to see which ID belongs to which session. Discovery lists
+the IDs in the response it sampled, but that sample is whatever page
+the nested route returns first — on the live account, archived talks
+with no tag at all — so the list came back empty on exactly the
+connection that needed it. The setting is now accompanied, in the
+place it is typed, by the tag IDs on the sessions the site displays,
+read from the same cache the front end fills. A setting whose values
+cannot be discovered from the screen that asks for them is not a
+usable setting.

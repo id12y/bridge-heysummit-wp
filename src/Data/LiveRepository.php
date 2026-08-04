@@ -1594,6 +1594,9 @@ class LiveRepository extends BaseMapper implements Repository {
 			'inperson'      => ! empty( $raw['inperson_available'] ),
 			'open_access'   => ! empty( $raw['is_open_access'] ) || ! empty( $raw['is_public_access'] ),
 			'custom_tag'    => self::tag_label( $raw ),
+			// The unresolved reference, so the settings screen can tell an
+			// operator WHICH tag ID sits on which session. Never displayed.
+			'tag_ref'       => self::str( $raw, [ 'custom_tag' ] ),
 			'format'        => self::format_of( $raw ),
 			'replay_soon'   => ! empty( $raw['replay_planned'] ),
 			'cancelled'     => ! empty( $raw['talk_cancelled'] ),
