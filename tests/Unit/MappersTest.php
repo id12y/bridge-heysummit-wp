@@ -252,6 +252,69 @@ final class MappersTest extends TestCase {
 		TagNames::reset_request_state();
 	}
 
+	public function test_the_agenda_type_is_translated_never_printed(): void {
+		// The operator's correction: a time marker IS the in-person
+		// conference and a schedule note IS the meetup. The type carries
+		// real meaning; what it must never do is reach a card as "Marker".
+		\EEX_Test_State::$options['eex_settings'] = [
+			'format_tag_labels' => "marker = Conference or Summit\nnote = Meetup",
+		];
+
+		$format = static fn( array $raw ): string => (string) TalkMapper::map(
+			[
+				'id'    => '9300',
+				'title' => 'Session',
+				'event' => '101',
+			] + $raw
+		)['format'];
+
+		$this->assertSame( 'Conference or Summit', $format( [ 'is_agenda_item' => true, 'agenda_item_type' => 'marker' ] ) );
+		$this->assertSame( 'Meetup', $format( [ 'is_agenda_item' => true, 'agenda_item_type' => 'note' ] ) );
+
+		// A type nobody has named shows nothing. Printing the enum is the
+		// bug this whole line of work started from.
+		$this->assertSame( '', $format( [ 'is_agenda_item' => true, 'agenda_item_type' => 'breakout' ] ) );
+
+		// The organiser's own tag still outranks the platform's type.
+		$this->assertSame(
+			'Flagship',
+			$format( [ 'is_agenda_item' => true, 'agenda_item_type' => 'marker', 'custom_tag' => 'Flagship' ] )
+		);
+
+		\EEX_Test_State::$options['eex_settings'] = [];
+		TagNames::reset_request_state();
+	}
+
+	public function test_online_is_claimed_only_on_positive_evidence(): void {
+		$format = static fn( array $raw ): string => (string) TalkMapper::map(
+			[
+				'id'    => '9301',
+				'title' => 'Session',
+				'event' => '101',
+			] + $raw
+		)['format'];
+
+		// HeySummit records a delivery mode for what it hosts itself, so a
+		// session carrying one is online. The VALUE is an enum integer on
+		// live accounts; its presence is the signal, never its wording.
+		$this->assertSame( 'Online', $format( [ 'webinar_delivery_mode' => 1 ] ) );
+
+		// An agenda item is a slot on a physical schedule. It is not made
+		// online by a delivery mode sitting on the same record.
+		$this->assertSame( '', $format( [ 'webinar_delivery_mode' => 1, 'is_agenda_item' => true ] ) );
+
+		// Silence is still silence: no delivery mode, no claim. This is the
+		// inference that badged the in-person FORUM as Online.
+		$this->assertSame( '', $format( [ 'inperson_available' => false ] ) );
+
+		// And the word itself is the operator's to change.
+		\EEX_Test_State::$options['eex_settings'] = [ 'format_tag_labels' => 'online = Live online' ];
+		$this->assertSame( 'Live online', $format( [ 'webinar_delivery_mode' => 1 ] ) );
+
+		\EEX_Test_State::$options['eex_settings'] = [];
+		TagNames::reset_request_state();
+	}
+
 	public function test_talk_mapper_minimal_record(): void {
 		$mapped = TalkMapper::map( self::fixture( 'talks' )[2] );
 

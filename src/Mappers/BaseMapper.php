@@ -168,31 +168,42 @@ abstract class BaseMapper {
 	/**
 	 * The label a visitor should see for a session's format.
 	 *
-	 * ORDER MATTERS, and it is the organiser's words first. `custom_tag`
-	 * is what the organiser typed ("Conference or Summit"); it is the same
-	 * text HeySummit's own hub shows. `agenda_item_type` is an INTERNAL
-	 * enum on the same record and reads "marker" — accurate to the
-	 * platform's model, meaningless to a visitor, and shipping it as a
-	 * badge was the mistake this order exists to prevent. Internal enums
-	 * are never used as public labels; only the delivery mode is, because
-	 * "online" is a fact about the session rather than a bookkeeping type.
+	 * Every source here is a real field, and NONE of them is printed raw.
+	 * The platform's vocabulary is internal — `agenda_item_type` reads
+	 * "marker", `custom_tag` is a record ID, `webinar_delivery_mode` is an
+	 * enum integer — while the meaning behind that vocabulary is the
+	 * organiser's to state. So each is TRANSLATED through the labels the
+	 * operator set, and anything without a translation shows nothing.
+	 * Shipping "Marker" to visitors, and later dropping the field that
+	 * carried the meaning, were the two halves of the same error: the
+	 * internal type is not a label, but it is not noise either.
 	 *
-	 * The tag is read through tag_label(), which translates a record ID
-	 * into the wording the event named it with, so an unresolvable tag
-	 * falls through to the delivery mode rather than badging a number.
+	 * Order: the organiser's tag, then the agenda type, then online.
 	 *
-	 * Absent on both counts means no label, and no format badge: the
-	 * caller does NOT fall back to the in-person flag. It used to, reading
-	 * an unset flag as proof of an online session, which stamped "Online"
-	 * on every row of a live listing including the in-person event.
+	 * "Online" is claimed only on POSITIVE evidence — the session is not
+	 * an agenda item and the platform recorded a webinar delivery mode for
+	 * it. An absent in-person flag is still not evidence of anything; that
+	 * inference is what once badged the in-person FORUM as Online.
 	 *
 	 * @param array<string,mixed> $raw Raw talk record.
 	 */
 	protected static function format_of( array $raw ): string {
 		$label = self::tag_label( $raw );
 
+		// The agenda type says what a scheduled item IS — a time marker is
+		// the operator's in-person conference, a schedule note their
+		// meetup. Translated only: the raw enum never reaches a card.
 		if ( '' === $label ) {
-			$label = self::label( $raw, [ 'webinar_delivery_mode' ] );
+			$type = self::str( $raw, [ 'agenda_item_type' ] );
+
+			if ( '' !== $type ) {
+				$label = \Emailexpert\Events\Data\TagNames::name( $type );
+			}
+		}
+
+		if ( '' === $label && self::is_webinar( $raw ) ) {
+			$named = \Emailexpert\Events\Data\TagNames::name( 'online' );
+			$label = '' !== $named ? $named : __( 'Online', 'emailexpert-events' );
 		}
 
 		$label = self::humanise_format( $label );
@@ -206,6 +217,25 @@ abstract class BaseMapper {
 		 * @param array<string,mixed> $raw   Raw talk record.
 		 */
 		return (string) apply_filters( 'eex_session_format_label', $label, $raw );
+	}
+
+	/**
+	 * Whether the platform recorded this session as a webinar it delivers.
+	 *
+	 * A session hosted on HeySummit with a video or conferencing link has
+	 * a delivery mode recorded against it; an agenda item — a marker or a
+	 * note on a physical schedule — does not. Presence is the signal, not
+	 * the value: the mode itself is an enum integer on this account and
+	 * says nothing a visitor could read.
+	 *
+	 * @param array<string,mixed> $raw Raw talk record.
+	 */
+	protected static function is_webinar( array $raw ): bool {
+		if ( ! empty( $raw['is_agenda_item'] ) ) {
+			return false;
+		}
+
+		return '' !== self::str( $raw, [ 'webinar_delivery_mode' ] );
 	}
 
 	/**

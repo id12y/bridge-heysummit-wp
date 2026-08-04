@@ -899,12 +899,31 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
-				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session tag labels', 'emailexpert-events' ); ?></label></th>
+				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session labels', 'emailexpert-events' ); ?></label></th>
 				<td>
-					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="2 = Conference or Summit&#10;1 = Online"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
-					<?php $eex_tag_refs = $this->tag_refs_in_use(); ?>
+					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="marker = Conference or Summit&#10;note = Meetup&#10;2 = Conference or Summit"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
+					<?php
+					$eex_tag_examined = 0;
+					$eex_tag_refs     = $this->tag_refs_in_use( $eex_tag_examined );
+					?>
+					<p class="description">
+						<strong><?php esc_html_e( 'Values on your sessions right now:', 'emailexpert-events' ); ?></strong>
+						<?php if ( empty( $eex_tag_refs ) ) : ?>
+							<?php
+							printf(
+								/* translators: %d: how many sessions were examined. */
+								esc_html( _n( 'none — %d session examined and it needs no label.', 'none — %d sessions examined, none carries a tag or an agenda type.', (int) $eex_tag_examined, 'emailexpert-events' ) ),
+								(int) $eex_tag_examined
+							);
+							?>
+							<?php if ( 0 === (int) $eex_tag_examined ) : ?>
+								<?php esc_html_e( 'Nothing was fetched at all, so check Live status above before anything else.', 'emailexpert-events' ); ?>
+							<?php else : ?>
+								<?php esc_html_e( 'Tag them in HeySummit, or schedule them as agenda items, and the values appear here.', 'emailexpert-events' ); ?>
+							<?php endif; ?>
+						<?php endif; ?>
+					</p>
 					<?php if ( ! empty( $eex_tag_refs ) ) : ?>
-						<p class="description"><strong><?php esc_html_e( 'Tag IDs on your sessions right now:', 'emailexpert-events' ); ?></strong></p>
 						<ul class="description" style="margin:0 0 .5em 1em;list-style:disc">
 							<?php foreach ( $eex_tag_refs as $eex_ref => $eex_example ) : ?>
 								<li>
@@ -921,7 +940,7 @@ final class SettingsPage {
 							<?php endforeach; ?>
 						</ul>
 					<?php endif; ?>
-					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs on your sessions are listed above, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
+					<p class="description"><?php esc_html_e( 'HeySummit describes a session in its own vocabulary: a tag arrives as a record ID, an agenda item type reads \'marker\'. None of that is wording a visitor should see, so give each value the words you want on the badge, one per line: marker = Conference or Summit. The values on your sessions are listed above, each with an example session. Sessions HeySummit delivers itself are labelled Online with no mapping needed; add an online = ... line to reword that. A value with no line here shows no badge, rather than a guess.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
 			<tr>
@@ -1006,12 +1025,31 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
-				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session tag labels', 'emailexpert-events' ); ?></label></th>
+				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session labels', 'emailexpert-events' ); ?></label></th>
 				<td>
-					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="2 = Conference or Summit&#10;1 = Online"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
-					<?php $eex_tag_refs = $this->tag_refs_in_use(); ?>
+					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="marker = Conference or Summit&#10;note = Meetup&#10;2 = Conference or Summit"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
+					<?php
+					$eex_tag_examined = 0;
+					$eex_tag_refs     = $this->tag_refs_in_use( $eex_tag_examined );
+					?>
+					<p class="description">
+						<strong><?php esc_html_e( 'Values on your sessions right now:', 'emailexpert-events' ); ?></strong>
+						<?php if ( empty( $eex_tag_refs ) ) : ?>
+							<?php
+							printf(
+								/* translators: %d: how many sessions were examined. */
+								esc_html( _n( 'none — %d session examined and it needs no label.', 'none — %d sessions examined, none carries a tag or an agenda type.', (int) $eex_tag_examined, 'emailexpert-events' ) ),
+								(int) $eex_tag_examined
+							);
+							?>
+							<?php if ( 0 === (int) $eex_tag_examined ) : ?>
+								<?php esc_html_e( 'Nothing was fetched at all, so check Live status above before anything else.', 'emailexpert-events' ); ?>
+							<?php else : ?>
+								<?php esc_html_e( 'Tag them in HeySummit, or schedule them as agenda items, and the values appear here.', 'emailexpert-events' ); ?>
+							<?php endif; ?>
+						<?php endif; ?>
+					</p>
 					<?php if ( ! empty( $eex_tag_refs ) ) : ?>
-						<p class="description"><strong><?php esc_html_e( 'Tag IDs on your sessions right now:', 'emailexpert-events' ); ?></strong></p>
 						<ul class="description" style="margin:0 0 .5em 1em;list-style:disc">
 							<?php foreach ( $eex_tag_refs as $eex_ref => $eex_example ) : ?>
 								<li>
@@ -1028,7 +1066,7 @@ final class SettingsPage {
 							<?php endforeach; ?>
 						</ul>
 					<?php endif; ?>
-					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs on your sessions are listed above, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
+					<p class="description"><?php esc_html_e( 'HeySummit describes a session in its own vocabulary: a tag arrives as a record ID, an agenda item type reads \'marker\'. None of that is wording a visitor should see, so give each value the words you want on the badge, one per line: marker = Conference or Summit. The values on your sessions are listed above, each with an example session. Sessions HeySummit delivers itself are labelled Online with no mapping needed; add an online = ... line to reword that. A value with no line here shows no badge, rather than a guess.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
 			<tr>
@@ -1448,22 +1486,31 @@ final class SettingsPage {
 	 *
 	 * @return array<string,array{title:string,label:string}> ref => example + resolved label.
 	 */
-	private function tag_refs_in_use(): array {
-		$repo = \Emailexpert\Events\Data\Repositories::current();
-		$out  = [];
+	private function tag_refs_in_use( ?int &$examined = null ): array {
+		$repo     = \Emailexpert\Events\Data\Repositories::current();
+		$out      = [];
+		$examined = 0;
 
 		foreach ( [ $repo->upcoming_talks( [ 'limit' => 0 ] ), $repo->past_talks( [ 'limit' => 20 ] ) ] as $set ) {
+			$examined += count( (array) $set );
+
 			foreach ( (array) $set as $talk ) {
-				$ref = trim( (string) ( $talk['tag_ref'] ?? '' ) );
+				// Both references a session can be labelled by: the
+				// organiser's tag ID and HeySummit's agenda item type.
+				// Neither is showable as it stands, and both are named
+				// in the same box.
+				foreach ( [ 'tag_ref', 'type_ref' ] as $eex_field ) {
+					$ref = trim( (string) ( $talk[ $eex_field ] ?? '' ) );
 
-				if ( '' === $ref || isset( $out[ $ref ] ) ) {
-					continue;
+					if ( '' === $ref || isset( $out[ $ref ] ) ) {
+						continue;
+					}
+
+					$out[ $ref ] = [
+						'title' => (string) ( $talk['title'] ?? '' ),
+						'label' => \Emailexpert\Events\Data\TagNames::name( $ref ),
+					];
 				}
-
-				$out[ $ref ] = [
-					'title' => (string) ( $talk['title'] ?? '' ),
-					'label' => (string) ( $talk['custom_tag'] ?? '' ),
-				];
 			}
 		}
 

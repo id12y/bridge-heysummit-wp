@@ -1549,6 +1549,7 @@ final class Components {
 			'inperson'      => (bool) get_post_meta( $post_id, '_eex_inperson', true ),
 			'custom_tag'    => (string) get_post_meta( $post_id, '_eex_custom_tag', true ),
 			'tag_ref'       => (string) get_post_meta( $post_id, '_eex_tag_ref', true ),
+			'type_ref'      => (string) get_post_meta( $post_id, '_eex_type_ref', true ),
 			'format'        => (string) get_post_meta( $post_id, '_eex_format', true ),
 			'image'         => (string) ( function_exists( 'get_the_post_thumbnail_url' ) ? ( get_the_post_thumbnail_url( $post_id, 'medium_large' ) ?: '' ) : '' ),
 			'speakers'      => $speakers,

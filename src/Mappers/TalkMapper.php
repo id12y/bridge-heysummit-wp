@@ -64,6 +64,7 @@ final class TalkMapper extends BaseMapper {
 			// session badged differently depending on the operator's mode.
 			'custom_tag'      => self::tag_label( $raw ),
 			'tag_ref'         => self::str( $raw, [ 'custom_tag' ] ),
+			'type_ref'        => self::str( $raw, [ 'agenda_item_type' ] ),
 			'format'          => self::format_of( $raw ),
 			'event_hs_id'     => self::id_of( $raw, [ 'event', 'event_id' ] ),
 			'speaker_hs_ids'  => self::id_list( $raw['speakers'] ?? null ),

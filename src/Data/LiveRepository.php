@@ -1597,6 +1597,7 @@ class LiveRepository extends BaseMapper implements Repository {
 			// The unresolved reference, so the settings screen can tell an
 			// operator WHICH tag ID sits on which session. Never displayed.
 			'tag_ref'       => self::str( $raw, [ 'custom_tag' ] ),
+			'type_ref'      => self::str( $raw, [ 'agenda_item_type' ] ),
 			'format'        => self::format_of( $raw ),
 			'replay_soon'   => ! empty( $raw['replay_planned'] ),
 			'cancelled'     => ! empty( $raw['talk_cancelled'] ),
