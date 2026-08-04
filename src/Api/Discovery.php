@@ -400,12 +400,14 @@ final class Discovery {
 		// every session by a working day. Show them verbatim, with their
 		// type, so the mapping is written from the value rather than from a
 		// hopeful assumption (the same display-not-guess loop as D105).
-		// `custom_tag` is here for the same reason: on some accounts it is
-		// the organiser's words ("Conference or Summit"), on others it is
-		// the tag's record ID. The plugin now refuses to badge a bare
-		// number, so seeing the literal value is how we learn whether the
-		// tag text is reachable at all on this connection.
-		foreach ( [ 'date_localised', 'date_timezone_offset', 'custom_tag' ] as $field ) {
+		// The badge fields are here for the same reason. `custom_tag` is
+		// the organiser's words on some accounts and the tag's record ID
+		// on others; `webinar_delivery_mode` and `inperson_available` are
+		// what the badge falls back to, and whether they distinguish an
+		// in-person event from a webinar decides whether the fallback is
+		// worth anything. Seeing the literal values is how that gets
+		// settled, rather than by another round of inference.
+		foreach ( [ 'date_localised', 'date_timezone_offset', 'custom_tag', 'webinar_delivery_mode', 'inperson_available' ] as $field ) {
 			if ( ! array_key_exists( $field, $sample ) || null === $sample[ $field ] || is_array( $sample[ $field ] ) ) {
 				continue;
 			}
@@ -414,9 +416,24 @@ final class Discovery {
 
 			$out[ $field ] = $raw_value . ' (' . sprintf(
 				/* translators: %s: the value's JSON type, e.g. string or integer. */
-				__( 'raw %s — not mapped yet, send this to support', 'emailexpert-events' ),
+				__( 'raw %s — send this to support', 'emailexpert-events' ),
 				Shapes::describe_type( $sample[ $field ] )
 			) . ')';
+		}
+
+		// An event lists its tags inline, and that list is the only place
+		// the wording behind a talk's tag ID appears. The plugin reads it
+		// to translate those IDs, so its shape needs to be visible: the
+		// first entry, keys and all.
+		if ( isset( $sample['tags'] ) && is_array( $sample['tags'] ) && ! empty( $sample['tags'] ) ) {
+			$first = reset( $sample['tags'] );
+
+			$out['tags'] = sprintf(
+				/* translators: 1: number of tags, 2: the first tag encoded as JSON. */
+				__( '%1$d on this event; first one: %2$s', 'emailexpert-events' ),
+				count( $sample['tags'] ),
+				(string) wp_json_encode( $first )
+			);
 		}
 
 		return $out;

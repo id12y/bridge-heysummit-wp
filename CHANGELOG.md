@@ -3,6 +3,25 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.39.4
+- **The tag's words, resolved from the event.** A talk references its
+  tag by ID and carries the wording nowhere; the event record lists
+  its tags in full. Every event fetch now remembers those names, and
+  a talk's tag ID is translated through them, so the badge reads
+  "Conference or Summit" rather than nothing. An ID the site has
+  never seen still shows nothing — the number is never a fallback.
+- **The badge no longer claims "Online" for sessions nobody
+  labelled.** It used to say Online whenever the in-person flag was
+  unset, which stamped Online across every row of a listing,
+  in-person events included: the flag lives on the talk record and an
+  in-person event does not necessarily set it. An unset flag is
+  silence, not a claim. Sessions with no format data now carry no
+  format badge, and the in-person pill still fires on the real field.
+- **Test connection reports more of what the account sends** — the
+  raw `custom_tag`, `webinar_delivery_mode` and `inperson_available`
+  on a talk, and the event's inline tag list with its first entry in
+  full, so what the badge can say is visible rather than inferred.
+
 ## 1.39.3
 - **Fixed: badges reading "2" or "1".** On this account HeySummit
   sends `custom_tag` as the tag's record ID rather than its text, so

@@ -29,6 +29,11 @@ final class EventMapper extends BaseMapper {
 
 		$timezone = self::str( $raw, [ 'timezone', 'time_zone', 'tz' ] );
 
+		// Talks reference their tag by ID and carry the wording nowhere;
+		// the event record lists its tags in full. Remembered in both
+		// modes so a synced site badges the same text a live one does.
+		\Emailexpert\Events\Data\TagNames::remember( $raw['tags'] ?? null );
+
 		return [
 			'hs_id'                     => $hs_id,
 			'title'                     => self::str( $raw, [ 'title', 'name' ] ),

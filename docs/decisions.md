@@ -2116,3 +2116,28 @@ lesser thing — the delivery mode, or Online / In person. Test
 connection now prints the raw `custom_tag` value with its JSON type,
 the same display-not-guess loop used for the timezone offset: if the
 account can be made to send the words, the diagnostics will show it.
+
+D107 addendum 4 (v1.39.4): dropping the unusable tag ID exposed what
+the fallback had been hiding. With no tag to show, every row fell to
+"absent in-person flag means online" and the listing rendered Online
+on all four sessions, the in-person FORUM included. A badge identical
+on every row carries no information while being wrong about at least
+one of them, and the inference was never sound: `inperson_available`
+lives on the TALK record, so an in-person event whose talks do not set
+it reads as online. An unset flag is silence. Sessions the account
+never described now carry no format badge at all.
+
+That leaves the tag as the only real label, and it is reachable after
+all: the event record lists its tags inline (verified in the first
+live discovery run and noted in api-notes at the time), which is the
+one place the wording behind a talk's tag ID appears. Event fetches
+now remember id => name in both modes, and the talk's ID is translated
+through that memory. Nothing is invented: an ID the site has never
+seen resolves to nothing.
+
+Worth recording that the resolution nearly shipped broken — tag IDs
+are numeric, PHP stores them as integer array keys, and array_merge
+renumbers integer keys from zero, so merging the remembered names
+turned "tag 2 is a Conference" into "tag 0 is". Caught by the test
+that asserted the resolved wording rather than merely that something
+resolved.

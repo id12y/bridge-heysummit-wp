@@ -53,6 +53,29 @@ abstract class BaseMapper {
 	}
 
 	/**
+	 * The organiser's tag for a session, as words.
+	 *
+	 * `custom_tag` is a relation and arrives as the tag's record ID. The
+	 * wording lives on the EVENT record, which lists its tags inline, so
+	 * the ID is translated through what those fetches remembered. An ID
+	 * this site has never seen resolves to nothing and shows nothing —
+	 * the number itself is never a fallback.
+	 *
+	 * @param array<string,mixed> $raw Raw talk record.
+	 */
+	protected static function tag_label( array $raw ): string {
+		$value = self::str( $raw, [ 'custom_tag' ] );
+
+		if ( '' === $value ) {
+			return '';
+		}
+
+		return preg_match( '/^\d+$/', $value )
+			? \Emailexpert\Events\Data\TagNames::name( $value )
+			: $value;
+	}
+
+	/**
 	 * Truthiness tolerant of "true"/"1"/1/true.
 	 *
 	 * @param array<string,mixed> $raw Raw record.
@@ -155,7 +178,7 @@ abstract class BaseMapper {
 	 * @param array<string,mixed> $raw Raw talk record.
 	 */
 	protected static function format_of( array $raw ): string {
-		$label = self::label( $raw, [ 'custom_tag' ] );
+		$label = self::tag_label( $raw );
 
 		if ( '' === $label ) {
 			$label = self::label( $raw, [ 'webinar_delivery_mode' ] );

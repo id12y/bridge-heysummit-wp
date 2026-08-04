@@ -243,7 +243,8 @@ final class ComponentsTest extends TestCase {
 	}
 
 	public function test_layouts_render_their_own_markup_and_keep_the_js_contract(): void {
-		$this->make_talk( 'Layout session', 3600 );
+		$layout_talk = $this->make_talk( 'Layout session', 3600 );
+		update_post_meta( $layout_talk, '_eex_format', 'Conference or Summit' );
 
 		$list = Components::render( 'upcoming-sessions', [ 'layout' => 'list' ] );
 		$this->assertStringContainsString( 'eex-talk-list', $list );
@@ -263,7 +264,7 @@ final class ComponentsTest extends TestCase {
 		// This once asserted an unconditional "Online" badge, which is what
 		// let the template claim every session was online, in-person ones
 		// included. The badge is now opt-in and truthful.
-		$this->assertStringNotContainsString( 'Online', $agenda, 'no badge unless the widget asks for one' );
+		$this->assertStringNotContainsString( 'eex-badge-status', $agenda, 'no badge unless the widget asks for one' );
 		$this->assertStringContainsString(
 			'eex-badge-status',
 			Components::render( 'upcoming-sessions', [ 'layout' => 'agenda', 'show_format' => 1 ] ),
@@ -538,10 +539,13 @@ final class ComponentsTest extends TestCase {
 		// An agenda item's own type wins, verbatim.
 		$this->assertSame( [ 'Conference or Summit' ], $badges( [ 'format' => 'Conference or Summit' ], true ) );
 
-		// No label: the in-person flag decides, and it is a real API field
-		// rather than an inference from a missing venue.
+		// No label: the in-person flag speaks for itself, and its ABSENCE
+		// says nothing. Claiming "Online" whenever the flag was unset put
+		// that badge on every row of the live listing, in-person events
+		// included.
 		$this->assertSame( [ 'In person' ], $badges( [ 'inperson' => true ], true ) );
-		$this->assertSame( [ 'Online' ], $badges( [ 'inperson' => false ], true ) );
+		$this->assertSame( [], $badges( [ 'inperson' => false ], true ) );
+		$this->assertSame( [], $badges( [], true ) );
 
 		// The format label and the built-in in-person pill must not both
 		// render when they say the same thing.
@@ -567,7 +571,7 @@ final class ComponentsTest extends TestCase {
 		// earlier sync wrote to post meta until it syncs again, so the
 		// render path refuses numbers of its own accord.
 		$this->assertSame( [], $badges( [ 'custom_tag' => '2' ], false ) );
-		$this->assertSame( [ 'Online' ], $badges( [ 'custom_tag' => '2' ], true ) );
+		$this->assertSame( [], $badges( [ 'custom_tag' => '2' ], true ) );
 		$this->assertSame( [ 'In person' ], $badges( [ 'format' => '17', 'inperson' => true ], true ) );
 
 		// Words that happen to carry a number are labels, not IDs.
@@ -588,8 +592,12 @@ final class ComponentsTest extends TestCase {
 
 		$this->assertNotEmpty( $offering );
 
-		$this->make_talk( 'Format probe upcoming', 3600 );
-		$this->make_talk( 'Format probe past', -3600 );
+		// Seeded with a real label: the badge no longer invents "Online"
+		// for a session the account never described, so a probe with no
+		// format data would prove nothing about the toggle.
+		foreach ( [ $this->make_talk( 'Format probe upcoming', 3600 ), $this->make_talk( 'Format probe past', -3600 ) ] as $probe_id ) {
+			update_post_meta( $probe_id, '_eex_format', 'Conference or Summit' );
+		}
 
 		$checked = 0;
 

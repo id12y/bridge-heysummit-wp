@@ -1654,21 +1654,26 @@ final class Components {
 	public static function status_badges( array $data, bool $with_format = false, bool $categories_shown = true ): array {
 		$badges = [];
 
-		// The platform's own delivery label leads when the widget asks for
-		// it ("ONLINE", "Conference or Summit" — what the HeySummit hub
-		// shows beside the time). Sessions the account never labelled fall
-		// back to the in-person flag, which is a real field rather than an
-		// inference: absent evidence, no badge at all.
+		// The platform's own label leads when the widget asks for it (the
+		// organiser's tag, or the delivery mode — what the HeySummit hub
+		// shows beside the time).
+		//
+		// A session the account never labelled gets NO format badge. This
+		// used to read "Online" whenever the in-person flag was unset, on
+		// the reasoning that a webinar platform's sessions are online by
+		// default. Live, that stamped "Online" across every row of the
+		// listing, in-person events included, because the flag lives on
+		// the talk record and an in-person event does not necessarily set
+		// it. An unset flag is silence, not a claim, and a badge that says
+		// the same thing on every row told visitors nothing while being
+		// wrong about at least one of them. The in-person pill below still
+		// fires on the real field.
 		if ( $with_format ) {
 			$format = trim( (string) ( $data['format'] ?? '' ) );
 
-			if ( '' === $format ) {
-				$format = ! empty( $data['inperson'] )
-					? __( 'In person', 'emailexpert-events' )
-					: __( 'Online', 'emailexpert-events' );
+			if ( '' !== $format ) {
+				$badges[] = $format;
 			}
-
-			$badges[] = $format;
 		}
 
 		if ( ! empty( $data['inperson'] ) ) {
