@@ -220,6 +220,38 @@ final class MappersTest extends TestCase {
 		TagNames::reset_request_state();
 	}
 
+	public function test_an_operator_can_name_tags_the_api_never_names(): void {
+		// The live account sends tag IDs and names them nowhere the API
+		// exposes, which left the badge with nothing true to print. The
+		// operator's own wording is the only source left, so it is also
+		// the one that wins.
+		TagNames::remember( [ [ 'id' => 2, 'title' => 'Platform wording' ] ] );
+
+		\EEX_Test_State::$options['eex_settings'] = [
+			'format_tag_labels' => "1 = Online\n2: Conference or Summit\n3|Roundtable\n\nnonsense line",
+		];
+
+		$mapped = static fn( string $tag ): string => (string) TalkMapper::map(
+			[
+				'id'         => '9200',
+				'title'      => 'Session',
+				'event'      => '101',
+				'custom_tag' => $tag,
+			]
+		)['format'];
+
+		$this->assertSame( 'Online', $mapped( '1' ) );
+		$this->assertSame( 'Conference or Summit', $mapped( '2' ), 'the operator overrides the platform' );
+		$this->assertSame( 'Roundtable', $mapped( '3' ) );
+
+		// A malformed line must not silence the rows around it, and an ID
+		// nobody named still shows nothing rather than its number.
+		$this->assertSame( '', $mapped( '4' ) );
+
+		\EEX_Test_State::$options['eex_settings'] = [];
+		TagNames::reset_request_state();
+	}
+
 	public function test_talk_mapper_minimal_record(): void {
 		$mapped = TalkMapper::map( self::fixture( 'talks' )[2] );
 

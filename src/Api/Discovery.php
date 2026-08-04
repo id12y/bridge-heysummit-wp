@@ -359,7 +359,7 @@ final class Discovery {
 			'missing'       => $missing,
 			'unmapped'      => $unmapped,
 			'type_mismatch' => $type_mismatch,
-			'raw_samples'   => self::raw_samples( $sample ),
+			'raw_samples'   => self::raw_samples( $sample ) + self::tags_in_use( $response ),
 		];
 	}
 
@@ -373,6 +373,65 @@ final class Discovery {
 	 * @param array<string,mixed> $sample Sample record.
 	 * @return array<string,string> field => raw value + format verdict.
 	 */
+	/**
+	 * Which tag IDs the talks in this response actually use, each with one
+	 * session that carries it.
+	 *
+	 * A tag ID is unusable on its own — "2" means nothing to anyone. The
+	 * account may or may not name its tags anywhere the API exposes, so
+	 * when it does not, the operator supplies the wording in Settings →
+	 * Display. They can only do that if they know WHICH session each ID
+	 * belongs to, which is what this shows.
+	 *
+	 * @param array<string,mixed> $response Full list response.
+	 * @return array<string,string> One entry, or none when no tags are used.
+	 */
+	private static function tags_in_use( array $response ): array {
+		$rows = $response['results'] ?? ( array_is_list( $response ) ? $response : [] );
+
+		if ( ! is_array( $rows ) ) {
+			return [];
+		}
+
+		$examples = [];
+
+		foreach ( $rows as $row ) {
+			if ( ! is_array( $row ) || ! isset( $row['custom_tag'] ) || ! is_scalar( $row['custom_tag'] ) ) {
+				continue;
+			}
+
+			$tag = trim( (string) $row['custom_tag'] );
+
+			if ( '' === $tag || isset( $examples[ $tag ] ) ) {
+				continue;
+			}
+
+			$examples[ $tag ] = (string) ( $row['title'] ?? $row['name'] ?? '' );
+		}
+
+		if ( empty( $examples ) ) {
+			return [];
+		}
+
+		$parts = [];
+
+		foreach ( $examples as $tag => $title ) {
+			$parts[] = '' !== $title
+				? sprintf(
+					/* translators: 1: tag ID, 2: an example session title. */
+					__( '%1$s (e.g. "%2$s")', 'emailexpert-events' ),
+					$tag,
+					$title
+				)
+				: $tag;
+		}
+
+		return [
+			'tag IDs in use' => implode( ', ', $parts ) . ' — '
+				. __( 'name these under Settings → Display → Session tag labels if the badge shows nothing', 'emailexpert-events' ),
+		];
+	}
+
 	private static function raw_samples( array $sample ): array {
 		$out = [];
 

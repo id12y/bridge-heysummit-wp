@@ -899,6 +899,13 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session tag labels', 'emailexpert-events' ); ?></label></th>
+				<td>
+					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="2 = Conference or Summit&#10;1 = Online"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
+					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs in use on this account are listed under Test connection, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><label for="eex-cache-ttl"><?php esc_html_e( 'Display cache lifetime', 'emailexpert-events' ); ?></label></th>
 				<td>
 					<input type="number" id="eex-cache-ttl" min="1" max="1440" name="settings[cache_ttl]" value="<?php echo esc_attr( (string) (int) Options::setting( 'cache_ttl' ) ); ?>" size="4" />
@@ -977,6 +984,13 @@ final class SettingsPage {
 				<td>
 					<input type="text" id="eex-date-format" name="settings[date_format]" value="<?php echo esc_attr( (string) Options::setting( 'date_format' ) ); ?>" placeholder="<?php echo esc_attr( get_option( 'date_format' ) ); ?>" />
 					<p class="description"><?php esc_html_e( 'PHP date format for component output. Leave blank to use the site default.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session tag labels', 'emailexpert-events' ); ?></label></th>
+				<td>
+					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="2 = Conference or Summit&#10;1 = Online"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
+					<p class="description"><?php esc_html_e( 'Only needed if the format badge shows nothing. HeySummit sends a session\'s tag as a record ID and does not always send the wording, so the badge has nothing to print. One mapping per line, ID first: 2 = Conference or Summit. The IDs in use on this account are listed under Test connection, each with an example session, so you can see which is which. Wording set here wins over anything the API sends.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
 			<tr>
@@ -1115,14 +1129,15 @@ final class SettingsPage {
 		// phpcs:enable
 
 		$values = $this->registration_values( $posted ) + [
-			'lite_ttl'       => max( 1, min( 1440, (int) ( $posted['lite_ttl'] ?? 15 ) ) ),
-			'date_format'    => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
-			'cache_ttl'      => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
-			'schema_enabled' => empty( $posted['schema_enabled'] ) ? 0 : 1,
-			'schema_event'   => empty( $posted['schema_event'] ) ? 0 : 1,
-			'utm_enabled'    => empty( $posted['utm_enabled'] ) ? 0 : 1,
-			'utm_source'     => sanitize_text_field( (string) ( $posted['utm_source'] ?? '' ) ),
-			'utm_medium'     => sanitize_text_field( (string) ( $posted['utm_medium'] ?? 'web' ) ),
+			'lite_ttl'          => max( 1, min( 1440, (int) ( $posted['lite_ttl'] ?? 15 ) ) ),
+			'date_format'       => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
+			'format_tag_labels' => sanitize_textarea_field( (string) ( $posted['format_tag_labels'] ?? '' ) ),
+			'cache_ttl'         => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
+			'schema_enabled'    => empty( $posted['schema_enabled'] ) ? 0 : 1,
+			'schema_event'      => empty( $posted['schema_event'] ) ? 0 : 1,
+			'utm_enabled'       => empty( $posted['utm_enabled'] ) ? 0 : 1,
+			'utm_source'        => sanitize_text_field( (string) ( $posted['utm_source'] ?? '' ) ),
+			'utm_medium'        => sanitize_text_field( (string) ( $posted['utm_medium'] ?? 'web' ) ),
 		];
 
 		if ( null !== $sponsors ) {
@@ -1303,6 +1318,7 @@ final class SettingsPage {
 			$this->registration_values( $posted ) + [
 				'frequency'             => $frequency,
 				'date_format'           => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
+				'format_tag_labels'     => sanitize_textarea_field( (string) ( $posted['format_tag_labels'] ?? '' ) ),
 				'cache_ttl'             => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
 				'series_colours'        => $colours,
 				'schema_enabled'        => empty( $posted['schema_enabled'] ) ? 0 : 1,

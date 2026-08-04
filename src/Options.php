@@ -43,6 +43,7 @@ final class Options {
 			'schema_video'          => 1,
 			'og_fallback'           => 1,
 			'date_format'           => '',
+			'format_tag_labels'     => '',
 			'series_colours'        => [],
 			'wh_checkout'           => 1,
 			'wh_started'            => 1,
