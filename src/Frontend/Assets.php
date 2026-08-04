@@ -33,10 +33,20 @@ final class Assets {
 	public function register_assets(): void {
 		wp_register_style( 'eex-frontend', EEX_PLUGIN_URL . 'assets/css/eex.css', [], EEX_VERSION );
 
-		// The site skin: tokens + the deliberate emailexpert look, layered
-		// over the neutral base. Deleting/dequeuing it reverts every widget
-		// to the base rendering (all base rules carry their own fallbacks).
-		wp_register_style( 'eex-skin', EEX_PLUGIN_URL . 'assets/css/eex-skin.css', [ 'eex-frontend' ], EEX_VERSION );
+		// The site skin: tokens + a deliberate look, layered over the
+		// neutral base. Two are shipped and EXACTLY ONE loads, under the
+		// same handle, so choosing a skin never costs a second stylesheet:
+		//
+		//   editorial (default) — the current design: date-led rows, quiet
+		//                         secondary actions, soft badges.
+		//   classic             — the look through 1.41, kept as a
+		//                         supported choice rather than a shim.
+		//
+		// Dequeuing the handle still drops to the neutral base, since every
+		// base rule carries its own fallback.
+		$skin = 'classic' === (string) Options::setting( 'skin' ) ? 'classic' : 'editorial';
+
+		wp_register_style( 'eex-skin', EEX_PLUGIN_URL . 'assets/css/eex-skin-' . $skin . '.css', [ 'eex-frontend' ], EEX_VERSION );
 		wp_register_script( 'eex-time', EEX_PLUGIN_URL . 'assets/js/eex-time.js', [], EEX_VERSION, true );
 
 		// The logged-in visitor's own identity, for prefilling RSVP forms and

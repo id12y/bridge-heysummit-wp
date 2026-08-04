@@ -1859,7 +1859,15 @@ final class Components {
 		$columns = min( 6, max( 0, (int) ( $atts['columns'] ?? 0 ) ) );
 		$style   = 'cards' === $layout && $columns > 0 ? sprintf( ' style="--eex-columns:%d"', $columns ) : '';
 
+		// A zone repeated on every row is noise; stated once above the list
+		// it is information. Only when the rows genuinely agree — a mixed
+		// listing has to keep naming the zone per row, or it lies.
+		$shared_zone = 'list' === $layout ? self::shared_timezone( $items ) : null;
+
 		ob_start();
+		if ( null !== $shared_zone ) {
+			echo TimeFormat::zone_note( $shared_zone ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+		}
 		printf( '<ul class="%s" role="list"%s>', esc_attr( $classes ), $style ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- built from an integer above.
 		foreach ( $items as $data ) {
 			// Filterable data attributes for the session filter bar.
@@ -1873,9 +1881,10 @@ final class Components {
 				$part,
 				array_merge(
 					[
-						'data'    => $data,
-						'context' => $context,
-						'show'    => $show,
+						'data'        => $data,
+						'context'     => $context,
+						'show'        => $show,
+						'zone_in_row' => null === $shared_zone,
 					],
 					$cta
 				)
@@ -1885,6 +1894,31 @@ final class Components {
 		echo '</ul>';
 
 		return (string) ob_get_clean() . $drawer['html'];
+	}
+
+	/**
+	 * The one timezone every listed session is in, or '' when they differ.
+	 *
+	 * @param array<int,array<string,mixed>> $items Talk data rows.
+	 */
+	private static function shared_timezone( array $items ): ?string {
+		$zone = null;
+
+		foreach ( $items as $item ) {
+			$row = trim( (string) ( $item['timezone'] ?? '' ) );
+
+			if ( null !== $zone && $row !== $zone ) {
+				return null;
+			}
+
+			$zone = $row;
+		}
+
+		// '' is not "unknown" here: it is what the renderer treats as the
+		// site's own timezone, so rows that all carry it do agree, and the
+		// note names the zone their times were actually rendered in. Null
+		// means the rows genuinely disagree, or there are none.
+		return $zone;
 	}
 
 	/**

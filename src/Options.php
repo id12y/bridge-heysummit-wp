@@ -44,6 +44,7 @@ final class Options {
 			'og_fallback'           => 1,
 			'date_format'           => '',
 			'format_tag_labels'     => '',
+			'skin'                  => 'editorial',
 			'series_colours'        => [],
 			'wh_checkout'           => 1,
 			'wh_started'            => 1,

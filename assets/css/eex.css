@@ -247,6 +247,47 @@
 	flex: 1 1 14em;
 	min-width: 0;
 	overflow-wrap: break-word;
+	/* The row reads badge, title, people, each on its own line. This is
+	   structure, not taste, so it lives in the base: every skin needs it,
+	   and the base has to stand up alone when a site dequeues the skin. */
+	display: flex;
+	flex-direction: column;
+	gap: 0.25em;
+}
+
+.eex-list-eyebrow {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35em;
+	line-height: 1;
+}
+
+.eex-list-meta {
+	color: var(--eex-muted);
+}
+
+/* A stacked time: date over clock, so a listing can drop the timezone
+   from every row and state it once above (see .eex-tz-note). */
+.eex-list-time .eex-date,
+.eex-list-time .eex-clock {
+	display: block;
+}
+
+.eex-tz-note {
+	margin: 0 0 0.5em;
+	color: var(--eex-muted);
+	font-size: var(--eex-step--1, 0.85em);
+}
+
+.eex-list-calendar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35em 0.75em;
+	flex-basis: 100%;
+}
+
+.eex-cta-arrow {
+	margin-left: 0.25em;
 }
 
 .eex-list-title,

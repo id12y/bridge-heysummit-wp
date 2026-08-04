@@ -1,0 +1,560 @@
+/**
+ * emailexpert Events — Editorial skin (default).
+ *
+ * Same brand tokens as Classic; a different hierarchy. The listing is
+ * led by the date, the title is the strongest thing in the row, the
+ * format badge is quiet enough to scan past, and exactly one action
+ * looks like an action.
+ *
+ * Self-contained on purpose: only one skin is enqueued per page, so a
+ * shared token file would cost a second request to save duplication
+ * nobody downloads twice. Both files carry the same token block, and
+ * they are expected to diverge as designs do.
+ *
+ * Additive: every rule either sets an --eex-* token that eex.css already
+ * consumes, or styles an existing eex- class. Elementor style controls
+ * still win, writing the same tokens at page scope.
+ */
+
+/* ---- Tokens -------------------------------------------------------------- */
+.eex,
+.eex-confirm-banner {
+	/* Palette: follows the live site. The accent stays the established
+	   emailexpert navy rather than the brief's generic blue. */
+	--eex-ink: #132038;
+	--eex-muted: #5d6b82;
+	--eex-accent: #0a4b78;
+	--eex-accent-fg: #ffffff;
+	--eex-surface: #f3f6fb;
+	--eex-line: #d9e0eb;
+	--eex-border: var(--eex-line);
+	--eex-badge-bg: var(--eex-surface);
+	--eex-badge-fg: var(--eex-ink);
+
+	/* Type: serif for editorial display, sans for everything else. */
+	--eex-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+	--eex-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+	/* Scale: five steps, fluid, replacing sixteen ad-hoc sizes. */
+	--eex-step--1: clamp(0.79rem, 0.76rem + 0.15vw, 0.85rem);
+	--eex-step-0: clamp(0.9rem, 0.88rem + 0.15vw, 0.95rem);
+	--eex-step-1: clamp(1.05rem, 1rem + 0.3vw, 1.2rem);
+	--eex-step-2: clamp(1.3rem, 1.15rem + 0.8vw, 1.6rem);
+	--eex-step-3: clamp(1.6rem, 1.35rem + 1.3vw, 2rem);
+
+	/* Rhythm. */
+	--eex-section-gap: clamp(2rem, 1.5rem + 2vw, 3rem);
+	--eex-row-gap: 1.25rem;
+	--eex-inline: clamp(1rem, 0.75rem + 1vw, 1.5rem);
+
+	/* Elevation: exactly two shadows. */
+	--eex-shadow-1: 0 1px 2px rgba(19, 32, 56, 0.06), 0 6px 18px rgba(19, 32, 56, 0.07);
+	--eex-shadow-2: 0 2px 6px rgba(19, 32, 56, 0.08), 0 14px 32px rgba(19, 32, 56, 0.12);
+
+	--eex-radius: 10px;
+}
+
+/* ---- Base voice ---------------------------------------------------------- */
+.eex {
+	font-family: var(--eex-sans);
+	color: var(--eex-ink);
+	line-height: 1.6;
+}
+
+/* ---- Editorial display headings ------------------------------------------ */
+.eex .eex-card-title,
+.eex .eex-hero-title,
+.eex .eex-agenda-title,
+.eex .eex-list-title,
+.eex .eex-compact-title,
+.eex .eex-drawer-title,
+.eex .eex-reg-inline-heading,
+.eex .eex-agenda-heading,
+.eex .eex-schedule-heading,
+.eex .eex-wall-heading,
+.eex .eex-tier-heading,
+.eex .eex-spotlight-name,
+.eex .eex-sponsor-card-name,
+.eex-drawer .eex-drawer-title {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var(--eex-ink);
+	text-wrap: balance;
+}
+
+.eex .eex-hero-title {
+	font-size: var(--eex-step-3, 2rem);
+	line-height: 1.15;
+}
+
+.eex .eex-card-title,
+.eex .eex-agenda-title {
+	line-height: 1.25;
+}
+
+.eex .eex-card-title a,
+.eex .eex-hero-title a,
+.eex .eex-agenda-title a {
+	color: inherit;
+}
+
+/* ---- Eyebrow labels: badges, kickers, section furniture ------------------ */
+.eex .eex-badge,
+.eex .eex-eyebrow,
+.eex .eex-hero-kicker,
+.eex .eex-live-bar-label,
+.eex .eex-pricing-price-label,
+.eex .eex-sponsor-tier,
+.eex .eex-stat-label {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1, 0.78em);
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.eex .eex-badge {
+	border: 1px solid var(--eex-line);
+	background: var(--eex-badge-bg);
+	color: var(--eex-badge-fg);
+	padding: 0.25em 0.7em;
+}
+
+.eex .eex-badge-status {
+	background: var(--eex-ink);
+	border-color: var(--eex-ink);
+	color: #ffffff;
+}
+
+/* ---- Metadata ------------------------------------------------------------ */
+.eex .eex-card-time,
+.eex .eex-card-venue,
+.eex .eex-list-time,
+.eex .eex-compact-time,
+.eex .eex-agenda-time,
+.eex .eex-hero-time,
+.eex .eex-hero-meta {
+	color: var(--eex-muted);
+}
+
+/* ---- Cards and surfaces -------------------------------------------------- */
+.eex .eex-card {
+	background: var(--eex-card-bg, #ffffff);
+	border-color: var(--eex-line);
+	box-shadow: var(--eex-shadow-1);
+	transition: box-shadow 160ms ease;
+}
+
+.eex .eex-card:hover {
+	box-shadow: var(--eex-shadow-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.eex .eex-card {
+		transition: none;
+	}
+}
+
+.eex .eex-agenda-row,
+.eex .eex-drawer-panel,
+.eex .eex-reg-inline {
+	border-color: var(--eex-line);
+}
+
+/* The feature card: the flagship editorial surface. */
+.eex .eex-feature-session {
+	background: var(--eex-card-bg, #ffffff);
+	border-color: var(--eex-line);
+	box-shadow: var(--eex-shadow-1);
+	padding: var(--eex-inline);
+}
+
+.eex .eex-feature-session .eex-card-title {
+	font-size: var(--eex-step-3, 1.6em);
+	line-height: 1.15;
+}
+
+.eex .eex-feature-compact .eex-card-title {
+	font-size: var(--eex-step-2, 1.35rem);
+}
+
+.eex .eex-feature-location {
+	background: var(--eex-surface);
+	border-left: 3px solid var(--eex-accent);
+	border-radius: calc(var(--eex-radius) * 0.5);
+	padding: 0.75em 1em;
+}
+
+/* ---- Buttons: one system ------------------------------------------------- */
+.eex .eex-cta,
+.eex-drawer .eex-cta {
+	font-family: var(--eex-sans);
+	font-weight: 600;
+	font-size: var(--eex-cta-font, var(--eex-step-0, 1em));
+	border-radius: calc(var(--eex-radius) * 0.6);
+	transition: filter 120ms ease;
+}
+
+.eex .eex-cta:hover {
+	filter: brightness(1.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.eex .eex-cta {
+		transition: none;
+	}
+}
+
+.eex .eex-cta-secondary,
+.eex .eex-view-all {
+	color: var(--eex-accent);
+	font-weight: 600;
+	text-decoration: none;
+	border-bottom: 1px solid var(--eex-line);
+}
+
+.eex .eex-cta-secondary:hover,
+.eex .eex-view-all:hover {
+	border-bottom-color: var(--eex-accent);
+}
+
+/* ---- Forms --------------------------------------------------------------- */
+.eex .eex-reg-form {
+	font-family: var(--eex-sans);
+}
+
+.eex .eex-reg-field input {
+	border-color: var(--eex-line);
+	border-radius: calc(var(--eex-radius) * 0.5);
+	background: var(--eex-field-bg, #ffffff);
+}
+
+.eex .eex-reg-field input:focus-visible {
+	outline: 2px solid var(--eex-accent);
+	outline-offset: 1px;
+	border-color: var(--eex-accent);
+}
+
+.eex .eex-reg-done {
+	background: var(--eex-surface);
+	border-left: 3px solid var(--eex-accent);
+}
+
+/* ---- Pricing ------------------------------------------------------------- */
+.eex .eex-pricing-amount {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+}
+
+/* ---- Stats --------------------------------------------------------------- */
+.eex .eex-stat-number {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+	color: var(--eex-ink);
+}
+
+/* ---- Pagination and day navigation --------------------------------------- */
+.eex .eex-pagination a,
+.eex .eex-day-nav a {
+	border-radius: calc(var(--eex-radius) * 0.5);
+}
+
+.eex .eex-pagination .eex-current {
+	background: var(--eex-accent);
+	color: var(--eex-accent-fg);
+}
+
+/* ---- Dividers ------------------------------------------------------------ */
+.eex .eex-list-row,
+.eex .eex-compact-row {
+	border-bottom-color: var(--eex-line);
+}
+
+/* ---- Empty states -------------------------------------------------------- */
+.eex .eex-empty {
+	color: var(--eex-muted);
+	background: var(--eex-surface);
+	border: 1px dashed var(--eex-line);
+	border-radius: var(--eex-radius);
+	padding: var(--eex-inline);
+}
+
+/* ---- Dark context (opt-in) ------------------------------------------------ */
+/* For widgets placed on a dark page section: add the class "eex-dark" to
+   the section, column or widget wrapper (Elementor: Advanced -> CSS
+   Classes). Surfaces are translucent white so the variant works over any
+   dark background colour, not one assumed shade. */
+.eex-dark .eex,
+.eex.eex-dark,
+.eex-dark .eex-confirm-banner,
+.eex-dark.eex-confirm-banner {
+	--eex-ink: #eef2f8;
+	--eex-muted: #a3b1c6;
+	--eex-accent: #8ab8e0;
+	--eex-accent-fg: #0e1a2e;
+	--eex-surface: rgba(255, 255, 255, 0.07);
+	--eex-line: rgba(255, 255, 255, 0.18);
+	--eex-card-bg: rgba(255, 255, 255, 0.06);
+	--eex-field-bg: rgba(255, 255, 255, 0.1);
+	--eex-badge-bg: rgba(255, 255, 255, 0.09);
+	--eex-badge-fg: var(--eex-ink);
+	--eex-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.3);
+	--eex-shadow-2: 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Form fields do not inherit text colour from the page. */
+.eex-dark .eex .eex-reg-field input {
+	color: var(--eex-ink);
+}
+
+/* The status badge inverts: light chip, dark text. */
+.eex-dark .eex .eex-badge-status {
+	color: #132038;
+}
+
+/* The ticket drawer and the sticky register bar overlay the PAGE, not the
+   dark section they happen to be coded inside, so they keep the light
+   palette. Without this reset the drawer would paint near-white text on
+   its solid white panel. */
+.eex-dark .eex .eex-drawer,
+.eex-dark .eex .eex-register-bar {
+	--eex-ink: #132038;
+	--eex-muted: #5d6b82;
+	--eex-accent: #0a4b78;
+	--eex-accent-fg: #ffffff;
+	--eex-surface: #f3f6fb;
+	--eex-line: #d9e0eb;
+	--eex-card-bg: #ffffff;
+	--eex-field-bg: #ffffff;
+	--eex-badge-bg: var(--eex-surface);
+	--eex-badge-fg: var(--eex-ink);
+	--eex-shadow-1: 0 1px 2px rgba(19, 32, 56, 0.06), 0 6px 18px rgba(19, 32, 56, 0.07);
+	--eex-shadow-2: 0 2px 6px rgba(19, 32, 56, 0.08), 0 14px 32px rgba(19, 32, 56, 0.12);
+}
+
+
+/* ---- Editorial listing --------------------------------------------------- */
+
+/*
+ * The base lays this row out with flexbox and sensible flex bases: a
+ * date column, a flexible middle, actions pushed to the end. Editorial
+ * TUNES those tracks rather than replacing the mechanism — an earlier
+ * draft swapped in a grid, threw away `flex: 1 1 14em` on the middle
+ * column, and let the actions track starve the title until it wrapped
+ * one character per line.
+ *
+ * Wrapping does the responsive work, so nothing is reordered in CSS:
+ * the markup is already in reading order and the stacked layout follows
+ * it exactly.
+ */
+.eex .eex-list-row {
+	align-items: center;
+	gap: 0.35rem 1.25rem;
+	padding: 1.25rem 0.75rem;
+	border-radius: 0.5rem;
+	border-bottom: 1px solid var(--eex-line);
+	transition: background-color 120ms ease;
+}
+
+/* A narrower date column gives long titles the room they need. */
+.eex .eex-list-time {
+	flex: 0 0 7.5rem;
+	max-width: 7.5rem;
+	font-family: var(--eex-sans);
+	line-height: 1.35;
+	align-self: start;
+	padding-top: 0.15rem;
+}
+
+.eex .eex-list-main {
+	/* 14rem, not 18: the wider basis pushed the actions onto their own
+	   line at typical content widths, which left a lake of white space
+	   beside every title. */
+	flex: 1 1 14rem;
+	gap: 0.3rem;
+}
+
+.eex .eex-list-actions {
+	/* Capped so the actions track cannot starve the title, but never
+	   wider than the row itself: a flat 24rem overflowed a 375px screen
+	   by 9px, which is a horizontal scrollbar on every phone. */
+	max-width: min(24rem, 100%);
+	min-width: 0;
+}
+
+/* Date leads; the clock and the zone step back behind it. */
+.eex .eex-list-time .eex-date {
+	display: block;
+	font-size: var(--eex-step-0);
+	font-weight: 700;
+	letter-spacing: 0.01em;
+	color: var(--eex-ink);
+}
+
+.eex .eex-list-time .eex-clock,
+.eex .eex-list-time .eex-tz {
+	display: block;
+	font-size: var(--eex-step--1);
+	color: var(--eex-muted);
+}
+
+/* Below 40rem the date sits above the session rather than beside it, on
+   one line. This block has to come AFTER the display:block rules above:
+   same specificity, so an earlier position simply lost, which broke the
+   date onto its own line with an orphaned separator under it. */
+@media (max-width: 39.99rem) {
+	.eex .eex-list-row {
+		padding: 1.1rem 0.5rem;
+	}
+
+	.eex .eex-list-time {
+		flex: 1 1 100%;
+		max-width: none;
+		padding-top: 0;
+	}
+
+	.eex .eex-list-time .eex-date,
+	.eex .eex-list-time .eex-clock,
+	.eex .eex-list-time .eex-tz {
+		display: inline;
+	}
+
+	.eex .eex-list-time .eex-clock::before {
+		content: " · ";
+	}
+
+	/* The base pushes actions to the end with margin-left:auto, which on a
+	   stacked row strands them mid-width instead of lining up with the
+	   title above them. */
+	.eex .eex-list-actions {
+		margin-left: 0;
+		max-width: 100%;
+	}
+}
+
+/* Said once above the list instead of on every row. */
+.eex .eex-tz-note {
+	margin: 0 0 0.5rem;
+	padding: 0 0.75rem;
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1);
+	color: var(--eex-muted);
+}
+
+/* The badge is an eyebrow, not a competitor: pale, small, above the
+   title rather than interrupting it. #103a5c on #e7eef7 is 8.9:1, so it
+   clears AA at this size with room to spare. */
+.eex .eex-list-eyebrow .eex-badge {
+	background: #e7eef7;
+	color: #103a5c;
+	border: 0;
+	padding: 0.25rem 0.45rem;
+	font-size: 0.7rem;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	border-radius: 0.25rem;
+}
+
+.eex .eex-list-title {
+	font-family: var(--eex-serif);
+	font-size: var(--eex-step-1);
+	font-weight: 600;
+	line-height: 1.25;
+	color: var(--eex-ink);
+	margin-right: 0;
+	text-decoration: none;
+}
+
+.eex .eex-list-title:hover,
+.eex .eex-list-title:focus-visible {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+.eex .eex-list-meta {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1);
+	color: var(--eex-muted);
+}
+
+/* One action looks like an action. */
+.eex .eex-list-actions .eex-cta-quiet,
+.eex .eex-list-actions .eex-cta-quiet:link,
+.eex .eex-list-actions .eex-cta-quiet:visited {
+	background: none;
+	border: 0;
+	/* The base draws this button's outline with an inset box-shadow, not
+	   a border, so `border: 0` alone left the box exactly where it was. */
+	box-shadow: none;
+	padding: 0.5rem 0;
+	color: var(--eex-accent);
+	font-size: var(--eex-step-0);
+	font-weight: 600;
+	text-decoration: none;
+	/* Reads as text, still a 44px target under a thumb. */
+	min-height: 2.75rem;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+}
+
+.eex .eex-list-actions .eex-cta-quiet:hover,
+.eex .eex-list-actions .eex-cta-quiet:focus,
+.eex .eex-list-actions .eex-cta-quiet:focus-visible {
+	background: none;
+	color: var(--eex-accent);
+	box-shadow: none;
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+}
+
+.eex .eex-cta-arrow {
+	transition: transform 120ms ease;
+}
+
+.eex .eex-list-row:hover .eex-cta-arrow,
+.eex .eex-cta-quiet:focus-visible .eex-cta-arrow {
+	transform: translateX(0.15rem);
+}
+
+/* Calendar links are a third tier: available, never competing. Their own
+   line at the end of the row, so the actions column stays the width of
+   the two buttons and all three columns fit on one line. */
+.eex .eex-list-calendar {
+	gap: 0.5rem 0.9rem;
+	font-size: var(--eex-step--1);
+}
+
+@media (min-width: 40rem) {
+	/* Sits under the buttons it belongs to, not under the date. */
+	.eex .eex-list-calendar {
+		justify-content: flex-end;
+	}
+}
+
+/* Restrained interactive state: the tint is on the row, the outline is
+   on whatever the keyboard actually landed on. */
+.eex .eex-list-row:hover,
+.eex .eex-list-row:focus-within {
+	background: color-mix(in srgb, var(--eex-surface) 70%, transparent);
+}
+
+.eex .eex-list-row a:focus-visible {
+	outline: 2px solid var(--eex-accent);
+	outline-offset: 2px;
+	border-radius: 0.2rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.eex .eex-list-row,
+	.eex .eex-cta-arrow {
+		transition: none;
+	}
+
+	.eex .eex-list-row:hover .eex-cta-arrow,
+	.eex .eex-cta-quiet:focus-visible .eex-cta-arrow {
+		transform: none;
+	}
+}

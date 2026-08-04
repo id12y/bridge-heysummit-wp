@@ -3,6 +3,32 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.42.0
+- **Editorial is the new default skin, and Classic is a supported
+  choice beside it** (Settings → Display → Skin). Exactly one is
+  enqueued, under the same `eex-skin` handle, so choosing between them
+  never costs a second stylesheet. Both read the same tokens, so
+  Elementor style controls keep overriding either.
+- **The session list is led by its date.** Day and date carry the
+  weight, the clock and zone step back behind them, and the date
+  column is narrower so long titles get the room.
+- **A listing states its timezone once, above the rows**, instead of
+  repeating it on every one — and the note is rewritten along with the
+  times when the visitor's own zone is applied, so it never describes
+  a zone the times are not in. Rows in genuinely different zones keep
+  naming their own.
+- **The format badge is an eyebrow above the title**, not a dark pill
+  interrupting it: pale navy on a tint, 8.9:1 contrast.
+- **One action looks like an action.** Register keeps the filled
+  button; "View details" is a quiet text action with an arrow, still a
+  44px touch target. Calendar links sit on their own line below.
+- **Speakers appear once, in one place**, on a single metadata line
+  under the title, so a session with two speakers has the same shape
+  as one with a single speaker.
+- Restrained hover and focus states: a pale row tint, a visible focus
+  outline on whatever the keyboard landed on, no motion under
+  prefers-reduced-motion.
+
 ## 1.41.0
 - **The agenda item type is translated, not discarded.** A time marker
   is an in-person conference or summit; a schedule note is a meetup.

@@ -11,6 +11,7 @@
 	var config = window.eexTime || { i18n: {}, soonMinutes: 60, restBase: '' };
 
 	var timeNodes = [];
+	var timeNotes = [];
 	var timeModeOverride = null;
 
 	function storedTimeMode() {
@@ -24,11 +25,27 @@
 		}
 	}
 
+	// "Europe/Madrid" is a filing label; people say "Madrid time". Same rule
+	// as TimeFormat::zone_label() on the server, so a row and the note above
+	// it never word the same zone two different ways.
+	function zoneLabel( id ) {
+		if ( ! id || id.indexOf( '/' ) === -1 ) {
+			return id || '';
+		}
+		return id.split( '/' ).pop().replace( /_/g, ' ' ) + ' time';
+	}
+
 	function localise() {
 		var timeFormat = new window.Intl.DateTimeFormat( undefined, {
 			dateStyle: 'medium',
 			timeStyle: 'short'
 		} );
+		var dateOnly = new window.Intl.DateTimeFormat( undefined, {
+			weekday: 'short',
+			day: 'numeric',
+			month: 'short'
+		} );
+		var clockOnly = new window.Intl.DateTimeFormat( undefined, { timeStyle: 'short' } );
 		var zone = ( window.Intl.DateTimeFormat().resolvedOptions().timeZone || '' );
 
 		document.querySelectorAll( 'time[data-eex-time]' ).forEach( function ( node ) {
@@ -41,15 +58,44 @@
 			if ( ! node.eexEventHtml ) {
 				node.eexEventHtml = node.innerHTML;
 			}
-			node.textContent = timeFormat.format( date );
-			if ( zone ) {
+
+			var dateEl = node.querySelector( '.eex-date' );
+			var clockEl = node.querySelector( '.eex-clock' );
+
+			if ( dateEl && clockEl ) {
+				// A stacked row keeps its two lines: replacing the whole node
+				// would flatten the date hierarchy the layout depends on.
+				dateEl.textContent = dateOnly.format( date );
+				clockEl.textContent = clockOnly.format( date );
+			} else {
+				node.textContent = timeFormat.format( date );
+			}
+
+			// The server decided whether this row names its own zone; the
+			// same decision has to survive localisation.
+			if ( zone && node.getAttribute( 'data-eex-zone' ) !== '0' ) {
 				var tz = document.createElement( 'span' );
 				tz.className = 'eex-tz';
-				tz.textContent = ' (' + zone + ')';
+				tz.textContent = dateEl ? zoneLabel( zone ) : ' (' + zone + ')';
 				node.appendChild( tz );
 			}
 			node.eexLocalHtml = node.innerHTML;
 			timeNodes.push( node );
+		} );
+
+		// A listing that states its zone once states the LOCAL one now.
+		document.querySelectorAll( '[data-eex-tz-note]' ).forEach( function ( note ) {
+			if ( ! note.eexEventHtml ) {
+				note.eexEventHtml = note.innerHTML;
+			}
+			var label = zoneLabel( zone );
+			if ( label ) {
+				note.eexLocalHtml = note.eexEventHtml.replace(
+					note.getAttribute( 'data-eex-zone-event' ),
+					label
+				);
+			}
+			timeNotes.push( note );
 		} );
 
 		applyTimeMode();
@@ -60,6 +106,10 @@
 
 		timeNodes.forEach( function ( node ) {
 			node.innerHTML = eventMode ? node.eexEventHtml : node.eexLocalHtml;
+		} );
+
+		timeNotes.forEach( function ( note ) {
+			note.innerHTML = ( eventMode || ! note.eexLocalHtml ) ? note.eexEventHtml : note.eexLocalHtml;
 		} );
 
 		// The toggle is a JS-only affordance: reveal it, and keep its label
