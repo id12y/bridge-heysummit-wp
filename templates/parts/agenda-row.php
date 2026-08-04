@@ -64,7 +64,7 @@ if ( '' === $eex_register_text ) {
 		// This row used to stamp "Online" on EVERY session unconditionally,
 		// including in-person ones. The badge now says what the session
 		// actually is, and only when the widget asks for it.
-		foreach ( ( ! empty( $eex_show['format'] ) ? Components::status_badges( $eex_data, true ) : [] ) as $eex_status_badge ) :
+		foreach ( ( ! empty( $eex_show['format'] ) ? Components::status_badges( $eex_data, true, ! empty( $eex_show['categories'] ) ) : [] ) as $eex_status_badge ) :
 			?>
 			<span class="eex-badge eex-badge-status"><?php echo esc_html( $eex_status_badge ); ?></span>
 		<?php endforeach; ?>

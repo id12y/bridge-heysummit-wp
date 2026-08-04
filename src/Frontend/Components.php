@@ -1651,7 +1651,7 @@ final class Components {
 		return '' !== $text ? $text : __( 'Also email me about future events and content (optional).', 'emailexpert-events' );
 	}
 
-	public static function status_badges( array $data, bool $with_format = false ): array {
+	public static function status_badges( array $data, bool $with_format = false, bool $categories_shown = true ): array {
 		$badges = [];
 
 		// The platform's own delivery label leads when the widget asks for
@@ -1682,12 +1682,17 @@ final class Components {
 		}
 
 		// Compare with punctuation and case ignored: "In Person" and
-		// "in-person" both silence the built-in pill.
+		// "in-person" both silence the built-in pill. Only categories the
+		// widget is ACTUALLY rendering can silence anything: suppressing a
+		// badge because of a term the visitor cannot see deletes the only
+		// label on the row and looks like the feature is broken.
 		$fold  = static fn( string $text ): string => (string) preg_replace( '/[^a-z0-9]+/', '', strtolower( $text ) );
-		$taken = array_map(
-			static fn( $term ): string => $fold( (string) ( $term->name ?? '' ) ),
-			(array) ( $data['categories'] ?? [] )
-		);
+		$taken = $categories_shown
+			? array_map(
+				static fn( $term ): string => $fold( (string) ( $term->name ?? '' ) ),
+				(array) ( $data['categories'] ?? [] )
+			)
+			: [];
 
 		// Filter against the categories AND against badges already emitted:
 		// a session whose format label is "In person" must not also carry

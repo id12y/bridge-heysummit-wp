@@ -87,12 +87,13 @@ final class MappersTest extends TestCase {
 				'title'          => 'Email cruise',
 				'event'          => '101',
 				'is_agenda_item' => true,
-				'agenda_item_type' => 'Conference or Summit',
+				'agenda_item_type' => 'marker',
 				'custom_tag'     => 'Flagship',
 			]
 		);
 
-		$this->assertSame( 'Conference or Summit', $agenda['format'] );
+		// The organiser's tag, NOT the internal agenda enum ('marker').
+		$this->assertSame( 'Flagship', $agenda['format'] );
 		$this->assertSame( 'Flagship', $agenda['custom_tag'] );
 
 		// A webinar carries its delivery mode instead, slug tidied.

@@ -2079,3 +2079,20 @@ plugin's own template while we debated whether inference was safe.
 The guard added is a test that walks every definition offering
 show_format, renders it, and fails if no badge appears. A dead switch
 is now a failing build rather than something an operator discovers.
+
+D107 addendum 2 (v1.39.2): the first shipped label was the wrong field.
+`agenda_item_type` looked like the "Conference or Summit" text on
+HeySummit's hub, and the corroborating duration in the screenshot made
+it convincing, but on the live account it holds an internal enum:
+sessions rendered "Marker". The organiser's own wording lives in
+`custom_tag`, which the plugin had read in Lite for releases and never
+displayed unless category badges happened to be on. Resolution order is
+now organiser tag, then delivery mode, and internal enums are never
+public labels — a platform's bookkeeping vocabulary is not a visitor's.
+The `eex_session_format_label` filter is the seam for accounts whose
+wording still needs remapping.
+
+Second fix in the same release: the badge de-duplication compared
+against category terms even when category badges were switched off, so
+a session whose category matched its format rendered no label at all.
+Only what the visitor can actually see may silence something else.

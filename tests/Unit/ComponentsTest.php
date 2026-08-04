@@ -612,6 +612,24 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( '>Online<', $html );
 	}
 
+	public function test_hidden_categories_cannot_silence_the_format_badge(): void {
+		$term       = new \stdClass();
+		$term->name = 'Online';
+		$term->slug = 'online';
+
+		$data = [
+			'format'     => 'Online',
+			'categories' => [ $term ],
+		];
+
+		// Categories on screen: the badge would duplicate the visible term.
+		$this->assertSame( [], Components::status_badges( $data, true, true ) );
+
+		// Categories hidden: suppressing the badge because of a term the
+		// visitor cannot see leaves the row with no label at all.
+		$this->assertSame( [ 'Online' ], Components::status_badges( $data, true, false ) );
+	}
+
 	public function test_slug_formats_become_words_and_human_labels_pass_through(): void {
 		$this->assertSame( 'Pre recorded', LiveRepository::humanise_format( 'pre_recorded' ) );
 		$this->assertSame( 'Online', LiveRepository::humanise_format( 'online' ) );

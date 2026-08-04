@@ -114,26 +114,40 @@ abstract class BaseMapper {
 	}
 
 	/**
-	 * How the session is delivered, in the platform's own words: the badge
-	 * HeySummit's hub shows beside the time ("ONLINE", "Conference or
-	 * Summit"). Agenda items carry their type; everything else carries a
-	 * delivery mode. Both are free-form on the account, so the value is
-	 * passed through rather than translated to a fixed vocabulary — the
-	 * only tidying is turning machine slugs ("pre_recorded") into words.
-	 * Absent on either side means no badge, never an invented one.
+	 * The label a visitor should see for a session's format.
+	 *
+	 * ORDER MATTERS, and it is the organiser's words first. `custom_tag`
+	 * is what the organiser typed ("Conference or Summit"); it is the same
+	 * text HeySummit's own hub shows. `agenda_item_type` is an INTERNAL
+	 * enum on the same record and reads "marker" — accurate to the
+	 * platform's model, meaningless to a visitor, and shipping it as a
+	 * badge was the mistake this order exists to prevent. Internal enums
+	 * are never used as public labels; only the delivery mode is, because
+	 * "online" is a fact about the session rather than a bookkeeping type.
+	 *
+	 * Absent on both counts means no label, and the caller decides whether
+	 * to fall back to the in-person flag.
 	 *
 	 * @param array<string,mixed> $raw Raw talk record.
 	 */
 	protected static function format_of( array $raw ): string {
-		$label = ! empty( $raw['is_agenda_item'] )
-			? self::str( $raw, [ 'agenda_item_type' ] )
-			: '';
+		$label = self::str( $raw, [ 'custom_tag' ] );
 
 		if ( '' === $label ) {
 			$label = self::str( $raw, [ 'webinar_delivery_mode' ] );
 		}
 
-		return self::humanise_format( $label );
+		$label = self::humanise_format( $label );
+
+		/**
+		 * Filter the session's format label before it reaches the badge.
+		 * The seam for accounts whose wording needs remapping, or who want
+		 * the internal agenda type after all.
+		 *
+		 * @param string              $label Resolved label ('' = no badge).
+		 * @param array<string,mixed> $raw   Raw talk record.
+		 */
+		return (string) apply_filters( 'eex_session_format_label', $label, $raw );
 	}
 
 	/**
