@@ -2354,3 +2354,19 @@ still needs. It measures 5.32:1 on white and clears AA. The title's
 colour went the other way: the site's #142033 differs from the skin's
 ink by five units on one channel, invisible in use, so the token stays
 and the heading keeps moving with the rest of the skin.
+
+## 1.44.1 — the uncertain values made overridable
+
+Two of the heading's values are not measurements: the title's fluid
+curve is reconstructed from a single viewport, and the space below the
+heading block was never captured at all. Rather than hold the release
+for a second reading, every value in the heading became a token with
+its current value as the fallback.
+
+The Elementor controls already covered this for any widget an editor
+opens. What they do not cover is a site-wide correction, or a site not
+using Elementor at all: those were left overriding
+.eex .eex-section-heading__title, which means matching its specificity
+before changing anything. A token is one declaration anywhere in the
+cascade. Rendering is unchanged — the fallbacks are the values that
+were already there — so this buys reach, not a new look.

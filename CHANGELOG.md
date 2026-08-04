@@ -3,6 +3,20 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.44.1
+- **Every value in the section heading is now overridable in one
+  declaration.** Size, weight, line height, tracking and transform for
+  both lines became `--eex-*` tokens, so a child theme, a block site or
+  a shortcode site can retune the heading without having to outrank the
+  plugin's own selectors. The Elementor Style tab already did this for
+  widgets an editor opens; this gives the same reach site-wide.
+- **Nothing moved.** Each token's fallback is the value that was there,
+  so the heading renders exactly as it did in 1.44.0.
+- This matters most for the two values that are not measurements: the
+  title's fluid curve, which was reconstructed from a single viewport,
+  and the space below the heading block, which was never measured.
+  Both can now be corrected from a theme without a plugin change.
+
 ## 1.44.0
 - **The editorial section heading now matches the site's own Featured
   News heading.** Sizing, weight, spacing and colour were read off

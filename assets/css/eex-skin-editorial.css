@@ -57,6 +57,27 @@
 	/* Measured: 9px under the whisper at a 12.48px whisper. */
 	--eex-whisper-gap: 0.5625rem;
 
+	/*
+	 * The heading's type, one token per value. Elementor already edits
+	 * all of this from the Style tab, but only for a widget an editor
+	 * has opened: these give a child theme, a block site or a shortcode
+	 * site the same reach in one declaration, without having to outrank
+	 * .eex .eex-section-heading__title to do it.
+	 *
+	 * Which of these are measured and which are read is set out at the
+	 * rules below, and matters if you are correcting one.
+	 */
+	--eex-whisper-size: 0.78rem;
+	--eex-whisper-weight: 750;
+	--eex-whisper-leading: 1.35;
+	--eex-whisper-tracking: 0.11em;
+	--eex-whisper-transform: uppercase;
+
+	--eex-title-size: clamp(1.5rem, 1.0714rem + 2.1429vw, 3rem);
+	--eex-title-weight: 600;
+	--eex-title-leading: 1.02;
+	--eex-title-tracking: -0.035em;
+
 	/* Scale: five steps, fluid, replacing sixteen ad-hoc sizes. */
 	--eex-step--1: clamp(0.79rem, 0.76rem + 0.15vw, 0.85rem);
 	--eex-step-0: clamp(0.9rem, 0.88rem + 0.15vw, 0.95rem);
@@ -604,13 +625,13 @@
 	font-family: var(--eex-sans);
 	/* Fixed, not fluid: measured 12.48px, and micro-type set in caps
 	   gains nothing from scaling with the viewport. */
-	font-size: 0.78rem;
+	font-size: var(--eex-whisper-size, 0.78rem);
 	/* 750, not 700 — the site sets a variable-font weight. Static Inter
 	   simply snaps to its nearest cut, so this is safe either way. */
-	font-weight: 750;
-	line-height: 1.35;
-	letter-spacing: 0.11em;
-	text-transform: uppercase;
+	font-weight: var(--eex-whisper-weight, 750);
+	line-height: var(--eex-whisper-leading, 1.35);
+	letter-spacing: var(--eex-whisper-tracking, 0.11em);
+	text-transform: var(--eex-whisper-transform, uppercase);
 	color: var(--eex-whisper-color);
 }
 
@@ -623,11 +644,11 @@
 	 * and lands on round endpoints. A second reading at a phone width
 	 * would confirm it — this curve predicts 25.5px at 390px.
 	 */
-	font-size: clamp(1.5rem, 1.0714rem + 2.1429vw, 3rem);
-	font-weight: 600;
+	font-size: var(--eex-title-size, clamp(1.5rem, 1.0714rem + 2.1429vw, 3rem));
+	font-weight: var(--eex-title-weight, 600);
 	/* Tight, as the site sets it: 1.02 and -0.035em. */
-	line-height: 1.02;
-	letter-spacing: -0.035em;
+	line-height: var(--eex-title-leading, 1.02);
+	letter-spacing: var(--eex-title-tracking, -0.035em);
 	/* The site's #142033 against the skin's #132038 — a difference of
 	   five units on one channel, invisible in use. Keeping the token
 	   means the heading stays in step if the ink is ever retuned. */
