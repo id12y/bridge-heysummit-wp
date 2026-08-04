@@ -3,6 +3,24 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.38.3
+- **Fixed: dead space below widgets on mobile.** v1.38.0 made every widget
+  root a CSS size container. Containment also stops child margins
+  collapsing out of the root, so the last child's bottom margin was
+  trapped inside it and rendered as blank space under the widget,
+  compounding down a page of stacked widgets (measured in an Elementor
+  column at 390px: 206px of content rendering 222px tall). Container-width
+  behaviour is now opt-in: add the class `eex-adaptive` to a section,
+  column or widget wrapper to get it, and inside that scope the edge
+  margins are neutralised so it costs no extra height. Everything else
+  lays out exactly as it did in 1.37.x.
+- **Listings can skip the first N.** Upcoming sessions and Upcoming events
+  gain a "Skip the first N" setting, so a listing placed under a featured
+  card can start at the second session instead of repeating the one above
+  it. Blank/0 (the default) is the previous behaviour. It stays a number
+  rather than a "hide featured" switch because the two widgets need not
+  agree on what is featured, and more than one card may sit above.
+
 ## 1.38.2
 - **Widgets can now sit on dark page sections.** Add the CSS class
   `eex-dark` to a section, column or widget wrapper (Elementor:

@@ -520,6 +520,35 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringNotContainsString( 'data-eex-countdown', $plain );
 	}
 
+	public function test_offset_skips_the_head_of_a_listing_without_changing_the_default(): void {
+		$this->make_talk( 'Soonest session', 3600 );
+		$this->make_talk( 'Second session', 7200 );
+		$this->make_talk( 'Third session', 10800 );
+
+		// Default: the list starts at the top, as it always has.
+		$all = Components::render( 'upcoming-sessions', [] );
+		$this->assertStringContainsString( 'Soonest session', $all );
+		$this->assertStringContainsString( 'Second session', $all );
+
+		// offset=1: the session a featured card above would be showing drops
+		// out, and the rest keep their order.
+		Cache::flush();
+		$skipped = Components::render( 'upcoming-sessions', [ 'offset' => 1 ] );
+		$this->assertStringNotContainsString( 'Soonest session', $skipped );
+		$this->assertStringContainsString( 'Second session', $skipped );
+		$this->assertStringContainsString( 'Third session', $skipped );
+
+		// offset and limit compose: skip one, then show one.
+		Cache::flush();
+		$window = Components::render( 'upcoming-sessions', [ 'offset' => 1, 'limit' => 1 ] );
+		$this->assertStringNotContainsString( 'Soonest session', $window );
+		$this->assertStringContainsString( 'Second session', $window );
+		$this->assertStringNotContainsString( 'Third session', $window );
+
+		// Distinct offsets must not collide in the fragment cache.
+		$this->assertNotSame( $all, Components::render( 'upcoming-sessions', [ 'offset' => 1 ] ) );
+	}
+
 	public function test_eyebrow_label_is_opt_in_everywhere_and_rewords_the_hero_kicker(): void {
 		$this->make_talk( 'Session A', 3600 );
 
