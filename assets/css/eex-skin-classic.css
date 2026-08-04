@@ -330,3 +330,25 @@
 	--eex-shadow-1: 0 1px 2px rgba(19, 32, 56, 0.06), 0 6px 18px rgba(19, 32, 56, 0.07);
 	--eex-shadow-2: 0 2px 6px rgba(19, 32, 56, 0.08), 0 14px 32px rgba(19, 32, 56, 0.12);
 }
+
+
+/* ---- Section heading ----------------------------------------------------- */
+
+/* Classic states a section more plainly: the same structure, its own
+   weight. Uppercase stays a style, not baked-in text. */
+.eex .eex-section-heading__whisper {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1);
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--eex-muted);
+}
+
+.eex .eex-section-heading__title {
+	font-family: var(--eex-serif);
+	font-size: var(--eex-step-2);
+	font-weight: 600;
+	line-height: 1.2;
+	color: var(--eex-ink);
+}

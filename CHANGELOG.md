@@ -3,6 +3,65 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.44.1
+- **Every value in the section heading is now overridable in one
+  declaration.** Size, weight, line height, tracking and transform for
+  both lines became `--eex-*` tokens, so a child theme, a block site or
+  a shortcode site can retune the heading without having to outrank the
+  plugin's own selectors. The Elementor Style tab already did this for
+  widgets an editor opens; this gives the same reach site-wide.
+- **Nothing moved.** Each token's fallback is the value that was there,
+  so the heading renders exactly as it did in 1.44.0.
+- This matters most for the two values that are not measurements: the
+  title's fluid curve, which was reconstructed from a single viewport,
+  and the space below the heading block, which was never measured.
+  Both can now be corrected from a theme without a plugin change.
+
+## 1.44.0
+- **The editorial section heading now matches the site's own Featured
+  News heading.** Sizing, weight, spacing and colour were read off
+  emailexpert.com as computed styles and transcribed, rather than
+  estimated from a screenshot: the whisper is a 0.78rem uppercase Inter
+  at weight 750 in the site's brighter blue (#2864dc), the title a
+  fluid Fraunces from 24px to 48px with the site's tight 1.02 line
+  height and -0.035em tracking.
+- **The Classic skin is untouched.** It goes on stating a section in
+  its own plainer voice; only the editorial skin follows the site.
+- **No webfont is loaded.** Fraunces is named, never fetched — where a
+  theme already serves it the heading matches, and everywhere else the
+  existing serif stack answers. There is no new network request and
+  nothing new for Lighthouse to weigh.
+- Every one of these values remains an Elementor control. The defaults
+  moved; the ability to overrule any of them from the Style tab is
+  exactly as it was.
+
+## 1.43.0
+- **A shared section heading on every widget that can carry one.** An
+  optional whisper (the small uppercase label) over an optional title,
+  matching the editorial pattern the site already uses elsewhere. One
+  implementation registered once, not copied per widget: it arrives as
+  a shortcode attribute, a block setting and an Elementor control set
+  together.
+- **Content controls**: show/hide switch, whisper, title, title HTML
+  tag (h2/h3/h4/div — no h1, so a widget never competes with the
+  page's own top-level heading) and alignment.
+- **Style controls** in their own Elementor "Section heading" group:
+  responsive alignment, space below the heading, maximum width,
+  whisper colour and typography and spacing, title colour, typography
+  and maximum width.
+- **Nothing empty is ever output.** Either field alone is enough,
+  neither requires the other, and with both blank — or the switch off
+  — no wrapper renders at all, so there is no residual spacing.
+- The switch defaults ON but both text fields default EMPTY, which is
+  how existing pages stay exactly as they were: a heading with no
+  content renders nothing.
+- Uppercase is applied as styling, never baked into the rendered text,
+  so an editor who sets Text Transform to None gets sentence case and
+  a screen reader is never handed shouted text.
+- The 1.38.1 `eyebrow` attribute is now the whisper. Saved values keep
+  working and the element keeps its `eex-eyebrow` class alongside the
+  new one, so existing custom CSS still applies.
+
 ## 1.42.0
 - **Editorial is the new default skin, and Classic is a supported
   choice beside it** (Settings → Display → Skin). Exactly one is

@@ -646,6 +646,74 @@ final class ComponentsTest extends TestCase {
 		$this->assertStringContainsString( 'data-eex-zone="1"', $html );
 	}
 
+	public function test_the_section_heading_renders_only_what_has_content(): void {
+		$this->make_talk( 'Heading probe', 3600 );
+
+		$render = fn( array $atts ): string => Components::render( 'upcoming-sessions', $atts );
+
+		// On by default, but empty by default: turning the feature on
+		// cannot put generic copy on an existing page.
+		$this->assertStringNotContainsString( 'eex-section-heading', $render( [] ) );
+
+		// Whisper and title.
+		$both = $render( [ 'eyebrow' => 'Upcoming events', 'heading_title' => 'Events and Sessions' ] );
+		$this->assertStringContainsString( 'eex-section-heading__whisper', $both );
+		$this->assertStringContainsString( '<h2 class="eex-section-heading__title">Events and Sessions</h2>', $both );
+
+		// Either alone is enough; neither requires the other.
+		$title_only = $render( [ 'heading_title' => 'Events and Sessions' ] );
+		$this->assertStringContainsString( 'eex-section-heading__title', $title_only );
+		$this->assertStringNotContainsString( 'eex-section-heading__whisper', $title_only );
+
+		$whisper_only = $render( [ 'eyebrow' => 'Upcoming events' ] );
+		$this->assertStringContainsString( 'eex-section-heading__whisper', $whisper_only );
+		$this->assertStringNotContainsString( 'eex-section-heading__title', $whisper_only );
+
+		// The switch removes the wrapper, not just its contents: no empty
+		// header, so no residual spacing to explain.
+		$off = $render( [ 'eyebrow' => 'Upcoming events', 'heading_title' => 'Events', 'heading_show' => 0 ] );
+		$this->assertStringNotContainsString( 'eex-section-heading', $off );
+	}
+
+	public function test_the_heading_uses_the_chosen_tag_and_never_an_h1(): void {
+		$this->make_talk( 'Tag probe', 3600 );
+
+		foreach ( [ 'h2', 'h3', 'h4', 'div' ] as $tag ) {
+			$html = Components::render( 'upcoming-sessions', [ 'heading_title' => 'Events', 'heading_tag' => $tag ] );
+			$this->assertStringContainsString( '<' . $tag . ' class="eex-section-heading__title">Events</' . $tag . '>', $html );
+		}
+
+		// A widget dropped into a page must not compete with the page's own
+		// top-level heading, so h1 is not on the menu and does not sneak
+		// through as a raw value either.
+		$this->assertArrayNotHasKey( 'h1', Components::definitions()['upcoming-sessions']['atts']['heading_tag']['options'] );
+
+		$forced = Components::render( 'upcoming-sessions', [ 'heading_title' => 'Events', 'heading_tag' => 'h1' ] );
+		$this->assertStringNotContainsString( '<h1', $forced );
+		$this->assertStringContainsString( '<h2 class="eex-section-heading__title">', $forced );
+	}
+
+	public function test_the_heading_is_shared_by_every_widget_that_can_carry_one(): void {
+		$definitions = Components::definitions();
+
+		// One implementation, registered once: if this drifts into a
+		// per-widget copy, some widget will quietly lose a control.
+		$carrying = array_keys(
+			array_filter( $definitions, static fn( array $def ): bool => isset( $def['atts']['heading_title'] ) )
+		);
+
+		$this->assertGreaterThan( 10, count( $carrying ) );
+
+		foreach ( $carrying as $component ) {
+			foreach ( [ 'heading_show', 'eyebrow', 'heading_title', 'heading_tag', 'heading_align' ] as $att ) {
+				$this->assertArrayHasKey( $att, $definitions[ $component ]['atts'], $component . ' is missing ' . $att );
+			}
+		}
+
+		// A chip has no surface for a section label and must not offer one.
+		$this->assertArrayNotHasKey( 'heading_title', $definitions['countdown']['atts'] );
+	}
+
 	public function test_every_widget_offering_the_format_toggle_actually_renders_it(): void {
 		$definitions = Components::definitions();
 
@@ -763,9 +831,11 @@ final class ComponentsTest extends TestCase {
 		$default = Components::render( 'upcoming-sessions', [] );
 		$this->assertStringNotContainsString( 'eex-eyebrow', $default );
 
-		// Opted in: the label renders inside the root, escaped.
+		// Opted in: the label renders inside the root, escaped. It is the
+		// section heading's whisper now, and keeps its original class so
+		// sites that styled eex-eyebrow in 1.38.1 are unaffected.
 		$labelled = Components::render( 'upcoming-sessions', [ 'eyebrow' => 'Now & next' ] );
-		$this->assertStringContainsString( '<p class="eex-eyebrow">Now &amp; next</p>', $labelled );
+		$this->assertStringContainsString( '<p class="eex-section-heading__whisper eex-eyebrow">Now &amp; next</p>', $labelled );
 
 		// The hero's kicker keeps its historical default (and never stacks
 		// a second label on top).

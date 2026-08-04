@@ -255,6 +255,36 @@
 	gap: 0.25em;
 }
 
+/* ---- Section heading ----------------------------------------------------- */
+
+/*
+ * A whisper over a title, above any widget. Structure only: the base has
+ * to stand up alone when a site dequeues the skin, and it must not
+ * decide what an editorial heading looks like.
+ *
+ * The wrapper is only ever rendered when it has content, so there is no
+ * empty-state to hide here, and no margin to collapse away.
+ */
+.eex-section-heading {
+	margin: 0 0 var(--eex-heading-gap, 1.25em);
+}
+
+.eex-section-heading--center {
+	text-align: center;
+}
+
+.eex-section-heading--right {
+	text-align: right;
+}
+
+.eex-section-heading__whisper {
+	margin: 0 0 var(--eex-whisper-gap, 0.4em);
+}
+
+.eex-section-heading__title {
+	margin: 0;
+}
+
 .eex-list-eyebrow {
 	display: flex;
 	flex-wrap: wrap;

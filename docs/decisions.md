@@ -2272,3 +2272,101 @@ Cost: +2.1KB gzipped on a page (base 8.5KB, editorial skin 4.5KB
 against Classic's 2.7KB). Above the +1.5KB guideline from the v1.23
 plan, and recorded rather than quietly passed: the excess is a second
 skin's worth of listing rules, and only one skin is ever delivered.
+
+D109 (v1.43.0): the section heading is one implementation, not a
+pattern applied seventeen times. It is declared once in
+Components::definitions() and rendered once in Components::render(),
+which is what makes it a shortcode attribute, a block setting and an
+Elementor control simultaneously — the same pipeline every other
+widget capability uses. A guard test walks the definitions and fails if
+any widget carrying the feature is missing one of its five controls,
+because the way this feature would rot is by drifting into per-widget
+copies that gradually disagree.
+
+Three decisions worth stating.
+
+DEFAULT ON, EMPTY BY DEFAULT. The brief asked for the heading enabled
+by default and also asked that existing instances never sprout generic
+copy. Both hold at once because an empty heading renders nothing: the
+switch is on, the fields are blank, and no markup or spacing appears
+until someone types something.
+
+UPPERCASE IS STYLING. The whisper is stored and rendered in whatever
+case the editor typed, and uppercased in CSS. Baking it into the text
+would make the Elementor Text Transform control a lie, and would hand
+a screen reader a string that some voices spell out letter by letter.
+
+NO H1. The tag select offers h2, h3, h4 and div. A widget is dropped
+into a page that already has a top-level heading, and offering h1 in
+the picker invites two. A raw h1 passed through the shortcode falls
+back to h2 rather than being honoured.
+
+The existing `eyebrow` attribute from 1.38.1 became the whisper rather
+than being deprecated beside it: same field, clearer name, and the
+element carries both the new class and the old `eex-eyebrow` one so
+sites that styled it are untouched. Two overlapping ways to put a small
+label above a widget would have been worse than one renamed.
+
+## 1.44.0 — matching the site's Featured News heading
+
+The shared section heading shipped in 1.43.0 with a type scale of the
+plugin's own invention. It now carries the site's. The values came from
+computed styles read off emailexpert.com in the browser and pasted
+back, because this environment's network policy denies the host — an
+earlier attempt to eyeball the same values from a screenshot was
+reverted unshipped, and the difference between the two attempts is the
+whole point of this entry.
+
+TRANSCRIBED, NOT ESTIMATED — EXCEPT ONCE, SAID SO. The measurement
+arrived at a single viewport width, which fixes a point but not a
+curve. The whisper is therefore set at its measured size and left
+fixed: micro-type in caps gains nothing from scaling. The title's
+clamp is a reconstruction — 24px at 320 rising to 48px at 1440 is the
+reading that passes through the measured 36.89px at 922px to within
+0.03% while landing on round endpoints. It is labelled as
+reconstructed in the stylesheet, with the prediction it makes at a
+phone width, so the next person can falsify it in one measurement
+instead of trusting it.
+
+RATIOS, NOT PIXELS. Every derived figure came back exact — 0.11em and
+1.35 on the whisper, -0.035em and 1.02 on the title — so they are
+stored as ratios. Transcribed pixel values would have been correct
+once and then quietly wrong the moment an editor changed the font size
+in Elementor, which is a thing the Style tab explicitly invites.
+
+NAMED, NEVER FETCHED. The site sets its title in Fraunces. The plugin
+names it at the head of a display token and loads nothing: no @import,
+no font file, no third-party request, no Lighthouse cost. A theme that
+already serves Fraunces gets the match; everywhere else the existing
+serif stack answers and the heading looks as it did.
+
+THE DISPLAY FACE IS SCOPED TO THE HEADING. Fraunces went into a new
+--eex-display token used by the section title alone, not into
+--eex-serif. What was measured was one heading, and pushing a new face
+through the token every editorial card title also reads would have
+restyled components whose appearance was already signed off, on the
+strength of a measurement that never covered them.
+
+ITS OWN BLUE, AND THE INK LEFT ALONE. The whisper's #2864dc is
+brighter than the established emailexpert navy, so it is its own token
+rather than a redefinition of --eex-accent, which the rest of the skin
+still needs. It measures 5.32:1 on white and clears AA. The title's
+colour went the other way: the site's #142033 differs from the skin's
+ink by five units on one channel, invisible in use, so the token stays
+and the heading keeps moving with the rest of the skin.
+
+## 1.44.1 — the uncertain values made overridable
+
+Two of the heading's values are not measurements: the title's fluid
+curve is reconstructed from a single viewport, and the space below the
+heading block was never captured at all. Rather than hold the release
+for a second reading, every value in the heading became a token with
+its current value as the fallback.
+
+The Elementor controls already covered this for any widget an editor
+opens. What they do not cover is a site-wide correction, or a site not
+using Elementor at all: those were left overriding
+.eex .eex-section-heading__title, which means matching its specificity
+before changing anything. A token is one declaration anywhere in the
+cascade. Rendering is unchanged — the fallbacks are the values that
+were already there — so this buys reach, not a new look.
