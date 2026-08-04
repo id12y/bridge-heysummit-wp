@@ -363,3 +363,20 @@ talks do not necessarily set it, so its absence cannot be read as
 "online". Discovery now prints `custom_tag`, `webinar_delivery_mode`
 and `inperson_available` verbatim, plus the event's first tag entry,
 to settle what each account actually sends.
+
+## What labels a session, on this account (v1.41.0)
+
+Confirmed by the operator, and none of it is readable as sent:
+
+- `custom_tag` — a tag record ID (`2`). The event's inline `tags` do
+  not name the IDs the talks use.
+- `agenda_item_type` — `marker` for an in-person conference or summit,
+  `note` for a meetup. A real signal in HeySummit's own vocabulary.
+- `webinar_delivery_mode` — an enum integer (`1`) present on sessions
+  HeySummit delivers itself, absent on agenda items. Presence is the
+  only usable part.
+- `inperson_available` — false even on the in-person event, because it
+  sits on the talk record. Never read as evidence either way.
+
+So the public wording comes from the operator's label table, keyed by
+whichever of those values a session carries.

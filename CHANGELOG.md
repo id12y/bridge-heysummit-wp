@@ -3,6 +3,23 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.41.0
+- **The agenda item type is translated, not discarded.** A time marker
+  is an in-person conference or summit; a schedule note is a meetup.
+  1.39.2 dropped the field because it reads "marker" — but the fix for
+  an internal word was to translate it, not to throw away the meaning
+  it carried. Give each value its public wording under Settings →
+  Display and the badge says what the session is. A value with no
+  wording shows no badge; the raw enum never reaches a card.
+- **Online is claimed on positive evidence.** A session HeySummit
+  delivers itself carries a webinar delivery mode; agenda items do
+  not. That presence is the signal — the value is an enum integer and
+  says nothing readable. An absent in-person flag still proves
+  nothing, which is the inference that once badged the in-person FORUM
+  as Online. Add an `online = ...` line to reword it.
+- The settings list now covers both kinds of value a session can be
+  labelled by, tag IDs and agenda types, each with an example session.
+
 ## 1.40.3
 - **The tag ID list is never silently absent.** It only rendered when
   it had something to show, so an empty list and a build without the

@@ -2192,3 +2192,32 @@ positive count points at HeySummit's tagging. The plugin already
 applies this rule to visitor-facing listings, which render an empty
 state rather than a void; an admin screen reporting on live data has
 at least as much reason to.
+
+D107 addendum 8 (v1.41.0): the operator corrected the premise this
+whole line of releases rested on. `agenda_item_type` is not
+bookkeeping — on this account a time marker IS the in-person
+conference or summit and a schedule note IS the meetup. The original
+report said the plugin "does not translate internal types set by
+HeySummit with the tags added by the organiser", and translate was the
+operative word. 1.39.2 read it as "do not show internal types", threw
+the field away, and lost the meaning along with the wording.
+
+Both halves were wrong in the same way. Printing "Marker" treated an
+internal token as a label; deleting the field treated it as noise. It
+is neither: it is a real signal in a private vocabulary, and the
+translation between that vocabulary and the public one belongs to the
+operator, who is the only party who knows it. Every source now goes
+through the same operator-owned label table — tag ID, agenda type, and
+the word for online — and anything untranslated shows nothing.
+
+"Online" returns, but on positive evidence: a session HeySummit
+delivers itself carries a webinar delivery mode, and an agenda item
+does not. The presence of the field is the signal; its value is an
+enum integer and says nothing readable. That is a different claim from
+the one removed in addendum 4, which read an ABSENT in-person flag as
+proof of an online session.
+
+The wider lesson, after four releases on one badge: when an operator
+reports that something is not translated, ask what the untranslated
+value MEANS before deciding it means nothing. The plugin had the right
+field in hand at 1.39.0 and spent three releases moving away from it.
