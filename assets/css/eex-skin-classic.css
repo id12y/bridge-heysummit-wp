@@ -1,13 +1,16 @@
 /**
- * emailexpert Events — site skin.
+ * emailexpert Events — Classic skin.
  *
- * The deliberate emailexpert look for every widget: one token set, an
- * editorial type scale, serif display headings, unified buttons, badges
- * and surfaces. Additive by design — every rule either sets an --eex-*
- * token that eex.css already consumes, or styles an existing eex- class.
- * Deleting this file reverts all widgets to the neutral base look.
- * Elementor style controls keep working: they write the same tokens at
- * higher (page-scoped) specificity, so operator choices win over these
+ * The look this plugin shipped through 1.41: dark solid badges, outlined
+ * secondary buttons, full-width row rules, a timezone beside every time.
+ * Kept as a supported choice (Settings > Display > Skin) for sites that
+ * prefer it, NOT as a compatibility shim — it is maintained alongside
+ * Editorial and exactly one skin loads per page.
+ *
+ * Additive by design: every rule either sets an --eex-* token that
+ * eex.css already consumes, or styles an existing eex- class. Elementor
+ * style controls keep working — they write the same tokens at higher
+ * (page-scoped) specificity, so operator choices win over these
  * defaults.
  */
 

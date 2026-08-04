@@ -892,6 +892,17 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><?php esc_html_e( 'Skin', 'emailexpert-events' ); ?></th>
+				<td>
+					<?php $eex_skin = 'classic' === (string) Options::setting( 'skin' ) ? 'classic' : 'editorial'; ?>
+					<select name="settings[skin]">
+						<option value="editorial" <?php selected( 'editorial', $eex_skin ); ?>><?php esc_html_e( 'Editorial — date-led rows, quiet secondary actions, soft badges', 'emailexpert-events' ); ?></option>
+						<option value="classic" <?php selected( 'classic', $eex_skin ); ?>><?php esc_html_e( 'Classic — the look through 1.41: solid badges, outlined buttons', 'emailexpert-events' ); ?></option>
+					</select>
+					<p class="description"><?php esc_html_e( 'Exactly one skin loads, so choosing between them never costs a second stylesheet. Both read the same style tokens, so Elementor style controls keep overriding either. Dequeue the eex-skin handle to drop to unstyled base markup.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><label for="eex-date-format"><?php esc_html_e( 'Date format override', 'emailexpert-events' ); ?></label></th>
 				<td>
 					<input type="text" id="eex-date-format" name="settings[date_format]" value="<?php echo esc_attr( (string) Options::setting( 'date_format' ) ); ?>" placeholder="<?php echo esc_attr( get_option( 'date_format' ) ); ?>" />
@@ -1017,6 +1028,17 @@ final class SettingsPage {
 		?>
 		<h2><?php esc_html_e( 'Display', 'emailexpert-events' ); ?></h2>
 		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Skin', 'emailexpert-events' ); ?></th>
+				<td>
+					<?php $eex_skin = 'classic' === (string) Options::setting( 'skin' ) ? 'classic' : 'editorial'; ?>
+					<select name="settings[skin]">
+						<option value="editorial" <?php selected( 'editorial', $eex_skin ); ?>><?php esc_html_e( 'Editorial — date-led rows, quiet secondary actions, soft badges', 'emailexpert-events' ); ?></option>
+						<option value="classic" <?php selected( 'classic', $eex_skin ); ?>><?php esc_html_e( 'Classic — the look through 1.41: solid badges, outlined buttons', 'emailexpert-events' ); ?></option>
+					</select>
+					<p class="description"><?php esc_html_e( 'Exactly one skin loads, so choosing between them never costs a second stylesheet. Both read the same style tokens, so Elementor style controls keep overriding either. Dequeue the eex-skin handle to drop to unstyled base markup.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
 			<tr>
 				<th scope="row"><label for="eex-date-format"><?php esc_html_e( 'Date format override', 'emailexpert-events' ); ?></label></th>
 				<td>
@@ -1207,6 +1229,7 @@ final class SettingsPage {
 		$values = $this->registration_values( $posted ) + [
 			'lite_ttl'          => max( 1, min( 1440, (int) ( $posted['lite_ttl'] ?? 15 ) ) ),
 			'date_format'       => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
+			'skin'              => 'classic' === (string) ( $posted['skin'] ?? '' ) ? 'classic' : 'editorial',
 			'format_tag_labels' => sanitize_textarea_field( (string) ( $posted['format_tag_labels'] ?? '' ) ),
 			'cache_ttl'         => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
 			'schema_enabled'    => empty( $posted['schema_enabled'] ) ? 0 : 1,
@@ -1394,6 +1417,7 @@ final class SettingsPage {
 			$this->registration_values( $posted ) + [
 				'frequency'             => $frequency,
 				'date_format'           => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
+				'skin'                  => 'classic' === (string) ( $posted['skin'] ?? '' ) ? 'classic' : 'editorial',
 				'format_tag_labels'     => sanitize_textarea_field( (string) ( $posted['format_tag_labels'] ?? '' ) ),
 				'cache_ttl'             => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
 				'series_colours'        => $colours,

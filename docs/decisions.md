@@ -2221,3 +2221,54 @@ The wider lesson, after four releases on one badge: when an operator
 reports that something is not translated, ask what the untranslated
 value MEANS before deciding it means nothing. The plugin had the right
 field in hand at 1.39.0 and spent three releases moving away from it.
+
+D108 (v1.42.0): the session list was neatly formatted and flat — dates,
+labels, names and two outlined buttons all competing at the same
+strength. The redesign is a hierarchy change, not a rebuild, and it
+came with four constraints worth recording.
+
+DOM ORDER LEADS. The badge moved above the title in the MARKUP rather
+than being lifted there in CSS, and the calendar links became a sibling
+of the actions rather than being repositioned out of them. Visual order
+achieved by CSS reordering is a lie told to sighted users and not told
+to anyone else; here the stacked mobile layout, the desktop layout and
+the screen reader all follow the same sequence because there is only
+one sequence.
+
+THE TIMEZONE NOTE IS RENDERING LOGIC. Stating "Times shown in Madrid
+time" once above a list is only an improvement while it stays true, and
+the client rewrites those times into the visitor's own zone. So the
+note is emitted by the same code that decides the zone, carries the
+event zone in a data attribute, and is rewritten by the same pass that
+rewrites the times — verified by driving the browser in two zones and
+reading both. It is also suppressed entirely when the rows disagree,
+because one note over mixed zones is false for half of them.
+
+CLASSIC IS A SKIN, NOT A SHIM. The previous look is selectable, not
+merely reachable by deleting a file. Both skins are self-contained and
+exactly one is enqueued under the same handle, so the choice costs
+nothing at delivery. What Classic cannot preserve is the old DOM: the
+badge sits above the title there too, because that was a markup change
+made for accessibility, not a skin opinion.
+
+STRUCTURE BELONGS TO THE BASE. The first draft put the new markup's
+structural rules in the editorial skin only, which left Classic
+rendering "Thu, Aug 62:03 PM" and an unstyled metadata line. Rules that
+any skin needs — the stacked time, the eyebrow row, the metadata line —
+moved to eex.css, which also has to stand up alone when a site dequeues
+the skin. Skins carry opinions; the base carries structure.
+
+Two mistakes made and fixed during the pass, both worth remembering.
+Replacing the base's flexbox row with a grid discarded `flex: 1 1 14em`
+on the middle column and let the actions track starve the title until
+it wrapped one character per line — tune a working layout, do not
+replace it. And a flat `max-width: 24rem` on the actions column
+overflowed a 375px viewport by 9px, which is a horizontal scrollbar on
+every phone; `min(24rem, 100%)` is the fix. Both were caught by
+measuring in a real browser at 375 and 1440 rather than by reading the
+CSS.
+
+Cost: +2.1KB gzipped on a page (base 8.5KB, editorial skin 4.5KB
+against Classic's 2.7KB). Above the +1.5KB guideline from the v1.23
+plan, and recorded rather than quietly passed: the excess is a second
+skin's worth of listing rules, and only one skin is ever delivered.

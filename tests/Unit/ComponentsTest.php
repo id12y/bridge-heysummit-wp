@@ -578,6 +578,74 @@ final class ComponentsTest extends TestCase {
 		$this->assertSame( [ 'Track 2' ], $badges( [ 'format' => 'Track 2' ], true ) );
 	}
 
+	public function test_the_list_row_reads_in_the_order_it_is_written(): void {
+		$id = $this->make_talk( 'Editorial row', 3600 );
+		update_post_meta( $id, '_eex_format', 'Conference or Summit' );
+
+		$html = Components::render( 'upcoming-sessions', [ 'layout' => 'list', 'show_format' => 1 ] );
+
+		// Source order IS the reading order: badge, then title, then the
+		// people. Nothing here is put in place by CSS reordering, so a
+		// screen reader and a sighted visitor meet the same sequence.
+		$badge = strpos( $html, 'eex-list-eyebrow' );
+		$title = strpos( $html, 'eex-list-title' );
+		$meta  = strpos( $html, 'eex-list-meta' );
+
+		$this->assertNotFalse( $badge );
+		$this->assertNotFalse( $title );
+		$this->assertLessThan( $title, $badge, 'the badge must precede the title in the markup' );
+
+		if ( false !== $meta ) {
+			$this->assertLessThan( $meta, $title, 'the title must precede its metadata' );
+		}
+	}
+
+	public function test_a_listing_states_one_shared_timezone_instead_of_repeating_it(): void {
+		$this->make_talk( 'Shared zone one', 3600 );
+		$this->make_talk( 'Shared zone two', 7200 );
+
+		$html = Components::render( 'upcoming-sessions', [ 'layout' => 'list' ] );
+
+		// Stated once, above the list...
+		$this->assertSame( 1, substr_count( $html, 'data-eex-tz-note' ) );
+
+		// ...so the rows are told not to name it themselves, and the
+		// client is told the same thing rather than deciding separately.
+		$this->assertStringContainsString( 'data-eex-zone="0"', $html );
+		$this->assertStringNotContainsString( 'data-eex-zone="1"', $html );
+	}
+
+	public function test_a_mixed_timezone_listing_keeps_naming_the_zone_per_row(): void {
+		$one = $this->make_talk( 'London session', 3600 );
+		$two = $this->make_talk( 'Madrid session', 7200 );
+
+		$zones = [ $one => 'Europe/London', $two => 'Europe/Madrid' ];
+		$hs_id = 700;
+
+		foreach ( $zones as $talk_id => $zone ) {
+			++$hs_id;
+			wp_insert_post(
+				[
+					'post_type'   => 'eex_event',
+					'post_status' => 'publish',
+					'post_title'  => $zone,
+					'meta_input'  => [
+						'_eex_timezone'     => $zone,
+						'_eex_heysummit_id' => (string) $hs_id,
+					],
+				]
+			);
+			update_post_meta( $talk_id, '_eex_source_event_id', (string) $hs_id );
+		}
+
+		$html = Components::render( 'upcoming-sessions', [ 'layout' => 'list' ] );
+
+		// One note over rows in different zones would be a false statement
+		// about half of them.
+		$this->assertStringNotContainsString( 'data-eex-tz-note', $html );
+		$this->assertStringContainsString( 'data-eex-zone="1"', $html );
+	}
+
 	public function test_every_widget_offering_the_format_toggle_actually_renders_it(): void {
 		$definitions = Components::definitions();
 
