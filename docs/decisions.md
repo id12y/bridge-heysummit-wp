@@ -2272,3 +2272,37 @@ Cost: +2.1KB gzipped on a page (base 8.5KB, editorial skin 4.5KB
 against Classic's 2.7KB). Above the +1.5KB guideline from the v1.23
 plan, and recorded rather than quietly passed: the excess is a second
 skin's worth of listing rules, and only one skin is ever delivered.
+
+D109 (v1.43.0): the section heading is one implementation, not a
+pattern applied seventeen times. It is declared once in
+Components::definitions() and rendered once in Components::render(),
+which is what makes it a shortcode attribute, a block setting and an
+Elementor control simultaneously — the same pipeline every other
+widget capability uses. A guard test walks the definitions and fails if
+any widget carrying the feature is missing one of its five controls,
+because the way this feature would rot is by drifting into per-widget
+copies that gradually disagree.
+
+Three decisions worth stating.
+
+DEFAULT ON, EMPTY BY DEFAULT. The brief asked for the heading enabled
+by default and also asked that existing instances never sprout generic
+copy. Both hold at once because an empty heading renders nothing: the
+switch is on, the fields are blank, and no markup or spacing appears
+until someone types something.
+
+UPPERCASE IS STYLING. The whisper is stored and rendered in whatever
+case the editor typed, and uppercased in CSS. Baking it into the text
+would make the Elementor Text Transform control a lie, and would hand
+a screen reader a string that some voices spell out letter by letter.
+
+NO H1. The tag select offers h2, h3, h4 and div. A widget is dropped
+into a page that already has a top-level heading, and offering h1 in
+the picker invites two. A raw h1 passed through the shortcode falls
+back to h2 rather than being honoured.
+
+The existing `eyebrow` attribute from 1.38.1 became the whisper rather
+than being deprecated beside it: same field, clearer name, and the
+element carries both the new class and the old `eex-eyebrow` one so
+sites that styled it are untouched. Two overlapping ways to put a small
+label above a widget would have been worse than one renamed.

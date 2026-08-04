@@ -1150,23 +1150,64 @@ final class Components {
 			}
 		}
 
-		// Shared attribute: an optional eyebrow — the small uppercase label
-		// above a section ("UP NEXT", "OUR SPONSORS"). Blank (the default)
-		// renders nothing at all, so existing pages are untouched. Chips,
-		// the fixed bar and the search box are skipped — a section label
-		// has no surface there.
-		$eyebrow_skip = [ 'countdown', 'live-now', 'session-filter', 'reg-counter', 'register-bar' ];
+		// Shared attributes: the section heading — a small label (the
+		// "whisper") over a larger title, the pattern the site's editorial
+		// sections already use. One definition here gives every widget the
+		// same controls as a shortcode, a block and an Elementor widget,
+		// rather than the same code copied per widget.
+		//
+		// The switch defaults ON but both text fields default EMPTY, which
+		// is what keeps existing pages untouched: a heading with nothing in
+		// it renders no markup and no spacing, so turning the feature on by
+		// default cannot put generic copy on anyone's site. `eyebrow` keeps
+		// its attribute name — pages have been saving it since 1.38.1 — and
+		// is simply the whisper under a clearer label.
+		//
+		// Chips, the fixed bar and the search box are skipped: a section
+		// label has no surface there.
+		$heading_skip = [ 'countdown', 'live-now', 'session-filter', 'reg-counter', 'register-bar' ];
 		foreach ( array_keys( $definitions ) as $component ) {
-			if ( ! in_array( $component, $eyebrow_skip, true ) ) {
-				$definitions[ $component ]['atts']['eyebrow'] = [
-					'type'    => 'string',
-					'default' => '',
-					'label'   => __( 'Eyebrow label (small uppercase text above the widget; blank = none)', 'emailexpert-events' ),
-				];
+			if ( in_array( $component, $heading_skip, true ) ) {
+				continue;
 			}
+
+			$definitions[ $component ]['atts']['heading_show']  = $flag( __( 'Show the section heading', 'emailexpert-events' ), 1 );
+			$definitions[ $component ]['atts']['eyebrow']       = [
+				'type'    => 'string',
+				'default' => '',
+				'label'   => __( 'Whisper (small label above the title; blank = none)', 'emailexpert-events' ),
+			];
+			$definitions[ $component ]['atts']['heading_title'] = [
+				'type'    => 'string',
+				'default' => '',
+				'label'   => __( 'Title (blank = none)', 'emailexpert-events' ),
+			];
+			$definitions[ $component ]['atts']['heading_tag']   = [
+				'type'    => 'string',
+				'default' => 'h2',
+				// No h1: a widget dropped into a page must not compete with
+				// the page's own top-level heading.
+				'options' => [
+					'h2'  => __( 'H2', 'emailexpert-events' ),
+					'h3'  => __( 'H3', 'emailexpert-events' ),
+					'h4'  => __( 'H4', 'emailexpert-events' ),
+					'div' => __( 'div (no heading semantics)', 'emailexpert-events' ),
+				],
+				'label'   => __( 'Title HTML tag', 'emailexpert-events' ),
+			];
+			$definitions[ $component ]['atts']['heading_align'] = [
+				'type'    => 'string',
+				'default' => 'left',
+				'options' => [
+					'left'   => __( 'Left', 'emailexpert-events' ),
+					'center' => __( 'Centre', 'emailexpert-events' ),
+					'right'  => __( 'Right', 'emailexpert-events' ),
+				],
+				'label'   => __( 'Heading alignment', 'emailexpert-events' ),
+			];
 		}
 
-		// The hero already carries its own eyebrow (the kicker); there the
+		// The hero already carries its own whisper (the kicker); there the
 		// attribute rewords it rather than adding a second label, and a
 		// switch hides it outright.
 		$definitions['next-session']['atts']['eyebrow']['label'] = __( 'Kicker text (blank = "Up next")', 'emailexpert-events' );
@@ -1225,14 +1266,9 @@ final class Components {
 		// Lite: the block itself carries Event JSON-LD for what it rendered.
 		$html .= self::inline_schema( $name );
 
-		// The eyebrow rides inside the root so the skin and any Elementor
-		// style controls scope to it. The hero is the one exception: there
-		// the attribute feeds the existing kicker (see render_next_session)
-		// rather than stacking a second label above it.
-		$eyebrow = trim( (string) ( $atts['eyebrow'] ?? '' ) );
-		if ( '' !== $eyebrow && 'next-session' !== $name ) {
-			$html = '<p class="eex-eyebrow">' . esc_html( $eyebrow ) . '</p>' . $html;
-		}
+		// The heading rides inside the root so the skin and any Elementor
+		// style controls scope to it.
+		$html = self::section_heading( $name, $atts ) . $html;
 
 		$html = '<div class="eex eex-' . esc_attr( $name ) . '">' . $html . '</div>';
 
@@ -1894,6 +1930,57 @@ final class Components {
 		echo '</ul>';
 
 		return (string) ob_get_clean() . $drawer['html'];
+	}
+
+	/**
+	 * The section heading: an optional whisper over an optional title.
+	 *
+	 * One renderer for every widget. Emits nothing at all when the switch
+	 * is off or both fields are blank — no wrapper, no empty heading
+	 * element, and therefore no spacing to explain away. Whichever field
+	 * has content renders; neither requires the other.
+	 *
+	 * The hero is the one exception: there the whisper feeds the existing
+	 * kicker (see render_next_session) instead of stacking a second label
+	 * above it, so only a title can come from here.
+	 *
+	 * @param string              $name Component name.
+	 * @param array<string,mixed> $atts Attributes.
+	 */
+	private static function section_heading( string $name, array $atts ): string {
+		if ( isset( $atts['heading_show'] ) && empty( $atts['heading_show'] ) ) {
+			return '';
+		}
+
+		$whisper = 'next-session' === $name ? '' : trim( (string) ( $atts['eyebrow'] ?? '' ) );
+		$title   = trim( (string) ( $atts['heading_title'] ?? '' ) );
+
+		if ( '' === $whisper && '' === $title ) {
+			return '';
+		}
+
+		$tag = (string) ( $atts['heading_tag'] ?? 'h2' );
+		if ( ! in_array( $tag, [ 'h2', 'h3', 'h4', 'div' ], true ) ) {
+			$tag = 'h2';
+		}
+
+		$align   = (string) ( $atts['heading_align'] ?? 'left' );
+		$align   = in_array( $align, [ 'left', 'center', 'right' ], true ) ? $align : 'left';
+		$classes = 'eex-section-heading eex-section-heading--' . $align;
+
+		$html = '<header class="' . esc_attr( $classes ) . '">';
+
+		if ( '' !== $whisper ) {
+			// eex-eyebrow stays on the element: it is the class this label
+			// shipped with in 1.38.1, and sites have styled it.
+			$html .= '<p class="eex-section-heading__whisper eex-eyebrow">' . esc_html( $whisper ) . '</p>';
+		}
+
+		if ( '' !== $title ) {
+			$html .= '<' . $tag . ' class="eex-section-heading__title">' . esc_html( $title ) . '</' . $tag . '>';
+		}
+
+		return $html . '</header>';
 	}
 
 	/**

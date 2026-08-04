@@ -673,6 +673,188 @@ class ComponentWidget extends \Elementor\Widget_Base {
 
 		// Typography: theme fonts are inherited by default; these groups only
 		// emit rules once the user changes something.
+		// The section heading gets its own Style group rather than being
+		// folded into the general typography one: an editor changing a
+		// section title should not have to know it is also a "title".
+		// Registered here once and inherited by every widget, so the
+		// controls are identical wherever the heading appears.
+		$this->start_controls_section(
+			'eex_section_heading_style',
+			[
+				'label' => __( 'Section heading', 'emailexpert-events' ),
+				'tab'   => \Elementor\Controls_Manager::TAB_STYLE,
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_heading_align',
+			[
+				'label'     => __( 'Alignment', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::CHOOSE,
+				'options'   => [
+					'left'   => [
+						'title' => __( 'Left', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-left',
+					],
+					'center' => [
+						'title' => __( 'Centre', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-center',
+					],
+					'right'  => [
+						'title' => __( 'Right', 'emailexpert-events' ),
+						'icon'  => 'eicon-text-align-right',
+					],
+				],
+				'selectors' => [
+					'{{WRAPPER}} .eex .eex-section-heading' => 'text-align: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_heading_gap',
+			[
+				'label'      => __( 'Space below the heading', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'range'      => [
+					'px' => [
+						'min' => 0,
+						'max' => 120,
+					],
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-section-heading' => 'margin-block-end: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_heading_max',
+			[
+				'label'      => __( 'Maximum width', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px', '%', 'ch' ],
+				'range'      => [
+					'px' => [
+						'min' => 200,
+						'max' => 1200,
+					],
+					'ch' => [
+						'min' => 20,
+						'max' => 90,
+					],
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-section-heading' => 'max-width: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_control(
+			'eex_whisper_heading',
+			[
+				'label'     => __( 'Whisper', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::HEADING,
+				'separator' => 'before',
+			]
+		);
+
+		$this->add_control(
+			'eex_whisper_colour',
+			[
+				'label'     => __( 'Colour', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => [
+					'{{WRAPPER}} .eex .eex-section-heading__whisper' => 'color: {{VALUE}};',
+				],
+			]
+		);
+
+		// Typography covers size, weight, transform, letter spacing and
+		// line height, responsively — which is why the default uppercase
+		// is applied as STYLE and never baked into the rendered text: an
+		// editor who sets Text Transform to None here actually gets it.
+		$this->add_group_control(
+			\Elementor\Group_Control_Typography::get_type(),
+			[
+				'name'     => 'eex_whisper_typo',
+				'label'    => __( 'Typography', 'emailexpert-events' ),
+				'selector' => '{{WRAPPER}} .eex .eex-section-heading__whisper',
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_whisper_gap',
+			[
+				'label'      => __( 'Space below the whisper', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px', 'em', 'rem' ],
+				'range'      => [
+					'px' => [
+						'min' => 0,
+						'max' => 48,
+					],
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-section-heading__whisper' => 'margin-block-end: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->add_control(
+			'eex_heading_title_heading',
+			[
+				'label'     => __( 'Title', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::HEADING,
+				'separator' => 'before',
+			]
+		);
+
+		$this->add_control(
+			'eex_heading_title_colour',
+			[
+				'label'     => __( 'Colour', 'emailexpert-events' ),
+				'type'      => \Elementor\Controls_Manager::COLOR,
+				'selectors' => [
+					'{{WRAPPER}} .eex .eex-section-heading__title' => 'color: {{VALUE}};',
+				],
+			]
+		);
+
+		$this->add_group_control(
+			\Elementor\Group_Control_Typography::get_type(),
+			[
+				'name'     => 'eex_heading_title_typo',
+				'label'    => __( 'Typography', 'emailexpert-events' ),
+				'selector' => '{{WRAPPER}} .eex .eex-section-heading__title',
+			]
+		);
+
+		$this->add_responsive_control(
+			'eex_heading_title_max',
+			[
+				'label'      => __( 'Title maximum width', 'emailexpert-events' ),
+				'type'       => \Elementor\Controls_Manager::SLIDER,
+				'size_units' => [ 'px', '%', 'ch' ],
+				'range'      => [
+					'px' => [
+						'min' => 200,
+						'max' => 1200,
+					],
+					'ch' => [
+						'min' => 15,
+						'max' => 60,
+					],
+				],
+				'selectors'  => [
+					'{{WRAPPER}} .eex .eex-section-heading__title' => 'max-width: {{SIZE}}{{UNIT}};',
+				],
+			]
+		);
+
+		$this->end_controls_section();
+
 		$this->start_controls_section(
 			'eex_typography',
 			[

@@ -3,6 +3,33 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.43.0
+- **A shared section heading on every widget that can carry one.** An
+  optional whisper (the small uppercase label) over an optional title,
+  matching the editorial pattern the site already uses elsewhere. One
+  implementation registered once, not copied per widget: it arrives as
+  a shortcode attribute, a block setting and an Elementor control set
+  together.
+- **Content controls**: show/hide switch, whisper, title, title HTML
+  tag (h2/h3/h4/div — no h1, so a widget never competes with the
+  page's own top-level heading) and alignment.
+- **Style controls** in their own Elementor "Section heading" group:
+  responsive alignment, space below the heading, maximum width,
+  whisper colour and typography and spacing, title colour, typography
+  and maximum width.
+- **Nothing empty is ever output.** Either field alone is enough,
+  neither requires the other, and with both blank — or the switch off
+  — no wrapper renders at all, so there is no residual spacing.
+- The switch defaults ON but both text fields default EMPTY, which is
+  how existing pages stay exactly as they were: a heading with no
+  content renders nothing.
+- Uppercase is applied as styling, never baked into the rendered text,
+  so an editor who sets Text Transform to None gets sentence case and
+  a screen reader is never handed shouted text.
+- The 1.38.1 `eyebrow` attribute is now the whisper. Saved values keep
+  working and the element keeps its `eex-eyebrow` class alongside the
+  new one, so existing custom CSS still applies.
+
 ## 1.42.0
 - **Editorial is the new default skin, and Classic is a supported
   choice beside it** (Settings → Display → Skin). Exactly one is

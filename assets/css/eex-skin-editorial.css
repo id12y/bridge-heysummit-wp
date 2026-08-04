@@ -558,3 +558,33 @@
 		transform: none;
 	}
 }
+
+
+/* ---- Section heading ----------------------------------------------------- */
+
+/*
+ * The site's editorial section pattern: a quiet accent whisper over a
+ * serif title. Uppercase is applied HERE, as style, never baked into the
+ * rendered text — so an editor who sets Text Transform to None in
+ * Elementor actually gets sentence case, and a screen reader never has
+ * to read the label letter by letter.
+ */
+.eex .eex-section-heading__whisper {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1);
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--eex-accent);
+}
+
+.eex .eex-section-heading__title {
+	font-family: var(--eex-serif);
+	/* Capped at the top end so a fluid title does not become a billboard
+	   on a phone: step-3 alone reaches 2rem before the viewport does. */
+	font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2.25rem);
+	font-weight: 600;
+	line-height: 1.15;
+	letter-spacing: -0.01em;
+	color: var(--eex-ink);
+}
