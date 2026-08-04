@@ -902,9 +902,28 @@ final class SettingsPage {
 				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session tag labels', 'emailexpert-events' ); ?></label></th>
 				<td>
 					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="2 = Conference or Summit&#10;1 = Online"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
-					<?php $eex_tag_refs = $this->tag_refs_in_use(); ?>
+					<?php
+					$eex_tag_examined = 0;
+					$eex_tag_refs     = $this->tag_refs_in_use( $eex_tag_examined );
+					?>
+					<p class="description">
+						<strong><?php esc_html_e( 'Tag IDs on your sessions right now:', 'emailexpert-events' ); ?></strong>
+						<?php if ( empty( $eex_tag_refs ) ) : ?>
+							<?php
+							printf(
+								/* translators: %d: how many sessions were examined. */
+								esc_html( _n( 'none — %d session examined and it carries no tag.', 'none — %d sessions examined, none of them carries a tag.', (int) $eex_tag_examined, 'emailexpert-events' ) ),
+								(int) $eex_tag_examined
+							);
+							?>
+							<?php if ( 0 === (int) $eex_tag_examined ) : ?>
+								<?php esc_html_e( 'Nothing was fetched at all, so check Live status above before anything else.', 'emailexpert-events' ); ?>
+							<?php else : ?>
+								<?php esc_html_e( 'Tag these sessions in HeySummit and they will appear here.', 'emailexpert-events' ); ?>
+							<?php endif; ?>
+						<?php endif; ?>
+					</p>
 					<?php if ( ! empty( $eex_tag_refs ) ) : ?>
-						<p class="description"><strong><?php esc_html_e( 'Tag IDs on your sessions right now:', 'emailexpert-events' ); ?></strong></p>
 						<ul class="description" style="margin:0 0 .5em 1em;list-style:disc">
 							<?php foreach ( $eex_tag_refs as $eex_ref => $eex_example ) : ?>
 								<li>
@@ -1009,9 +1028,28 @@ final class SettingsPage {
 				<th scope="row"><label for="eex-tag-labels"><?php esc_html_e( 'Session tag labels', 'emailexpert-events' ); ?></label></th>
 				<td>
 					<textarea id="eex-tag-labels" name="settings[format_tag_labels]" rows="3" class="large-text code" placeholder="2 = Conference or Summit&#10;1 = Online"><?php echo esc_textarea( (string) Options::setting( 'format_tag_labels' ) ); ?></textarea>
-					<?php $eex_tag_refs = $this->tag_refs_in_use(); ?>
+					<?php
+					$eex_tag_examined = 0;
+					$eex_tag_refs     = $this->tag_refs_in_use( $eex_tag_examined );
+					?>
+					<p class="description">
+						<strong><?php esc_html_e( 'Tag IDs on your sessions right now:', 'emailexpert-events' ); ?></strong>
+						<?php if ( empty( $eex_tag_refs ) ) : ?>
+							<?php
+							printf(
+								/* translators: %d: how many sessions were examined. */
+								esc_html( _n( 'none — %d session examined and it carries no tag.', 'none — %d sessions examined, none of them carries a tag.', (int) $eex_tag_examined, 'emailexpert-events' ) ),
+								(int) $eex_tag_examined
+							);
+							?>
+							<?php if ( 0 === (int) $eex_tag_examined ) : ?>
+								<?php esc_html_e( 'Nothing was fetched at all, so check Live status above before anything else.', 'emailexpert-events' ); ?>
+							<?php else : ?>
+								<?php esc_html_e( 'Tag these sessions in HeySummit and they will appear here.', 'emailexpert-events' ); ?>
+							<?php endif; ?>
+						<?php endif; ?>
+					</p>
 					<?php if ( ! empty( $eex_tag_refs ) ) : ?>
-						<p class="description"><strong><?php esc_html_e( 'Tag IDs on your sessions right now:', 'emailexpert-events' ); ?></strong></p>
 						<ul class="description" style="margin:0 0 .5em 1em;list-style:disc">
 							<?php foreach ( $eex_tag_refs as $eex_ref => $eex_example ) : ?>
 								<li>
@@ -1448,11 +1486,14 @@ final class SettingsPage {
 	 *
 	 * @return array<string,array{title:string,label:string}> ref => example + resolved label.
 	 */
-	private function tag_refs_in_use(): array {
-		$repo = \Emailexpert\Events\Data\Repositories::current();
-		$out  = [];
+	private function tag_refs_in_use( ?int &$examined = null ): array {
+		$repo     = \Emailexpert\Events\Data\Repositories::current();
+		$out      = [];
+		$examined = 0;
 
 		foreach ( [ $repo->upcoming_talks( [ 'limit' => 0 ] ), $repo->past_talks( [ 'limit' => 20 ] ) ] as $set ) {
+			$examined += count( (array) $set );
+
 			foreach ( (array) $set as $talk ) {
 				$ref = trim( (string) ( $talk['tag_ref'] ?? '' ) );
 

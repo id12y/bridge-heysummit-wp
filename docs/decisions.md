@@ -2179,3 +2179,16 @@ place it is typed, by the tag IDs on the sessions the site displays,
 read from the same cache the front end fills. A setting whose values
 cannot be discovered from the screen that asks for them is not a
 usable setting.
+
+D107 addendum 7 (v1.40.3): the tag ID list rendered only when non-empty,
+so on a screen where it was missing there was no way to tell whether the
+build lacked the feature, the fetch had returned nothing, or the
+sessions simply carried no tags. Half an exchange went on establishing
+which — the diagnostic needed a diagnostic.
+
+The block now always renders its heading, and an empty one reports how
+many sessions were examined. Zero examined points at the fetch; a
+positive count points at HeySummit's tagging. The plugin already
+applies this rule to visitor-facing listings, which render an empty
+state rather than a void; an admin screen reporting on live data has
+at least as much reason to.

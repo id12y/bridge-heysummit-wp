@@ -3,6 +3,14 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.40.3
+- **The tag ID list is never silently absent.** It only rendered when
+  it had something to show, so an empty list and a build without the
+  feature looked identical on screen. The heading is always there now,
+  and when there is nothing to list it says how many sessions were
+  examined — which separates "nothing was fetched" from "nothing is
+  tagged", and separates both from "this version does not have it".
+
 ## 1.40.2
 - The tag labels field points at the list of IDs directly above it,
   rather than at Test connection — which is the route that came back
