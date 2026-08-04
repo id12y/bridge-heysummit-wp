@@ -1119,6 +1119,7 @@ final class Components {
 					'show_speakers'    => $show_speakers,
 					'speaker_info'     => $speaker_info,
 					'show_categories'  => $show_categories,
+					'show_format'      => $show_format,
 					'show_venue'       => $flag( __( 'Show the location (stage / venue)', 'emailexpert-events' ) ),
 					'show_address'     => $flag( __( 'Show the event venue address and map link', 'emailexpert-events' ) ),
 					'show_ics'         => $show_ics,

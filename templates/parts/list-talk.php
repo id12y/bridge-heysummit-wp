@@ -63,6 +63,9 @@ if ( '' === $eex_register_text ) {
 		<?php endif; ?>
 		<a class="eex-list-title" href="<?php echo esc_url( (string) $eex_data['permalink'] ); ?>"><?php echo esc_html( (string) $eex_data['title'] ); ?></a>
 
+		<?php foreach ( ( ! empty( $eex_show['format'] ) ? Components::status_badges( $eex_data, true ) : [] ) as $eex_status_badge ) : ?>
+			<span class="eex-badge eex-badge-status"><?php echo esc_html( $eex_status_badge ); ?></span>
+		<?php endforeach; ?>
 		<?php if ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) : ?>
 			<?php foreach ( $eex_data['categories'] as $eex_term ) : ?>
 				<span class="eex-badge eex-badge-<?php echo esc_attr( $eex_term->slug ); ?>"><?php echo esc_html( $eex_term->name ); ?></span>

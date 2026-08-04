@@ -60,7 +60,14 @@ if ( '' === $eex_register_text ) {
 		<?php if ( ! empty( $eex_show['venue'] ) && '' !== (string) ( $eex_data['venue'] ?? '' ) ) : ?>
 			<span class="eex-agenda-venue"><?php echo esc_html( (string) $eex_data['venue'] ); ?></span>
 		<?php endif; ?>
-		<span class="eex-badge eex-badge-online"><?php esc_html_e( 'Online', 'emailexpert-events' ); ?></span>
+		<?php
+		// This row used to stamp "Online" on EVERY session unconditionally,
+		// including in-person ones. The badge now says what the session
+		// actually is, and only when the widget asks for it.
+		foreach ( ( ! empty( $eex_show['format'] ) ? Components::status_badges( $eex_data, true ) : [] ) as $eex_status_badge ) :
+			?>
+			<span class="eex-badge eex-badge-status"><?php echo esc_html( $eex_status_badge ); ?></span>
+		<?php endforeach; ?>
 		<?php if ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) : ?>
 			<?php foreach ( $eex_data['categories'] as $eex_term ) : ?>
 				<span class="eex-badge eex-badge-<?php echo esc_attr( $eex_term->slug ); ?>"><?php echo esc_html( $eex_term->name ); ?></span>

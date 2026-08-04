@@ -2058,3 +2058,24 @@ the field's shape is undocumented and an offset read as hours when it
 is minutes moves every session by a working day. Discovery now prints
 it verbatim with its JSON type, and the mapping waits one round trip
 for the observed value — the D105 loop, applied to a read field.
+
+D107 addendum (v1.39.1): shipping the badge exposed three cases where
+a setting and its rendering had drifted apart, two of them introduced
+by the release itself. The featured session card honoured the format
+flag in its template but never offered the setting, because the toggle
+was added by matching an exact source line and that definition aligned
+its arrows differently — a reminder that a mechanical edit across
+definitions needs a test, not a careful eye. The schedule, list and
+compact layouts had the opposite fault: the setting appeared and did
+nothing.
+
+The third case predates this work and is the worst: agenda rows
+hard-coded an "Online" badge on EVERY session, in-person included, and
+a test asserted its presence, so the wrong claim was protected by the
+suite. The rule this release exists to serve — never state something
+about a session the data does not support — was being violated by the
+plugin's own template while we debated whether inference was safe.
+
+The guard added is a test that walks every definition offering
+show_format, renders it, and fails if no badge appears. A dead switch
+is now a failing build rather than something an operator discovers.

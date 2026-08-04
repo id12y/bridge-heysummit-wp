@@ -3,6 +3,21 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.39.1
+- **Fixed: the agenda layout labelled every session "Online".** The
+  agenda row hard-coded that badge on every session, in-person ones
+  included, and a test asserted it. It now shows the real format, and
+  only when the widget asks. This predates 1.39.0 but is the same
+  mistake the badge work exists to avoid: a claim not backed by data.
+- **Fixed: the format toggle was missing or inert in three places.**
+  The featured session card honoured the setting but never offered it,
+  so the badge could not be switched on for the very widget most
+  likely to want it; and the schedule, list and compact layouts
+  offered the setting while rendering nothing for it. All four now
+  offer it and render it. A test now asserts that every widget
+  exposing the toggle actually draws a badge, so the setting and the
+  rendering cannot drift apart again.
+
 ## 1.39.0
 - **Sessions can show their format badge.** A new "Show the format
   badge" setting (default off) renders the same label HeySummit's own

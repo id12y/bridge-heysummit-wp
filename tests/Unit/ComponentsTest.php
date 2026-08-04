@@ -260,7 +260,15 @@ final class ComponentsTest extends TestCase {
 		$agenda = Components::render( 'upcoming-sessions', [ 'layout' => 'agenda' ] );
 		$this->assertStringContainsString( 'eex-agenda-day', $agenda );
 		$this->assertStringContainsString( 'eex-agenda-heading', $agenda );
-		$this->assertStringContainsString( 'Online', $agenda, 'the agenda badge is present' );
+		// This once asserted an unconditional "Online" badge, which is what
+		// let the template claim every session was online, in-person ones
+		// included. The badge is now opt-in and truthful.
+		$this->assertStringNotContainsString( 'Online', $agenda, 'no badge unless the widget asks for one' );
+		$this->assertStringContainsString(
+			'eex-badge-status',
+			Components::render( 'upcoming-sessions', [ 'layout' => 'agenda', 'show_format' => 1 ] ),
+			'the agenda row renders the format badge when asked'
+		);
 		$this->assertStringContainsString( 'data-eex-session', $agenda );
 		$this->assertStringContainsString( 'data-eex-title', $agenda );
 		$this->assertStringContainsString( gmdate( 'j F Y', time() + 3600 ), $agenda, 'the day heading uses the compact date format' );
@@ -550,6 +558,58 @@ final class ComponentsTest extends TestCase {
 			[ 'Online', 'Open access' ],
 			$badges( [ 'format' => 'Online', 'open_access' => true ], true )
 		);
+	}
+
+	public function test_every_widget_offering_the_format_toggle_actually_renders_it(): void {
+		$definitions = Components::definitions();
+
+		// A toggle that does nothing teaches operators to distrust the
+		// controls, so the setting and the rendering must not drift apart.
+		$offering = array_keys(
+			array_filter(
+				$definitions,
+				static fn( array $def ): bool => isset( $def['atts']['show_format'] )
+			)
+		);
+
+		$this->assertNotEmpty( $offering );
+
+		$this->make_talk( 'Format probe upcoming', 3600 );
+		$this->make_talk( 'Format probe past', -3600 );
+
+		$checked = 0;
+
+		foreach ( $offering as $component ) {
+			Cache::flush();
+			$html = Components::render( $component, [ 'show_format' => 1 ] );
+
+			// A component with nothing to list (featured-talks needs curated
+			// rows) proves nothing either way; only judge the ones that
+			// actually rendered sessions.
+			if ( str_contains( $html, 'eex-empty' ) ) {
+				continue;
+			}
+
+			++$checked;
+
+			$this->assertStringContainsString(
+				'eex-badge-status',
+				$html,
+				$component . ' offers the format toggle but renders no badge for it'
+			);
+		}
+
+		$this->assertGreaterThan( 1, $checked, 'the guard must actually exercise several components' );
+	}
+
+	public function test_agenda_rows_no_longer_claim_every_session_is_online(): void {
+		$this->make_talk( 'In person session', 3600 );
+
+		// The row used to hard-code an "Online" badge on every session.
+		$html = Components::render( 'upcoming-sessions', [ 'layout' => 'agenda' ] );
+
+		$this->assertStringNotContainsString( 'eex-badge-online', $html );
+		$this->assertStringNotContainsString( '>Online<', $html );
 	}
 
 	public function test_slug_formats_become_words_and_human_labels_pass_through(): void {
