@@ -3,6 +3,24 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.44.0
+- **The editorial section heading now matches the site's own Featured
+  News heading.** Sizing, weight, spacing and colour were read off
+  emailexpert.com as computed styles and transcribed, rather than
+  estimated from a screenshot: the whisper is a 0.78rem uppercase Inter
+  at weight 750 in the site's brighter blue (#2864dc), the title a
+  fluid Fraunces from 24px to 48px with the site's tight 1.02 line
+  height and -0.035em tracking.
+- **The Classic skin is untouched.** It goes on stating a section in
+  its own plainer voice; only the editorial skin follows the site.
+- **No webfont is loaded.** Fraunces is named, never fetched — where a
+  theme already serves it the heading matches, and everywhere else the
+  existing serif stack answers. There is no new network request and
+  nothing new for Lighthouse to weigh.
+- Every one of these values remains an Elementor control. The defaults
+  moved; the ability to overrule any of them from the Style tab is
+  exactly as it was.
+
 ## 1.43.0
 - **A shared section heading on every widget that can carry one.** An
   optional whisper (the small uppercase label) over an optional title,

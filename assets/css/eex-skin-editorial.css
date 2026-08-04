@@ -35,6 +35,28 @@
 	--eex-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
 	--eex-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
+	/*
+	 * The display face, used by the section heading alone. The site sets
+	 * its Featured News title in Fraunces; naming it here costs nothing
+	 * because the plugin never LOADS a webfont — no @import, no extra
+	 * request, nothing for Lighthouse to charge us for. Where the theme
+	 * already serves Fraunces the heading matches it; everywhere else
+	 * the existing serif stack answers and the heading looks as it did.
+	 */
+	--eex-display: Fraunces, var(--eex-serif);
+
+	/*
+	 * The whisper's blue, measured from the site: brighter than the
+	 * emailexpert navy the rest of the skin accents with, which is why
+	 * it is its own token rather than --eex-accent. 5.32:1 on white, so
+	 * it clears AA for body-size text and clears it comfortably at the
+	 * weight and size below.
+	 */
+	--eex-whisper-color: #2864dc;
+
+	/* Measured: 9px under the whisper at a 12.48px whisper. */
+	--eex-whisper-gap: 0.5625rem;
+
 	/* Scale: five steps, fluid, replacing sixteen ad-hoc sizes. */
 	--eex-step--1: clamp(0.79rem, 0.76rem + 0.15vw, 0.85rem);
 	--eex-step-0: clamp(0.9rem, 0.88rem + 0.15vw, 0.95rem);
@@ -569,22 +591,45 @@
  * Elementor actually gets sentence case, and a screen reader never has
  * to read the label letter by letter.
  */
+/*
+ * Sizing, weight, spacing and colour below are TRANSCRIBED FROM THE
+ * SITE's own Featured News heading — computed styles read off
+ * emailexpert.com, not estimated. Every derived ratio came back exact
+ * (0.11em and 1.35 on the whisper, -0.035em and 1.02 on the title),
+ * which is why they are expressed as ratios here: they survive an
+ * editor changing the font size in Elementor, where transcribed pixel
+ * values would not.
+ */
 .eex .eex-section-heading__whisper {
 	font-family: var(--eex-sans);
-	font-size: var(--eex-step--1);
-	font-weight: 700;
-	letter-spacing: 0.08em;
+	/* Fixed, not fluid: measured 12.48px, and micro-type set in caps
+	   gains nothing from scaling with the viewport. */
+	font-size: 0.78rem;
+	/* 750, not 700 — the site sets a variable-font weight. Static Inter
+	   simply snaps to its nearest cut, so this is safe either way. */
+	font-weight: 750;
+	line-height: 1.35;
+	letter-spacing: 0.11em;
 	text-transform: uppercase;
-	color: var(--eex-accent);
+	color: var(--eex-whisper-color);
 }
 
 .eex .eex-section-heading__title {
-	font-family: var(--eex-serif);
-	/* Capped at the top end so a fluid title does not become a billboard
-	   on a phone: step-3 alone reaches 2rem before the viewport does. */
-	font-size: clamp(1.5rem, 1.2rem + 1.4vw, 2.25rem);
+	font-family: var(--eex-display);
+	/*
+	 * RECONSTRUCTED, not measured: one viewport (36.89px at 922px) fixes
+	 * a point, not a curve. This is 24px at 320 rising to 48px at 1440,
+	 * the reading that passes through the measurement to within 0.03%
+	 * and lands on round endpoints. A second reading at a phone width
+	 * would confirm it — this curve predicts 25.5px at 390px.
+	 */
+	font-size: clamp(1.5rem, 1.0714rem + 2.1429vw, 3rem);
 	font-weight: 600;
-	line-height: 1.15;
-	letter-spacing: -0.01em;
+	/* Tight, as the site sets it: 1.02 and -0.035em. */
+	line-height: 1.02;
+	letter-spacing: -0.035em;
+	/* The site's #142033 against the skin's #132038 — a difference of
+	   five units on one channel, invisible in use. Keeping the token
+	   means the heading stays in step if the ink is ever retuned. */
 	color: var(--eex-ink);
 }
