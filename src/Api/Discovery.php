@@ -359,20 +359,21 @@ final class Discovery {
 			'missing'       => $missing,
 			'unmapped'      => $unmapped,
 			'type_mismatch' => $type_mismatch,
-			'time_samples'  => self::time_samples( $sample ),
+			'raw_samples'   => self::raw_samples( $sample ),
 		];
 	}
 
 	/**
-	 * Literal timestamp samples from the record: whether the API sends a
-	 * UTC offset (and which) decides how times must be parsed, and that has
-	 * to be read off reality, not assumed (docs/decisions.md D86).
-	 * Timestamps carry no personal data, so the raw values are safe to show.
+	 * Literal values from the record for the fields whose SHAPE decides how
+	 * the plugin must treat them — timestamps first: whether the API sends a
+	 * UTC offset (and which) decides how times are parsed, and that has to be
+	 * read off reality, not assumed (docs/decisions.md D86). None of these
+	 * fields carries personal data, so the raw values are safe to show.
 	 *
 	 * @param array<string,mixed> $sample Sample record.
 	 * @return array<string,string> field => raw value + format verdict.
 	 */
-	private static function time_samples( array $sample ): array {
+	private static function raw_samples( array $sample ): array {
 		$out = [];
 
 		foreach ( [ 'starts_at', 'ends_at', 'date', 'first_talk_at', 'last_talk_at' ] as $field ) {
@@ -399,7 +400,12 @@ final class Discovery {
 		// every session by a working day. Show them verbatim, with their
 		// type, so the mapping is written from the value rather than from a
 		// hopeful assumption (the same display-not-guess loop as D105).
-		foreach ( [ 'date_localised', 'date_timezone_offset' ] as $field ) {
+		// `custom_tag` is here for the same reason: on some accounts it is
+		// the organiser's words ("Conference or Summit"), on others it is
+		// the tag's record ID. The plugin now refuses to badge a bare
+		// number, so seeing the literal value is how we learn whether the
+		// tag text is reachable at all on this connection.
+		foreach ( [ 'date_localised', 'date_timezone_offset', 'custom_tag' ] as $field ) {
 			if ( ! array_key_exists( $field, $sample ) || null === $sample[ $field ] || is_array( $sample[ $field ] ) ) {
 				continue;
 			}

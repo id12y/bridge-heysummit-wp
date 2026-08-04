@@ -560,6 +560,20 @@ final class ComponentsTest extends TestCase {
 		);
 	}
 
+	public function test_a_record_id_is_never_shown_as_a_badge(): void {
+		$badges = static fn( array $data, bool $format ): array => Components::status_badges( $data, $format );
+
+		// The mappers drop these now, but a Full site keeps the value an
+		// earlier sync wrote to post meta until it syncs again, so the
+		// render path refuses numbers of its own accord.
+		$this->assertSame( [], $badges( [ 'custom_tag' => '2' ], false ) );
+		$this->assertSame( [ 'Online' ], $badges( [ 'custom_tag' => '2' ], true ) );
+		$this->assertSame( [ 'In person' ], $badges( [ 'format' => '17', 'inperson' => true ], true ) );
+
+		// Words that happen to carry a number are labels, not IDs.
+		$this->assertSame( [ 'Track 2' ], $badges( [ 'format' => 'Track 2' ], true ) );
+	}
+
 	public function test_every_widget_offering_the_format_toggle_actually_renders_it(): void {
 		$definitions = Components::definitions();
 
