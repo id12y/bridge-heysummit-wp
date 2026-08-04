@@ -1804,18 +1804,41 @@
 	color: inherit;
 }
 
-/* ---- Container-width responsiveness -------------------------------------
+/* ---- Container-width responsiveness (opt-in) ----------------------------
    Widgets land in sidebars and narrow Theme Builder columns where the
    viewport is wide but the container is not; the 600/900 viewport rules
-   above never fire there (verified: a 340px container on a 1440px viewport
-   kept a 3-column grid overflowing by 27px). Component roots become size
-   containers so the rules below track the ACTUAL available width. Roots
-   hosting position:fixed descendants (the ticket drawer, the sticky bar)
-   are excluded: containment would trap those fixed elements inside the
-   widget box. For them, and for browsers without container queries, the
-   viewport rules above remain the fallback. */
-.eex:not(:has(.eex-drawer, .eex-register-bar)) {
+   above never fire there (a 340px container on a 1440px viewport keeps a
+   3-column grid overflowing by 27px). Making the root a size container
+   fixes that, and the rules below then track the ACTUAL available width.
+
+   It is OPT-IN, because container-type ALSO implies layout containment,
+   which turns the root into a new block formatting context: child margins
+   stop collapsing out of it and are added to its height instead. Measured
+   in an Elementor column at 390px, that padded each widget by its last
+   child's bottom margin (206px of content rendered 222px tall), which
+   reads as dead space below the widget and compounds down the page.
+
+   Operators who want container-width behaviour add the class eex-adaptive
+   to the section, column or widget wrapper (Elementor: Advanced -> CSS
+   Classes), ideally on layouts whose spacing they can then check. The
+   ticket drawer and sticky bar are never contained: containment would trap
+   those fixed elements. Everywhere else the viewport rules above apply, as
+   they did before this block existed. */
+.eex-adaptive .eex:not(.eex-drawer):not(:has(.eex-register-bar)) {
 	container-type: inline-size;
+}
+
+/* Inside the opt-in scope, take back the margins containment stopped from
+   collapsing out. Without this the root grows by its edge children's outer
+   margins, which is the dead space described above. Spacing between the
+   widget and its neighbours then comes from the page builder, where the
+   operator can see and set it. */
+.eex-adaptive .eex > :first-child {
+	margin-block-start: 0;
+}
+
+.eex-adaptive .eex > :last-child {
+	margin-block-end: 0;
 }
 
 @container (max-width: 520px) {

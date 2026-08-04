@@ -159,7 +159,7 @@
 
 /* The feature card: the flagship editorial surface. */
 .eex .eex-feature-session {
-	background: #ffffff;
+	background: var(--eex-card-bg, #ffffff);
 	border-color: var(--eex-line);
 	box-shadow: var(--eex-shadow-1);
 	padding: var(--eex-inline);
@@ -222,7 +222,7 @@
 .eex .eex-reg-field input {
 	border-color: var(--eex-line);
 	border-radius: calc(var(--eex-radius) * 0.5);
-	background: #ffffff;
+	background: var(--eex-field-bg, #ffffff);
 }
 
 .eex .eex-reg-field input:focus-visible {
@@ -273,4 +273,57 @@
 	border: 1px dashed var(--eex-line);
 	border-radius: var(--eex-radius);
 	padding: var(--eex-inline);
+}
+
+/* ---- Dark context (opt-in) ------------------------------------------------ */
+/* For widgets placed on a dark page section: add the class "eex-dark" to
+   the section, column or widget wrapper (Elementor: Advanced -> CSS
+   Classes). Surfaces are translucent white so the variant works over any
+   dark background colour, not one assumed shade. */
+.eex-dark .eex,
+.eex.eex-dark,
+.eex-dark .eex-confirm-banner,
+.eex-dark.eex-confirm-banner {
+	--eex-ink: #eef2f8;
+	--eex-muted: #a3b1c6;
+	--eex-accent: #8ab8e0;
+	--eex-accent-fg: #0e1a2e;
+	--eex-surface: rgba(255, 255, 255, 0.07);
+	--eex-line: rgba(255, 255, 255, 0.18);
+	--eex-card-bg: rgba(255, 255, 255, 0.06);
+	--eex-field-bg: rgba(255, 255, 255, 0.1);
+	--eex-badge-bg: rgba(255, 255, 255, 0.09);
+	--eex-badge-fg: var(--eex-ink);
+	--eex-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.3);
+	--eex-shadow-2: 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 32px rgba(0, 0, 0, 0.5);
+}
+
+/* Form fields do not inherit text colour from the page. */
+.eex-dark .eex .eex-reg-field input {
+	color: var(--eex-ink);
+}
+
+/* The status badge inverts: light chip, dark text. */
+.eex-dark .eex .eex-badge-status {
+	color: #132038;
+}
+
+/* The ticket drawer and the sticky register bar overlay the PAGE, not the
+   dark section they happen to be coded inside, so they keep the light
+   palette. Without this reset the drawer would paint near-white text on
+   its solid white panel. */
+.eex-dark .eex .eex-drawer,
+.eex-dark .eex .eex-register-bar {
+	--eex-ink: #132038;
+	--eex-muted: #5d6b82;
+	--eex-accent: #0a4b78;
+	--eex-accent-fg: #ffffff;
+	--eex-surface: #f3f6fb;
+	--eex-line: #d9e0eb;
+	--eex-card-bg: #ffffff;
+	--eex-field-bg: #ffffff;
+	--eex-badge-bg: var(--eex-surface);
+	--eex-badge-fg: var(--eex-ink);
+	--eex-shadow-1: 0 1px 2px rgba(19, 32, 56, 0.06), 0 6px 18px rgba(19, 32, 56, 0.07);
+	--eex-shadow-2: 0 2px 6px rgba(19, 32, 56, 0.08), 0 14px 32px rgba(19, 32, 56, 0.12);
 }

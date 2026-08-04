@@ -188,6 +188,18 @@ final class Components {
 		];
 		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
+		// Skipping the head of the list is how a listing avoids repeating a
+		// featured card placed above it. It stays a number rather than a
+		// "hide the featured one" switch: the two widgets need not agree on
+		// which session is featured, and the operator may stack more than
+		// one card. 0 (the default) shows the list from the top, exactly as
+		// before this setting existed.
+		$skip_first = [
+			'type'    => 'integer',
+			'default' => 0,
+			'label'   => __( 'Skip the first N (use 1 when a featured card above already shows the next one)', 'emailexpert-events' ),
+		];
+
 		$definitions = [
 			'upcoming-sessions' => [
 				'title' => __( 'Upcoming sessions', 'emailexpert-events' ),
@@ -207,6 +219,7 @@ final class Components {
 						'default' => 6,
 						'label'   => $limit_label,
 					],
+					'offset'          => $skip_first,
 					'empty_text'      => [
 						'type'    => 'string',
 						'default' => $empty_sessions,
@@ -295,6 +308,7 @@ final class Components {
 						'default' => 3,
 						'label'   => $limit_label,
 					],
+					'offset'        => $skip_first,
 					'series'        => [
 						'type'    => 'string',
 						'default' => '',

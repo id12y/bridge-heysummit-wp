@@ -1981,3 +1981,42 @@ existed keep rendering the historical kicker: a missing args key
 falls back to "Up next", not to empty. Chips, the fixed register bar
 and the search box do not receive the attribute at all — a dead
 switch teaches operators to distrust the controls.
+
+D106 addendum 2 (v1.38.2): the dark-context variant, as one token
+block. Opt-in is a CSS class ("eex-dark") on any ancestor — Elementor
+already provides the input for it, so no control, no attribute, no
+PHP. Two choices matter. Surfaces are translucent white rather than a
+fixed dark shade: the operator's section background is unknown (a
+navy footer, a black band), and rgba overlays read correctly over any
+of them, where a hard-coded panel colour would clash with all but
+one. And the accent inverts its pairing — a lighter blue fill with
+dark text — because white-on-navy stops passing contrast once the
+page around it goes dark. The ticket drawer and sticky register bar
+re-assert the light token set inside the dark scope: they are fixed
+overlays that visually belong to the page, not to the section that
+happens to contain their markup, and without the reset the drawer
+would paint near-white text on its solid white panel. Verified live:
+a drawer opened from inside a dark section reports a white panel and
+navy ink.
+
+D106 addendum 3 (v1.38.3): the container-query default was wrong and the
+operator found it before I did — dead space under every widget on mobile
+Elementor. The mechanism: `container-type` implies LAYOUT containment,
+which makes the root a new block formatting context, so child margins no
+longer collapse out of it. The last child's bottom margin stopped
+escaping and became widget height instead (repro in an Elementor column
+at 390px: content 206px, root 222px), once per widget, down the page.
+D106 claimed containment was safe because the drawer was excluded; that
+reasoning only ever covered fixed-position descendants and never
+considered margin collapsing, and the `:has(.eex-drawer)` guard was
+itself close to a no-op because the drawer renders as a SIBLING root.
+
+Containment is now opt-in behind an `eex-adaptive` ancestor class, the
+same shape as the dark variant: an operator who has a narrow-container
+layout can turn it on and check the result, and everyone else gets the
+1.37.x rendering the site was built against. Inside the opt-in scope the
+first/last child margins are zeroed, so the adaptivity costs no height
+and spacing stays where the page builder puts it. The lesson worth
+keeping: a property that changes layout SEMANTICS (containment, BFC,
+stacking) is not "presentation only" no matter how it is scoped, and
+should not ship switched on for every existing page.
