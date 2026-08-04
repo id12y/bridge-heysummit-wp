@@ -3,6 +3,13 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.44.2
+- **Fixed: the whisper could render dark and the title in sans.** Two
+  of the new tokens were read with a bare `var()` and no fallback. An
+  undefined custom property there does not fall back — the whole
+  declaration is dropped and the property inherits instead, giving a
+  dark whisper and a sans-serif title. Both now carry their fallback.
+
 ## 1.44.1
 - **Every value in the section heading is now overridable in one
   declaration.** Size, weight, line height, tracking and transform for
