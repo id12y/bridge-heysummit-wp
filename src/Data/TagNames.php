@@ -7,6 +7,8 @@
 
 namespace Emailexpert\Events\Data;
 
+use Emailexpert\Events\Options;
+
 defined( 'ABSPATH' ) || exit;
 
 /**
@@ -105,9 +107,52 @@ final class TagNames {
 	 * @param string $id Tag ID.
 	 */
 	public static function name( string $id ): string {
+		$id = trim( $id );
+
+		// The operator's own wording wins. Whether the event payload names
+		// a given tag is the account's business, not ours: on connections
+		// where it does not, this setting is the only way the badge can
+		// say anything, and where it does, an operator who disagrees with
+		// the platform's wording should not have to filter code to change
+		// it.
+		$operator = self::operator_labels();
+
+		if ( isset( $operator[ $id ] ) ) {
+			return $operator[ $id ];
+		}
+
 		$known = self::known();
 
-		return (string) ( $known[ trim( $id ) ] ?? '' );
+		return (string) ( $known[ $id ] ?? '' );
+	}
+
+	/**
+	 * The tag labels an operator typed in Settings → Display, as id => label.
+	 *
+	 * One mapping per line, ID first: `2 = Conference or Summit`. Tolerant
+	 * of `:` and `|` as separators and of blank or malformed lines, because
+	 * a typo in one row must not silence the rest.
+	 *
+	 * @return array<string,string>
+	 */
+	private static function operator_labels(): array {
+		$raw = trim( (string) Options::setting( 'format_tag_labels' ) );
+
+		if ( '' === $raw ) {
+			return [];
+		}
+
+		$out = [];
+
+		foreach ( preg_split( '/\r\n|\r|\n/', $raw ) ?: [] as $line ) {
+			if ( ! preg_match( '/^\s*([^=:|]+?)\s*[=:|]\s*(.+?)\s*$/', (string) $line, $match ) ) {
+				continue;
+			}
+
+			$out[ $match[1] ] = $match[2];
+		}
+
+		return $out;
 	}
 
 	/**

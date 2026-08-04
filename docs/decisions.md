@@ -2141,3 +2141,30 @@ renumbers integer keys from zero, so merging the remembered names
 turned "tag 2 is a Conference" into "tag 0 is". Caught by the test
 that asserted the resolved wording rather than merely that something
 resolved.
+
+D107 addendum 5 (v1.40.0): automatic resolution was the right thing to
+try and it did not land. The event record does list tags inline, but
+this account's talk tag IDs are not named there, so 1.39.4 traded a
+false badge for no badge — worse for the operator, who could see the
+tag in HeySummit's own hub the whole time.
+
+Three sources of truth were available and all were exhausted: the
+talk's own payload (an ID), the event's tag list (does not contain
+these IDs), and inference (rejected in addendum 4, for good reason).
+The fourth is the operator, who knows what the tag says. Settings →
+Display now takes `id = label` lines, and that wording wins over the
+API's, because an operator who disagrees with the platform's phrasing
+should not have to write a filter.
+
+The lesson is about ordering, not about the mapping. The Online
+fallback and the tag resolution shipped in ONE release, so when the
+resolution missed there was nothing left and the feature went dark.
+Removing a fallback and replacing it in the same version means the
+replacement has to work on the first account that sees it. Where the
+replacement depends on undocumented payload shape, it should ship
+first, be observed, and only then justify removing what it replaces.
+
+Discovery now lists the tag IDs in use with an example session for
+each. A diagnostic that reports "2" without saying which session
+carries it is not actionable, and the mapping setting is unusable
+without it.

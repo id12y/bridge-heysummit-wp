@@ -3,6 +3,21 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.40.0
+- **Session tag labels (Settings → Display).** HeySummit sends a
+  session's tag as a record ID and, on accounts like this one, names
+  it nowhere the API exposes — so the badge had nothing true to print
+  and showed nothing. The operator can now supply the wording, one
+  mapping per line (`2 = Conference or Summit`). It wins over anything
+  the API sends, so it also serves as a rename when the platform's
+  wording is not what the site wants to say.
+- **Test connection lists the tag IDs actually in use**, each with an
+  example session, so it is clear which ID to name. "2" alone is not
+  something anyone can act on.
+- Tag resolution is tried on any reference shape, not only numeric
+  ones, so a reference that is not an integer cannot be mistaken for
+  the organiser's words.
+
 ## 1.39.4
 - **The tag's words, resolved from the event.** A talk references its
   tag by ID and carries the wording nowhere; the event record lists
