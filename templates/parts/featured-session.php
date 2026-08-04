@@ -68,13 +68,13 @@ $eex_session_url = 'tickets' === $eex_buttons ? '' : Components::session_url( $e
 	<div class="eex-feature-body">
 		<p class="eex-live-indicator" data-eex-live-slot="1" hidden aria-live="polite"></p>
 
-		<?php $eex_status_badges = Components::status_badges( $eex_data ); ?>
-		<?php if ( ! empty( $eex_show['categories'] ) && ( ! empty( $eex_data['categories'] ) || ! empty( $eex_status_badges ) ) ) : ?>
+		<?php $eex_status_badges = ( ! empty( $eex_show['categories'] ) || ! empty( $eex_show['format'] ) ) ? Components::status_badges( $eex_data, ! empty( $eex_show['format'] ) ) : []; ?>
+		<?php if ( ( ! empty( $eex_show['categories'] ) && ! empty( $eex_data['categories'] ) ) || ! empty( $eex_status_badges ) ) : ?>
 			<p class="eex-badges">
 				<?php foreach ( $eex_status_badges as $eex_status_badge ) : ?>
 					<span class="eex-badge eex-badge-status"><?php echo esc_html( $eex_status_badge ); ?></span>
 				<?php endforeach; ?>
-				<?php foreach ( (array) $eex_data['categories'] as $eex_term ) : ?>
+				<?php foreach ( ! empty( $eex_show['categories'] ) ? (array) $eex_data['categories'] : [] as $eex_term ) : ?>
 					<span class="eex-badge eex-badge-<?php echo esc_attr( $eex_term->slug ); ?>"><?php echo esc_html( $eex_term->name ); ?></span>
 				<?php endforeach; ?>
 			</p>

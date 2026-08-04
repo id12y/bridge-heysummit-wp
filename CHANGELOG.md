@@ -3,6 +3,47 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.39.1
+- **Fixed: the agenda layout labelled every session "Online".** The
+  agenda row hard-coded that badge on every session, in-person ones
+  included, and a test asserted it. It now shows the real format, and
+  only when the widget asks. This predates 1.39.0 but is the same
+  mistake the badge work exists to avoid: a claim not backed by data.
+- **Fixed: the format toggle was missing or inert in three places.**
+  The featured session card honoured the setting but never offered it,
+  so the badge could not be switched on for the very widget most
+  likely to want it; and the schedule, list and compact layouts
+  offered the setting while rendering nothing for it. All four now
+  offer it and render it. A test now asserts that every widget
+  exposing the toggle actually draws a badge, so the setting and the
+  rendering cannot drift apart again.
+
+## 1.39.0
+- **Sessions can show their format badge.** A new "Show the format
+  badge" setting (default off) renders the same label HeySummit's own
+  hub shows beside the time: "ONLINE" for a webinar, the agenda item's
+  own type for things like "Conference or Summit". The label is the
+  platform's, read from `webinar_delivery_mode` and `agenda_item_type`
+  — two fields the plugin had never mapped, which is why nothing
+  appeared before. Sessions the account never labelled fall back to
+  In person / Online from the explicit `inperson_available` flag, and
+  a session with no evidence either way gets no badge rather than a
+  guessed one. The badge no longer rides on "Show category badges", so
+  the two are independent, and duplicate labels are collapsed: a
+  format of "In person" will not also draw the built-in pill.
+- **Fixed: Full mode described sessions differently from Lite.** Lite
+  has read `custom_tag` since it shipped; the Full sync mapper and
+  upserter never stored it, nor the new format, so the same session
+  badged differently depending on the operator's mode. Both now carry
+  the same fields. Full-mode sites need one sync pass to backfill.
+- **Diagnostics now show the raw timezone fields.** HeySummit sends
+  `date_timezone_offset` and `date_localised` alongside the bare
+  timestamps the plugin currently parses as event-local. Both are now
+  displayed verbatim, with their JSON type, in the discovery panel's
+  time samples. They are deliberately still unmapped: an offset
+  guessed as hours when it is minutes moves every session by a working
+  day, so the mapping will be written from the observed value.
+
 ## 1.38.3
 - **Fixed: dead space below widgets on mobile.** v1.38.0 made every widget
   root a CSS size container. Containment also stops child margins

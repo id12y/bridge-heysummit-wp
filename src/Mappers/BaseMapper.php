@@ -114,6 +114,45 @@ abstract class BaseMapper {
 	}
 
 	/**
+	 * How the session is delivered, in the platform's own words: the badge
+	 * HeySummit's hub shows beside the time ("ONLINE", "Conference or
+	 * Summit"). Agenda items carry their type; everything else carries a
+	 * delivery mode. Both are free-form on the account, so the value is
+	 * passed through rather than translated to a fixed vocabulary — the
+	 * only tidying is turning machine slugs ("pre_recorded") into words.
+	 * Absent on either side means no badge, never an invented one.
+	 *
+	 * @param array<string,mixed> $raw Raw talk record.
+	 */
+	protected static function format_of( array $raw ): string {
+		$label = ! empty( $raw['is_agenda_item'] )
+			? self::str( $raw, [ 'agenda_item_type' ] )
+			: '';
+
+		if ( '' === $label ) {
+			$label = self::str( $raw, [ 'webinar_delivery_mode' ] );
+		}
+
+		return self::humanise_format( $label );
+	}
+
+	/**
+	 * Slug-ish API values become readable words; anything already written
+	 * for humans passes through untouched.
+	 *
+	 * @param string $label Raw label.
+	 */
+	public static function humanise_format( string $label ): string {
+		$label = trim( $label );
+
+		if ( '' === $label || ! preg_match( '/^[a-z0-9_\-]+$/', $label ) ) {
+			return $label;
+		}
+
+		return ucfirst( str_replace( [ '_', '-' ], ' ', $label ) );
+	}
+
+	/**
 	 * Parse a timestamp-ish string to a UTC ISO 8601 string, or ''.
 	 *
 	 * A bare timestamp (no trailing Z and no ±hh:mm offset) is the EVENT'S

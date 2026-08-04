@@ -82,10 +82,10 @@ if ( '' === $eex_register_text ) {
 		<?php endif; ?>
 	<?php endif; ?>
 
-	<?php $eex_status_badges = Components::status_badges( $eex_data ); ?>
-	<?php if ( $eex_show['categories'] && ( ! empty( $eex_data['categories'] ) || ! empty( $eex_status_badges ) ) ) : ?>
+	<?php $eex_status_badges = ( $eex_show['categories'] || ! empty( $eex_show['format'] ) ) ? Components::status_badges( $eex_data, ! empty( $eex_show['format'] ) ) : []; ?>
+	<?php if ( ( $eex_show['categories'] && ! empty( $eex_data['categories'] ) ) || ! empty( $eex_status_badges ) ) : ?>
 		<p class="eex-badges">
-			<?php foreach ( (array) $eex_data['categories'] as $eex_term ) : ?>
+			<?php foreach ( $eex_show['categories'] ? (array) $eex_data['categories'] : [] as $eex_term ) : ?>
 				<span class="eex-badge eex-badge-<?php echo esc_attr( $eex_term->slug ); ?>"><?php echo esc_html( $eex_term->name ); ?></span>
 			<?php endforeach; ?>
 			<?php foreach ( $eex_status_badges as $eex_status_badge ) : ?>

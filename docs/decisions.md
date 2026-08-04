@@ -2020,3 +2020,62 @@ and spacing stays where the page builder puts it. The lesson worth
 keeping: a property that changes layout SEMANTICS (containment, BFC,
 stacking) is not "presentation only" no matter how it is scoped, and
 should not ship switched on for every existing page.
+
+## D107. The badge says what the platform says (v1.39.0)
+
+The operator asked for a badge marking sessions ONLINE or in-person as
+a Conference or Summit. My first answer was that online-vs-in-person
+would have to be inferred from a missing venue, and that "Conference or
+Summit" was not in the data at all, so it would need an
+operator-maintained mapping. Both halves were wrong, and the discovery
+panel proved it: HeySummit sends `inperson_available` (which the plugin
+had read for releases), plus `webinar_delivery_mode` and
+`agenda_item_type`, which it had never mapped. The badge is therefore
+real data end to end, with no mapping table to maintain and nothing
+inferred from silence.
+
+Three rules fell out of building it. The label is passed through in the
+platform's own words rather than translated into a fixed vocabulary,
+because the account owns that wording and a lookup table would drift
+the moment they add a type; the only tidying is turning machine slugs
+("pre_recorded") into words. Absence stays absent: a session with no
+delivery mode and no in-person flag draws no badge, because an
+in-person event wrongly stamped ONLINE tells someone not to travel.
+And the toggle is its own, not a rider on "Show category badges", so
+operators can have the format without every topic term.
+
+The wider lesson concerns the diagnostics column that settled it.
+"Present but unmapped" means "not declared in our expected-shape
+contract", NOT "not read by the plugin" — most of that talks column is
+wired up. I misread it to the operator, and it is worth remembering
+that a diagnostic is only as good as the reader's model of what it
+measures.
+
+The same panel is why `date_timezone_offset` ships displayed rather
+than mapped in this release. The account sends the offset our bare
+timestamps lack, which is a live accuracy problem worth fixing, but
+the field's shape is undocumented and an offset read as hours when it
+is minutes moves every session by a working day. Discovery now prints
+it verbatim with its JSON type, and the mapping waits one round trip
+for the observed value — the D105 loop, applied to a read field.
+
+D107 addendum (v1.39.1): shipping the badge exposed three cases where
+a setting and its rendering had drifted apart, two of them introduced
+by the release itself. The featured session card honoured the format
+flag in its template but never offered the setting, because the toggle
+was added by matching an exact source line and that definition aligned
+its arrows differently — a reminder that a mechanical edit across
+definitions needs a test, not a careful eye. The schedule, list and
+compact layouts had the opposite fault: the setting appeared and did
+nothing.
+
+The third case predates this work and is the worst: agenda rows
+hard-coded an "Online" badge on EVERY session, in-person included, and
+a test asserted its presence, so the wrong claim was protected by the
+suite. The rule this release exists to serve — never state something
+about a session the data does not support — was being violated by the
+plugin's own template while we debated whether inference was safe.
+
+The guard added is a test that walks every definition offering
+show_format, renders it, and fails if no badge appears. A dead switch
+is now a failing build rather than something an operator discovers.

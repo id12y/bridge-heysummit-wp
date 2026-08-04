@@ -7,6 +7,7 @@
 
 namespace Emailexpert\Events\Tests\Unit;
 
+use Emailexpert\Events\Data\LiveRepository;
 use Emailexpert\Events\Frontend\Cache;
 use Emailexpert\Events\Frontend\Components;
 use Emailexpert\Events\Options;
@@ -259,7 +260,15 @@ final class ComponentsTest extends TestCase {
 		$agenda = Components::render( 'upcoming-sessions', [ 'layout' => 'agenda' ] );
 		$this->assertStringContainsString( 'eex-agenda-day', $agenda );
 		$this->assertStringContainsString( 'eex-agenda-heading', $agenda );
-		$this->assertStringContainsString( 'Online', $agenda, 'the agenda badge is present' );
+		// This once asserted an unconditional "Online" badge, which is what
+		// let the template claim every session was online, in-person ones
+		// included. The badge is now opt-in and truthful.
+		$this->assertStringNotContainsString( 'Online', $agenda, 'no badge unless the widget asks for one' );
+		$this->assertStringContainsString(
+			'eex-badge-status',
+			Components::render( 'upcoming-sessions', [ 'layout' => 'agenda', 'show_format' => 1 ] ),
+			'the agenda row renders the format badge when asked'
+		);
 		$this->assertStringContainsString( 'data-eex-session', $agenda );
 		$this->assertStringContainsString( 'data-eex-title', $agenda );
 		$this->assertStringContainsString( gmdate( 'j F Y', time() + 3600 ), $agenda, 'the day heading uses the compact date format' );
@@ -518,6 +527,96 @@ final class ComponentsTest extends TestCase {
 		Cache::flush();
 		$plain = Components::render( 'next-session', [ 'show_countdown' => 0 ] );
 		$this->assertStringNotContainsString( 'data-eex-countdown', $plain );
+	}
+
+	public function test_format_badge_uses_the_platform_label_and_never_duplicates(): void {
+		$badges = static fn( array $data, bool $format ): array => Components::status_badges( $data, $format );
+
+		// Off by default: the format label stays out of the badge row.
+		$this->assertSame( [], $badges( [ 'format' => 'Online' ], false ) );
+
+		// An agenda item's own type wins, verbatim.
+		$this->assertSame( [ 'Conference or Summit' ], $badges( [ 'format' => 'Conference or Summit' ], true ) );
+
+		// No label: the in-person flag decides, and it is a real API field
+		// rather than an inference from a missing venue.
+		$this->assertSame( [ 'In person' ], $badges( [ 'inperson' => true ], true ) );
+		$this->assertSame( [ 'Online' ], $badges( [ 'inperson' => false ], true ) );
+
+		// The format label and the built-in in-person pill must not both
+		// render when they say the same thing.
+		$this->assertSame( [ 'In person' ], $badges( [ 'format' => 'In person', 'inperson' => true ], true ) );
+
+		// A custom_tag repeating the format is the same duplication.
+		$this->assertSame(
+			[ 'Online' ],
+			$badges( [ 'format' => 'Online', 'custom_tag' => 'online' ], true )
+		);
+
+		// Both distinct labels survive, format first.
+		$this->assertSame(
+			[ 'Online', 'Open access' ],
+			$badges( [ 'format' => 'Online', 'open_access' => true ], true )
+		);
+	}
+
+	public function test_every_widget_offering_the_format_toggle_actually_renders_it(): void {
+		$definitions = Components::definitions();
+
+		// A toggle that does nothing teaches operators to distrust the
+		// controls, so the setting and the rendering must not drift apart.
+		$offering = array_keys(
+			array_filter(
+				$definitions,
+				static fn( array $def ): bool => isset( $def['atts']['show_format'] )
+			)
+		);
+
+		$this->assertNotEmpty( $offering );
+
+		$this->make_talk( 'Format probe upcoming', 3600 );
+		$this->make_talk( 'Format probe past', -3600 );
+
+		$checked = 0;
+
+		foreach ( $offering as $component ) {
+			Cache::flush();
+			$html = Components::render( $component, [ 'show_format' => 1 ] );
+
+			// A component with nothing to list (featured-talks needs curated
+			// rows) proves nothing either way; only judge the ones that
+			// actually rendered sessions.
+			if ( str_contains( $html, 'eex-empty' ) ) {
+				continue;
+			}
+
+			++$checked;
+
+			$this->assertStringContainsString(
+				'eex-badge-status',
+				$html,
+				$component . ' offers the format toggle but renders no badge for it'
+			);
+		}
+
+		$this->assertGreaterThan( 1, $checked, 'the guard must actually exercise several components' );
+	}
+
+	public function test_agenda_rows_no_longer_claim_every_session_is_online(): void {
+		$this->make_talk( 'In person session', 3600 );
+
+		// The row used to hard-code an "Online" badge on every session.
+		$html = Components::render( 'upcoming-sessions', [ 'layout' => 'agenda' ] );
+
+		$this->assertStringNotContainsString( 'eex-badge-online', $html );
+		$this->assertStringNotContainsString( '>Online<', $html );
+	}
+
+	public function test_slug_formats_become_words_and_human_labels_pass_through(): void {
+		$this->assertSame( 'Pre recorded', LiveRepository::humanise_format( 'pre_recorded' ) );
+		$this->assertSame( 'Online', LiveRepository::humanise_format( 'online' ) );
+		$this->assertSame( 'Conference or Summit', LiveRepository::humanise_format( 'Conference or Summit' ) );
+		$this->assertSame( '', LiveRepository::humanise_format( '' ) );
 	}
 
 	public function test_offset_skips_the_head_of_a_listing_without_changing_the_default(): void {
