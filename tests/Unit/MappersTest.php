@@ -202,6 +202,21 @@ final class MappersTest extends TestCase {
 
 		$this->assertSame( '', $unknown['format'] );
 
+		// The lookup is tried on any value, not only digits: whether this
+		// account's IDs are integers is an observation, not a promise.
+		TagNames::remember( [ [ 'id' => 'tag-abc', 'title' => 'Workshop' ] ] );
+
+		$slugged = TalkMapper::map(
+			[
+				'id'         => '9108',
+				'title'      => 'Hands on',
+				'event'      => '101',
+				'custom_tag' => 'tag-abc',
+			]
+		);
+
+		$this->assertSame( 'Workshop', $slugged['format'] );
+
 		TagNames::reset_request_state();
 	}
 
