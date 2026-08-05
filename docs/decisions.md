@@ -2410,3 +2410,35 @@ have fixed the mechanism without fixing the problem.
 Verified in a real WordPress rather than asserted: the rendered box
 measures 1.7778 against the artwork's 1.7778 in both views at 1440 and
 375, with no horizontal overflow.
+
+## 1.45.1 — correcting the crop diagnosis, and letting the split crop
+
+1.45.0 said the feature card's `height: 100%` cancelled its inherited
+aspect-ratio and caused the crop. Standing the previous CSS up in a
+clean WordPress and measuring it disproves the second half: the box
+came out at 1.7779 against the artwork's 1.7778, which is no crop at
+all. The mechanism described was real — with both dimensions set the
+ratio is ignored — but it only bites once something hands the media a
+definite height, which is what an Elementor stretched or equal-height
+column does and what a bare theme does not. The rule was vulnerable to
+its surroundings, not wrong on its own. The original 4% was measured
+off a screenshot of the live site, and a screenshot cannot tell you
+which layer put the height there.
+
+That correction changes what the two views should do, so they now
+differ on purpose:
+
+THE SPLIT CROPS, AND SHOULD. The image beside the detail is a
+thumbnail. At that size nobody reads the sponsor marks, and a column
+filled tidily is worth more than the edges of a graphic that is acting
+as decoration. 1.45.0 rebalanced the columns to make the artwork
+legible there; that was solving a problem the operator does not have,
+at the cost of a layout they liked, so it is reverted whole.
+
+THE BANNER DOES NOT CROP, AND SHOULD NOT. Chosen deliberately, it says
+the graphic is the content. Height returns to auto, the inherited 16:9
+ratio owns the box, and contain makes cropping impossible rather than
+unlikely.
+
+The two rules carry the same specificity, so the banner's must stay
+below the card's in the file. A note in the stylesheet says so.

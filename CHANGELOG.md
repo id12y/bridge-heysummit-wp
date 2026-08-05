@@ -3,6 +3,21 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.45.1
+- **The side-by-side card is exactly as it was again.** 1.45.0 changed
+  its proportions and stopped it filling the column; both are reverted.
+  The artwork there is a thumbnail sitting beside the detail, it fills
+  its column tidily, and it crops to do so — which is the right trade
+  when nobody is reading the small print in it.
+- **Not cropping is now what the banner view is for.** Choose it from
+  the widget's View control when the graphic itself is the content and
+  every edge of it matters.
+- Correcting 1.45.0's note: in a clean WordPress the previous CSS did
+  not crop on its own — it produced a correct 16:9 box. The crop
+  appears where the surrounding page gives the image a fixed height, as
+  an Elementor stretched or equal-height column does. The old rule was
+  vulnerable to that, not the cause of it.
+
 ## 1.45.0
 - **Fixed: the featured session card cropped its own artwork.** A
   1920×1080 promo graphic lost roughly 4% of its height, split top and
