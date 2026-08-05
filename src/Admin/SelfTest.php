@@ -344,6 +344,19 @@ final class SelfTest {
 					: sprintf( /* translators: %d: coupon count. */ __( '%d coupon(s) listed.', 'emailexpert-events' ), count( $coupons ) )
 			);
 
+			// Which image fields a session actually carries, and which one
+			// the cards render. Counts and reachability cannot answer "why
+			// is the artwork cropped" — only the values can, and nothing on
+			// this page had ever looked inside a session record.
+			$images = self::probe_talk_images( $conn_id, $event_id );
+
+			$out[] = self::check(
+				'api_talk_images_' . $event_id,
+				sprintf( /* translators: %s: event ID. */ __( 'Session image fields (event %s)', 'emailexpert-events' ), $event_id ),
+				$images['status'],
+				$images['detail']
+			);
+
 			// The checkout-link generator, exercised through the exact
 			// production path (Tickets::couponed_checkout_link, including its
 			// cache) with the event's first live coupon. Generate-only: it
@@ -402,6 +415,110 @@ final class SelfTest {
 	 * @param string $detail Plain-sentence detail.
 	 * @return array{id:string,label:string,status:string,detail:string}
 	 */
+	/**
+	 * The image fields on a real session, and which one the cards use.
+	 *
+	 * @param string $connection_id Connection ID.
+	 * @param string $event_id      HeySummit event ID.
+	 * @return array{status:string,detail:string}
+	 */
+	private static function probe_talk_images( string $connection_id, string $event_id ): array {
+		$connection = Options::connection( $connection_id );
+
+		if ( null === $connection ) {
+			return [
+				'status' => 'skip',
+				'detail' => __( 'Connection not found or has no API key saved.', 'emailexpert-events' ),
+			];
+		}
+
+		$client = HeySummitClient::for_connection( $connection );
+		$args   = [
+			'timeout' => 15,
+			'retries' => 1,
+		];
+
+		// Flat first, then nested: the two shapes every other fetcher
+		// tries, because an account serves one or the other.
+		$response = $client->get( 'talks/', [ 'event' => $event_id ], $args );
+
+		if ( is_wp_error( $response ) ) {
+			$response = $client->get( 'events/' . rawurlencode( $event_id ) . '/talks/', [], $args );
+		}
+
+		if ( is_wp_error( $response ) ) {
+			return [
+				'status' => 'warn',
+				'detail' => $response->get_error_message(),
+			];
+		}
+
+		foreach ( (array) ( $response['results'] ?? [] ) as $talk ) {
+			$fields = self::image_fields( (array) $talk );
+
+			if ( empty( $fields ) ) {
+				continue;
+			}
+
+			// The order TalkMapper reads them in: the first one present is
+			// what every card renders, whatever else the record carries.
+			$used = '';
+			foreach ( [ 'custom_promo_image_primary', 'primary_image' ] as $candidate ) {
+				if ( isset( $fields[ $candidate ] ) ) {
+					$used = $candidate;
+					break;
+				}
+			}
+
+			$lines = [];
+			foreach ( $fields as $field => $url ) {
+				$lines[] = $field . ( $field === $used ? ' [RENDERED]' : '' ) . ' = ' . $url;
+			}
+
+			return [
+				'status' => '' === $used ? 'warn' : 'pass',
+				'detail' => implode( '   |   ', $lines ),
+			];
+		}
+
+		return [
+			'status' => 'warn',
+			'detail' => __( 'No session in this event carried an image field.', 'emailexpert-events' ),
+		];
+	}
+
+	/**
+	 * Every URL-valued field whose name — or whose parent's name — reads
+	 * as imagery, flattened to dotted keys. Public so the flattening is
+	 * testable without a live API.
+	 *
+	 * @param array<string,mixed> $data      Record, or a nested fragment.
+	 * @param bool                $inherited Parent key already matched.
+	 * @return array<string,string> Field name => URL.
+	 */
+	public static function image_fields( array $data, bool $inherited = false ): array {
+		$found = [];
+
+		foreach ( $data as $key => $value ) {
+			$name    = (string) $key;
+			$matches = $inherited || 1 === preg_match( '/image|promo|banner|thumb|graphic|photo|logo/i', $name );
+
+			if ( is_array( $value ) ) {
+				foreach ( self::image_fields( $value, $matches ) as $sub => $url ) {
+					$found[ $name . '.' . $sub ] = $url;
+				}
+
+				continue;
+			}
+
+			if ( $matches && is_string( $value ) && 1 === preg_match( '#^https?://#i', $value ) ) {
+				$found[ $name ] = $value;
+			}
+		}
+
+		return $found;
+	}
+
 	private static function check( string $id, string $label, string $status, string $detail ): array {
 		return [
 			'id'     => $id,

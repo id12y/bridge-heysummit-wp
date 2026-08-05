@@ -3,6 +3,17 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.47.0
+- **The health page now shows a session's image fields, not just that
+  sessions exist.** Settings > Events health gains "Session image
+  fields" per event: every image URL HeySummit returns on a real
+  session, with `[RENDERED]` against the one the cards actually use.
+- This closes a real blind spot. Tickets, coupons and sponsors all had
+  a raw-data accessor; sessions did not, so nothing in the plugin could
+  answer why a session's artwork looked wrong — the page could only say
+  how many sessions came back. Diagnosing anything about session
+  imagery meant reading the API by hand.
+
 ## 1.46.2
 - **Fixed: the space under the section heading's whisper was 8px, not
   the 9px it was set to.** The whisper also carries the older
