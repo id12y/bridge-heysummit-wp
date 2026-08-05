@@ -441,6 +441,41 @@ final class SelfTest {
 			'retries' => 1,
 		];
 
+		// The session the cards actually render, asked for by ID. A list
+		// page is the wrong place to look: this event carries 274 sessions
+		// over 28 pages, the first page is not the one on screen, and
+		// imagery is per-session — so scanning page one and reporting
+		// "none carried an image field" says nothing about the session
+		// whose artwork is in question.
+		$upcoming = Repositories::current()->upcoming_talks(
+			[
+				'event' => $event_id,
+				'limit' => 1,
+			]
+		);
+
+		$next_id = (string) ( $upcoming[0]['hs_id'] ?? '' );
+
+		if ( '' !== $next_id ) {
+			$one = $client->get( 'events/' . rawurlencode( $event_id ) . '/talks/' . rawurlencode( $next_id ) . '/', [], $args );
+
+			if ( ! is_wp_error( $one ) && is_array( $one ) ) {
+				$fields = self::image_fields( $one );
+
+				if ( ! empty( $fields ) ) {
+					return self::describe_image_fields(
+						$fields,
+						sprintf(
+							/* translators: 1: session title, 2: session ID. */
+							__( 'Next session on screen — %1$s (#%2$s).', 'emailexpert-events' ),
+							(string) ( $upcoming[0]['title'] ?? $next_id ),
+							$next_id
+						)
+					);
+				}
+			}
+		}
+
 		// The same route map and remembered per-connection winner every
 		// other fetcher uses. Hand-rolling a subset here is how this check
 		// first reported "no image field" while the cards were rendering
@@ -490,30 +525,14 @@ final class SelfTest {
 				continue;
 			}
 
-			// The order TalkMapper reads them in: the first one present is
-			// what every card renders, whatever else the record carries.
-			$used = '';
-			foreach ( [ 'custom_promo_image_primary', 'primary_image' ] as $candidate ) {
-				if ( isset( $fields[ $candidate ] ) ) {
-					$used = $candidate;
-					break;
-				}
-			}
-
-			$lines = [];
-			foreach ( $fields as $field => $url ) {
-				$lines[] = $field . ( $field === $used ? ' [RENDERED]' : '' ) . ' = ' . $url;
-			}
-
-			return [
-				'status' => '' === $used ? 'warn' : 'pass',
-				'detail' => sprintf(
-					/* translators: 1: session count, 2: field list. */
-					__( '%1$d session(s) inspected. %2$s', 'emailexpert-events' ),
-					$inspected,
-					implode( '   |   ', $lines )
-				),
-			];
+			return self::describe_image_fields(
+				$fields,
+				sprintf(
+					/* translators: %d: session count. */
+					__( 'Found on session %d of the first page.', 'emailexpert-events' ),
+					$inspected
+				)
+			);
 		}
 
 		return [
@@ -523,6 +542,35 @@ final class SelfTest {
 				__( '%d session(s) inspected; none carried an image field.', 'emailexpert-events' ),
 				$inspected
 			),
+		];
+	}
+
+	/**
+	 * Render an image-field finding, marking the one the cards use.
+	 *
+	 * @param array<string,string> $fields Field name => URL.
+	 * @param string               $where  Which record these came from.
+	 * @return array{status:string,detail:string}
+	 */
+	private static function describe_image_fields( array $fields, string $where ): array {
+		// The order TalkMapper reads them in: the first one present is what
+		// every card renders, whatever else the record carries.
+		$used = '';
+		foreach ( [ 'custom_promo_image_primary', 'primary_image' ] as $candidate ) {
+			if ( isset( $fields[ $candidate ] ) ) {
+				$used = $candidate;
+				break;
+			}
+		}
+
+		$lines = [];
+		foreach ( $fields as $field => $url ) {
+			$lines[] = $field . ( $field === $used ? ' [RENDERED]' : '' ) . ' = ' . $url;
+		}
+
+		return [
+			'status' => '' === $used ? 'warn' : 'pass',
+			'detail' => $where . ' ' . implode( '   |   ', $lines ),
 		];
 	}
 

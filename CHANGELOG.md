@@ -3,6 +3,16 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.47.2
+- **The session-image check now inspects the session on screen.** It
+  was scanning the first page of the session list, which on an event
+  with hundreds of sessions is not the session whose artwork is in
+  question — so it reported "none carried an image field" while the
+  card displayed one.
+- It asks the repository which session the cards render next, fetches
+  that record by ID, and reports its image fields. The list scan
+  remains as a fallback and now says which session it found imagery on.
+
 ## 1.47.1
 - **Fixed: the new session-image check reported nothing when sessions
   were fine.** It hand-rolled two of the three known session routes in
