@@ -1551,6 +1551,21 @@ final class Components {
 	 * @param int $post_id Talk post ID.
 	 * @return array<string,mixed>
 	 */
+	/**
+	 * The featured image at the size the Session images setting asks for.
+	 *
+	 * @param int $post_id Talk post ID.
+	 */
+	private static function talk_image_url( int $post_id ): string {
+		if ( ! function_exists( 'get_the_post_thumbnail_url' ) ) {
+			return '';
+		}
+
+		$size = 'optimised' === (string) Options::setting( 'image_source' ) ? 'medium_large' : 'full';
+
+		return (string) ( get_the_post_thumbnail_url( $post_id, $size ) ?: '' );
+	}
+
 	public static function talk_data( int $post_id ): array {
 		$event_hs_id   = (string) get_post_meta( $post_id, '_eex_source_event_id', true );
 		$event_post_id = self::event_post_for_hs_id( $event_hs_id );
@@ -1599,7 +1614,10 @@ final class Components {
 			'tag_ref'       => (string) get_post_meta( $post_id, '_eex_tag_ref', true ),
 			'type_ref'      => (string) get_post_meta( $post_id, '_eex_type_ref', true ),
 			'format'        => (string) get_post_meta( $post_id, '_eex_format', true ),
-			'image'         => (string) ( function_exists( 'get_the_post_thumbnail_url' ) ? ( get_the_post_thumbnail_url( $post_id, 'medium_large' ) ?: '' ) : '' ),
+			// Same choice as Lite, in WordPress's terms: the untouched upload,
+			// or the generated size. medium_large is 768px wide, so a feature
+			// card rendering at 1200 was upscaling it even before any crop.
+			'image'         => self::talk_image_url( $post_id ),
 			'speakers'      => $speakers,
 			'categories'    => is_array( $categories ) ? $categories : [],
 			'event_hs_id'   => $event_hs_id,

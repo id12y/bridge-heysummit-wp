@@ -3,6 +3,40 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.49.1
+- Fixed: the new Session images setting saved in Lite mode but not in
+  Full. The settings page has two save paths, one per mode, and 1.49.0
+  only added the field to one of them — so a Full-mode site could
+  choose the setting and watch it revert on save.
+
+## 1.49.0
+- **New setting: Session images** (Settings > Display, both modes).
+  Choose the **original upload** — the whole artwork, never cropped,
+  the default — or the **optimised** derivative, a smaller file cropped
+  to a fixed card shape.
+- It means the same thing in either mode. In Lite it selects between
+  the session's `primary_image` and `custom_promo_image_primary`. In
+  Full it selects between the full-size featured image and WordPress's
+  `medium_large` (768px wide).
+- Whichever you do not choose stays as the fallback, so a session that
+  carries only one of the two still shows an image.
+- Full mode also gains from this: it previously always asked for
+  `medium_large`, so a feature card rendering at 1200px was upscaling a
+  768px file. The default now serves the full-size image.
+- Saving clears the caches, so the change takes effect immediately.
+
+## 1.48.0
+- **Fixed: session artwork was rendering pre-cropped.** Sessions carry
+  two images — `primary_image`, the original upload, and
+  `custom_promo_image_primary`, a cropped derivative HeySummit keeps
+  for its own cards. The mapper read the cropped one first, so anything
+  running to the edge of a promo graphic — a sponsor strip, a logo row
+  — was lost before the page ever saw it. The original now wins.
+- The cropped variant remains the fallback, so a session that has only
+  that one still shows an image rather than nothing.
+- This was never a display bug. No CSS could recover pixels the file
+  did not contain.
+
 ## 1.47.2
 - **The session-image check now inspects the session on screen.** It
   was scanning the first page of the session list, which on an event

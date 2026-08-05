@@ -130,6 +130,7 @@ final class LiteModeTest extends TestCase {
 									'title'     => 'Live session two',
 									'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + 9000 ),
 									'event'     => 101,
+									'custom_promo_image_primary' => 'https://cdn.example.com/talk502-promo-only.jpg',
 								],
 								[
 									'id'                      => 503,
@@ -138,6 +139,7 @@ final class LiteModeTest extends TestCase {
 									'event'                   => 101,
 									'external_url'            => 'https://elsewhere.example.com/masterclass',
 									'primary_image'           => 'https://cdn.example.com/talk503.jpg',
+									'custom_promo_image_primary' => 'https://cdn.example.com/talk503-cropped.jpg',
 									'inperson_available'      => true,
 									'inperson_venue'          => 'The Roundhouse',
 									'inperson_venue_area'     => 'Main Hall',
@@ -284,6 +286,15 @@ final class LiteModeTest extends TestCase {
 
 		// Imagery, venue and status badges from the expanded serializer.
 		$this->assertStringContainsString( 'cdn.example.com/talk503.jpg', $html, 'session image renders when enabled' );
+
+		// custom_promo_image_primary is a CROPPED derivative HeySummit keeps
+		// for its own cards. With both present the original wins, or whatever
+		// runs to the artwork's edges — a sponsor strip, say — is lost.
+		$this->assertStringNotContainsString( 'talk503-cropped.jpg', $html, 'the cropped promo variant never beats the original' );
+
+		// It is still the fallback: a session with only the promo image shows
+		// it rather than showing nothing.
+		$this->assertStringContainsString( 'talk502-promo-only.jpg', $html, 'the promo variant remains the fallback' );
 		$this->assertStringContainsString( 'The Roundhouse, Main Hall', $html, 'venue line' );
 		$this->assertStringContainsString( 'In person', $html );
 		$this->assertStringContainsString( 'Open access', $html );
@@ -2916,5 +2927,39 @@ final class LiteModeTest extends TestCase {
 			$this->assertFalse( ctype_digit( (string) $name ), 'no ID ever becomes a picker label' );
 			$this->assertSame( sanitize_title( $name ), (string) $slug, 'stored slugs match the filter values Lite uses' );
 		}
+	}
+
+	/**
+	 * The Session images setting picks which of a session's two images is
+	 * rendered. Default is the untouched upload; "optimised" opts into the
+	 * platform's smaller, cropped derivative.
+	 */
+	public function test_image_source_setting_switches_between_the_two_images(): void {
+		$this->go_lite();
+		$this->mock_api();
+
+		$atts = [
+			'show_image' => 1,
+			'buttons'    => 'both',
+		];
+
+		// Default: the original wins and the cropped derivative is absent.
+		$html = Components::render( 'upcoming-sessions', $atts );
+		$this->assertStringContainsString( 'talk503.jpg', $html );
+		$this->assertStringNotContainsString( 'talk503-cropped.jpg', $html );
+
+		Options::update_settings( [ 'image_source' => 'optimised' ] );
+		\Emailexpert\Events\Data\LiveCache::flush();
+		\Emailexpert\Events\Frontend\Cache::flush();
+		Repositories::reset();
+
+		// Opted in: the derivative renders instead.
+		$html = Components::render( 'upcoming-sessions', $atts );
+		$this->assertStringContainsString( 'talk503-cropped.jpg', $html );
+		$this->assertStringNotContainsString( 'talk503.jpg"', $html, 'the original is not also emitted' );
+
+		// The fallback holds in both directions: a session with only one of
+		// the two shows that one whichever way the setting points.
+		$this->assertStringContainsString( 'talk502-promo-only.jpg', $html );
 	}
 }

@@ -2601,3 +2601,80 @@ one being asked. Both failures of this check were that same mistake in
 different clothes: the first sampled the wrong route, the second the
 wrong session, and both reported their finding as though it covered
 everything.
+
+## 1.48.0 — the original image, not HeySummit's cropped one
+
+A session record carries both `primary_image` — the organiser's upload,
+untouched — and `custom_promo_image_primary`, a cropped derivative
+HeySummit generates for its own card layouts. The mapper listed the
+cropped one first, and first match wins, so every card rendered a
+derivative that had already lost its edges. On a 1920x1080 promo
+graphic with a sponsor strip along the bottom, the strip was gone
+before any stylesheet was consulted.
+
+The order is now primary_image first, with the promo variant kept as
+the fallback: a session that only has the promo image should still show
+something rather than nothing.
+
+WHY IT TOOK SO LONG TO FIND. The symptom was visual, so it was chased
+visually — aspect-ratio, object-fit, layout, three releases of it. The
+evidence that should have redirected it arrived early and was misread:
+the crop took only the bottom, and object-fit: cover crops centred. A
+centred crop that removes nothing from the top is not a centred crop.
+That single observation pointed at the file rather than the box, and it
+was three exchanges before anyone opened the image on its own.
+
+WHY NO TEST CAUGHT IT. The Lite fixture set primary_image and nothing
+else, so the preference order was never exercised — the mapper's list
+had two entries and every test only ever populated the second. A
+fixture that carries one of two mutually exclusive fields cannot test a
+preference between them. Both fields are now present on the same
+session, and a second session carries only the promo variant so the
+fallback is covered too.
+
+## 1.49.0 — the image trade-off is the operator's to make
+
+1.48.0 chose the uncropped original for everyone. That is the right
+default — losing the bottom of a designed graphic is a bug, not a
+saving — but it is not the only defensible position: a listing of forty
+sessions on a phone has a real interest in smaller files. So the choice
+is now a setting rather than a decision baked into the mapper.
+
+A SETTING, NOT A WIDGET ATTRIBUTE. This is a policy about bandwidth
+against fidelity, and it wants to be consistent: one widget serving
+originals beside another serving crops looks like a fault, not a
+choice. It also has to reach shortcodes and blocks, not just Elementor.
+And practically, session data reaches templates through thirteen
+separate hand-offs, so a per-widget attribute would have meant
+threading the choice through all of them, where a setting is read once
+where the field is chosen. If a per-widget override is ever wanted, it
+can layer on top of this without moving it.
+
+IT MEANS THE SAME THING IN BOTH MODES. Lite picks between the two
+fields the API returns. Full picks between the full-size featured image
+and medium_large. Different mechanisms, one question — "the whole
+image, or a smaller one" — so operators are not asked to understand
+which mode they are in to answer it.
+
+FULL MODE WAS ALSO WRONG, QUIETLY. It always asked for medium_large,
+which is 768px wide. A feature card rendering at 1200 was upscaling it,
+and nobody had noticed because the symptom is softness rather than a
+missing sponsor strip. The default now serves the original there too.
+
+The fallback runs both ways: whichever image the operator did not
+choose is still used when the chosen one is absent. A setting should
+change which image is preferred, never whether one appears.
+
+## 1.49.1 — one control, two save paths
+
+The Session images control rendered in both modes and saved in only
+one. SettingsPage keeps a separate save routine per mode —
+save_lite_settings() and save_settings() — and 1.49.0 added the field
+to the Lite one alone, so a Full-mode operator could pick the setting,
+save, and watch it revert with no error shown.
+
+The shape of the page invites exactly this: a control has to be added
+in four places — rendered twice, sanitised twice — and adding it in
+three of them fails silently in one mode only. Worth remembering the
+next time a setting is added, and worth noting that no test covers
+either save routine, which is why nothing caught it.

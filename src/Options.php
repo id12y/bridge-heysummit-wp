@@ -32,6 +32,7 @@ final class Options {
 			'mode_chosen'           => 0,
 			'lite_archive'          => 0,
 			'lite_events'           => [],
+			'image_source'          => 'original',
 			'lite_ttl'              => 15,
 			'cache_ttl'             => 5,
 			'lite_sponsors'         => [],
