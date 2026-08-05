@@ -3,6 +3,20 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.47.1
+- **Fixed: the new session-image check reported nothing when sessions
+  were fine.** It hand-rolled two of the three known session routes in
+  the wrong order and treated an empty `200` as the answer, so an
+  account whose sessions live on a different route saw "no image
+  field" while its cards rendered images normally.
+- It now uses the same route map and remembered per-connection winner
+  as every other fetcher, and only accepts a route that actually
+  returns sessions.
+- The wording no longer conflates the two cases: "no sessions came
+  back from any route" and "N session(s) inspected; none carried an
+  image field" are now distinct, and every result states how many
+  sessions it looked at.
+
 ## 1.47.0
 - **The health page now shows a session's image fields, not just that
   sessions exist.** Settings > Events health gains "Session image
