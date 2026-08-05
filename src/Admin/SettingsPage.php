@@ -903,6 +903,17 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><?php esc_html_e( 'Session images', 'emailexpert-events' ); ?></th>
+				<td>
+					<?php $eex_img_src = 'optimised' === (string) Options::setting( 'image_source' ) ? 'optimised' : 'original'; ?>
+					<select name="settings[image_source]">
+						<option value="original" <?php selected( 'original', $eex_img_src ); ?>><?php esc_html_e( 'Original upload — the whole artwork, never cropped', 'emailexpert-events' ); ?></option>
+						<option value="optimised" <?php selected( 'optimised', $eex_img_src ); ?>><?php esc_html_e( 'Optimised — smaller file, cropped to a fixed card shape', 'emailexpert-events' ); ?></option>
+					</select>
+					<p class="description"><?php esc_html_e( 'Two images exist for a session. The original is what was uploaded. The optimised one is a derivative cropped to a fixed shape, so anything running to the edge of a designed graphic — a sponsor strip, a logo row — is cut out of it. Choose optimised only where page weight matters more than seeing the whole image. Saving clears the caches either way, so the change is immediate.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><label for="eex-date-format"><?php esc_html_e( 'Date format override', 'emailexpert-events' ); ?></label></th>
 				<td>
 					<input type="text" id="eex-date-format" name="settings[date_format]" value="<?php echo esc_attr( (string) Options::setting( 'date_format' ) ); ?>" placeholder="<?php echo esc_attr( get_option( 'date_format' ) ); ?>" />
@@ -1037,6 +1048,17 @@ final class SettingsPage {
 						<option value="classic" <?php selected( 'classic', $eex_skin ); ?>><?php esc_html_e( 'Classic — the look through 1.41: solid badges, outlined buttons', 'emailexpert-events' ); ?></option>
 					</select>
 					<p class="description"><?php esc_html_e( 'Exactly one skin loads, so choosing between them never costs a second stylesheet. Both read the same style tokens, so Elementor style controls keep overriding either. Dequeue the eex-skin handle to drop to unstyled base markup.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Session images', 'emailexpert-events' ); ?></th>
+				<td>
+					<?php $eex_img_src = 'optimised' === (string) Options::setting( 'image_source' ) ? 'optimised' : 'original'; ?>
+					<select name="settings[image_source]">
+						<option value="original" <?php selected( 'original', $eex_img_src ); ?>><?php esc_html_e( 'Original upload — the whole artwork, never cropped', 'emailexpert-events' ); ?></option>
+						<option value="optimised" <?php selected( 'optimised', $eex_img_src ); ?>><?php esc_html_e( 'Optimised — smaller file, cropped to a fixed card shape', 'emailexpert-events' ); ?></option>
+					</select>
+					<p class="description"><?php esc_html_e( 'Two images exist for a session. The original is what was uploaded. The optimised one is a derivative cropped to a fixed shape, so anything running to the edge of a designed graphic — a sponsor strip, a logo row — is cut out of it. Choose optimised only where page weight matters more than seeing the whole image. Saving clears the caches either way, so the change is immediate.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
 			<tr>
@@ -1230,6 +1252,7 @@ final class SettingsPage {
 			'lite_ttl'          => max( 1, min( 1440, (int) ( $posted['lite_ttl'] ?? 15 ) ) ),
 			'date_format'       => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
 			'skin'              => 'classic' === (string) ( $posted['skin'] ?? '' ) ? 'classic' : 'editorial',
+			'image_source'      => 'optimised' === (string) ( $posted['image_source'] ?? '' ) ? 'optimised' : 'original',
 			'format_tag_labels' => sanitize_textarea_field( (string) ( $posted['format_tag_labels'] ?? '' ) ),
 			'cache_ttl'         => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
 			'schema_enabled'    => empty( $posted['schema_enabled'] ) ? 0 : 1,

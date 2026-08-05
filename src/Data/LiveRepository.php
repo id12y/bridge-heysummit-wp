@@ -1494,6 +1494,18 @@ class LiveRepository extends BaseMapper implements Repository {
 	 * @param array<string,mixed> $event Event data array (may be empty).
 	 * @return array<string,mixed>
 	 */
+	/**
+	 * Which session image field to read first, per the Session images
+	 * setting. The other stays as the fallback either way.
+	 *
+	 * @return array<int,string>
+	 */
+	protected static function image_field_order(): array {
+		return 'optimised' === (string) \Emailexpert\Events\Options::setting( 'image_source' )
+			? [ 'custom_promo_image_primary', 'primary_image' ]
+			: [ 'primary_image', 'custom_promo_image_primary' ];
+	}
+
 	protected function map_talk( array $raw, array $event ): array {
 		$hs_id         = self::id_of( $raw, [ 'id' ] );
 		$talk_url      = self::url_str( $raw, [ 'talk_url', 'url', 'public_url' ] );
@@ -1589,13 +1601,11 @@ class LiveRepository extends BaseMapper implements Repository {
 			// An externally hosted session points everything at its home.
 			'permalink'     => Utm::tag( $external ?: $talk_url ) ?: $event_url,
 			'external_url'  => Utm::tag( $external ),
-			// primary_image before the promo variant. custom_promo_image_primary
-			// is a CROPPED derivative HeySummit keeps for its own cards, so
-			// preferring it silently loses whatever runs to the artwork's edges
-			// — on a 1920x1080 promo graphic, that is the sponsor strip. The
-			// promo image stays as the fallback: a session that has only that
-			// one should still show something.
-			'image'         => self::url_str( $raw, [ 'primary_image', 'custom_promo_image_primary' ] ),
+			// custom_promo_image_primary is a CROPPED derivative the platform
+			// keeps for its own cards; primary_image is the upload itself.
+			// Whichever the operator did not choose stays as the fallback, so a
+			// session carrying only one of the two still shows an image.
+			'image'         => self::url_str( $raw, self::image_field_order() ),
 			'venue'         => $venue,
 			'inperson'      => ! empty( $raw['inperson_available'] ),
 			'open_access'   => ! empty( $raw['is_open_access'] ) || ! empty( $raw['is_public_access'] ),

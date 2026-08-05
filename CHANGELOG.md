@@ -3,6 +3,22 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.49.0
+- **New setting: Session images** (Settings > Display, both modes).
+  Choose the **original upload** — the whole artwork, never cropped,
+  the default — or the **optimised** derivative, a smaller file cropped
+  to a fixed card shape.
+- It means the same thing in either mode. In Lite it selects between
+  the session's `primary_image` and `custom_promo_image_primary`. In
+  Full it selects between the full-size featured image and WordPress's
+  `medium_large` (768px wide).
+- Whichever you do not choose stays as the fallback, so a session that
+  carries only one of the two still shows an image.
+- Full mode also gains from this: it previously always asked for
+  `medium_large`, so a feature card rendering at 1200px was upscaling a
+  768px file. The default now serves the full-size image.
+- Saving clears the caches, so the change takes effect immediately.
+
 ## 1.48.0
 - **Fixed: session artwork was rendering pre-cropped.** Sessions carry
   two images — `primary_image`, the original upload, and

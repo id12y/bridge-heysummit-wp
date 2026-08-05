@@ -2631,3 +2631,36 @@ fixture that carries one of two mutually exclusive fields cannot test a
 preference between them. Both fields are now present on the same
 session, and a second session carries only the promo variant so the
 fallback is covered too.
+
+## 1.49.0 — the image trade-off is the operator's to make
+
+1.48.0 chose the uncropped original for everyone. That is the right
+default — losing the bottom of a designed graphic is a bug, not a
+saving — but it is not the only defensible position: a listing of forty
+sessions on a phone has a real interest in smaller files. So the choice
+is now a setting rather than a decision baked into the mapper.
+
+A SETTING, NOT A WIDGET ATTRIBUTE. This is a policy about bandwidth
+against fidelity, and it wants to be consistent: one widget serving
+originals beside another serving crops looks like a fault, not a
+choice. It also has to reach shortcodes and blocks, not just Elementor.
+And practically, session data reaches templates through thirteen
+separate hand-offs, so a per-widget attribute would have meant
+threading the choice through all of them, where a setting is read once
+where the field is chosen. If a per-widget override is ever wanted, it
+can layer on top of this without moving it.
+
+IT MEANS THE SAME THING IN BOTH MODES. Lite picks between the two
+fields the API returns. Full picks between the full-size featured image
+and medium_large. Different mechanisms, one question — "the whole
+image, or a smaller one" — so operators are not asked to understand
+which mode they are in to answer it.
+
+FULL MODE WAS ALSO WRONG, QUIETLY. It always asked for medium_large,
+which is 768px wide. A feature card rendering at 1200 was upscaling it,
+and nobody had noticed because the symptom is softness rather than a
+missing sponsor strip. The default now serves the original there too.
+
+The fallback runs both ways: whichever image the operator did not
+choose is still used when the chosen one is absent. A setting should
+change which image is preferred, never whether one appears.

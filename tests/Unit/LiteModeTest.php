@@ -2928,4 +2928,38 @@ final class LiteModeTest extends TestCase {
 			$this->assertSame( sanitize_title( $name ), (string) $slug, 'stored slugs match the filter values Lite uses' );
 		}
 	}
+
+	/**
+	 * The Session images setting picks which of a session's two images is
+	 * rendered. Default is the untouched upload; "optimised" opts into the
+	 * platform's smaller, cropped derivative.
+	 */
+	public function test_image_source_setting_switches_between_the_two_images(): void {
+		$this->go_lite();
+		$this->mock_api();
+
+		$atts = [
+			'show_image' => 1,
+			'buttons'    => 'both',
+		];
+
+		// Default: the original wins and the cropped derivative is absent.
+		$html = Components::render( 'upcoming-sessions', $atts );
+		$this->assertStringContainsString( 'talk503.jpg', $html );
+		$this->assertStringNotContainsString( 'talk503-cropped.jpg', $html );
+
+		Options::update_settings( [ 'image_source' => 'optimised' ] );
+		\Emailexpert\Events\Data\LiveCache::flush();
+		\Emailexpert\Events\Frontend\Cache::flush();
+		Repositories::reset();
+
+		// Opted in: the derivative renders instead.
+		$html = Components::render( 'upcoming-sessions', $atts );
+		$this->assertStringContainsString( 'talk503-cropped.jpg', $html );
+		$this->assertStringNotContainsString( 'talk503.jpg"', $html, 'the original is not also emitted' );
+
+		// The fallback holds in both directions: a session with only one of
+		// the two shows that one whichever way the setting points.
+		$this->assertStringContainsString( 'talk502-promo-only.jpg', $html );
+	}
 }
