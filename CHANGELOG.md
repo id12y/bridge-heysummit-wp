@@ -3,6 +3,18 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.48.0
+- **Fixed: session artwork was rendering pre-cropped.** Sessions carry
+  two images — `primary_image`, the original upload, and
+  `custom_promo_image_primary`, a cropped derivative HeySummit keeps
+  for its own cards. The mapper read the cropped one first, so anything
+  running to the edge of a promo graphic — a sponsor strip, a logo row
+  — was lost before the page ever saw it. The original now wins.
+- The cropped variant remains the fallback, so a session that has only
+  that one still shows an image rather than nothing.
+- This was never a display bug. No CSS could recover pixels the file
+  did not contain.
+
 ## 1.47.2
 - **The session-image check now inspects the session on screen.** It
   was scanning the first page of the session list, which on an event

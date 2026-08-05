@@ -130,6 +130,7 @@ final class LiteModeTest extends TestCase {
 									'title'     => 'Live session two',
 									'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', time() + 9000 ),
 									'event'     => 101,
+									'custom_promo_image_primary' => 'https://cdn.example.com/talk502-promo-only.jpg',
 								],
 								[
 									'id'                      => 503,
@@ -138,6 +139,7 @@ final class LiteModeTest extends TestCase {
 									'event'                   => 101,
 									'external_url'            => 'https://elsewhere.example.com/masterclass',
 									'primary_image'           => 'https://cdn.example.com/talk503.jpg',
+									'custom_promo_image_primary' => 'https://cdn.example.com/talk503-cropped.jpg',
 									'inperson_available'      => true,
 									'inperson_venue'          => 'The Roundhouse',
 									'inperson_venue_area'     => 'Main Hall',
@@ -284,6 +286,15 @@ final class LiteModeTest extends TestCase {
 
 		// Imagery, venue and status badges from the expanded serializer.
 		$this->assertStringContainsString( 'cdn.example.com/talk503.jpg', $html, 'session image renders when enabled' );
+
+		// custom_promo_image_primary is a CROPPED derivative HeySummit keeps
+		// for its own cards. With both present the original wins, or whatever
+		// runs to the artwork's edges — a sponsor strip, say — is lost.
+		$this->assertStringNotContainsString( 'talk503-cropped.jpg', $html, 'the cropped promo variant never beats the original' );
+
+		// It is still the fallback: a session with only the promo image shows
+		// it rather than showing nothing.
+		$this->assertStringContainsString( 'talk502-promo-only.jpg', $html, 'the promo variant remains the fallback' );
 		$this->assertStringContainsString( 'The Roundhouse, Main Hall', $html, 'venue line' );
 		$this->assertStringContainsString( 'In person', $html );
 		$this->assertStringContainsString( 'Open access', $html );

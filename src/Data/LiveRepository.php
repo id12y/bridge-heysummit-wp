@@ -1589,7 +1589,13 @@ class LiveRepository extends BaseMapper implements Repository {
 			// An externally hosted session points everything at its home.
 			'permalink'     => Utm::tag( $external ?: $talk_url ) ?: $event_url,
 			'external_url'  => Utm::tag( $external ),
-			'image'         => self::url_str( $raw, [ 'custom_promo_image_primary', 'primary_image' ] ),
+			// primary_image before the promo variant. custom_promo_image_primary
+			// is a CROPPED derivative HeySummit keeps for its own cards, so
+			// preferring it silently loses whatever runs to the artwork's edges
+			// — on a 1920x1080 promo graphic, that is the sponsor strip. The
+			// promo image stays as the fallback: a session that has only that
+			// one should still show something.
+			'image'         => self::url_str( $raw, [ 'primary_image', 'custom_promo_image_primary' ] ),
 			'venue'         => $venue,
 			'inperson'      => ! empty( $raw['inperson_available'] ),
 			'open_access'   => ! empty( $raw['is_open_access'] ) || ! empty( $raw['is_public_access'] ),

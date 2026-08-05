@@ -2601,3 +2601,33 @@ one being asked. Both failures of this check were that same mistake in
 different clothes: the first sampled the wrong route, the second the
 wrong session, and both reported their finding as though it covered
 everything.
+
+## 1.48.0 — the original image, not HeySummit's cropped one
+
+A session record carries both `primary_image` — the organiser's upload,
+untouched — and `custom_promo_image_primary`, a cropped derivative
+HeySummit generates for its own card layouts. The mapper listed the
+cropped one first, and first match wins, so every card rendered a
+derivative that had already lost its edges. On a 1920x1080 promo
+graphic with a sponsor strip along the bottom, the strip was gone
+before any stylesheet was consulted.
+
+The order is now primary_image first, with the promo variant kept as
+the fallback: a session that only has the promo image should still show
+something rather than nothing.
+
+WHY IT TOOK SO LONG TO FIND. The symptom was visual, so it was chased
+visually — aspect-ratio, object-fit, layout, three releases of it. The
+evidence that should have redirected it arrived early and was misread:
+the crop took only the bottom, and object-fit: cover crops centred. A
+centred crop that removes nothing from the top is not a centred crop.
+That single observation pointed at the file rather than the box, and it
+was three exchanges before anyone opened the image on its own.
+
+WHY NO TEST CAUGHT IT. The Lite fixture set primary_image and nothing
+else, so the preference order was never exercised — the mapper's list
+had two entries and every test only ever populated the second. A
+fixture that carries one of two mutually exclusive fields cannot test a
+preference between them. Both fields are now present on the same
+session, and a second session carries only the promo variant so the
+fallback is covered too.
