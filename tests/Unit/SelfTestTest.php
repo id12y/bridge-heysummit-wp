@@ -231,4 +231,40 @@ final class SelfTestTest extends TestCase {
 		$this->assertNotEmpty( $stored['results'] );
 		$this->assertSame( 'pass', $this->row( $stored['results'], 'api_events_c1' )['status'], 'probe results are stored for the page' );
 	}
+
+	/**
+	 * The flattening behind the session-image check. This is the part with
+	 * real logic — the probe around it is one API call.
+	 */
+	public function test_image_fields_finds_nested_and_ignores_non_imagery(): void {
+		$fields = SelfTest::image_fields(
+			[
+				'id'                         => 777,
+				'title'                      => 'A session',
+				// Not imagery, even though it is a URL.
+				'talk_url'                   => 'https://summit.example.com/talks/a/',
+				'custom_promo_image_primary' => 'https://cdn.example.org/uploads/cropped.png',
+				// Nested under an imagery key: every URL inside counts, even
+				// though "full_size" does not read as imagery by itself.
+				'thumbnails'                 => [
+					'full_size' => 'https://cdn.example.org/thumbnails/original_full_size.png',
+					'small'     => 'https://cdn.example.org/thumbnails/small.png',
+				],
+				// Imagery-named but empty, so there is nothing to offer.
+				'primary_image'              => '',
+			]
+		);
+
+		$this->assertSame(
+			[
+				'custom_promo_image_primary'  => 'https://cdn.example.org/uploads/cropped.png',
+				'thumbnails.full_size'        => 'https://cdn.example.org/thumbnails/original_full_size.png',
+				'thumbnails.small'            => 'https://cdn.example.org/thumbnails/small.png',
+			],
+			$fields
+		);
+
+		$this->assertArrayNotHasKey( 'talk_url', $fields, 'a URL is not imagery just because it is a URL' );
+		$this->assertArrayNotHasKey( 'primary_image', $fields, 'an empty field offers nothing to render' );
+	}
 }

@@ -2518,3 +2518,31 @@ old class keeps competing, and every property the new rule sets at
 equal weight is a coin toss decided by file order. Second: this was
 found by measuring computed styles in a browser, not by reading the
 CSS. The rule was present, correct and losing.
+
+## 1.47.0 — the health page can see session imagery
+
+The self-test could say an endpoint answered and how many rows came
+back. It could not say what was in a row. That gap cost real time: a
+session's artwork was rendering cropped, and because nothing could show
+the field values, the investigation went to the display layer — three
+releases of aspect-ratio, object-fit and layout work — when the URL
+being requested was already a cropped derivative. No amount of CSS
+recovers pixels that are not in the file.
+
+Tickets, coupons and sponsors each have a raw() accessor. Sessions
+never did, which is exactly why sessions were the resource nobody could
+diagnose. Rather than add a fourth accessor for one check, the probe
+fetches directly through the same client and the same flat-then-nested
+fallback every other fetcher uses.
+
+WHAT IT REPORTS. Every URL-valued field whose name — or whose parent's
+name — reads as imagery, flattened to dotted keys so nested thumbnail
+structures are visible, with [RENDERED] marking the one TalkMapper's
+preference order actually selects. Seeing "the field we use" beside
+"the fields that exist" is the whole point: a cropped rendition and a
+full-size original sitting side by side in the same record is a
+one-line fix, and invisible without this.
+
+The flattening is public and unit-tested; the probe around it is a
+single API call and stays private. A URL is not treated as imagery just
+because it is a URL — talk_url would otherwise be reported as an image.
