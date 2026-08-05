@@ -2476,3 +2476,21 @@ A test stub for get_the_post_thumbnail_url came with this: unit tests
 could not render a session image at all before it, so nothing covering
 image markup could be written. It returns false rather than '' for a
 post with no thumbnail, matching WP, because callers use `?:`.
+
+## 1.46.1 — a lint gap that let 1.46.0 through
+
+1.46.0 failed CI on a sniff that had never run locally. CI invokes
+`vendor/bin/phpcs` bare, after setting `installed_paths` to the three
+standards in vendor/; this working copy had been linted with an
+explicit `--standard=phpcs.xml.dist` against an install whose
+`installed_paths` did not point at them, so the Squiz and Generic
+sniffs silently did not load. A green local run therefore meant less
+than it appeared to. The fix for the gap is to run phpcs exactly as CI
+does — bare, with installed_paths set — and that is now what a
+pre-push check should be.
+
+The offending code chose the image's loading hint with an inline
+conditional inside the `<img>` tag. It is decided once above the markup
+instead, which satisfies the sniff and reads better: the two hints are
+visibly mutually exclusive at the point the choice is made, rather than
+tangled into an attribute list.

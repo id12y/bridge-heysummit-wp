@@ -3,6 +3,12 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.46.1
+- Fixed the coding-standards failure in 1.46.0: the image hint was
+  chosen by an inline conditional inside the `<img>` tag. It is now
+  decided once, above the markup, which reads better anyway. No change
+  to what is rendered.
+
 ## 1.46.0
 - **New toggle: "Load the image immediately".** On the featured session
   widget, for a card that leads a page. It drops the lazy hint and asks

@@ -40,11 +40,15 @@ $eex_compact = 'compact' === $eex_view;
 // Banner is the wide card with its artwork given the full width, so it
 // keeps eex-feature-card and every style that hangs off it, and adds a
 // modifier that collapses the two columns into one.
-$eex_banner  = 'banner' === $eex_view;
-$eex_eager   = ! empty( $args['eager_image'] );
-$eex_venue   = ! empty( $eex_show['venue'] ) ? (string) ( $eex_data['venue'] ?? '' ) : '';
-$eex_address = (array) ( $args['address'] ?? [] );
-$eex_link    = (string) ( ( $eex_data['permalink'] ?? '' ) ?: ( $eex_data['talk_url'] ?? '' ) );
+$eex_banner = 'banner' === $eex_view;
+$eex_eager  = ! empty( $args['eager_image'] );
+// A leading card's artwork is usually the Largest Contentful Paint, and
+// a lazy hint on it is what delays the paint. Exactly one of the two
+// hints is ever emitted; both together would be a contradiction.
+$eex_img_hint = $eex_eager ? 'fetchpriority="high"' : 'loading="lazy"';
+$eex_venue    = ! empty( $eex_show['venue'] ) ? (string) ( $eex_data['venue'] ?? '' ) : '';
+$eex_address  = (array) ( $args['address'] ?? [] );
+$eex_link     = (string) ( ( $eex_data['permalink'] ?? '' ) ?: ( $eex_data['talk_url'] ?? '' ) );
 
 $eex_rsvp = (array) ( $args['rsvp'] ?? [] );
 if ( '' !== (string) ( $eex_data['external_url'] ?? '' ) ) {
@@ -69,7 +73,7 @@ $eex_session_url = 'tickets' === $eex_buttons ? '' : Components::session_url( $e
 <article class="eex-card eex-feature-session <?php echo esc_attr( $eex_compact ? 'eex-feature-compact' : ( $eex_banner ? 'eex-feature-card eex-feature-banner' : 'eex-feature-card' ) ); ?>"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
 	<?php if ( ! empty( $eex_show['image'] ) && '' !== (string) ( $eex_data['image'] ?? '' ) ) : ?>
 		<div class="eex-card-image eex-feature-media">
-			<img src="<?php echo esc_url( (string) $eex_data['image'] ); ?>" alt=""<?php if ( $eex_eager ) : ?> fetchpriority="high"<?php else : ?> loading="lazy"<?php endif; ?> />
+			<img src="<?php echo esc_url( (string) $eex_data['image'] ); ?>" alt="" <?php echo $eex_img_hint; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- one of two literal attributes chosen above. ?>/>
 		</div>
 	<?php endif; ?>
 
