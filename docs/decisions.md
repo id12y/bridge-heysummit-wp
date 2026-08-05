@@ -2664,3 +2664,17 @@ missing sponsor strip. The default now serves the original there too.
 The fallback runs both ways: whichever image the operator did not
 choose is still used when the chosen one is absent. A setting should
 change which image is preferred, never whether one appears.
+
+## 1.49.1 — one control, two save paths
+
+The Session images control rendered in both modes and saved in only
+one. SettingsPage keeps a separate save routine per mode —
+save_lite_settings() and save_settings() — and 1.49.0 added the field
+to the Lite one alone, so a Full-mode operator could pick the setting,
+save, and watch it revert with no error shown.
+
+The shape of the page invites exactly this: a control has to be added
+in four places — rendered twice, sanitised twice — and adding it in
+three of them fails silently in one mode only. Worth remembering the
+next time a setting is added, and worth noting that no test covers
+either save routine, which is why nothing caught it.

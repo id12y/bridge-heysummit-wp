@@ -3,6 +3,12 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.49.1
+- Fixed: the new Session images setting saved in Lite mode but not in
+  Full. The settings page has two save paths, one per mode, and 1.49.0
+  only added the field to one of them — so a Full-mode site could
+  choose the setting and watch it revert on save.
+
 ## 1.49.0
 - **New setting: Session images** (Settings > Display, both modes).
   Choose the **original upload** — the whole artwork, never cropped,

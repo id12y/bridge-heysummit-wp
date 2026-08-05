@@ -1441,6 +1441,7 @@ final class SettingsPage {
 				'frequency'             => $frequency,
 				'date_format'           => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
 				'skin'                  => 'classic' === (string) ( $posted['skin'] ?? '' ) ? 'classic' : 'editorial',
+				'image_source'          => 'optimised' === (string) ( $posted['image_source'] ?? '' ) ? 'optimised' : 'original',
 				'format_tag_labels'     => sanitize_textarea_field( (string) ( $posted['format_tag_labels'] ?? '' ) ),
 				'cache_ttl'             => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),
 				'series_colours'        => $colours,
