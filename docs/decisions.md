@@ -2546,3 +2546,32 @@ one-line fix, and invisible without this.
 The flattening is public and unit-tested; the probe around it is a
 single API call and stays private. A URL is not treated as imagery just
 because it is a URL — talk_url would otherwise be reported as an image.
+
+## 1.47.1 — the diagnostic that mis-diagnosed
+
+The session-image check shipped in 1.47.0 and immediately reported "No
+session in this event carried an image field" for an account whose
+cards were rendering images correctly. Two faults, and the second is
+the one worth remembering.
+
+IT DUPLICATED A ROUTE MAP INSTEAD OF USING IT. TalkRoutes::requests()
+holds the three known ways to list an event's sessions, in preference
+order, and PathStyles remembers which one a connection answers on.
+Every fetcher builds from that map. The check hand-rolled two of the
+three, in the wrong order, and consulted neither class. It also treated
+an empty 200 as a valid answer, so a route filtering on a parameter the
+account does not use returned a cheerful empty page and the probe
+stopped there.
+
+ITS WORDING HID ITS OWN FAILURE. "No session carried an image field"
+was emitted both when sessions had no imagery and when no sessions were
+fetched at all. Those are opposite conclusions — one is a data finding,
+the other is a broken probe — and the message could not tell them
+apart, which sent the investigation off again. Every outcome now states
+how many sessions were inspected, and fetching nothing says so in those
+words.
+
+The regression test drives the exact shape that broke it: flat routes
+answering 200 with an empty page, sessions present on the nested route.
+A diagnostic that can be wrong quietly is worse than no diagnostic,
+because it is trusted.

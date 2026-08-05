@@ -267,4 +267,66 @@ final class SelfTestTest extends TestCase {
 		$this->assertArrayNotHasKey( 'talk_url', $fields, 'a URL is not imagery just because it is a URL' );
 		$this->assertArrayNotHasKey( 'primary_image', $fields, 'an empty field offers nothing to render' );
 	}
+
+	/**
+	 * The regression this check shipped with: an empty 200 from the first
+	 * route style was accepted as the answer, so the probe reported "no
+	 * image field" while the cards were rendering images perfectly well.
+	 * A route that filters on the wrong parameter name returns a cheerful
+	 * empty page; the sessions are under one of the other styles.
+	 */
+	public function test_session_image_check_falls_through_an_empty_route(): void {
+		$this->go_lite();
+
+		$this->mock_http(
+			static function ( $url ) {
+				$url = (string) $url;
+
+				// Flat styles answer 200 with nothing at all.
+				if ( false !== strpos( $url, 'talks/?' ) || false !== strpos( $url, 'talks/&' ) ) {
+					return self::json_response(
+						[
+							'count'   => 0,
+							'next'    => null,
+							'results' => [],
+						]
+					);
+				}
+
+				if ( false !== strpos( $url, '/talks/' ) ) {
+					return self::json_response(
+						[
+							'count'   => 1,
+							'next'    => null,
+							'results' => [
+								[
+									'id'                         => 777,
+									'title'                      => 'A session',
+									'talk_url'                   => 'https://summit.example.com/talks/a/',
+									'custom_promo_image_primary' => 'https://cdn.example.org/uploads/cropped.png',
+									'thumbnails'                 => [ 'full_size' => 'https://cdn.example.org/thumbnails/original_full_size.png' ],
+								],
+							],
+						]
+					);
+				}
+
+				return self::json_response(
+					[
+						'count'   => 1,
+						'next'    => null,
+						'results' => [ [ 'id' => 101 ] ],
+					]
+				);
+			}
+		);
+
+		$row = $this->row( SelfTest::checks( true ), 'api_talk_images_101' );
+
+		$this->assertSame( 'pass', $row['status'] );
+		$this->assertStringContainsString( '1 session(s) inspected', $row['detail'] );
+		$this->assertStringContainsString( 'custom_promo_image_primary [RENDERED]', $row['detail'] );
+		$this->assertStringContainsString( 'thumbnails.full_size', $row['detail'], 'the uncropped sibling must be visible beside the one we render' );
+		$this->assertStringNotContainsString( 'talk_url', $row['detail'] );
+	}
 }

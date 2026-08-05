@@ -8,6 +8,8 @@
 namespace Emailexpert\Events\Admin;
 
 use Emailexpert\Events\Api\HeySummitClient;
+use Emailexpert\Events\Api\PathStyles;
+use Emailexpert\Events\Api\TalkRoutes;
 use Emailexpert\Events\Api\WriteEndpoints;
 use Emailexpert\Events\Data\Coupons;
 use Emailexpert\Events\Data\LiveCache;
@@ -432,28 +434,56 @@ final class SelfTest {
 			];
 		}
 
-		$client = HeySummitClient::for_connection( $connection );
-		$args   = [
+		$client   = HeySummitClient::for_connection( $connection );
+		$requests = TalkRoutes::requests( $event_id );
+		$args     = [
 			'timeout' => 15,
 			'retries' => 1,
 		];
 
-		// Flat first, then nested: the two shapes every other fetcher
-		// tries, because an account serves one or the other.
-		$response = $client->get( 'talks/', [ 'event' => $event_id ], $args );
+		// The same route map and remembered per-connection winner every
+		// other fetcher uses. Hand-rolling a subset here is how this check
+		// first reported "no image field" while the cards were rendering
+		// images perfectly well.
+		$rows  = [];
+		$tried = [];
 
-		if ( is_wp_error( $response ) ) {
-			$response = $client->get( 'events/' . rawurlencode( $event_id ) . '/talks/', [], $args );
+		foreach ( PathStyles::ordered( $connection_id, 'talks', array_keys( $requests ) ) as $style ) {
+			[ $path, $params ] = $requests[ $style ];
+
+			$tried[]  = $style;
+			$response = $client->get( $path, $params, $args );
+
+			if ( is_wp_error( $response ) ) {
+				continue;
+			}
+
+			// An empty 200 is not an answer: a route that filters on the
+			// wrong parameter name returns a cheerful empty page, and the
+			// sessions sit under one of the other two styles.
+			$page = (array) ( $response['results'] ?? [] );
+
+			if ( ! empty( $page ) ) {
+				$rows = $page;
+				break;
+			}
 		}
 
-		if ( is_wp_error( $response ) ) {
+		if ( empty( $rows ) ) {
 			return [
 				'status' => 'warn',
-				'detail' => $response->get_error_message(),
+				'detail' => sprintf(
+					/* translators: %s: comma-separated route styles. */
+					__( 'No sessions came back from any route (tried: %s), so nothing could be inspected. This is not the same as sessions having no imagery.', 'emailexpert-events' ),
+					implode( ', ', $tried )
+				),
 			];
 		}
 
-		foreach ( (array) ( $response['results'] ?? [] ) as $talk ) {
+		$inspected = 0;
+
+		foreach ( $rows as $talk ) {
+			++$inspected;
 			$fields = self::image_fields( (array) $talk );
 
 			if ( empty( $fields ) ) {
@@ -477,13 +507,22 @@ final class SelfTest {
 
 			return [
 				'status' => '' === $used ? 'warn' : 'pass',
-				'detail' => implode( '   |   ', $lines ),
+				'detail' => sprintf(
+					/* translators: 1: session count, 2: field list. */
+					__( '%1$d session(s) inspected. %2$s', 'emailexpert-events' ),
+					$inspected,
+					implode( '   |   ', $lines )
+				),
 			];
 		}
 
 		return [
 			'status' => 'warn',
-			'detail' => __( 'No session in this event carried an image field.', 'emailexpert-events' ),
+			'detail' => sprintf(
+				/* translators: %d: session count. */
+				__( '%d session(s) inspected; none carried an image field.', 'emailexpert-events' ),
+				$inspected
+			),
 		];
 	}
 
