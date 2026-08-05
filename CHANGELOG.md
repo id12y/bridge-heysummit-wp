@@ -3,6 +3,76 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.46.2
+- **Fixed: the space under the section heading's whisper was 8px, not
+  the 9px it was set to.** The whisper also carries the older
+  `eex-eyebrow` class, kept so sites that styled it are untouched, and
+  that class sets its own margin further down the stylesheet. The two
+  rules had equal weight, so the later one quietly won and the
+  whisper-gap setting never applied — including the Elementor default.
+  The heading rule is now specific enough to win outright.
+
+## 1.46.1
+- Fixed the coding-standards failure in 1.46.0: the image hint was
+  chosen by an inline conditional inside the `<img>` tag. It is now
+  decided once, above the markup, which reads better anyway. No change
+  to what is rendered.
+
+## 1.46.0
+- **New toggle: "Load the image immediately".** On the featured session
+  widget, for a card that leads a page. It drops the lazy hint and asks
+  the browser for high priority instead, because a leading card's
+  artwork is usually the Largest Contentful Paint and a lazy hint is
+  what delays the number Lighthouse reports. Off by default — eager
+  loading an image below the fold spends bandwidth for nothing — so
+  every existing page is untouched.
+- **Lighter stylesheets.** The comments added over 1.44.0–1.45.1 were
+  duplicating reasoning that already lives in docs/decisions.md; they
+  are now short pointers to it. The whole release since 1.43.0 now adds
+  680 bytes gzipped to the delivered CSS and JS rather than 1,757.
+
+## 1.45.1
+- **The side-by-side card is exactly as it was again.** 1.45.0 changed
+  its proportions and stopped it filling the column; both are reverted.
+  The artwork there is a thumbnail sitting beside the detail, it fills
+  its column tidily, and it crops to do so — which is the right trade
+  when nobody is reading the small print in it.
+- **Not cropping is now what the banner view is for.** Choose it from
+  the widget's View control when the graphic itself is the content and
+  every edge of it matters.
+- Correcting 1.45.0's note: in a clean WordPress the previous CSS did
+  not crop on its own — it produced a correct 16:9 box. The crop
+  appears where the surrounding page gives the image a fixed height, as
+  an Elementor stretched or equal-height column does. The old rule was
+  vulnerable to that, not the cause of it.
+
+## 1.45.0
+- **Fixed: the featured session card cropped its own artwork.** A
+  1920×1080 promo graphic lost roughly 4% of its height, split top and
+  bottom — enough to slice the sponsor strip that runs to the bottom
+  edge. The card's image rule set `height: 100%`, and once both width
+  and height are set the aspect ratio is ignored, so the box took the
+  grid row's height and `object-fit: cover` paid the difference out of
+  the picture. The box now follows the artwork's ratio, and `contain`
+  means it can never crop again.
+- **New View choice: artwork full width above the detail.** The
+  featured session widget's View control now offers a banner as well as
+  the side-by-side card and the compact sidebar — one dropdown, so
+  there is no dead control when the sidebar is chosen. A 1920×1080
+  graphic renders about twice the size it did, which is what makes the
+  type inside it readable.
+- **The side-by-side card is now an even split.** At two parts in five
+  the artwork was too small for its own contents to be read.
+- Pages saved before this release keep the layout they had: `card`
+  still means the side-by-side view.
+
+## 1.44.2
+- **Fixed: the whisper could render dark and the title in sans.** Two
+  of the new tokens were read with a bare `var()` and no fallback. An
+  undefined custom property there does not fall back — the whole
+  declaration is dropped and the property inherits instead, giving a
+  dark whisper and a sans-serif title. Both now carry their fallback.
+
 ## 1.44.1
 - **Every value in the section heading is now overridable in one
   declaration.** Size, weight, line height, tracking and transform for

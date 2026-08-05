@@ -632,11 +632,16 @@
 	line-height: var(--eex-whisper-leading, 1.35);
 	letter-spacing: var(--eex-whisper-tracking, 0.11em);
 	text-transform: var(--eex-whisper-transform, uppercase);
-	color: var(--eex-whisper-color);
+	/* Fallback repeated deliberately: an undefined custom property in a
+	   bare var() is invalid at computed-value time, and colour then
+	   INHERITS rather than falling back — a silently dark whisper. */
+	color: var(--eex-whisper-color, #2864dc);
 }
 
 .eex .eex-section-heading__title {
-	font-family: var(--eex-display);
+	/* Same trap as the whisper colour: a bare var() that resolves to
+	   nothing would drop the title to the inherited sans. */
+	font-family: var(--eex-display, Fraunces, var(--eex-serif));
 	/*
 	 * RECONSTRUCTED, not measured: one viewport (36.89px at 922px) fixes
 	 * a point, not a curve. This is 24px at 320 rising to 48px at 1440,

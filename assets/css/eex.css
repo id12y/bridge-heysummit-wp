@@ -277,7 +277,11 @@
 	text-align: right;
 }
 
-.eex-section-heading__whisper {
+/* Specific enough to beat .eex-eyebrow, which this element also carries
+   for backward compatibility and which sets its own margin later in the
+   file. At equal specificity source order would win and this token would
+   never apply. */
+.eex-section-heading .eex-section-heading__whisper {
 	margin: 0 0 var(--eex-whisper-gap, 0.4em);
 }
 
@@ -1649,6 +1653,31 @@
 	height: 100%;
 	object-fit: cover;
 	border-radius: var(--eex-radius);
+}
+
+/*
+ * Banner: the same wide card with its artwork across the full width. A
+ * 1920x1080 graphic is a banner by design, and at this width the type
+ * inside it is legible — which is the whole reason an operator uploads
+ * a designed graphic instead of a photograph.
+ *
+ * It is also the view that cannot crop, and that difference is
+ * deliberate. The side-by-side card above keeps object-fit: cover: the
+ * image there is a thumbnail beside the detail, nobody is reading the
+ * sponsor marks at that size, and filling the column tidily is worth
+ * more than the edges. Here the artwork IS the content, so the height
+ * goes back to auto, the 16:9 ratio inherited from .eex-card-image
+ * owns the box, and contain guarantees nothing is ever cut off.
+ *
+ * Same specificity as the rule above, so it must stay below it.
+ */
+.eex-feature-banner {
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.eex-feature-banner .eex-feature-media img {
+	height: auto;
+	object-fit: contain;
 }
 
 .eex-feature-card:not(:has(.eex-feature-media)) {

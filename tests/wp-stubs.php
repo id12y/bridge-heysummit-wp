@@ -1392,3 +1392,22 @@ if ( ! function_exists( 'is_user_logged_in' ) ) {
 		return $user && $user->ID > 0;
 	}
 }
+
+if ( ! function_exists( 'get_the_post_thumbnail_url' ) ) {
+	/**
+	 * Featured image URL, from the `_eex_test_thumbnail` meta a test sets.
+	 * Real WP resolves an attachment; here the meta IS the URL, which is
+	 * all any component does with it.
+	 *
+	 * @param int    $post_id Post ID.
+	 * @param string $size    Ignored: the stub has one size.
+	 * @return string|false URL, or false when the post has no thumbnail —
+	 *                      false, not '', because that is what WP returns
+	 *                      and callers test it with `?:`.
+	 */
+	function get_the_post_thumbnail_url( $post_id = 0, $size = 'post-thumbnail' ) {
+		$url = (string) get_post_meta( (int) $post_id, '_eex_test_thumbnail', true );
+
+		return '' === $url ? false : $url;
+	}
+}

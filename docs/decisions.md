@@ -2370,3 +2370,151 @@ using Elementor at all: those were left overriding
 before changing anything. A token is one declaration anywhere in the
 cascade. Rendering is unchanged — the fallbacks are the values that
 were already there — so this buys reach, not a new look.
+
+## 1.45.0 — the feature card stops cropping the artwork
+
+The promo graphics are a fixed 1920×1080 and carry information to their
+bottom edge — an episode title, speaker names, a row of sponsor marks.
+The card was losing about 4% of the height, which is invisible at the
+top, where the artwork has margin, and fatal at the bottom, where it
+does not.
+
+ONE OVERRIDE, TWO DIMENSIONS, NO RATIO. .eex-card-image img sets a 16:9
+aspect-ratio with object-fit: cover, which is right in a grid of cards
+where one uniform image shape is what keeps the grid tidy. The feature
+card then overrode height to 100%. With both width and height set the
+aspect-ratio is ignored outright, so the box took its height from the
+grid row instead, landed wide of 16:9, and cover paid the difference
+out of the picture. Handing the height back to auto restores the ratio.
+
+CONTAIN, NOT COVER, THOUGH THEY ARE THE SAME HERE. On a genuine 16:9
+source the two are pixel-identical, so contain costs nothing. What it
+buys is that it cannot crop: a graphic arriving at any other shape mats
+instead of losing content. Given what these images carry, losing edges
+silently is the worse failure.
+
+ONE DROPDOWN, NOT A SECOND CONTROL. Banner and side-by-side are a
+choice about the same wide card, so they joined the existing View
+select rather than arriving as their own toggle. A separate media
+control would sit there dead whenever the compact sidebar view is
+chosen, and this codebase has form for refusing dead switches. 'card'
+still means the side-by-side view, so saved pages keep their layout.
+
+THE SPLIT WAS REBALANCED, WHICH IS A VISIBLE CHANGE. Two parts in five
+left the artwork too small to read the type inside it, which is the
+only reason an operator uploads a designed graphic. Even columns is a
+change to existing pages, and a deliberate one — the crop fix already
+alters them, and shipping a corrected image at an unreadable size would
+have fixed the mechanism without fixing the problem.
+
+Verified in a real WordPress rather than asserted: the rendered box
+measures 1.7778 against the artwork's 1.7778 in both views at 1440 and
+375, with no horizontal overflow.
+
+## 1.45.1 — correcting the crop diagnosis, and letting the split crop
+
+1.45.0 said the feature card's `height: 100%` cancelled its inherited
+aspect-ratio and caused the crop. Standing the previous CSS up in a
+clean WordPress and measuring it disproves the second half: the box
+came out at 1.7779 against the artwork's 1.7778, which is no crop at
+all. The mechanism described was real — with both dimensions set the
+ratio is ignored — but it only bites once something hands the media a
+definite height, which is what an Elementor stretched or equal-height
+column does and what a bare theme does not. The rule was vulnerable to
+its surroundings, not wrong on its own. The original 4% was measured
+off a screenshot of the live site, and a screenshot cannot tell you
+which layer put the height there.
+
+That correction changes what the two views should do, so they now
+differ on purpose:
+
+THE SPLIT CROPS, AND SHOULD. The image beside the detail is a
+thumbnail. At that size nobody reads the sponsor marks, and a column
+filled tidily is worth more than the edges of a graphic that is acting
+as decoration. 1.45.0 rebalanced the columns to make the artwork
+legible there; that was solving a problem the operator does not have,
+at the cost of a layout they liked, so it is reverted whole.
+
+THE BANNER DOES NOT CROP, AND SHOULD NOT. Chosen deliberately, it says
+the graphic is the content. Height returns to auto, the inherited 16:9
+ratio owns the box, and contain makes cropping impossible rather than
+unlikely.
+
+The two rules carry the same specificity, so the banner's must stay
+below the card's in the file. A note in the stylesheet says so.
+
+## 1.46.0 — an eager-image switch, and comments that stopped repeating
+
+TWO HINTS, NEVER BOTH. The featured image was always `loading="lazy"`.
+On a card that leads a page that is the Largest Contentful Paint, and a
+lazy hint on the LCP element is precisely what delays it. The switch
+swaps the lazy hint for `fetchpriority="high"`; a test asserts the two
+never appear together, because emitting both is the failure that would
+look fine in a diff.
+
+It defaults OFF, which keeps every saved page byte-identical and is
+also the honest default: eager-loading an image below the fold spends
+bandwidth to no benefit. Only the operator knows where the widget sits,
+so only the operator can answer it — hence a switch rather than a guess
+in the renderer.
+
+COMMENTS ARE PAYLOAD. There is no minifier in this project, so every
+comment in a stylesheet is downloaded by every visitor. Measured across
+the delivered CSS and JS, comments are 7.7KB gzipped of a 25.7KB total
+— 30%. The comments added between 1.44.0 and 1.45.1 were the worst of
+it, because they restated reasoning that this file already carried, so
+two copies existed to drift apart. They are now one or two lines each,
+pointing here.
+
+What was NOT done: stripping the pre-existing comments, or adding a
+build step. The right fix for the remaining ~6KB is a minified asset
+built at release with the commented source kept, enqueued in place of
+it — the ordinary WordPress pattern. That changes how this plugin is
+built and released, which is the operator's call, not a tidy-up.
+
+A test stub for get_the_post_thumbnail_url came with this: unit tests
+could not render a session image at all before it, so nothing covering
+image markup could be written. It returns false rather than '' for a
+post with no thumbnail, matching WP, because callers use `?:`.
+
+## 1.46.1 — a lint gap that let 1.46.0 through
+
+1.46.0 failed CI on a sniff that had never run locally. CI invokes
+`vendor/bin/phpcs` bare, after setting `installed_paths` to the three
+standards in vendor/; this working copy had been linted with an
+explicit `--standard=phpcs.xml.dist` against an install whose
+`installed_paths` did not point at them, so the Squiz and Generic
+sniffs silently did not load. A green local run therefore meant less
+than it appeared to. The fix for the gap is to run phpcs exactly as CI
+does — bare, with installed_paths set — and that is now what a
+pre-push check should be.
+
+The offending code chose the image's loading hint with an inline
+conditional inside the `<img>` tag. It is decided once above the markup
+instead, which satisfies the sniff and reads better: the two hints are
+visibly mutually exclusive at the point the choice is made, rather than
+tangled into an attribute list.
+
+## 1.46.2 — a token that was never applying
+
+The whisper's gap was set to 9px, measured from the site, and rendered
+at 8px. The element carries two classes: `eex-section-heading__whisper`
+and the older `eex-eyebrow`, kept since 1.43.0 so sites that had styled
+the eyebrow were not broken. Both were single-class selectors, so they
+carried equal weight, and `.eex-eyebrow`'s own margin sits further down
+the file — later wins. The gap token, its Elementor control default and
+the measurement behind them had all been inert since 1.43.0, and
+nothing about the stylesheet looked wrong.
+
+The heading rule is now `.eex-section-heading .eex-section-heading__
+whisper`, which outranks the eyebrow rule regardless of where either
+sits in the file. Raising specificity was preferred to moving the rule
+below the eyebrow, because order-dependence is what caused this and
+would have survived the move.
+
+Two lessons recorded rather than assumed. First: carrying a legacy
+class alongside a new one is a compatibility promise with a cost — the
+old class keeps competing, and every property the new rule sets at
+equal weight is a coin toss decided by file order. Second: this was
+found by measuring computed styles in a browser, not by reading the
+CSS. The rule was present, correct and losing.
