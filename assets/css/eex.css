@@ -277,7 +277,11 @@
 	text-align: right;
 }
 
-.eex-section-heading__whisper {
+/* Specific enough to beat .eex-eyebrow, which this element also carries
+   for backward compatibility and which sets its own margin later in the
+   file. At equal specificity source order would win and this token would
+   never apply. */
+.eex-section-heading .eex-section-heading__whisper {
 	margin: 0 0 var(--eex-whisper-gap, 0.4em);
 }
 

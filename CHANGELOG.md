@@ -3,6 +3,15 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.46.2
+- **Fixed: the space under the section heading's whisper was 8px, not
+  the 9px it was set to.** The whisper also carries the older
+  `eex-eyebrow` class, kept so sites that styled it are untouched, and
+  that class sets its own margin further down the stylesheet. The two
+  rules had equal weight, so the later one quietly won and the
+  whisper-gap setting never applied — including the Elementor default.
+  The heading rule is now specific enough to win outright.
+
 ## 1.46.1
 - Fixed the coding-standards failure in 1.46.0: the image hint was
   chosen by an inline conditional inside the `<img>` tag. It is now

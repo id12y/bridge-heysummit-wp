@@ -2494,3 +2494,27 @@ conditional inside the `<img>` tag. It is decided once above the markup
 instead, which satisfies the sniff and reads better: the two hints are
 visibly mutually exclusive at the point the choice is made, rather than
 tangled into an attribute list.
+
+## 1.46.2 — a token that was never applying
+
+The whisper's gap was set to 9px, measured from the site, and rendered
+at 8px. The element carries two classes: `eex-section-heading__whisper`
+and the older `eex-eyebrow`, kept since 1.43.0 so sites that had styled
+the eyebrow were not broken. Both were single-class selectors, so they
+carried equal weight, and `.eex-eyebrow`'s own margin sits further down
+the file — later wins. The gap token, its Elementor control default and
+the measurement behind them had all been inert since 1.43.0, and
+nothing about the stylesheet looked wrong.
+
+The heading rule is now `.eex-section-heading .eex-section-heading__
+whisper`, which outranks the eyebrow rule regardless of where either
+sits in the file. Raising specificity was preferred to moving the rule
+below the eyebrow, because order-dependence is what caused this and
+would have survived the move.
+
+Two lessons recorded rather than assumed. First: carrying a legacy
+class alongside a new one is a compatibility promise with a cost — the
+old class keeps competing, and every property the new rule sets at
+equal weight is a coin toss decided by file order. Second: this was
+found by measuring computed styles in a browser, not by reading the
+CSS. The rule was present, correct and losing.
