@@ -2575,3 +2575,29 @@ The regression test drives the exact shape that broke it: flat routes
 answering 200 with an empty page, sessions present on the nested route.
 A diagnostic that can be wrong quietly is worse than no diagnostic,
 because it is trusted.
+
+## 1.47.2 — inspect the session on screen, not the first one listed
+
+The image check read the first page of an event's session list. On the
+production event it was built for, that list is 274 sessions over 28
+pages, and the card renders the next upcoming session — which is not on
+page one. So the check inspected ten sessions that legitimately carry
+no imagery and reported "none carried an image field" while the card
+beside it displayed an image. True of what it looked at, useless as an
+answer, and the second time this check produced a confident wrong
+conclusion.
+
+It now asks the repository for the session the cards actually render,
+fetches that record by ID through the route the repository already uses
+for a single talk, and reports its image fields. The list scan stays as
+a fallback for the case where no session is upcoming, and it now names
+which session it found imagery on rather than implying it speaks for
+the event.
+
+The lesson is about sampling, not routes. A diagnostic that samples
+must say what it sampled, and a sample chosen for convenience — the
+first page, the first row — will answer a different question from the
+one being asked. Both failures of this check were that same mistake in
+different clothes: the first sampled the wrong route, the second the
+wrong session, and both reported their finding as though it covered
+everything.

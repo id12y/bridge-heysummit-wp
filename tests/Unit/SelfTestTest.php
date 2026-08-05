@@ -324,9 +324,73 @@ final class SelfTestTest extends TestCase {
 		$row = $this->row( SelfTest::checks( true ), 'api_talk_images_101' );
 
 		$this->assertSame( 'pass', $row['status'] );
-		$this->assertStringContainsString( '1 session(s) inspected', $row['detail'] );
+		$this->assertStringContainsString( 'Found on session 1 of the first page.', $row['detail'] );
 		$this->assertStringContainsString( 'custom_promo_image_primary [RENDERED]', $row['detail'] );
 		$this->assertStringContainsString( 'thumbnails.full_size', $row['detail'], 'the uncropped sibling must be visible beside the one we render' );
 		$this->assertStringNotContainsString( 'talk_url', $row['detail'] );
+	}
+
+	/**
+	 * The case that actually bit: an event with hundreds of sessions whose
+	 * first list page carries no imagery, while the session on screen does.
+	 * Scanning page one and reporting "none carried an image field" says
+	 * nothing about the artwork in question, so the check asks for the
+	 * rendered session by ID.
+	 */
+	public function test_session_image_check_inspects_the_session_on_screen(): void {
+		$this->go_lite();
+
+		$future = gmdate( 'Y-m-d\TH:i:s\Z', time() + DAY_IN_SECONDS );
+
+		$this->mock_http(
+			static function ( $url ) use ( $future ) {
+				$url = (string) $url;
+
+				// The rendered session, asked for by ID: this one has imagery.
+				if ( false !== strpos( $url, '/talks/777/' ) ) {
+					return self::json_response(
+						[
+							'id'                         => 777,
+							'title'                      => 'The session on screen',
+							'starts_at'                  => $future,
+							'custom_promo_image_primary' => 'https://cdn.example.org/uploads/cropped.png',
+							'thumbnails'                 => [ 'full_size' => 'https://cdn.example.org/thumbnails/original_full_size.png' ],
+						]
+					);
+				}
+
+				// The list page: the same session, carrying no imagery at all.
+				if ( false !== strpos( $url, '/talks/' ) || false !== strpos( $url, 'talks/?' ) ) {
+					return self::json_response(
+						[
+							'count'   => 1,
+							'next'    => null,
+							'results' => [
+								[
+									'id'        => 777,
+									'title'     => 'The session on screen',
+									'starts_at' => $future,
+								],
+							],
+						]
+					);
+				}
+
+				return self::json_response(
+					[
+						'count'   => 1,
+						'next'    => null,
+						'results' => [ [ 'id' => 101 ] ],
+					]
+				);
+			}
+		);
+
+		$row = $this->row( SelfTest::checks( true ), 'api_talk_images_101' );
+
+		$this->assertSame( 'pass', $row['status'] );
+		$this->assertStringContainsString( 'Next session on screen', $row['detail'] );
+		$this->assertStringContainsString( 'custom_promo_image_primary [RENDERED]', $row['detail'] );
+		$this->assertStringContainsString( 'thumbnails.full_size', $row['detail'] );
 	}
 }
