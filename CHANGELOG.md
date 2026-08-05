@@ -3,6 +3,19 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.46.0
+- **New toggle: "Load the image immediately".** On the featured session
+  widget, for a card that leads a page. It drops the lazy hint and asks
+  the browser for high priority instead, because a leading card's
+  artwork is usually the Largest Contentful Paint and a lazy hint is
+  what delays the number Lighthouse reports. Off by default — eager
+  loading an image below the fold spends bandwidth for nothing — so
+  every existing page is untouched.
+- **Lighter stylesheets.** The comments added over 1.44.0–1.45.1 were
+  duplicating reasoning that already lives in docs/decisions.md; they
+  are now short pointers to it. The whole release since 1.43.0 now adds
+  680 bytes gzipped to the delivered CSS and JS rather than 1,757.
+
 ## 1.45.1
 - **The side-by-side card is exactly as it was again.** 1.45.0 changed
   its proportions and stopped it filling the column; both are reverted.

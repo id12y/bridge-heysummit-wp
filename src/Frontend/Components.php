@@ -1121,6 +1121,12 @@ final class Components {
 						],
 					],
 					'show_image'       => $flag( __( 'Show the session image', 'emailexpert-events' ) ),
+					// Off by default: eager-loading an image that sits below the
+					// fold spends bandwidth for nothing. On, it drops the lazy
+					// hint and asks for high priority — what a card leading a
+					// page needs, where the artwork is usually the Largest
+					// Contentful Paint and a lazy hint delays it.
+					'eager_image'      => $flag( __( 'Load the image immediately (use when this card leads the page)', 'emailexpert-events' ), 0 ),
 					'show_description' => $flag( __( 'Show the description', 'emailexpert-events' ) ),
 					'show_speakers'    => $show_speakers,
 					'speaker_info'     => $speaker_info,
@@ -4091,6 +4097,7 @@ final class Components {
 			[
 				'data'          => $data,
 				'view'          => (string) $atts['view'],
+				'eager_image'   => ! empty( $atts['eager_image'] ),
 				'show'          => self::show_flags( $atts ) + [ 'description' => ! empty( $atts['show_description'] ) ],
 				'address'       => $address,
 				'map_url'       => $map_url,

@@ -2442,3 +2442,37 @@ unlikely.
 
 The two rules carry the same specificity, so the banner's must stay
 below the card's in the file. A note in the stylesheet says so.
+
+## 1.46.0 — an eager-image switch, and comments that stopped repeating
+
+TWO HINTS, NEVER BOTH. The featured image was always `loading="lazy"`.
+On a card that leads a page that is the Largest Contentful Paint, and a
+lazy hint on the LCP element is precisely what delays it. The switch
+swaps the lazy hint for `fetchpriority="high"`; a test asserts the two
+never appear together, because emitting both is the failure that would
+look fine in a diff.
+
+It defaults OFF, which keeps every saved page byte-identical and is
+also the honest default: eager-loading an image below the fold spends
+bandwidth to no benefit. Only the operator knows where the widget sits,
+so only the operator can answer it — hence a switch rather than a guess
+in the renderer.
+
+COMMENTS ARE PAYLOAD. There is no minifier in this project, so every
+comment in a stylesheet is downloaded by every visitor. Measured across
+the delivered CSS and JS, comments are 7.7KB gzipped of a 25.7KB total
+— 30%. The comments added between 1.44.0 and 1.45.1 were the worst of
+it, because they restated reasoning that this file already carried, so
+two copies existed to drift apart. They are now one or two lines each,
+pointing here.
+
+What was NOT done: stripping the pre-existing comments, or adding a
+build step. The right fix for the remaining ~6KB is a minified asset
+built at release with the commented source kept, enqueued in place of
+it — the ordinary WordPress pattern. That changes how this plugin is
+built and released, which is the operator's call, not a tidy-up.
+
+A test stub for get_the_post_thumbnail_url came with this: unit tests
+could not render a session image at all before it, so nothing covering
+image markup could be written. It returns false rather than '' for a
+post with no thumbnail, matching WP, because callers use `?:`.

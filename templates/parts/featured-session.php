@@ -10,6 +10,7 @@
  * @var array $args {
  *     @type array  $data          Talk data (see Components::talk_data()).
  *     @type string $view          'card', 'banner' or 'compact'.
+ *     @type bool   $eager_image   True = high priority, no lazy hint.
  *     @type array  $show          Display toggles (image/speakers/categories/venue/ics/description).
  *     @type array  $address       Event venue address lines ([] = none).
  *     @type string $map_url       Directions URL ('' = none).
@@ -40,6 +41,7 @@ $eex_compact = 'compact' === $eex_view;
 // keeps eex-feature-card and every style that hangs off it, and adds a
 // modifier that collapses the two columns into one.
 $eex_banner  = 'banner' === $eex_view;
+$eex_eager   = ! empty( $args['eager_image'] );
 $eex_venue   = ! empty( $eex_show['venue'] ) ? (string) ( $eex_data['venue'] ?? '' ) : '';
 $eex_address = (array) ( $args['address'] ?? [] );
 $eex_link    = (string) ( ( $eex_data['permalink'] ?? '' ) ?: ( $eex_data['talk_url'] ?? '' ) );
@@ -67,7 +69,7 @@ $eex_session_url = 'tickets' === $eex_buttons ? '' : Components::session_url( $e
 <article class="eex-card eex-feature-session <?php echo esc_attr( $eex_compact ? 'eex-feature-compact' : ( $eex_banner ? 'eex-feature-card eex-feature-banner' : 'eex-feature-card' ) ); ?>"<?php echo Components::session_attrs( $eex_data ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper. ?>>
 	<?php if ( ! empty( $eex_show['image'] ) && '' !== (string) ( $eex_data['image'] ?? '' ) ) : ?>
 		<div class="eex-card-image eex-feature-media">
-			<img src="<?php echo esc_url( (string) $eex_data['image'] ); ?>" alt="" loading="lazy" />
+			<img src="<?php echo esc_url( (string) $eex_data['image'] ); ?>" alt=""<?php if ( $eex_eager ) : ?> fetchpriority="high"<?php else : ?> loading="lazy"<?php endif; ?> />
 		</div>
 	<?php endif; ?>
 

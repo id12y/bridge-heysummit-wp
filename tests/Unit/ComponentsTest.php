@@ -2026,6 +2026,7 @@ final class ComponentsTest extends TestCase {
 		$talk_id = $this->make_linked_talk();
 		update_post_meta( $talk_id, '_eex_talk_venue', 'Main Stage, The Exchange' );
 		update_post_meta( $talk_id, '_eex_inperson', 1 );
+		update_post_meta( $talk_id, '_eex_test_thumbnail', 'https://cdn.example.org/promo-1920x1080.png' );
 
 		$event_post = get_posts(
 			[
@@ -2082,6 +2083,24 @@ final class ComponentsTest extends TestCase {
 		// The renderer knowing the view is no use if the editor cannot pick
 		// it: the Elementor control is generated from this list.
 		$this->assertArrayHasKey( 'banner', Components::definitions()['featured-session']['atts']['view']['options'] );
+
+		// The image is lazy by default and eager only when asked: a card
+		// leading a page is usually the Largest Contentful Paint, and a
+		// lazy hint on it is what delays the paint Lighthouse measures.
+		$this->assertStringContainsString( 'loading="lazy"', $banner, 'lazy stays the default' );
+		$this->assertStringNotContainsString( 'fetchpriority', $banner );
+
+		Cache::flush();
+		$eager = Components::render(
+			'featured-session',
+			[
+				'event'       => '101',
+				'view'        => 'banner',
+				'eager_image' => '1',
+			]
+		);
+		$this->assertStringContainsString( 'fetchpriority="high"', $eager );
+		$this->assertStringNotContainsString( 'loading="lazy"', $eager, 'the two hints must never both be present' );
 	}
 
 	public function test_schedule_extras_are_absent_until_opted_in(): void {
