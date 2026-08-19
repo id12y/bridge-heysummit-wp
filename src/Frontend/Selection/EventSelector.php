@@ -362,6 +362,9 @@ final class EventSelector {
 				'url'           => (string) ( $talk['permalink'] ?? '' ),
 				'hs_id'         => (string) ( $talk['hs_id'] ?? '' ),
 				'evergreen'     => false,
+				'speakers_row'  => self::normalise_speakers( (array) ( $talk['speakers'] ?? [] ) ),
+				'venue'         => (string) ( $talk['venue'] ?? '' ),
+				'inperson'      => ! empty( $talk['inperson'] ),
 			];
 
 			if ( $limit > 0 && count( $out ) >= $limit ) {
@@ -376,6 +379,133 @@ final class EventSelector {
 		 * @param array<string,mixed>|null       $featured The featured session.
 		 */
 		return (array) apply_filters( 'eex_more_sessions', $out, $featured );
+	}
+
+	/**
+	 * Attach speaker rows to More Events rows in the event modes: each listed
+	 * event gains the speakers of its soonest upcoming session, from the talk
+	 * data the page already loads — one bounded pass, no per-row fetches.
+	 * Session-mode rows carry their own speakers already; rows without
+	 * speaker information simply stay event-only.
+	 *
+	 * @param array<int,array<string,mixed>> $rows More Events rows (event shape).
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function attach_speakers( array $rows ): array {
+		$by_event = [];
+
+		foreach ( Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ) as $talk ) {
+			$event_id = (string) ( $talk['event_hs_id'] ?? '' );
+
+			if ( '' === $event_id || isset( $by_event[ $event_id ] ) ) {
+				continue; // Soonest session wins; the list is soonest-first.
+			}
+
+			$speakers = self::normalise_speakers( (array) ( $talk['speakers'] ?? [] ) );
+
+			if ( ! empty( $speakers ) ) {
+				$by_event[ $event_id ] = $speakers;
+			}
+		}
+
+		foreach ( $rows as &$row ) {
+			if ( empty( $row['speakers_row'] ) ) {
+				$row['speakers_row'] = (array) ( $by_event[ (string) ( $row['hs_id'] ?? '' ) ] ?? [] );
+			}
+		}
+		unset( $row );
+
+		return $rows;
+	}
+
+	/**
+	 * The "featured people" rows: the people connected to the next sessions,
+	 * soonest first, each with their event context — person-led promotion of
+	 * upcoming activity. Built entirely from the talk data the page already
+	 * loads; people are deduplicated by name, and names already visible on
+	 * the featured card can be excluded so nobody appears twice.
+	 *
+	 * @param int      $limit         Maximum rows (0 = all).
+	 * @param string[] $exclude_names Names already shown elsewhere.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function people( int $limit, array $exclude_names = [] ): array {
+		$seen = [];
+
+		foreach ( $exclude_names as $name ) {
+			$seen[ strtolower( trim( (string) $name ) ) ] = true;
+		}
+		unset( $seen[''] );
+
+		$out = [];
+
+		foreach ( Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ) as $talk ) {
+			if ( ! empty( $talk['cancelled'] ) ) {
+				continue;
+			}
+
+			foreach ( self::normalise_speakers( (array) ( $talk['speakers'] ?? [] ) ) as $speaker ) {
+				$key = strtolower( trim( (string) $speaker['name'] ) );
+
+				if ( '' === $key || isset( $seen[ $key ] ) ) {
+					continue;
+				}
+				$seen[ $key ] = true;
+
+				$out[] = $speaker + [
+					'context'  => (string) ( $talk['title'] ?? '' ),
+					'date'     => (string) ( $talk['starts_at'] ?? '' ),
+					'timezone' => (string) ( $talk['timezone'] ?? '' ),
+					'link'     => (string) ( $talk['permalink'] ?? '' ),
+				];
+
+				// The list changes when this person's session starts.
+				$start_ts = (int) strtotime( (string) ( $talk['starts_at'] ?? '' ) );
+				if ( $start_ts > 0 ) {
+					Diagnostics::boundary( $start_ts );
+				}
+
+				if ( $limit > 0 && count( $out ) >= $limit ) {
+					return $out;
+				}
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * Normalise a talk's speaker entries to the display shape the templates
+	 * share ({ name, url, headline, photo_id, photo_url }); entries without
+	 * a name are dropped, portraits are never fabricated.
+	 *
+	 * @param array<int,mixed> $speakers Raw speaker entries.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function normalise_speakers( array $speakers ): array {
+		$out = [];
+
+		foreach ( $speakers as $speaker ) {
+			if ( ! is_array( $speaker ) ) {
+				continue;
+			}
+
+			$name = trim( (string) ( $speaker['name'] ?? '' ) );
+
+			if ( '' === $name ) {
+				continue;
+			}
+
+			$out[] = [
+				'name'      => $name,
+				'url'       => (string) ( $speaker['url'] ?? '' ),
+				'headline'  => (string) ( $speaker['headline'] ?? '' ),
+				'photo_id'  => (int) ( $speaker['photo_id'] ?? 0 ),
+				'photo_url' => (string) ( $speaker['photo_url'] ?? ( $speaker['headshot'] ?? '' ) ),
+			];
+		}
+
+		return $out;
 	}
 
 	/**

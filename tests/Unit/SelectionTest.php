@@ -630,6 +630,75 @@ final class SelectionTest extends TestCase {
 		$this->assertSame( 'Newest story', (string) $selection['lead']['title'] );
 	}
 
+	public function test_two_story_frontage_excludes_both_features_from_news_before_the_limit(): void {
+		foreach ( [ 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven' ] as $index => $title ) {
+			$this->make_story( $title, ( $index + 1 ) * 3600 );
+		}
+
+		$selection = EditorialSelector::select(
+			[
+				'story_source' => 'latest',
+				'story_count'  => '2',
+				'news_count'   => 4,
+			]
+		);
+
+		$this->assertSame( 'One', (string) $selection['lead']['title'], 'the newest story leads' );
+		$this->assertSame( 'Two', (string) $selection['second']['title'], 'the next eligible story is the secondary feature' );
+		$this->assertSame(
+			[ 'Three', 'Four', 'Five', 'Six' ],
+			array_map( static fn( array $item ): string => (string) $item['title'], $selection['items'] ),
+			'both features are excluded before the limit and the list refills to four'
+		);
+	}
+
+	public function test_a_manual_secondary_story_never_duplicates_the_lead(): void {
+		$one = $this->make_story( 'One', 3600 );
+		$this->make_story( 'Two', 7200 );
+
+		$selection = EditorialSelector::select(
+			[
+				'story_source'  => 'latest',
+				'story_count'   => '2',
+				'story2_source' => 'manual',
+				'story2_id'     => (string) $one, // Duplicates the lead.
+			]
+		);
+
+		$this->assertSame( 'One', (string) $selection['lead']['title'] );
+		$this->assertSame( 'Two', (string) $selection['second']['title'], 'a duplicate manual pick falls back to the next eligible story' );
+	}
+
+	public function test_one_eligible_story_means_the_two_story_layout_falls_back_to_one(): void {
+		$this->make_story( 'Only story', 3600 );
+
+		$selection = EditorialSelector::select(
+			[
+				'story_source' => 'latest',
+				'story_count'  => '2',
+			]
+		);
+
+		$this->assertSame( 'Only story', (string) $selection['lead']['title'] );
+		$this->assertNull( $selection['second'], 'no empty placeholder is reserved for a second story' );
+	}
+
+	public function test_latest_news_supports_up_to_twelve_items(): void {
+		for ( $i = 1; $i <= 15; $i++ ) {
+			$this->make_story( 'Story ' . $i, $i * 3600 );
+		}
+
+		$selection = EditorialSelector::select(
+			[
+				'story_source' => 'latest',
+				'news_count'   => 12,
+			]
+		);
+
+		$this->assertCount( 12, $selection['items'], 'twelve news items render when requested' );
+		$this->assertSame( 'Story 2', (string) $selection['items'][0]['title'], 'the lead is still excluded first' );
+	}
+
 	public function test_the_featured_story_is_removed_from_latest_news_and_the_list_refills(): void {
 		foreach ( [ 'One', 'Two', 'Three', 'Four', 'Five' ] as $index => $title ) {
 			$this->make_story( $title, ( $index + 1 ) * 3600 );

@@ -920,6 +920,100 @@
 	border-bottom-color: var(--eex-line);
 }
 
+/* The row whisper: the site's tiny-caps label voice. */
+.eex .eex-compact-event__whisper {
+	color: var(--eex-whisper-color, #2864dc);
+	font-family: var(--eex-sans);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-size: 0.62rem;
+}
+
+/* Row speakers and person-led rows: people read as people. */
+.eex .eex-compact-event__speaker-name,
+.eex .eex-hh__person-name {
+	font-family: var(--eex-sans);
+	font-weight: 650;
+	font-size: var(--eex-step--1);
+	color: var(--eex-ink);
+}
+
+.eex .eex-compact-event__portrait,
+.eex .eex-hh__person-photo {
+	border: 1px solid var(--eex-line);
+	background: var(--eex-surface);
+}
+
+.eex .eex-hh__person {
+	border-bottom-color: var(--eex-line);
+}
+
+.eex .eex-hh__person-context {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+	font-size: var(--eex-step--1);
+	color: var(--eex-ink);
+}
+
+.eex .eex-hh__person-context a:hover,
+.eex .eex-hh__person-context a:focus-visible {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+/* The secondary featured story: clearly subordinate to the lead — the
+   news-desk serif at a middle scale, hairline-separated beneath the
+   primary story. */
+.eex .eex-hh__story-second--beneath {
+	border-top: 1px solid var(--eex-line);
+	padding-top: calc(var(--eex-composition-gap) * 0.7);
+}
+
+.eex .eex-hh__story2-title {
+	font-family: var(--eex-serif);
+	font-size: clamp(1.05rem, 0.95rem + 0.55vw, 1.35rem);
+	font-weight: 650;
+	line-height: 1.25;
+	color: var(--eex-ink);
+	text-wrap: balance;
+}
+
+.eex .eex-hh__story2-title a:hover,
+.eex .eex-hh__story2-title a:focus-visible {
+	text-decoration: underline;
+	text-underline-offset: 0.12em;
+}
+
+.eex .eex-hh__story2-standfirst {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1);
+	line-height: 1.5;
+	color: var(--eex-muted);
+	max-width: 40em;
+}
+
+.eex .eex-hh__story2-media {
+	background: var(--eex-surface);
+}
+
+@media (min-width: 700px) {
+	.eex .eex-hh__story-second--beneath .eex-hh__story2 {
+		display: grid;
+		grid-template-columns: minmax(0, 34fr) minmax(0, 66fr);
+		gap: calc(var(--eex-composition-gap) * 0.8);
+		align-items: start;
+	}
+
+	.eex .eex-hh__story-second--beneath .eex-hh__story2--text {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.eex .eex-hh__story-second--beneath .eex-hh__story2-media {
+		margin-bottom: 0;
+	}
+}
+
 /* Latest News: an editorial news desk — headlines lead, hairlines divide. */
 .eex .eex-hh__news-head .eex-hh__news-all {
 	color: var(--eex-whisper-color, #2864dc);
@@ -938,11 +1032,25 @@
 	color: var(--eex-accent);
 }
 
-/* Column hairlines between news items, per row shape. */
+/* Column hairlines between news items, per row shape. The server states
+   the desktop column count on the list, so hairlines follow the real grid:
+   never a left border on a row's first item, a top rule for every row
+   after the first. */
 @media (min-width: 900px) {
-	.eex .eex-hh__news-item:nth-child(n + 2) {
+	.eex .eex-hh__news-list--cols-2 .eex-hh__news-item:nth-child(2n),
+	.eex .eex-hh__news-list--cols-3 .eex-hh__news-item:not(:nth-child(3n + 1)),
+	.eex .eex-hh__news-list--cols-4 .eex-hh__news-item:not(:nth-child(4n + 1)),
+	.eex .eex-hh__news-list:not([class*="--cols-"]) .eex-hh__news-item:nth-child(n + 2) {
 		border-left: 1px solid var(--eex-line);
 		padding-left: calc(var(--eex-composition-gap) * 0.7);
+	}
+
+	.eex .eex-hh__news-list--cols-2 .eex-hh__news-item:nth-child(n + 3) .eex-hh__news-card,
+	.eex .eex-hh__news-list--cols-3 .eex-hh__news-item:nth-child(n + 4) .eex-hh__news-card,
+	.eex .eex-hh__news-list--cols-4 .eex-hh__news-item:nth-child(n + 5) .eex-hh__news-card {
+		border-top: 1px solid var(--eex-line);
+		margin-top: 0.7em;
+		padding-top: 0.9em;
 	}
 }
 

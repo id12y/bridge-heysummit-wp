@@ -326,6 +326,8 @@ class SyncedRepository implements Repository {
 			'image_id'      => (int) get_post_meta( $post_id, '_eex_hero_override', true ) ?: (int) get_post_thumbnail_id( $post_id ),
 			'image'         => '',
 			'description'   => (string) get_post_meta( $post_id, '_eex_description', true ),
+			'venue_city'    => (string) get_post_meta( $post_id, '_eex_venue_locality', true ),
+			'venue_country' => (string) get_post_meta( $post_id, '_eex_venue_country', true ),
 		];
 	}
 

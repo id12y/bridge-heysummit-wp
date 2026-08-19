@@ -172,7 +172,7 @@ abstract class CompositeWidget extends \Elementor\Widget_Base {
 			}
 		}
 
-		if ( 'story_id' === $key ) {
+		if ( in_array( $key, [ 'story_id', 'story2_id' ], true ) ) {
 			$options = $this->story_choices();
 
 			if ( ! empty( $options ) ) {

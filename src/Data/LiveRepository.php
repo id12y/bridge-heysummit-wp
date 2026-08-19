@@ -1443,6 +1443,8 @@ class LiveRepository extends BaseMapper implements Repository {
 			'image'         => self::url_str( $raw, [ 'feature_image' ] ),
 			'company'       => self::str( $raw, [ 'company_name' ] ),
 			'description'   => self::str( $raw, [ 'description', 'description_short' ] ),
+			'venue_city'    => is_array( $raw['venue'] ?? null ) ? self::str( (array) $raw['venue'], [ 'city', 'locality', 'town' ] ) : '',
+			'venue_country' => is_array( $raw['venue'] ?? null ) ? self::str( (array) $raw['venue'], [ 'country' ] ) : '',
 		];
 	}
 

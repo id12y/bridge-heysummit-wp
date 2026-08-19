@@ -1,17 +1,20 @@
 <?php
 /**
  * Latest News item: one compact editorial entry — category eyebrow,
- * headline, date, optional square thumbnail — per the approved design.
- * Override by copying to yourtheme/emailexpert-events/parts/.
+ * headline, date, with the image beside the text, above the headline, or
+ * absent. A no-image story aligns cleanly with its neighbours: the media
+ * frame only exists when an image does. Override by copying to
+ * yourtheme/emailexpert-events/parts/.
  *
  * @package Emailexpert\Events
  *
  * @var array $args {
- *     @type array  $story         Story view model (EditorialSelector).
- *     @type string $heading_tag   Heading tag for the item title.
- *     @type bool   $show_image    Show the compact thumbnail.
- *     @type bool   $show_category Show the category label.
- *     @type bool   $show_date     Show the date.
+ *     @type array  $story          Story view model (EditorialSelector).
+ *     @type string $heading_tag    Heading tag for the item title.
+ *     @type string $image_position 'none', 'beside' or 'above' (resolved).
+ *     @type string $image_size     'compact', 'medium' or 'large' (above only).
+ *     @type bool   $show_category  Show the category label.
+ *     @type bool   $show_date      Show the date.
  * }
  */
 
@@ -26,29 +29,57 @@ if ( empty( $eex_story['title'] ) ) {
 $eex_tag = in_array( (string) ( $args['heading_tag'] ?? 'h4' ), [ 'h2', 'h3', 'h4', 'h5' ], true ) ? (string) $args['heading_tag'] : 'h4';
 $eex_url = (string) ( $eex_story['url'] ?? '' );
 
+$eex_position = in_array( (string) ( $args['image_position'] ?? 'beside' ), [ 'none', 'beside', 'above' ], true )
+	? (string) ( $args['image_position'] ?? 'beside' )
+	: 'beside';
+$eex_size     = in_array( (string) ( $args['image_size'] ?? 'medium' ), [ 'compact', 'medium', 'large' ], true )
+	? (string) ( $args['image_size'] ?? 'medium' )
+	: 'medium';
+
 $eex_thumb = '';
-if ( ! empty( $args['show_image'] ) ) {
+if ( 'none' !== $eex_position ) {
+	// Above-the-headline images render at content width, so the generated
+	// medium size (with srcset) replaces the tiny square thumbnail.
+	$eex_wp_size   = 'above' === $eex_position ? 'medium_large' : 'thumbnail';
+	$eex_img_class = 'above' === $eex_position ? 'eex-hh__news-img eex-hh__news-img--wide' : 'eex-hh__news-img';
+
 	if ( (int) ( $eex_story['image_id'] ?? 0 ) > 0 && function_exists( 'wp_get_attachment_image' ) ) {
 		$eex_thumb = wp_get_attachment_image(
 			(int) $eex_story['image_id'],
-			'thumbnail',
+			$eex_wp_size,
 			false,
 			[
-				'class'   => 'eex-hh__news-img',
+				'class'   => $eex_img_class,
 				'loading' => 'lazy',
 				'alt'     => '',
 			]
 		);
 	} elseif ( '' !== (string) ( $eex_story['image'] ?? '' ) ) {
-		$eex_thumb = '<img class="eex-hh__news-img" loading="lazy" src="' . esc_url( (string) $eex_story['image'] ) . '" alt="" />';
+		$eex_thumb = '<img class="' . esc_attr( $eex_img_class ) . '" loading="lazy" src="' . esc_url( (string) $eex_story['image'] ) . '" alt="" />';
 	}
 }
+
+$eex_classes = 'eex-hh__news-card';
+if ( '' !== $eex_thumb ) {
+	$eex_classes .= 'above' === $eex_position
+		? ' eex-hh__news-card--stacked eex-hh__news-card--' . $eex_size
+		: ' eex-hh__news-card--thumb';
+}
+
+$eex_category = ! empty( $args['show_category'] ) && '' !== (string) ( $eex_story['category'] ?? '' )
+	? '<p class="eex-hh__news-category">' . esc_html( (string) $eex_story['category'] ) . '</p>'
+	: '';
 ?>
-<article class="eex-hh__news-card<?php echo '' !== $eex_thumb ? ' eex-hh__news-card--thumb' : ''; ?>">
-	<?php echo $eex_thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
+<article class="<?php echo esc_attr( $eex_classes ); ?>">
+	<?php if ( 'above' === $eex_position && '' !== $eex_thumb ) : ?>
+		<?php echo $eex_category; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
+		<figure class="eex-hh__news-media"><?php echo $eex_thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?></figure>
+	<?php elseif ( '' !== $eex_thumb ) : ?>
+		<?php echo $eex_thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
+	<?php endif; ?>
 	<div class="eex-hh__news-body">
-		<?php if ( ! empty( $args['show_category'] ) && '' !== (string) ( $eex_story['category'] ?? '' ) ) : ?>
-			<p class="eex-hh__news-category"><?php echo esc_html( (string) $eex_story['category'] ); ?></p>
+		<?php if ( 'above' !== $eex_position || '' === $eex_thumb ) : ?>
+			<?php echo $eex_category; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
 		<?php endif; ?>
 
 		<<?php echo esc_attr( $eex_tag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag. ?> class="eex-hh__news-title">

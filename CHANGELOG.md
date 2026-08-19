@@ -3,6 +3,38 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.52.0
+- **The Homepage Editorial Hero recomposes around its content.** A
+  layout-flexibility and content-density pass on the one composition —
+  no renderer, selection, lifecycle, registration or caching change.
+  - **Two featured stories.** `story_count="2"` adds a secondary feature
+    (automatic next-eligible or a manual pick that can never duplicate
+    the lead), placed beneath the primary story by default or as a side
+    feature (`story2_placement`). Both features are excluded from Latest
+    News before its limit, so the list refills. The lead, the secondary
+    story and the news list now share one bounded editorial query.
+  - **Latest News density.** Up to 12 items (`news_count` 2–12); desktop
+    columns follow the item count (2→2, 3→3, 4→4, 6→3×2, 8→4×2,
+    12→4×3) with hairlines that follow the real grid. Layout modes
+    (`news_layout`): auto, compact list, editorial grid, media grid.
+    Image controls: placement (`news_image_position` auto/none/beside/
+    above — above renders category, image, headline, date at content
+    width) and emphasis (`news_image_size` compact/medium/large), all
+    ratio-stable (no layout shift) and lazy-loaded.
+  - **More Events presentation.** `more_events_presentation`: events
+    only (unchanged default), events + featured speakers (one or two
+    portraits and names per row, `more_events_speakers` 1–3), featured
+    people (person-led rows with session context under a "Coming up"
+    label), or auto. Speaker treatments reuse the session data the page
+    already loads — no new fetch layer, and rows without speaker
+    information stay event-only. `more_events_layout` arranges any
+    placement as a vertical list, horizontal strip or two-column grid.
+    `more_events_whisper` adds a tiny-caps line per row: the format
+    (Online / In person, the featured pill's venue rule) or the
+    location (city and country where the venue data names them).
+  - Same controls in the widget (conditionally shown), the block and
+    the shortcode; one shared server renderer as before.
+
 ## 1.51.0
 - **The hero's More Events strip can list upcoming sessions.** The strip
   only listed distinct HeySummit events, with the featured event always

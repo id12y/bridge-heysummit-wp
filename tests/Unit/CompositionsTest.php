@@ -294,6 +294,164 @@ final class CompositionsTest extends TestCase {
 		$this->assertStringNotContainsString( 'Double Optin', $more, 'the featured event never repeats in the More Events markup' );
 	}
 
+	public function test_two_story_frontage_renders_and_one_story_reserves_no_space(): void {
+		$this->fixture();
+		$this->make_story( 'Fourth story', 14400 );
+		\EEX_Test_State::$user_can = false;
+
+		$two = Components::render( 'homepage-hero', [ 'story_count' => '2' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertStringContainsString( 'eex-hh--two-story', $two, 'the two-story modifier is present' );
+		$this->assertStringContainsString( 'eex-hh__story-second--beneath', $two, 'auto placement resolves to beneath' );
+		$this->assertStringContainsString( 'DMARC adoption doubles', $two, 'the next eligible story is the secondary feature' );
+
+		$news = substr( $two, (int) strpos( $two, 'eex-hh__news' ) );
+		$this->assertStringNotContainsString( 'DMARC adoption doubles', $news, 'the secondary feature is excluded from Latest News' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$one = Components::render( 'homepage-hero', [] );
+		$this->assertStringNotContainsString( 'eex-hh__story-second', $one, 'one-story mode reserves no space for a second' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$side = Components::render( 'homepage-hero', [ 'story_count' => '2', 'story2_placement' => 'side' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-hh__story--with-side', $side, 'side placement marks the story column' );
+		$this->assertStringContainsString( 'eex-hh__story-second--side', $side );
+	}
+
+	public function test_latest_news_columns_follow_the_item_count(): void {
+		$this->fixture();
+		for ( $i = 4; $i <= 12; $i++ ) {
+			$this->make_story( 'Extra story ' . $i, $i * 3600 );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$eight = Components::render( 'homepage-hero', [ 'news_count' => 8 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-hh__news-list--cols-4', $eight, 'eight items take four desktop columns' );
+		$this->assertSame( 8, substr_count( $eight, 'eex-hh__news-item' ), 'eight items render' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$three = Components::render( 'homepage-hero', [ 'news_count' => 3 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-hh__news-list--cols-3', $three, 'three items take three columns' );
+		$this->assertSame( 3, substr_count( $three, 'eex-hh__news-item' ) );
+	}
+
+	public function test_news_images_render_above_the_headline_when_configured(): void {
+		$this->fixture();
+		foreach ( get_posts( [ 'post_type' => 'post', 'numberposts' => -1 ] ) as $eex_post ) { // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			update_post_meta( $eex_post->ID, '_eex_test_thumbnail', 'https://cdn.example/thumb-' . $eex_post->ID . '.jpg' );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$html = Components::render(
+			'homepage-hero',
+			[
+				'news_image_position' => 'above',
+				'news_image_size'     => 'large',
+			]
+		);
+
+		$this->assertStringContainsString( 'eex-hh__news-card--stacked', $html, 'stacked news cards render' );
+		$this->assertStringContainsString( 'eex-hh__news-card--large', $html, 'the emphasis class is present' );
+		$this->assertStringContainsString( 'eex-hh__news-media', $html, 'the media frame wraps the image' );
+		$this->assertStringContainsString( 'loading="lazy"', $html, 'news media lazy-loads' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$off = Components::render( 'homepage-hero', [ 'news_show_image' => 0, 'news_image_position' => 'above' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringNotContainsString( 'eex-hh__news-media', $off, 'the image flag still switches every treatment off' );
+	}
+
+	public function test_more_events_speaker_and_people_presentations(): void {
+		$this->fixture();
+
+		$speaker = wp_insert_post(
+			[
+				'post_type'   => 'eex_speaker',
+				'post_status' => 'publish',
+				'post_title'  => 'Lauren Meyer',
+				'meta_input'  => [ '_eex_headline' => 'CMO, SocketLabs' ],
+			]
+		);
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_talk',
+				'post_status' => 'publish',
+				'post_title'  => 'Forum keynote',
+				'meta_input'  => [
+					'_eex_heysummit_id'    => '801',
+					'_eex_source_event_id' => '104',
+					'_eex_starts_at'       => $this->iso( $this->t0 + 89 * DAY_IN_SECONDS ),
+					'_eex_ends_at'         => $this->iso( $this->t0 + 89 * DAY_IN_SECONDS + 3600 ),
+					'_eex_speaker_ids'     => [ $speaker ],
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		$speakers = Components::render( 'homepage-hero', [ 'more_events_presentation' => 'speakers' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$more     = substr( $speakers, (int) strpos( $speakers, 'eex-hh__more' ) );
+		$this->assertStringContainsString( 'eex-compact-event__speaker-name', $more, 'the London Forum row carries its speaker' );
+		$this->assertStringContainsString( 'Lauren Meyer', $more );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$people = Components::render( 'homepage-hero', [ 'more_events_presentation' => 'people' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-hh__person-name', $people, 'people mode renders person rows' );
+		$this->assertStringContainsString( 'Coming up', $people, 'people mode takes the Coming up label' );
+		$this->assertStringContainsString( 'Forum keynote', $people, 'each person carries their session context' );
+	}
+
+	public function test_more_events_whisper_shows_format_or_location(): void {
+		$this->fixture();
+		$forum = get_posts( [ 'post_type' => 'eex_event', 's' => '', 'numberposts' => -1 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		foreach ( $forum as $eex_post ) {
+			if ( 'London Forum' === $eex_post->post_title ) {
+				update_post_meta( $eex_post->ID, '_eex_venue_name', 'The Brewery' );
+				update_post_meta( $eex_post->ID, '_eex_venue_locality', 'London' );
+				update_post_meta( $eex_post->ID, '_eex_venue_country', 'United Kingdom' );
+			}
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$format = Components::render( 'homepage-hero', [ 'more_events_whisper' => 'format' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-compact-event__whisper', $format );
+		$this->assertStringContainsString( 'In person', $format, 'a venue means In person' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$location = Components::render( 'homepage-hero', [ 'more_events_whisper' => 'location' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'London, United Kingdom', $location, 'location whisper names the city and country' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$none = Components::render( 'homepage-hero', [] );
+		$this->assertStringNotContainsString( 'eex-compact-event__whisper', $none, 'the default stays whisper-free' );
+	}
+
 	public function test_the_featured_story_is_absent_from_latest_news_markup(): void {
 		$this->fixture();
 		\EEX_Test_State::$user_can = false; // The visitor view, without editor comments.
