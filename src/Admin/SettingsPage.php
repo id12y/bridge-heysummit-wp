@@ -373,6 +373,33 @@ final class SettingsPage {
 					<textarea id="eex-sponsor-csv" name="lite_sponsors_csv" rows="4" class="large-text code" placeholder="<?php esc_attr_e( 'Acme Corp, https://acme.example.com/, https://cdn.example.com/acme.png, Gold, 1, Inbox specialists', 'emailexpert-events' ); ?>"></textarea>
 				</td>
 			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Homepage and landing-page presentation', 'emailexpert-events' ); ?></th>
+				<td>
+					<p class="description"><?php esc_html_e( 'Per-event promotion and status settings for the Homepage Editorial Hero and the Event Landing Page: eligibility, promotion level and window, a public status override, and optional intro/media/CTA overrides. Saving flushes the display cache.', 'emailexpert-events' ); ?></p>
+					<?php
+					$lite_keys = array_values( array_filter( array_map( 'strval', (array) Options::setting( 'lite_events' ) ) ) );
+
+					if ( empty( $lite_keys ) ) {
+						echo '<p>' . esc_html__( 'Choose events to display first — each configured event gains its presentation settings here.', 'emailexpert-events' ) . '</p>';
+					}
+
+					$known_titles = \Emailexpert\Events\Data\EventTitles::known();
+					$stored_rows  = array_filter( (array) Options::setting( \Emailexpert\Events\Data\EventPresentation::SETTING_KEY ), 'is_array' );
+
+					foreach ( $lite_keys as $lite_key ) :
+						[ , $lite_event_id ] = array_pad( explode( '|', $lite_key, 2 ), 2, '' );
+						$lite_event_label    = (string) ( $known_titles[ $lite_event_id ] ?? '' );
+						?>
+						<details class="eex-presentation-row">
+							<summary><strong><?php echo esc_html( '' !== $lite_event_label ? $lite_event_label : $lite_key ); ?></strong> <code><?php echo esc_html( $lite_key ); ?></code></summary>
+							<div class="eex-presentation-fields">
+								<?php PresentationFields::render( 'eex_presentation[' . $lite_key . ']', (array) ( $stored_rows[ $lite_key ] ?? [] ) ); ?>
+							</div>
+						</details>
+					<?php endforeach; ?>
+				</td>
+			</tr>
 		</table>
 
 		<?php
@@ -914,6 +941,17 @@ final class SettingsPage {
 				</td>
 			</tr>
 			<tr>
+				<th scope="row"><?php esc_html_e( 'Single event page layout', 'emailexpert-events' ); ?></th>
+				<td>
+					<?php $eex_single_layout = 'landing' === (string) Options::setting( 'single_event_layout' ) ? 'landing' : 'template'; ?>
+					<select name="settings[single_event_layout]">
+						<option value="template" <?php selected( 'template', $eex_single_layout ); ?>><?php esc_html_e( 'Existing template (backwards-compatible default)', 'emailexpert-events' ); ?></option>
+						<option value="landing" <?php selected( 'landing', $eex_single_layout ); ?>><?php esc_html_e( 'Editorial Event Landing Page', 'emailexpert-events' ); ?></option>
+					</select>
+					<p class="description"><?php esc_html_e( 'What the plugin\'s fallback single-event template renders. The Editorial Event Landing Page is the complete composition — hero, sessions, speakers, schedule, tickets, venue, sponsors and replays — and transforms automatically after the event. A theme override in yourtheme/emailexpert-events/ and Elementor Pro Theme Builder templates keep taking precedence exactly as before.', 'emailexpert-events' ); ?></p>
+				</td>
+			</tr>
+			<tr>
 				<th scope="row"><label for="eex-date-format"><?php esc_html_e( 'Date format override', 'emailexpert-events' ); ?></label></th>
 				<td>
 					<input type="text" id="eex-date-format" name="settings[date_format]" value="<?php echo esc_attr( (string) Options::setting( 'date_format' ) ); ?>" placeholder="<?php echo esc_attr( get_option( 'date_format' ) ); ?>" />
@@ -1283,6 +1321,33 @@ final class SettingsPage {
 			$values['lite_sponsors'] = array_slice( $clean, 0, 60 );
 		}
 
+		// Per-event presentation rows (bounded to the configured events).
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce verified in save(); sanitised field-by-field below.
+		$presentation = isset( $_POST['eex_presentation'] ) && is_array( $_POST['eex_presentation'] ) ? wp_unslash( $_POST['eex_presentation'] ) : null;
+
+		if ( null !== $presentation ) {
+			$configured = array_map( 'strval', (array) Options::setting( 'lite_events' ) );
+			$rows       = [];
+
+			foreach ( $presentation as $key => $fields ) {
+				$key = sanitize_text_field( (string) $key );
+
+				if ( ! is_array( $fields ) || ! in_array( $key, $configured, true ) ) {
+					continue;
+				}
+
+				$row = \Emailexpert\Events\Data\EventPresentation::sanitise(
+					PresentationFields::from_post( map_deep( $fields, 'sanitize_textarea_field' ) )
+				);
+
+				if ( \Emailexpert\Events\Data\EventPresentation::defaults() !== $row ) {
+					$rows[ $key ] = $row;
+				}
+			}
+
+			$values[ \Emailexpert\Events\Data\EventPresentation::SETTING_KEY ] = $rows;
+		}
+
 		Options::update_settings( $values );
 		\Emailexpert\Events\Frontend\Cache::flush();
 	}
@@ -1441,6 +1506,7 @@ final class SettingsPage {
 				'frequency'             => $frequency,
 				'date_format'           => sanitize_text_field( (string) ( $posted['date_format'] ?? '' ) ),
 				'skin'                  => 'classic' === (string) ( $posted['skin'] ?? '' ) ? 'classic' : 'editorial',
+				'single_event_layout'   => 'landing' === (string) ( $posted['single_event_layout'] ?? '' ) ? 'landing' : 'template',
 				'image_source'          => 'optimised' === (string) ( $posted['image_source'] ?? '' ) ? 'optimised' : 'original',
 				'format_tag_labels'     => sanitize_textarea_field( (string) ( $posted['format_tag_labels'] ?? '' ) ),
 				'cache_ttl'             => max( 1, min( 1440, (int) ( $posted['cache_ttl'] ?? 5 ) ) ),

@@ -160,3 +160,47 @@ file syntax-checked.
    attendee and external ticket sale appear in HeySummit.
 5. Switch Full ↔ Lite both ways on a staging copy and confirm the
    keep/trash behaviours described on the confirmation screen.
+
+---
+
+# Acceptance report — v1.50.0 (Homepage Editorial Hero + Event Landing Page)
+
+Environment: build container with PHP 8.4, Composer, **plus a real
+WordPress 6.7.1 (SQLite, wp-cli, PHP built-in server) with the plugin
+active and HeySummit mocked at the HTTP boundary**, driven over HTTP and
+with Playwright (Chromium). No live HeySummit key, no Elementor. The
+automated suite now runs **455 tests / 2,092 assertions**, all passing;
+PHPCS (WordPress-Extra, the bare CI invocation) exits 0; every PHP file
+passes `php -l`.
+
+**Verdict counts (v1.50.0 criteria): 21 pass, 0 fail, 2 not verifiable in
+this environment.**
+
+| # | Criterion | Verdict | Evidence |
+|---|---|---|---|
+| 1 | Event selection: the 20 deterministic scenarios (automatic on 19 Aug features Double Optin; More Events returns the other three; no duplicate; rollover after it ends; manual London Forum keeps Double Optin in the list; after_featured excludes earlier events; a featured London Forum session excludes the owning event; exclusion-before-limit refill; missing-manual fallback; pin expiry; two-day events current to the end; evergreen eligibility; cancelled/postponed states; promotion windows; chronological vs priority strategies; unconfigured Lite events never selected; Full and Lite parity) | **Pass** | `SelectionTest` (21 tests) with a frozen `Support\Clock`; `test_full_and_lite_repositories_share_the_selection_semantics` runs the same calendar through both repositories |
+| 2 | Editorial selection: the 10 scenarios (latest lead, dedup + refill, manual, fallbacks, non-public exclusion, deterministic balanced mode with chronological fill, text-led when imageless, fewer-not-placeholder) | **Pass** | `SelectionTest` editorial group (10 tests); imageless text-led layout asserted in `CompositionsTest::test_missing_media_renders_no_broken_image_element` |
+| 3 | Rendering: blocks and shortcodes register (enum-validated attributes), no composite is Full-only, hide_empty, heading contexts (embedded never forces an H1; page context exactly one), featured event/story absent from More Events / Latest News markup, exactly one `fetchpriority="high"`, no broken image elements, Lite last-good on API failure, admin preview absent for visitors, no credentials in output, schema emitted once (Lite) and not at all from the composition in Full | **Pass** | `CompositionsTest` (26 tests) |
+| 4 | Cache and time: boundary-bounded TTLs (imminent event start, promotion window, pin expiry), rollover after a boundary, preview never pollutes the public cache, presentation saves bump the cache generation | **Pass** | `CompositionsTest` cache group; `Cache::keep()` gained an optional boundary argument (existing callers unchanged) |
+| 5 | Real WordPress, Lite mode with mocked HeySummit: homepage hero and landing page render end-to-end (story + featured session with portraits + More Events + Latest News; hero/stats/sessions/speakers/schedule/tickets/more/final-CTA) | **Pass** | Live install driven over HTTP; see docs/verification/*.png |
+| 6 | Real WordPress, Full mode with local event/session posts: hero auto-selects the local event; **Single event page layout = Editorial Event Landing Page** renders the composition with the synced description, venue and live-fetched tickets | **Pass** | The plugin composition emits exactly one H1; the second H1 on the test page comes from WordPress core's deprecated fallback header (block theme + classic plugin template), pre-existing behaviour unrelated to this release |
+| 7 | API unreachable (no last-good) and no API key: polite empty state, no error, no hang; API unreachable with last-good: the previous composition serves | **Pass** | Verified live (both states) + `CompositionsTest::test_lite_failure_serves_the_last_good_composition` |
+| 8 | JavaScript disabled: valid event-local times, no live-state claims in text | **Pass** | No-JS render inspected: `<time datetime="UTC">` with event-local text; the only "Live now" string is JS i18n config inside script data |
+| 9 | Responsive: 1440×900, tablet (834), 375, 320 and 200%-zoom-equivalent — zero horizontal overflow everywhere, including a deliberately overlong headline; buttons wrap; mobile order story → event → More Events → news | **Pass** | Playwright `scrollWidth - clientWidth === 0` at every viewport; screenshots captured |
+| 10 | Latest News inside the first desktop viewport at 1440×900 with a ~100px header | **Pass** | Measured: news top ≈ 812px with a 100px header (932px on the test theme whose header block is ~230px); the story media cap (`--eex-story-media-max`) is what protects this |
+| 11 | Keyboard: logical tab order through story CTA, speaker chips and event CTAs, all with :focus-visible; ticket drawer opens from the featured card, moves focus in, traps Tab, Escape closes and returns focus; the free-ticket RSVP form reveals with a required consent box | **Pass** | Playwright keyboard walk + drawer interaction (results in the verification log); hero-focus.png, hero-drawer.png |
+| 12 | Reduced motion: no forced animation (the only new transitions sit behind the existing prefers-reduced-motion guards; the compositions add none) | **Pass** | Rendered under `reducedMotion: reduce`; no new animation/transition properties in the composition CSS |
+| 13 | Cancelled event: state and message shown, no registration CTA; postponed: notice shown, registration language suppressed | **Pass** | Verified live (Lite presentation settings) + unit tests |
+| 14 | Post-event landing: replays lead, tickets and forward programme drop out, "Watch replays" final CTA, More Events continues | **Pass** | postevent-desktop.png + `CompositionsTest::test_the_post_event_landing_transforms...` |
+| 15 | Registration panel and free RSVP: drawer + consent-gated form on the composition CTAs, identical stack to existing widgets; external ticketing URL replaces checkout wholesale | **Pass** | Live drawer/RSVP interaction; `register_url` passthrough verified live |
+| 16 | One paid-ticket flow | **Pass (checkout-link level)** | The mocked paid ticket renders with its checkout destination through the existing `ticket_register_url()` stack (the same code every widget uses); an end-to-end HeySummit payment needs a live account — operator step |
+| 17 | Default desktop homepage recognisably aligned with Option A | **Pass** | hero-desktop.png: dominant serif story with blue eyebrow, standfirst, meta and capped photo; compact "Next from emailexpert" card with portraits, real-text names, date, two CTAs and calendar links; quiet More Events rows; Latest News strip |
+| 18 | Existing components and saved pages unchanged | **Pass** | The full pre-1.50 suite (398 tests) runs unmodified inside the 455; no existing attribute, class, token or default changed; `Cache::keep()`'s new parameter is optional |
+| 19 | Elementor Free / Pro live behaviour (widget panels, repeater ordering, conditions) | **Not verifiable** (no Elementor in this environment; wordpress.org downloads are proxy-blocked) | The two widgets are thin control maps over the same definitions and render through `Components::render` (parity by construction, the D56 posture); all Elementor files pass `php -l`. Manual: place each widget, check the grouped sections, conditions and the sections repeater |
+| 20 | Admin editor UIs in a browser (block inspector panels and section-order control, meta box, Lite presentation rows, Preview as at panel) | **Pass (server-side) / manual for the editor chrome** | Registration, sanitisation, saving, cache flushes and the preview/diagnostics pipeline are unit-tested; the block editor script is plain JS reviewed against the shipped component APIs. Manual: insert each block once in Gutenberg, save the meta box, run one preview |
+| 21 | Coding standards and suite | **Pass** | `vendor/bin/phpunit` 455/455; bare `vendor/bin/phpcs` exit 0 |
+
+Screenshots: `docs/verification/` — hero-desktop(.png/-full), hero-tablet,
+hero-mobile, hero-320, hero-nojs, hero-zoom200, hero-focus, hero-drawer,
+hero-reduced-motion, landing-desktop(-full), landing-mobile, landing-320,
+postevent-desktop. (Not part of the installable ZIP.)

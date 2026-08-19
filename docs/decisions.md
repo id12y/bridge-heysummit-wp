@@ -2678,3 +2678,106 @@ in four places — rendered twice, sanitised twice — and adding it in
 three of them fails silently in one mode only. Worth remembering the
 next time a setting is added, and worth noting that no test covers
 either save routine, which is why nothing caught it.
+
+## 1.50.0 — two compositions, one selection model
+
+The Homepage Editorial Hero and the Event Landing Page are page-level
+compositions, and the temptation they invite is to bolt a few thousand
+lines onto Components.php. They did not go there. Components::definitions()
+registers them and their render methods are two-line delegations; the
+actual work lives in small services — Frontend\Selection\{EventSelector,
+FeatureTargetResolver, EventLifecycle, EditorialSelector, EventIdentity,
+Diagnostics}, Frontend\Compositions\{HomepageHero, EventLanding,
+CtaResolver, MediaResolver, CompositionSchema}, Data\EventPresentation and
+Support\Clock. One renderer per composition; the layout presets change
+classes and --eex-* tokens, never code paths.
+
+- **IDENTITY, NEVER OFFSET.** The featured target deduplicates by a
+  canonical event identity — connection ID + HeySummit event ID, with
+  deterministic fallbacks (bare HS ID, then post ID, then title slug) —
+  and a featured SESSION inherits its owning event's identity, which is
+  what makes "a manually featured London Forum session removes London
+  Forum from More Events" a structural property rather than a special
+  case. Exclusion runs before the limit, so the list refills. The old
+  `offset` attribute keeps working everywhere it existed; the new
+  compositions never use it as a stand-in for deduplication, and no
+  editor toggle can reintroduce the duplicate (the `eex_more_events`
+  filter can, deliberately, for a developer with a reason).
+
+- **NESTING WITHOUT DUPLICATION.** A composition embeds existing
+  components through the new Components::partial(): the same sanitised
+  render methods with no wrapper, no heading, no caching (the
+  composition's own fragment covers it), and a saved-and-restored schema
+  pool, so a Lite landing page that embeds four schema-emitting
+  components still outputs exactly one Event JSON-LD block — its own,
+  status-mapped (EventPostponed/EventCancelled) with offers dropped when
+  registration is not genuinely open. Full mode emits none: the single
+  pages and the Yoast/Rank Math graph already carry it. Where the old
+  private helpers blocked legitimate reuse, they became public
+  (register_args, rsvp_context, ticket_drawer, empty_state) rather than
+  being copied.
+
+- **ONE CLOCK.** Selection and lifecycle read Support\Clock, never bare
+  time(). Tests freeze it; the capability-gated "Preview as at" freezes
+  it for one render, bypasses the fragment cache in both directions,
+  restores it in all paths, and blanks the attribute before the cache
+  key is built — a visitor sending preview_at can neither see a preview
+  nor mint a cache row. The lifecycle resolver keeps chronological state
+  and registration state separate, and models an event whose final end
+  is unknown as ending one hour after its last session begins — the
+  same fallback duration talks already use — so a multi-day event never
+  vanishes at the start of day one. Text never claims live state
+  server-side; the Join-now flip stays client-side per the existing
+  time discipline.
+
+- **THE CACHE LEARNS ABOUT TIME.** Automatic rollover creates real
+  boundaries a cached fragment must not sleep through. Selection records
+  every future boundary it can see (featured end, pin expiry, promotion
+  window edges, listed events' ends) into a per-render collector, and
+  Cache::keep() gained an optional boundary argument: effective TTL =
+  min(display lifetime, time to the earliest boundary), floored at one
+  minute. Existing callers pass nothing and behave exactly as before.
+
+- **PRESENTATION IS DATA, NOT A RULES ENGINE.** Per-event fields
+  (eligibility, promotion level + window, status override + message,
+  intro, hero media, CTA override) live in one post meta array in Full
+  and one bounded settings key in Lite, behind one accessor
+  (Data\EventPresentation) so selection never knows the mode. The
+  admin form is ONE implementation (Admin\PresentationFields) shared by
+  the meta box and the Lite settings — the 1.49.1 lesson, applied
+  before the bug this time. Saving flushes the display cache.
+
+- Defaults chosen and worth knowing: heading_context defaults to
+  "embedded" (H2) because a duplicate H1 is a hard failure and a too-low
+  headline is a style choice; the Full single-event template passes
+  "page" explicitly, and the setting is a Display option, not a widget
+  attribute, so upgrades change nobody's template. Automatic
+  presentation uses the event's next (or currently running) session
+  whenever one exists — deterministic, and it is what the approved
+  mockup shows. More Events defaults to the event column placement,
+  verified at 1440×900 with the story-media height capped
+  (--eex-story-media-max) precisely so Latest News stays inside the
+  first viewport. Automatic selection still features a cancelled event
+  (the cancellation is news, shown as a state with no registration
+  language); operators who want it skipped untick its eligibility.
+  Lite has no series data, so the same-series More Events mode renders
+  empty there and says why in the editors-only note.
+
+1.50.0 addendum (visual pass): the first build's homepage read as a blog
+column plus an event sidebar card. Corrected against the approved Option A
+mockup and a screengrab of the live homepage: ONE containing surface with
+hairline dividers (the live site is flat — borders, not shadows); the
+story's image sits BESIDE the copy (the stacked treatments remain as
+options, and the height cap now applies only to them); the event column
+lost its box and gained the live site's own event language — the ink
+format pill (label rules follow D107: the platform's label first, then
+the in-person flag, with venue-less targets reading as online exactly as
+the schema layer already claims), icon-led meta, and speaker blocks with
+portraits, unlinked-looking names and roles; the calendar action was cut
+to one quiet .ics link so it never competes with registration (the model
+still carries Google/subscribe; the landing renders them); More Events
+became the slim strip; Latest News matched the site's news-desk pattern.
+The headline scale was transcribed down to the mockup's ~36px (a separate,
+larger text-led scale covers imageless stories). No selection, lifecycle,
+registration, deduplication or caching code changed — templates, CSS,
+defaults and two presentation-only label defaults only.

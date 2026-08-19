@@ -1966,3 +1966,587 @@
 		grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
 	}
 }
+
+/* ==== Compositions ======================================================== */
+
+/*
+ * Structure for the Homepage Editorial Hero (.eex-hh) and the Event Landing
+ * Page (.eex-el). Base rules only — grids, order, media frames, wrapping —
+ * so the layout stands up with the skin dequeued; the skins carry the
+ * editorial voice. Every dimension is a token with its literal fallback,
+ * matching the existing --eex-* scheme; Elementor style controls write the
+ * same tokens at widget scope and themes may override them globally.
+ */
+.eex-homepage-hero,
+.eex-event-landing {
+	--eex-page-max: 76rem;
+	--eex-composition-gap: clamp(1.25rem, 1rem + 1.25vw, 2.25rem);
+	--eex-composition-space: clamp(1.75rem, 1.25rem + 1.75vw, 3rem);
+	--eex-compact-row-gap: 0.55em;
+	max-width: var(--eex-page-max);
+	margin-inline: auto;
+}
+
+.eex-hh {
+	--eex-hero-story-width: 62fr;
+	--eex-hero-event-width: 38fr;
+	--eex-story-media-ratio: 4 / 3;
+	--eex-event-media-ratio: 16 / 9;
+}
+
+/* Mobile first: everything stacks in DOM order. */
+.eex-hh__main {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--eex-composition-gap);
+}
+
+/* Desktop: two named areas, so the visual columns are independent of the
+   DOM order chosen for mobile stacking (story-first or event-first). */
+@media (min-width: 900px) {
+	.eex-hh__main {
+		grid-template-columns: minmax(0, var(--eex-hero-story-width)) minmax(0, var(--eex-hero-event-width));
+		grid-template-areas: "story event";
+		align-items: start;
+	}
+
+	.eex-hh__story {
+		grid-area: story;
+	}
+
+	.eex-hh__event {
+		grid-area: event;
+	}
+
+	.eex-hh--no-story .eex-hh__main,
+	.eex-hh--no-event .eex-hh__main {
+		grid-template-columns: minmax(0, 1fr);
+		grid-template-areas: "story";
+	}
+
+	.eex-hh--no-story .eex-hh__event {
+		grid-area: story;
+	}
+
+	/* Presets: proportion shifts only. */
+	.eex-hh--compact-split .eex-hh__main {
+		--eex-hero-story-width: 58fr;
+		--eex-hero-event-width: 42fr;
+	}
+
+	.eex-hh--news-led .eex-hh__main {
+		--eex-hero-story-width: 70fr;
+		--eex-hero-event-width: 30fr;
+	}
+
+	.eex-hh--event-led .eex-hh__main {
+		--eex-hero-story-width: 50fr;
+		--eex-hero-event-width: 50fr;
+	}
+}
+
+.eex-hh__story,
+.eex-hh__event {
+	min-width: 0;
+}
+
+/* The editorial split: copy leading, media beside it (the default). */
+.eex-hh__story-split {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: calc(var(--eex-composition-gap) * 0.9);
+	align-items: start;
+}
+
+@media (min-width: 700px) {
+	.eex-hh__story-split {
+		grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+	}
+}
+
+.eex-hh__story-copy {
+	min-width: 0;
+}
+
+/* Media frames keep a stable ratio (no layout shift). */
+.eex-hh__story-media,
+.eex-hh__event-media {
+	margin: 0;
+	border-radius: var(--eex-radius);
+	overflow: hidden;
+	aspect-ratio: var(--eex-story-media-ratio, 4 / 3);
+}
+
+.eex-hh__event-media {
+	margin-top: 0.9em;
+	aspect-ratio: var(--eex-event-media-ratio, 16 / 9);
+}
+
+/* Stacked (above/below) story media is height-capped so the photograph
+   cannot push Latest News out of the first desktop viewport. */
+.eex-hh__story-card > .eex-hh__story-media,
+.eex-hh__story-copy > .eex-hh__story-media {
+	margin: 0.9em 0;
+	aspect-ratio: var(--eex-story-media-ratio, 16 / 9);
+	max-height: var(--eex-story-media-max, clamp(13rem, 34vh, 20rem));
+}
+
+.eex-hh__story-media img,
+.eex-hh__event-media img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+/* Session promo artwork is never cropped (the existing plugin rule). */
+.eex-media--contain img {
+	object-fit: contain;
+}
+
+.eex-hh__story-title,
+.eex-hh__event-title {
+	margin: 0.2em 0 0.4em;
+	overflow-wrap: break-word;
+}
+
+.eex-hh__story-title a,
+.eex-hh__event-title a,
+.eex-hh__news-title a {
+	text-decoration: none;
+	color: inherit;
+}
+
+.eex-hh__story-standfirst {
+	margin: 0 0 0.75em;
+}
+
+.eex-hh__story-meta {
+	margin: 0 0 0.5em;
+}
+
+.eex-hh__story-cta {
+	margin: 0.35em 0 0;
+}
+
+/* The quiet text CTA (shared with the editorial skin's list rows). */
+.eex .eex-cta-quiet,
+.eex .eex-cta-quiet:link,
+.eex .eex-cta-quiet:visited {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.3rem;
+	min-height: 2.75rem;
+	text-decoration: none;
+	font-weight: 600;
+}
+
+/* Icon-led event meta. */
+.eex-hh__event-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.35em 1.1em;
+	margin: 0 0 0.75em;
+}
+
+.eex-hh__event-meta-item {
+	display: inline-flex;
+	align-items: baseline;
+	gap: 0.4em;
+	min-width: 0;
+}
+
+.eex-hh__icon {
+	flex: none;
+	align-self: center;
+}
+
+/* Speaker blocks: portrait, name, role — side by side where room allows. */
+.eex-hh__speakers {
+	list-style: none;
+	margin: 0.25em 0 1em;
+	padding: 0;
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+	gap: 0.75em 1em;
+}
+
+.eex-hh__speakers > li {
+	min-width: 0;
+}
+
+.eex-speaker-block {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.65em;
+	min-width: 0;
+}
+
+.eex-speaker-block__photo {
+	width: 3em;
+	height: 3em;
+	border-radius: 50%;
+	object-fit: cover;
+	flex: none;
+	background: var(--eex-badge-bg);
+}
+
+.eex-speaker-block__text {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1em;
+	min-width: 0;
+}
+
+.eex-speaker-block__name {
+	text-decoration: none;
+	overflow-wrap: break-word;
+}
+
+/* Neutral fallbacks (skinless / Classic): readable pill, name, role. */
+.eex-hh__event-pill {
+	display: inline-block;
+	padding: 0.3em 0.85em;
+	border-radius: 999px;
+	background: var(--eex-badge-bg);
+	color: var(--eex-badge-fg);
+	font-size: var(--eex-step--1, 0.78em);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+.eex-speaker-block__name {
+	font-weight: 600;
+	color: inherit;
+}
+
+.eex-speaker-block__role {
+	font-size: var(--eex-step--1, 0.8em);
+	color: var(--eex-muted);
+}
+
+.eex-hh__news-category {
+	font-size: var(--eex-step--1, 0.75em);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--eex-muted);
+}
+
+/* The stand-in portrait strip (speakers list switched off). */
+.eex-hh__portraits {
+	display: flex;
+	flex-wrap: wrap;
+	margin: 0.75em 0 0.25em;
+}
+
+.eex-hh__portrait {
+	width: 3em;
+	height: 3em;
+	border-radius: 50%;
+	object-fit: cover;
+	border: 2px solid var(--eex-card-bg, #ffffff);
+	margin-right: -0.6em;
+	background: var(--eex-badge-bg);
+}
+
+.eex-hh__portraits :last-child {
+	margin-right: 0;
+}
+
+/* More Events. Strip (default): one slim wrapping row. */
+.eex-hh__more--strip {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.4em 1.5em;
+	margin: var(--eex-composition-gap) 0 0;
+}
+
+.eex-hh__more--strip .eex-hh__label {
+	margin: 0;
+	flex: none;
+}
+
+.eex-hh__more--strip .eex-hh__more-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4em 0;
+	min-width: 0;
+}
+
+.eex-hh__more--strip .eex-hh__more-list > li {
+	display: inline-flex;
+	min-width: 0;
+}
+
+.eex-hh__more--strip .eex-compact-event {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.25em 0.6em;
+	padding: 0;
+	border: 0;
+}
+
+/* Event-column alternative: quiet stacked rows. */
+.eex-hh__more--column {
+	margin: 1.1em 0 0;
+}
+
+.eex-hh__more--column .eex-hh__more-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.eex-hh__more--column .eex-compact-event {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.25em 0.75em;
+	padding: var(--eex-compact-row-gap, 0.55em) 0;
+	border-bottom: 1px solid var(--eex-border);
+}
+
+.eex-compact-event__date {
+	flex: none;
+	color: var(--eex-muted);
+	font-size: var(--eex-step--1, 0.85em);
+	white-space: nowrap;
+}
+
+.eex-compact-event__title {
+	min-width: 0;
+	overflow-wrap: break-word;
+	text-decoration: none;
+	font-weight: 600;
+}
+
+/* Latest News: header row, then a compact multi-column strip. */
+.eex-hh__news {
+	margin: var(--eex-composition-gap) 0 0;
+}
+
+.eex-hh__news-head {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 0.25em 1em;
+	margin: 0 0 0.75em;
+}
+
+.eex-hh__news-head .eex-hh__label {
+	margin: 0;
+}
+
+.eex-hh__news-head .eex-hh__news-all {
+	min-height: 0;
+}
+
+.eex-hh__news-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 0 var(--eex-composition-gap);
+}
+
+@media (min-width: 600px) {
+	.eex-hh__news-list {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 900px) {
+	.eex-hh__news-list {
+		grid-template-columns: repeat(var(--eex-news-columns, 4), minmax(0, 1fr));
+	}
+}
+
+.eex-hh__news-item {
+	min-width: 0;
+}
+
+.eex-hh__news-card {
+	padding: 0.35em 0;
+}
+
+.eex-hh__news-card--thumb {
+	display: grid;
+	grid-template-columns: 4em minmax(0, 1fr);
+	gap: 0 0.75em;
+	align-items: start;
+}
+
+.eex-hh__news-img {
+	width: 4em;
+	height: 4em;
+	object-fit: cover;
+	border-radius: calc(var(--eex-radius) * 0.6);
+}
+
+.eex-hh__news-category {
+	margin: 0 0 0.25em;
+}
+
+.eex-hh__news-title {
+	margin: 0 0 0.3em;
+	font-size: var(--eex-step-0, 1em);
+	line-height: 1.3;
+	overflow-wrap: break-word;
+}
+
+.eex-hh__news-date {
+	margin: 0;
+}
+
+.eex-hh__label {
+	margin: 0 0 0.5em;
+}
+
+/* The composition eyebrow: same element voice as the section whisper. */
+.eex-comp-eyebrow {
+	margin: 0 0 0.6em;
+}
+
+/* Buttons wrap cleanly at narrow widths; no fixed heights anywhere. */
+.eex-hh__event-card .eex-card-actions .eex-cta,
+.eex-el__hero .eex-card-actions .eex-cta {
+	max-width: 100%;
+	white-space: normal;
+	text-align: center;
+}
+
+.eex-hh__event-actions {
+	margin-top: 0.5em;
+	gap: 0.6em 1em;
+}
+
+/* ---- Event Landing Page -------------------------------------------------- */
+.eex-el__section {
+	margin: 0 0 var(--eex-composition-space);
+}
+
+.eex-el__heading {
+	margin: 0 0 1em;
+}
+
+.eex-el__title {
+	margin: 0;
+}
+
+.eex-el__hero {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--eex-composition-gap);
+	border-radius: var(--eex-radius);
+	margin: 0 0 var(--eex-composition-space);
+}
+
+@media (min-width: 900px) {
+	.eex-el__hero:not(.eex-el__hero--text):not(.eex-el__hero--compact) {
+		grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+		align-items: center;
+	}
+}
+
+.eex-el__hero-media {
+	margin: 0;
+	border-radius: var(--eex-radius);
+	overflow: hidden;
+	aspect-ratio: var(--eex-event-media-ratio, 16 / 9);
+}
+
+.eex-el__hero-media img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.eex-el__hero-media.eex-hh__portraits {
+	aspect-ratio: auto;
+	overflow: visible;
+	align-items: center;
+}
+
+.eex-el__hero-title {
+	margin: 0.1em 0 0.3em;
+	overflow-wrap: break-word;
+}
+
+.eex-el__hero-session {
+	margin: 0 0 0.5em;
+}
+
+.eex-el__hero-meta > p {
+	margin: 0 0 0.4em;
+}
+
+.eex-el__status {
+	border-left: 4px solid var(--eex-live);
+	border-radius: calc(var(--eex-radius) * 0.5);
+	background: var(--eex-badge-bg);
+	padding: 0.9em 1.1em;
+	margin: 0 0 var(--eex-composition-space);
+}
+
+.eex-el__status-lead {
+	margin: 0 0 0.25em;
+	font-weight: 700;
+}
+
+.eex-el__status-message {
+	margin: 0;
+}
+
+.eex-el__final {
+	border: 1px solid var(--eex-border);
+	border-radius: var(--eex-radius);
+	padding: var(--eex-composition-gap);
+	text-align: center;
+}
+
+.eex-el__final-title {
+	margin: 0 0 0.6em;
+}
+
+.eex-el__final .eex-card-actions {
+	justify-content: center;
+}
+
+/* Admin-only preview explanation (never rendered for visitors). */
+.eex-preview-notes {
+	margin: 1em 0;
+	border: 1px dashed var(--eex-border, #d9dee3);
+	border-radius: var(--eex-radius, 8px);
+	padding: 0.9em 1.1em;
+	font-size: 0.85em;
+}
+
+.eex-preview-notes__title {
+	margin: 0 0 0.5em;
+	font-weight: 700;
+}
+
+.eex-preview-notes ul {
+	margin: 0;
+	padding-left: 1.2em;
+}
+
+/* At 320px nothing may overflow: long words break, buttons wrap. */
+@media (max-width: 400px) {
+	.eex-hh,
+	.eex-el {
+		overflow-wrap: break-word;
+	}
+
+	.eex-compact-event__date {
+		white-space: normal;
+	}
+}

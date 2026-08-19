@@ -36,6 +36,8 @@ final class Options {
 			'lite_ttl'              => 15,
 			'cache_ttl'             => 5,
 			'lite_sponsors'         => [],
+			'lite_presentation'     => [],
+			'single_event_layout'   => 'template',
 			'flush_rewrites'        => 0,
 			'frequency'             => 'hourly',
 			'schema_enabled'        => 1,

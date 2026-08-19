@@ -224,6 +224,144 @@ dropdowns — IDs are never typed by hand once the API has answered.
 | `eex/live-now` | `[eex_live_now]` | Slim banner that appears only while a session is live, with a Join link |
 | `eex/reg-counter` | `[eex_reg_counter threshold="50"]` (Full) | Live registration counter, hidden below the threshold, refreshed via REST so cached pages stay current |
 | `eex/session-filter` | `[eex_session_filter]` | Category/speaker/text filter bar for the sessions library; works without JS as links + GET form (in Lite the category links filter the list on the current page via `?eex_cat=`) |
+| `eex/homepage-hero` | `[eex_homepage_hero]` | **Homepage Editorial Hero** — the whole top of an editorial homepage in one component: featured story, featured event or session, More Events, Latest News. See "The compositions" below |
+| `eex/event-landing` | `[eex_event_landing]` | **Event Landing Page** — a complete event site in one component, transforming automatically after the event. See "The compositions" below |
+
+### The compositions (v1.50.0)
+
+Two opinionated page-level components, both first-class in Lite and Full,
+both rendering through the shared server-side pipeline (the Gutenberg
+block, the shortcode and the Elementor widget are editing surfaces only).
+Layout presets change classes and `--eex-*` tokens, never the renderer.
+
+#### Homepage Editorial Hero
+
+The default follows the approved editorial design: a dominant featured
+story (serif headline, standfirst, category/date/read time, capped image),
+a prominent but compact featured event or session beside it (portraits,
+real-text speaker names, lifecycle-aware CTAs, calendar action), compact
+More Events rows, and a Latest News strip that stays inside the first
+desktop viewport at 1440 × 900. Presets: `layout="editorial-split"`
+(default) `| compact-split | news-led | event-led`.
+
+**Featured event or session** (`featured_source`):
+
+- `auto` (default) — the next eligible event, automatically rolling
+  forward when it ends. Strategy `selection_strategy="chronological"`
+  (default) or `"priority"` (Flagship, then Featured, then dates —
+  promotion windows respected).
+- `manual_event` / `manual_session` — pick by name in the editors. A
+  featured session always resolves its owning event for deduplication,
+  registration, tickets, schema and More Events.
+- `none` — no featured-event area.
+
+Selected events present as `event_presentation="auto"` (the next session
+when one exists — the stronger card) `| event | next_session | session`.
+Manual picks pin `pin_duration="until_end"` (default) `| until_date |
+never`; after expiry `pin_expiry_action="auto"` (return to automatic,
+default) `| keep | hide`. A missing manual selection follows the same
+fallback and explains itself to editors.
+
+**More Events** (`more_events`, default on, three rows, soonest first):
+`more_events_mode="all_upcoming" | after_featured | same_series`. The
+featured event is always excluded by canonical identity (connection +
+HeySummit event ID) *before* the limit, so the list refills — and a
+manually featured future event never removes the wrong chronological
+event. Placement: `more_events_placement="event-column"` (default)
+`| strip | hidden`.
+
+**Featured story** (`story_source="latest" | sticky | manual | none`,
+manual picks are searchable by title in the editors with an ID fallback
+in the shortcode): eyebrow, image position and fit, standfirst length,
+category/date/read-time toggles, CTA text, and a fallback
+(`story_fallback="latest" | none`) when a manual story is unavailable.
+**Latest News** (`news_show`, `news_count` 2–6, post types, include and
+exclude categories, `news_order="latest" | balanced`): the featured story
+is always removed before the limit and the list refills; balanced mode is
+deterministic — a different category per initial slot where alternatives
+exist, chronological fill, no randomness.
+
+```text
+[eex_homepage_hero]
+[eex_homepage_hero featured_source="manual_event" featured_event="123456" more_events_mode="all_upcoming"]
+[eex_homepage_hero featured_source="manual_session" featured_session="654321" pin_duration="until_date" pin_until="2026-11-17T10:30:00Z"]
+```
+
+`heading_context="embedded"` (default, lead heading H2) or `"page"` (the
+featured story is the page's one H1). `mobile_order="story-first"`
+(default) or `"event-first"` — the DOM order follows, so reading order and
+visual order always agree. `eager_media="auto"` marks at most one leading
+image `fetchpriority="high"`; everything else lazy-loads.
+
+#### Event Landing Page
+
+```text
+[eex_event_landing]
+[eex_event_landing event_source="manual" event="123456"]
+```
+
+`event_source="current"` (default: the event page being viewed, or a
+session's owning event, falling back to the next eligible event) `| auto |
+manual`. Sections render in one canonical order attribute —
+`sections="hero,status,stats,intro,sessions,speakers,schedule,tickets,venue,sponsors,replays,more_events,final_cta"`
+— sanitised server-side (unknown removed, duplicates collapsed, order
+preserved; a live postponed/cancelled notice is re-appended if omitted).
+Elementor edits the order as a drag-orderable repeater; Gutenberg as an
+accessible checkbox-and-arrows control. Every section hides itself when it
+has no usable data. The hero offers event-level, next-session or specific
+session presentation, three styles (`hero_style="editorial" | dark |
+compact`), media fallbacks, countdown, registration state and the full CTA
+stack. In Full mode the introduction stacks the presentation intro, the
+sync-owned description and the editor-owned `post_content` — nothing
+overwrites anything.
+
+**Post-event transformation** (`post_event="auto"`, default): once the
+event ends, replays lead, tickets and the forward-looking programme drop
+out, speakers and More Events remain, and the final CTA becomes "Watch
+replays" — never a dead registration page. `"keep"` preserves the
+original layout. While live, the programme leads.
+
+**Full-mode single event pages**: Settings > Display > **Single event page
+layout** switches the plugin's fallback `single-eex_event.php` to the
+landing composition (the existing template stays the default; theme
+overrides in `yourtheme/emailexpert-events/` and Elementor Pro Theme
+Builder templates take precedence exactly as before).
+
+#### Per-event presentation settings
+
+**Homepage and landing-page presentation** — a meta box on event posts in
+Full mode, per configured event under Settings > Live display in Lite,
+one shared accessor either way: eligibility for the automatic feature and
+for More Events, promotion level (Normal / Featured / Flagship / Do not
+promote) with an optional window, a public status override (Automatic /
+Scheduled / Postponed / Cancelled) with a message, and optional intro,
+hero-media and CTA overrides. A cancelled event shows its state and no
+registration language; postponed suppresses the countdown and misleading
+registration wording. Saving flushes the display cache.
+
+#### Time, caching and preview
+
+Lifecycle (scheduled, registration open/not yet open, starting soon, live,
+ended, replay available, postponed, cancelled, evergreen) resolves through
+one injectable clock; a multi-day event stays current until its final end.
+Cached composition fragments expire at the earliest relevant boundary —
+the featured event ending, a pin or promotion window turning, an event
+going live — never outliving their own truth (one-minute floor; normal
+display-cache lifetime otherwise). Editors get **Preview as at**: render
+the composition as though it were any moment, with an explanation of every
+selection decision; it never touches public output or the public cache.
+
+Theme overrides work as everywhere else: copy
+`templates/parts/hero-story.php`, `hero-featured-event.php`,
+`hero-news-item.php`, `compact-event-row.php`, `landing-hero.php`,
+`landing-status.php` or `landing-cta.php` into
+`yourtheme/emailexpert-events/parts/`. Composition tokens
+(`--eex-page-max`, `--eex-composition-gap`, `--eex-composition-space`,
+`--eex-hero-story-width`, `--eex-hero-event-width`,
+`--eex-story-media-ratio`, `--eex-story-media-max`,
+`--eex-event-media-ratio`, `--eex-compact-row-gap`, `--eex-news-columns`)
+are overridable globally by themes and locally by the Elementor style
+controls.
 
 ### Registration buttons and the ticket panel
 
@@ -478,6 +616,13 @@ removal is stated as a manual step). Attribution retention is configurable
 | Filter | Signature | Purpose |
 |---|---|---|
 | `eex_query_args` | `( array $args, string $kind, array $atts )` | Adjust component queries |
+| `eex_feature_candidates` | `( array $pool )` | The automatic event candidate pool for the compositions |
+| `eex_feature_target` | `( ?array $target, array $atts )` | The final selected feature target |
+| `eex_more_events` | `( array $rows, string $mode, ?array $featured )` | The final More Events rows (post-deduplication) |
+| `eex_editorial_query_args` | `( array $args )` | The editorial (featured story / Latest News) query arguments |
+| `eex_editorial_post_types` | `( string[] $types )` | Post types whose publish transitions flush the display cache |
+| `eex_lifecycle_result` | `( array $reading )` | The final lifecycle reading for a composition target |
+| `eex_cta_view_model` | `( array $model, array $target, array $atts )` | The final CTA view model |
 | `eex_card_html` | `( string $html, string $component, array $atts )` | Filter rendered component HTML |
 | `eex_schema_data` | `( array $schema, string $kind, int $post_id )` | Adjust schema pieces |
 | `eex_schema_suppress` | `( bool, int $post_id )` | Suppress schema on a view |

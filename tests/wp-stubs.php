@@ -946,6 +946,65 @@ if ( ! function_exists( 'current_user_can' ) ) {
 		return \EEX_Test_State::$user_can;
 	}
 }
+if ( ! function_exists( 'wp_register_script' ) ) {
+	function wp_register_script( ...$args ) {
+		return true;
+	}
+}
+if ( ! function_exists( 'wp_localize_script' ) ) {
+	function wp_localize_script( ...$args ) {
+		return true;
+	}
+}
+if ( ! function_exists( 'register_block_type' ) ) {
+	function register_block_type( $name, $args = [] ) {
+		$GLOBALS['eex_test_blocks'][ $name ] = $args;
+		return true;
+	}
+}
+if ( ! function_exists( 'map_deep' ) ) {
+	function map_deep( $value, $callback ) {
+		if ( is_array( $value ) ) {
+			foreach ( $value as $index => $item ) {
+				$value[ $index ] = map_deep( $item, $callback );
+			}
+			return $value;
+		}
+		return is_scalar( $value ) ? call_user_func( $callback, $value ) : $value;
+	}
+}
+if ( ! function_exists( 'checked' ) ) {
+	function checked( $checked, $current = true, $display = true ) {
+		$result = (string) $checked === (string) $current ? " checked='checked'" : '';
+		if ( $display ) {
+			echo $result;
+		}
+		return $result;
+	}
+}
+if ( ! function_exists( 'selected' ) ) {
+	function selected( $selected, $current = true, $display = true ) {
+		$result = (string) $selected === (string) $current ? " selected='selected'" : '';
+		if ( $display ) {
+			echo $result;
+		}
+		return $result;
+	}
+}
+if ( ! function_exists( 'esc_textarea' ) ) {
+	function esc_textarea( $text ) {
+		return htmlspecialchars( (string) $text, ENT_QUOTES );
+	}
+}
+if ( ! function_exists( 'wp_nonce_field' ) ) {
+	function wp_nonce_field( $action = -1, $name = '_wpnonce', $referer = true, $display = true ) {
+		$field = "<input type='hidden' name='" . $name . "' value='nonce-" . $action . "' />";
+		if ( $display ) {
+			echo $field;
+		}
+		return $field;
+	}
+}
 if ( ! function_exists( 'wp_verify_nonce' ) ) {
 	function wp_verify_nonce( $nonce, $action = -1 ) {
 		return 1;
@@ -993,6 +1052,11 @@ if ( ! function_exists( 'load_template' ) ) {
 if ( ! function_exists( 'number_format_i18n' ) ) {
 	function number_format_i18n( $number, $decimals = 0 ) {
 		return number_format( (float) $number, (int) $decimals );
+	}
+}
+if ( ! function_exists( 'date_i18n' ) ) {
+	function date_i18n( $format, $timestamp = null ) {
+		return gmdate( (string) $format, null === $timestamp ? time() : (int) $timestamp );
 	}
 }
 if ( ! function_exists( 'add_shortcode' ) ) {
