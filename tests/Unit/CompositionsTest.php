@@ -294,6 +294,145 @@ final class CompositionsTest extends TestCase {
 		$this->assertStringNotContainsString( 'Double Optin', $more, 'the featured event never repeats in the More Events markup' );
 	}
 
+	/**
+	 * A Lite mock with a configurable ticket list, so the auto registration
+	 * resolution can be exercised against free, paid and absent tickets.
+	 *
+	 * @param array<int,array<string,mixed>> $tickets Ticket rows for event 101.
+	 */
+	private function mock_lite_api_with_tickets( array $tickets ): void {
+		$t0 = $this->t0;
+		$this->mock_http( function ( $url ) use ( $tickets, $t0 ) {
+			if ( str_contains( (string) $url, 'tickets/' ) ) {
+				return self::json_response( [ 'results' => $tickets ] );
+			}
+			if ( str_contains( (string) $url, 'talks/' ) ) {
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'        => 501,
+								'title'     => 'Live keynote',
+								'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', $t0 + 5 * DAY_IN_SECONDS ),
+								'ends_at'   => gmdate( 'Y-m-d\TH:i:s\Z', $t0 + 5 * DAY_IN_SECONDS + 3600 ),
+								'event'     => 101,
+							],
+						],
+					]
+				);
+			}
+			if ( str_contains( (string) $url, 'events/' ) ) {
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'                        => 101,
+								'title'                     => 'Lite Summit',
+								'starts_at'                 => gmdate( 'Y-m-d\TH:i:s\Z', $t0 + 5 * DAY_IN_SECONDS ),
+								'ends_at'                   => gmdate( 'Y-m-d\TH:i:s\Z', $t0 + 5 * DAY_IN_SECONDS + 7200 ),
+								'is_open_for_registrations' => true,
+								'event_url'                 => 'https://hs.example/lite-summit/',
+							],
+						],
+					]
+				);
+			}
+
+			return null;
+		} );
+	}
+
+	public function test_free_event_shares_one_rsvp_renderer_across_old_and_new_surfaces(): void {
+		$this->go_lite();
+		$this->mock_lite_api_with_tickets(
+			[
+				[
+					'id'      => 11,
+					'title'   => 'Free pass',
+					'is_paid' => false,
+					'prices'  => [ [ 'id' => 111, 'price' => '0.00' ] ],
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		// The existing widget, configured for the inline form.
+		$bar = Components::render( 'register-bar', [ 'event' => '101', 'register_action' => 'form' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		// The compositions, on their default (auto) — the existing system
+		// answers "form" because its own free-ticket rules apply.
+		$hero = Components::render( 'homepage-hero', [ 'story_source' => 'none', 'news_show' => 0, 'more_events' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		$landing = Components::render( 'event-landing', [ 'event_source' => 'manual', 'event' => '101' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		// One shared implementation: the same register-form part (the same
+		// hidden inputs for the same free ticket, the same consent wording),
+		// toggled by the same JS contract, on all three surfaces.
+		foreach ( [ 'register-bar' => $bar, 'homepage-hero' => $hero, 'event-landing' => $landing ] as $surface => $html ) {
+			$this->assertStringContainsString( 'data-eex-reg="1"', $html, $surface . ' renders the shared register-form part' );
+			$this->assertStringContainsString( 'name="ticket" value="11"', $html, $surface . ' registers the same free ticket' );
+			$this->assertStringContainsString( 'data-eex-reg-toggle="1"', $html, $surface . ' uses the shared toggle contract' );
+			$this->assertStringContainsString( 'name="consent"', $html, $surface . ' carries the required consent checkbox' );
+			$this->assertStringContainsString( esc_html( \Emailexpert\Events\Frontend\Components::consent_disclosure_text() ), $html, $surface . ' shows the shared disclosure wording' );
+		}
+
+		$this->assertStringContainsString( 'RSVP free', $hero, 'the hero CTA reads RSVP free when the form applies' );
+	}
+
+	public function test_ticketed_event_shares_the_existing_ticket_panel(): void {
+		$this->go_lite();
+		$this->mock_lite_api_with_tickets(
+			[
+				[
+					'id'      => 22,
+					'title'   => 'Full pass',
+					'is_paid' => true,
+					'prices'  => [ [ 'id' => 221, 'price' => '199.00' ] ],
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		// The existing widget, configured for the panel.
+		$bar = Components::render( 'register-bar', [ 'event' => '101', 'register_action' => 'panel' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		// The hero on auto: no free ticket, so the existing system answers
+		// "panel" — the same drawer, not a new implementation.
+		$hero = Components::render( 'homepage-hero', [ 'story_source' => 'none', 'news_show' => 0, 'more_events' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		foreach ( [ 'register-bar' => $bar, 'homepage-hero' => $hero ] as $surface => $html ) {
+			$this->assertStringContainsString( 'eex-drawer', $html, $surface . ' renders the shared ticket drawer' );
+			$this->assertStringContainsString( 'data-eex-drawer=', $html, $surface . ' opens it through the shared JS contract' );
+			$this->assertStringContainsString( 'Full pass', $html, $surface . ' lists the same ticket' );
+		}
+
+		$this->assertStringContainsString( 'Get tickets', $hero, 'the hero CTA reads Get tickets for paid-only events' );
+	}
+
+	public function test_explicit_link_behaviour_is_unchanged(): void {
+		$this->go_lite();
+		$this->mock_lite_api();
+		\EEX_Test_State::$user_can = false;
+
+		$hero = Components::render( 'homepage-hero', [ 'story_source' => 'none', 'news_show' => 0, 'more_events' => 0, 'register_action' => 'link' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertStringContainsString( 'checkout/select-tickets/', $hero, 'the explicit link mode keeps the existing checkout destination' );
+		$this->assertStringNotContainsString( 'data-eex-reg-toggle', $hero, 'no RSVP toggle in link mode' );
+		$this->assertStringNotContainsString( 'data-eex-drawer=', $hero, 'no drawer in link mode' );
+	}
+
 	public function test_two_story_frontage_renders_and_one_story_reserves_no_space(): void {
 		$this->fixture();
 		$this->make_story( 'Fourth story', 14400 );

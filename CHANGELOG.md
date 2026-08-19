@@ -3,6 +3,23 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.53.0
+- **The compositions now lead with the plugin's own registration
+  experience by default.** The Homepage Editorial Hero and the Event
+  Landing Page have always rendered the shared register-form part, the
+  shared ticket drawer and the shared checkout routing — but their
+  Register button behaviour defaulted to "follow the ticket link", like
+  every classic widget. They now default to a new **auto** mode that asks
+  the existing registration system what to render: the in-place RSVP form
+  when `Components::rsvp_context` finds a usable free ticket under its
+  existing rules, otherwise the existing ticket panel — the richest
+  in-site experience the plugin already supports, handing off to external
+  checkout only where the existing system genuinely does. Explicit
+  link/panel/form choices keep their classic meaning, the classic widgets
+  are untouched, and there is still exactly one form template, one
+  consent implementation, one REST endpoint and one checkout router
+  behind every surface.
+
 ## 1.52.0
 - **The Homepage Editorial Hero recomposes around its content.** A
   layout-flexibility and content-density pass on the one composition —

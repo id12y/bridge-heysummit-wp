@@ -103,6 +103,20 @@ final class EventLanding {
 
 		$commerce = CtaResolver::commerce_atts( $atts, $event );
 
+		// The interaction the existing registration system resolved ('auto'
+		// becomes 'form' or 'panel' there); the same value flows into the
+		// child components below, so the whole landing page follows one
+		// answer from one system.
+		$commerce['register_action'] = (string) ( $cta['register_action'] ?? $commerce['register_action'] ?? 'link' );
+
+		if ( 'auto' === $commerce['register_action'] ) {
+			// A closed lifecycle never resolved the interaction; the classic
+			// default applies (registration is not on offer anyway).
+			$commerce['register_action'] = 'link';
+		}
+
+		$atts['register_action'] = $commerce['register_action'];
+
 		if ( null !== $target['session'] ) {
 			$commerce['drawer_talk'] = (string) ( $target['session']['hs_id'] ?? '' );
 		}

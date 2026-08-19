@@ -181,6 +181,21 @@ final class Components {
 			],
 			'description' => __( 'The RSVP form registers visitors on this site using the event\'s free ticket and adds the session to their schedule — returning members are recognised and never sent through checkout. It needs a free ticket: if the event has none, the button follows the ticket link instead (paid tickets always check out on the platform).', 'emailexpert-events' ),
 		];
+		// The compositions' variant of the same control: one extra mode,
+		// "auto", which asks the existing registration system what to render
+		// (the in-place RSVP form when its free-ticket rules apply, else the
+		// ticket panel) instead of the widget deciding. Same options, same
+		// renderers, same handlers — only the default differs, so the new
+		// surfaces lead with the richest in-site experience the plugin
+		// already supports. The classic widgets keep their spec untouched.
+		$register_action_auto = array_merge(
+			$register_action,
+			[
+				'default' => 'auto',
+				'options' => [ 'auto' => __( 'Auto (RSVP form when its rules apply, else the ticket panel)', 'emailexpert-events' ) ] + $register_action['options'],
+			]
+		);
+
 		$buy_on          = [
 			'type'    => 'string',
 			'default' => 'heysummit',
@@ -1639,7 +1654,7 @@ final class Components {
 				'register_text'            => $grouped( $tickets_text, $g_cta ),
 				'session_text'             => $grouped( $session_text, $g_cta ),
 				'register_url'             => $grouped( $register_url, $g_cta ),
-				'register_action'          => $grouped( $register_action, $g_cta ),
+				'register_action'          => $grouped( $register_action_auto, $g_cta ),
 				'buy_on'                   => $grouped( $buy_on, $g_cta ),
 				'coupon'                   => $grouped( $coupon, $g_cta ),
 				'currency'                 => $grouped( $currency, $g_cta ),
@@ -1863,7 +1878,7 @@ final class Components {
 				'register_text'     => $grouped( $tickets_text, $g_cta ),
 				'session_text'      => $grouped( $session_text, $g_cta ),
 				'register_url'      => $grouped( $register_url, $g_cta ),
-				'register_action'   => $grouped( $register_action, $g_cta ),
+				'register_action'   => $grouped( $register_action_auto, $g_cta ),
 				'buy_on'            => $grouped( $buy_on, $g_cta ),
 				'coupon'            => $grouped( $coupon, $g_cta ),
 				'currency'          => $grouped( $currency, $g_cta ),

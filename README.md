@@ -408,6 +408,14 @@ creates the attendee server-side); paid tickets deep-link to checkout, or —
 with `buy_on="woo"` — to the mapped WooCommerce product. `tickets` /
 `exclude` control which tickets the panel offers.
 
+The two compositions (Homepage Editorial Hero, Event Landing Page) share
+this exact system — the same form part, consent wording, REST endpoint,
+panel and checkout routing — and add one mode of their own:
+`register_action="auto"` (their default) asks it what to render: the
+in-place RSVP form when the existing free-ticket rules apply, else the
+ticket panel. Explicit `link | panel | form` keep their classic meaning
+everywhere.
+
 ### The sponsor wall and spotlight
 
 Sponsors come **live from the HeySummit sponsors API** (categories

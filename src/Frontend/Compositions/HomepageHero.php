@@ -159,6 +159,11 @@ final class HomepageHero {
 
 			$commerce = CtaResolver::commerce_atts( $atts, (array) $target['event'] );
 
+			// The interaction the existing registration system resolved
+			// ('auto' becomes 'form' or 'panel' there) drives the same
+			// existing drawer renderer the classic widgets use.
+			$commerce['register_action'] = (string) ( $cta['register_action'] ?? $commerce['register_action'] ?? 'link' );
+
 			if ( null !== $target['session'] ) {
 				$commerce['drawer_talk'] = (string) ( $target['session']['hs_id'] ?? '' );
 			}

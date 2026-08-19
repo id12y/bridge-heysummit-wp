@@ -67,12 +67,16 @@ final class CtaResolver {
 		$buttons = (string) ( $atts['buttons'] ?? 'both' );
 
 		$model = [
-			'primary'      => null,
-			'secondary'    => null,
-			'calendar'     => [],
-			'sold_out'     => false,
-			'rsvp_context' => [],
-			'flip'         => false,
+			'primary'         => null,
+			'secondary'       => null,
+			'calendar'        => [],
+			'sold_out'        => false,
+			'rsvp_context'    => [],
+			'flip'            => false,
+			// The resolved interaction ('form', 'panel' or 'link') — what the
+			// existing registration system answered; the compositions hand it
+			// back to Components::ticket_drawer and the child components.
+			'register_action' => (string) ( $atts['register_action'] ?? 'link' ),
 		];
 
 		// Session-page secondary (the existing two-button model), unless the
@@ -157,8 +161,26 @@ final class CtaResolver {
 		if ( ! empty( $lifecycle['registration_open'] ) ) {
 			$commerce_atts = self::commerce_atts( $atts, $event );
 
-			$model['rsvp_context'] = Components::rsvp_context( $commerce_atts );
-			$model['sold_out']     = ! empty( $context['check_tickets'] ) && self::sold_out( $event, $commerce_atts );
+			// The registration interaction is the existing system's decision,
+			// never this class's. "auto" (the compositions' default) asks the
+			// same deciders the classic widgets run on: the in-place RSVP form
+			// when Components::rsvp_context finds a usable free ticket under
+			// its existing rules (no external override, form otherwise
+			// eligible), else the existing ticket panel. Explicit values keep
+			// their classic meaning unchanged.
+			$action = (string) ( $atts['register_action'] ?? 'link' );
+
+			if ( 'auto' === $action ) {
+				$probe  = Components::rsvp_context( array_merge( $commerce_atts, [ 'register_action' => 'form' ] ) );
+				$action = ! empty( $probe ) ? 'form' : 'panel';
+
+				$model['rsvp_context'] = ! empty( $probe ) ? $probe : [];
+			} else {
+				$model['rsvp_context'] = Components::rsvp_context( $commerce_atts );
+			}
+
+			$model['register_action'] = $action;
+			$model['sold_out']        = ! empty( $context['check_tickets'] ) && self::sold_out( $event, $commerce_atts );
 
 			$url = null !== $session
 				? Components::ticketing_url( $session, $register )
@@ -182,7 +204,7 @@ final class CtaResolver {
 					'label'  => $label,
 					'url'    => $url,
 					'action' => 'event-register',
-					'drawer' => 'panel' === (string) ( $atts['register_action'] ?? 'link' ),
+					'drawer' => 'panel' === $action,
 					'rsvp'   => ! empty( $model['rsvp_context'] ),
 				];
 			}
