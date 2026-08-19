@@ -70,6 +70,20 @@ Notable changes per released version. Design reasoning lives in
   `feature_image`), `company` and `description` fields; the Full shape
   gains `image_id` (hero override, then featured image) and
   `description`. Purely additive.
+- **Visual production pass against the approved design.** The hero is
+  one flat containing surface with hairline separations (no boxed
+  sidebar card): story copy sits beside its editorial image by default
+  (`story_image_position="beside"`), the event column carries a format
+  pill, icon-led date/format meta and portrait–name–role speaker blocks
+  (a shared `speaker-block` part, no fabricated portraits, no underlined
+  chip names), the CTA row reads primary / outlined Details / one quiet
+  calendar link, More Events defaults to a slim one-line strip beneath
+  the split (`more_events_placement="strip"`, label "More from
+  emailexpert"), and Latest News gains its header row with "View all",
+  thumbnails on by default and column hairlines. Headline scale is
+  moderated (`--eex-hh-title-size`, larger when text-led) so Latest News
+  stays inside the first 1440×900 viewport under a production-height
+  header.
 
 ## 1.49.1
 - Fixed: the new Session images setting saved in Lite mode but not in

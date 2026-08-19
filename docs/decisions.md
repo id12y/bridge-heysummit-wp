@@ -2762,3 +2762,22 @@ classes and --eex-* tokens, never code paths.
   language); operators who want it skipped untick its eligibility.
   Lite has no series data, so the same-series More Events mode renders
   empty there and says why in the editors-only note.
+
+1.50.0 addendum (visual pass): the first build's homepage read as a blog
+column plus an event sidebar card. Corrected against the approved Option A
+mockup and a screengrab of the live homepage: ONE containing surface with
+hairline dividers (the live site is flat — borders, not shadows); the
+story's image sits BESIDE the copy (the stacked treatments remain as
+options, and the height cap now applies only to them); the event column
+lost its box and gained the live site's own event language — the ink
+format pill (label rules follow D107: the platform's label first, then
+the in-person flag, with venue-less targets reading as online exactly as
+the schema layer already claims), icon-led meta, and speaker blocks with
+portraits, unlinked-looking names and roles; the calendar action was cut
+to one quiet .ics link so it never competes with registration (the model
+still carries Google/subscribe; the landing renders them); More Events
+became the slim strip; Latest News matched the site's news-desk pattern.
+The headline scale was transcribed down to the mockup's ~36px (a separate,
+larger text-led scale covers imageless stories). No selection, lifecycle,
+registration, deduplication or caching code changed — templates, CSS,
+defaults and two presentation-only label defaults only.

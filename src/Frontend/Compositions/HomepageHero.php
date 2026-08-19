@@ -213,16 +213,31 @@ final class HomepageHero {
 
 		if ( ! empty( $news ) ) {
 			$news_title = trim( (string) $atts['news_title'] );
+			if ( '' === $news_title ) {
+				$news_title = __( 'Latest news', 'emailexpert-events' );
+			}
 
 			printf(
 				'<section class="eex-hh__news" aria-label="%s">',
-				esc_attr( '' !== $news_title ? $news_title : __( 'Latest news', 'emailexpert-events' ) )
+				esc_attr( $news_title )
 			);
+
+			// One header row: the label left, the view-all link right.
+			echo '<div class="eex-hh__news-head">';
 			printf(
 				'<%1$s class="eex-hh__label">%2$s</%1$s>',
 				esc_attr( $section_tag ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag.
-				esc_html( '' !== $news_title ? $news_title : __( 'Latest news', 'emailexpert-events' ) )
+				esc_html( $news_title )
 			);
+
+			if ( '' !== (string) $atts['news_all_url'] ) {
+				printf(
+					'<a class="eex-hh__news-all eex-cta-quiet" href="%s" data-eex-action="news">%s<span class="eex-cta-arrow" aria-hidden="true">→</span></a>',
+					esc_url( (string) $atts['news_all_url'] ),
+					esc_html( '' !== (string) $atts['news_all_text'] ? (string) $atts['news_all_text'] : __( 'View all latest news', 'emailexpert-events' ) )
+				);
+			}
+			echo '</div>';
 
 			echo '<ul class="eex-hh__news-list" role="list">';
 			foreach ( $news as $item ) {
@@ -240,14 +255,6 @@ final class HomepageHero {
 				echo '</li>';
 			}
 			echo '</ul>';
-
-			if ( '' !== (string) $atts['news_all_url'] ) {
-				printf(
-					'<p class="eex-hh__news-all"><a class="eex-cta-secondary" href="%s" data-eex-action="news">%s</a></p>',
-					esc_url( (string) $atts['news_all_url'] ),
-					esc_html( '' !== (string) $atts['news_all_text'] ? (string) $atts['news_all_text'] : __( 'View all news', 'emailexpert-events' ) )
-				);
-			}
 
 			echo '</section>';
 		}
@@ -280,7 +287,9 @@ final class HomepageHero {
 	private static function more_events_block( array $more, array $atts, string $tag, string $variant ): void {
 		$title = trim( (string) $atts['more_events_title'] );
 		if ( '' === $title ) {
-			$title = __( 'More events', 'emailexpert-events' );
+			$title = 'strip' === $variant
+				? __( 'More from emailexpert', 'emailexpert-events' )
+				: __( 'More events', 'emailexpert-events' );
 		}
 
 		printf( '<div class="eex-hh__more eex-hh__more--%s">', esc_attr( $variant ) );

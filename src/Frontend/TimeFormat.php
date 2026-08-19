@@ -62,16 +62,20 @@ final class TimeFormat {
 	 * @param string $utc_iso   UTC ISO 8601 timestamp.
 	 * @param string $timezone  Event timezone identifier ('' = site timezone).
 	 * @param bool   $with_zone Name the zone after the date.
+	 * @param string $format    Display format ('' = settings/site default).
 	 * @return string HTML, '' when the timestamp is unparseable.
 	 */
-	public static function render_date( string $utc_iso, string $timezone = '', bool $with_zone = false ): string {
+	public static function render_date( string $utc_iso, string $timezone = '', bool $with_zone = false, string $format = '' ): string {
 		$timestamp = strtotime( $utc_iso );
 
 		if ( false === $timestamp || '' === $utc_iso ) {
 			return '';
 		}
 
-		$date_format = (string) Options::setting( 'date_format' );
+		$date_format = $format;
+		if ( '' === $date_format ) {
+			$date_format = (string) Options::setting( 'date_format' );
+		}
 		if ( '' === $date_format ) {
 			$date_format = (string) get_option( 'date_format', 'j F Y' );
 		}

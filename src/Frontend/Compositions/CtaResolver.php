@@ -62,7 +62,7 @@ final class CtaResolver {
 		}
 
 		$details_url   = (string) ( $event['url'] ?? '' );
-		$details_label = __( 'View details', 'emailexpert-events' );
+		$details_label = __( 'Details', 'emailexpert-events' );
 
 		$buttons = (string) ( $atts['buttons'] ?? 'both' );
 
@@ -83,7 +83,7 @@ final class CtaResolver {
 			if ( '' !== $session_url ) {
 				$session_text       = trim( (string) ( $atts['session_text'] ?? '' ) );
 				$model['secondary'] = [
-					'label'  => '' !== $session_text ? $session_text : __( 'View session', 'emailexpert-events' ),
+					'label'  => '' !== $session_text ? $session_text : __( 'Details', 'emailexpert-events' ),
 					'url'    => $session_url,
 					'action' => 'event-details',
 				];

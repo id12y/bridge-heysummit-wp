@@ -1290,11 +1290,12 @@ final class Components {
 				'story_show_image'        => $grouped( $flag( __( 'Show the story image', 'emailexpert-events' ) ), $g_story ),
 				'story_image_position'    => [
 					'type'    => 'string',
-					'default' => 'below',
+					'default' => 'beside',
 					'label'   => __( 'Story image position', 'emailexpert-events' ),
 					'options' => [
-						'below' => __( 'Below the standfirst (editorial default)', 'emailexpert-events' ),
-						'above' => __( 'Above the headline', 'emailexpert-events' ),
+						'beside' => __( 'Beside the copy (editorial default)', 'emailexpert-events' ),
+						'below'  => __( 'Below the standfirst', 'emailexpert-events' ),
+						'above'  => __( 'Above the headline', 'emailexpert-events' ),
 					],
 					'group'   => $g_story,
 				],
@@ -1366,7 +1367,7 @@ final class Components {
 					],
 					'group'   => $g_news,
 				],
-				'news_show_image'         => $grouped( $flag( __( 'Show compact news images', 'emailexpert-events' ), 0 ), $g_news ),
+				'news_show_image'         => $grouped( $flag( __( 'Show compact news images', 'emailexpert-events' ) ), $g_news ),
 				'news_show_category'      => $grouped( $flag( __( 'Show news categories', 'emailexpert-events' ) ), $g_news ),
 				'news_show_date'          => $grouped( $flag( __( 'Show news dates', 'emailexpert-events' ) ), $g_news ),
 				'news_all_text'           => [
@@ -1502,11 +1503,11 @@ final class Components {
 				],
 				'more_events_placement'   => [
 					'type'    => 'string',
-					'default' => 'event-column',
+					'default' => 'strip',
 					'label'   => __( 'More Events placement', 'emailexpert-events' ),
 					'options' => [
+						'strip'        => __( 'Compact strip beneath the hero (default)', 'emailexpert-events' ),
 						'event-column' => __( 'Beneath the featured event (event column)', 'emailexpert-events' ),
-						'strip'        => __( 'Compact strip beneath the hero', 'emailexpert-events' ),
 						'hidden'       => __( 'Hidden', 'emailexpert-events' ),
 					],
 					'group'   => $g_more,

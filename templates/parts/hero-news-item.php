@@ -1,7 +1,8 @@
 <?php
 /**
- * Latest News item: one compact headline row in the Homepage Editorial
- * Hero. Override by copying to yourtheme/emailexpert-events/parts/.
+ * Latest News item: one compact editorial entry — category eyebrow,
+ * headline, date, optional square thumbnail — per the approved design.
+ * Override by copying to yourtheme/emailexpert-events/parts/.
  *
  * @package Emailexpert\Events
  *
@@ -46,15 +47,8 @@ if ( ! empty( $args['show_image'] ) ) {
 <article class="eex-hh__news-card<?php echo '' !== $eex_thumb ? ' eex-hh__news-card--thumb' : ''; ?>">
 	<?php echo $eex_thumb; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
 	<div class="eex-hh__news-body">
-		<?php if ( ( ! empty( $args['show_category'] ) && '' !== (string) ( $eex_story['category'] ?? '' ) ) || ( ! empty( $args['show_date'] ) && (int) ( $eex_story['timestamp'] ?? 0 ) > 0 ) ) : ?>
-			<p class="eex-hh__news-meta">
-				<?php if ( ! empty( $args['show_category'] ) && '' !== (string) ( $eex_story['category'] ?? '' ) ) : ?>
-					<span class="eex-hh__news-category"><?php echo esc_html( (string) $eex_story['category'] ); ?></span>
-				<?php endif; ?>
-				<?php if ( ! empty( $args['show_date'] ) && (int) ( $eex_story['timestamp'] ?? 0 ) > 0 ) : ?>
-					<time datetime="<?php echo esc_attr( gmdate( 'Y-m-d', (int) $eex_story['timestamp'] ) ); ?>"><?php echo esc_html( date_i18n( (string) get_option( 'date_format', 'j F Y' ), (int) $eex_story['timestamp'] ) ); ?></time>
-				<?php endif; ?>
-			</p>
+		<?php if ( ! empty( $args['show_category'] ) && '' !== (string) ( $eex_story['category'] ?? '' ) ) : ?>
+			<p class="eex-hh__news-category"><?php echo esc_html( (string) $eex_story['category'] ); ?></p>
 		<?php endif; ?>
 
 		<<?php echo esc_attr( $eex_tag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag. ?> class="eex-hh__news-title">
@@ -64,5 +58,9 @@ if ( ! empty( $args['show_image'] ) ) {
 				<?php echo esc_html( (string) $eex_story['title'] ); ?>
 			<?php endif; ?>
 		</<?php echo esc_attr( $eex_tag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag. ?>>
+
+		<?php if ( ! empty( $args['show_date'] ) && (int) ( $eex_story['timestamp'] ?? 0 ) > 0 ) : ?>
+			<p class="eex-hh__news-date"><time datetime="<?php echo esc_attr( gmdate( 'Y-m-d', (int) $eex_story['timestamp'] ) ); ?>"><?php echo esc_html( date_i18n( (string) get_option( 'date_format', 'j F Y' ), (int) $eex_story['timestamp'] ) ); ?></time></p>
+		<?php endif; ?>
 	</div>
 </article>

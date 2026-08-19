@@ -664,9 +664,11 @@
 
 /*
  * The Homepage Editorial Hero and Event Landing Page read as the site's own
- * editorial sections: serif display headlines, the blue whisper eyebrow,
- * quiet lines, orange only where the brand already uses it. Structure lives
- * in the base; everything here is voice.
+ * front page: one flat containing surface with hairline separations, serif
+ * display headlines at a moderated editorial scale, the blue whisper
+ * eyebrow, small navy buttons, quiet secondary actions. Structure lives in
+ * the base; everything here is voice, transcribed from the approved design
+ * and the live site's flat hairline manner.
  */
 .eex .eex-comp-eyebrow,
 .eex .eex-hh__label {
@@ -679,15 +681,61 @@
 	color: var(--eex-whisper-color, #2864dc);
 }
 
-/* The story headline is the page's editorial lead. */
+/* One containing surface: white, hairline, restrained radius, flat. */
+.eex .eex-hh {
+	background: var(--eex-card-bg, #ffffff);
+	border: 1px solid var(--eex-line);
+	border-radius: var(--eex-radius);
+	padding: clamp(1.25rem, 1rem + 1.5vw, 2rem);
+}
+
+/* The event column is part of the surface, divided by a hairline — never
+   its own boxed card. */
+.eex .eex-hh__event-card {
+	background: transparent;
+	border: 0;
+	box-shadow: none;
+	padding: 0;
+}
+
+@media (min-width: 900px) {
+	.eex .eex-hh__event {
+		border-left: 1px solid var(--eex-line);
+		padding-left: var(--eex-composition-gap);
+	}
+
+	.eex .eex-hh--no-story .eex-hh__event {
+		border-left: 0;
+		padding-left: 0;
+	}
+}
+
+/* Hairline separations for the strip and the news band. */
+.eex .eex-hh__more--strip,
+.eex .eex-hh__news {
+	border-top: 1px solid var(--eex-line);
+	padding-top: calc(var(--eex-composition-gap) * 0.7);
+}
+
+/* The story headline: the page's editorial lead at a production scale —
+   strong, never viewport-dominating. */
 .eex .eex-hh__story-title {
 	font-family: var(--eex-display, Fraunces, var(--eex-serif));
-	font-size: var(--eex-title-size, clamp(1.6rem, 1.1rem + 2.4vw, 3.25rem));
-	font-weight: var(--eex-title-weight, 600);
-	line-height: var(--eex-title-leading, 1.05);
-	letter-spacing: var(--eex-title-tracking, -0.035em);
+	font-size: var(--eex-hh-title-size, clamp(1.5rem, 1.1rem + 1.7vw, 2.35rem));
+	font-weight: var(--eex-title-weight, 650);
+	line-height: 1.12;
+	letter-spacing: var(--eex-title-tracking, -0.03em);
 	color: var(--eex-ink);
 	text-wrap: balance;
+}
+
+/* Text-led fallback: without media the headline carries more of the page. */
+.eex .eex-hh__story-card--text .eex-hh__story-title {
+	font-size: var(--eex-hh-title-size-text, clamp(1.6rem, 1.15rem + 2.1vw, 2.7rem));
+}
+
+.eex .eex-hh__story-card--text .eex-hh__story-standfirst {
+	max-width: 52em;
 }
 
 .eex .eex-hh__story-title a:hover,
@@ -701,21 +749,23 @@
 }
 
 .eex .eex-hh__story-standfirst {
-	font-family: var(--eex-serif);
-	font-size: var(--eex-step-1);
-	line-height: 1.5;
-	color: var(--eex-ink);
-	max-width: 38em;
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step-0);
+	line-height: 1.55;
+	color: var(--eex-muted);
+	max-width: 36em;
 }
 
 .eex .eex-hh__story-meta,
-.eex .eex-hh__news-meta,
-.eex .eex-hh__event-time,
-.eex .eex-hh__event-where,
-.eex .eex-el__hero-meta {
+.eex .eex-hh__news-date,
+.eex .eex-hh__event-meta {
 	font-family: var(--eex-sans);
 	font-size: var(--eex-step--1);
 	color: var(--eex-muted);
+}
+
+.eex .eex-hh__meta-dot {
+	color: var(--eex-line);
 }
 
 .eex .eex-hh__story-category,
@@ -723,31 +773,46 @@
 	color: var(--eex-whisper-color, #2864dc);
 	font-weight: 700;
 	text-transform: uppercase;
-	letter-spacing: 0.06em;
-	font-size: 0.7rem;
+	letter-spacing: 0.05em;
+	font-size: 0.64rem;
+	font-family: var(--eex-sans);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .eex .eex-hh__story-media,
 .eex .eex-hh__event-media {
-	box-shadow: var(--eex-shadow-1);
 	background: var(--eex-surface);
 }
 
-/* The featured event: a quiet panel, prominent but never dominant. */
-.eex .eex-hh__event-card {
-	background: var(--eex-card-bg, #ffffff);
-	border: 1px solid var(--eex-line);
-	border-radius: var(--eex-radius);
-	box-shadow: var(--eex-shadow-1);
-	padding: var(--eex-inline);
-}
-
+/* The featured event: professionally produced, quietly authoritative. */
 .eex .eex-hh__event-title {
 	font-family: var(--eex-serif);
-	font-size: var(--eex-step-2);
-	line-height: 1.2;
+	font-size: clamp(1.15rem, 1rem + 0.8vw, 1.5rem);
+	font-weight: 650;
+	line-height: 1.22;
 	color: var(--eex-ink);
 	text-wrap: balance;
+}
+
+/* The format pill: solid ink, tiny caps — the site's event marker. */
+.eex .eex-hh__event-pill {
+	display: inline-block;
+	background: var(--eex-ink);
+	color: #ffffff;
+	font-family: var(--eex-sans);
+	font-size: 0.62rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	padding: 0.3em 0.85em;
+	border-radius: 999px;
+}
+
+.eex .eex-hh__icon {
+	color: var(--eex-muted);
+	opacity: 0.85;
 }
 
 .eex .eex-hh__event-intro,
@@ -765,35 +830,83 @@
 	color: var(--eex-ink);
 }
 
-/* News rows: hairline dividers, headline-first. */
-.eex .eex-hh__news-item + .eex-hh__news-item .eex-hh__news-card {
-	border-top: 1px solid var(--eex-line);
-}
-
-@media (min-width: 600px) {
-	.eex .eex-hh__news-item .eex-hh__news-card {
-		border-top: 1px solid var(--eex-line);
-		padding-top: 0.8em;
-	}
-}
-
-.eex .eex-hh__news-title {
-	font-family: var(--eex-serif);
-	font-weight: 600;
+/* Speakers: portrait, name, role — names are people, not blue underlines. */
+.eex .eex-speaker-block__name,
+.eex .eex-speaker-block__name:link,
+.eex .eex-speaker-block__name:visited {
+	font-family: var(--eex-sans);
+	font-weight: 650;
+	font-size: var(--eex-step-0);
 	color: var(--eex-ink);
+	text-decoration: none;
 }
 
-.eex .eex-hh__news-title a:hover {
+.eex a.eex-speaker-block__name:hover,
+.eex a.eex-speaker-block__name:focus-visible {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+.eex .eex-speaker-block__role {
+	font-family: var(--eex-sans);
+	font-size: 0.78rem;
+	line-height: 1.35;
+	color: var(--eex-muted);
+}
+
+.eex .eex-speaker-block__photo {
+	border: 1px solid var(--eex-line);
+}
+
+/* CTA hierarchy: one filled primary, one outlined secondary, quiet links. */
+.eex .eex-hh__event-actions .eex-cta {
+	border-radius: 6px;
+	font-size: var(--eex-step-0);
+	padding: 0.45em 1.1em;
+}
+
+.eex .eex-hh__event-actions .eex-cta-secondary {
+	color: var(--eex-accent);
+	font-weight: 600;
+	text-decoration: none;
+	border-bottom: 1px solid var(--eex-line);
+	font-size: var(--eex-step--1);
+}
+
+.eex .eex-hh__event-actions .eex-cta-secondary:hover {
+	border-bottom-color: var(--eex-accent);
+}
+
+/* The story CTA reads as text, never as a second headline. */
+.eex .eex-hh__story-cta .eex-cta-quiet {
+	font-size: var(--eex-step-0);
 	color: var(--eex-accent);
 }
 
-/* Compact event rows share the news rows' quiet manner. */
-.eex .eex-compact-event {
-	border-bottom-color: var(--eex-line);
+/* More Events strip: quiet inline items, hairline separated. */
+.eex .eex-hh__more--strip .eex-compact-event__title {
+	font-size: var(--eex-step-0);
+}
+
+.eex .eex-hh__more--strip .eex-compact-event__date {
+	font-size: var(--eex-step--1);
+}
+
+.eex .eex-hh__more--strip .eex-hh__more-list > li + li {
+	border-left: 1px solid var(--eex-line);
+	padding-left: 1.1em;
+	margin-left: 1.1em;
+}
+
+.eex .eex-compact-event__date {
+	font-family: var(--eex-sans);
+	font-weight: 650;
+	color: var(--eex-ink);
 }
 
 .eex .eex-compact-event__title {
 	font-family: var(--eex-serif);
+	font-weight: 600;
 	color: var(--eex-ink);
 }
 
@@ -803,9 +916,55 @@
 	text-underline-offset: 0.15em;
 }
 
-.eex .eex-compact-event__date {
+.eex .eex-hh__more--column .eex-compact-event {
+	border-bottom-color: var(--eex-line);
+}
+
+/* Latest News: an editorial news desk — headlines lead, hairlines divide. */
+.eex .eex-hh__news-head .eex-hh__news-all {
+	color: var(--eex-whisper-color, #2864dc);
 	font-family: var(--eex-sans);
-	font-weight: 600;
+	font-size: var(--eex-step--1);
+}
+
+.eex .eex-hh__news-title {
+	font-family: var(--eex-serif);
+	font-weight: 650;
+	color: var(--eex-ink);
+	line-height: 1.3;
+}
+
+.eex .eex-hh__news-title a:hover {
+	color: var(--eex-accent);
+}
+
+/* Column hairlines between news items, per row shape. */
+@media (min-width: 900px) {
+	.eex .eex-hh__news-item:nth-child(n + 2) {
+		border-left: 1px solid var(--eex-line);
+		padding-left: calc(var(--eex-composition-gap) * 0.7);
+	}
+}
+
+@media (min-width: 600px) and (max-width: 899.98px) {
+	.eex .eex-hh__news-item:nth-child(even) {
+		border-left: 1px solid var(--eex-line);
+		padding-left: var(--eex-composition-gap);
+	}
+
+	.eex .eex-hh__news-item:nth-child(n + 3) .eex-hh__news-card {
+		border-top: 1px solid var(--eex-line);
+		margin-top: 0.6em;
+		padding-top: 0.9em;
+	}
+}
+
+@media (max-width: 599.98px) {
+	.eex .eex-hh__news-item + .eex-hh__news-item .eex-hh__news-card {
+		border-top: 1px solid var(--eex-line);
+		margin-top: 0.35em;
+		padding-top: 0.7em;
+	}
 }
 
 /* Landing hero styles. Editorial is the light default; the dark preset
@@ -834,8 +993,13 @@
 
 .eex .eex-el__hero--dark .eex-el__hero-title,
 .eex .eex-el__hero--dark .eex-el__hero-meta,
-.eex .eex-el__hero--dark .eex-el__hero-session {
+.eex .eex-el__hero--dark .eex-el__hero-session,
+.eex .eex-el__hero--dark .eex-speaker-block__name {
 	color: var(--eex-ink);
+}
+
+.eex .eex-el__hero--dark .eex-hh__event-pill {
+	background: rgba(255, 255, 255, 0.14);
 }
 
 .eex .eex-el__hero--compact {
@@ -856,6 +1020,11 @@
 	font-family: var(--eex-serif);
 	font-size: var(--eex-step-1);
 	color: var(--eex-ink);
+}
+
+.eex .eex-el__hero-meta {
+	font-family: var(--eex-sans);
+	color: var(--eex-muted);
 }
 
 .eex .eex-el__title {

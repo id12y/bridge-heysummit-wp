@@ -29,7 +29,9 @@ $eex_url   = (string) ( $eex_event['url'] ?? '' );
 	<span class="eex-compact-event__date">
 		<?php
 		if ( '' !== $eex_first ) {
-			echo TimeFormat::render_date( $eex_first, $eex_tz ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
+			// Compact rows name the day briefly ("1 Sep"); the client-side
+			// localiser keeps them date-only in the visitor's zone.
+			echo TimeFormat::render_date( $eex_first, $eex_tz, false, 'j M' ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped in helper.
 		} elseif ( ! empty( $eex_event['evergreen'] ) ) {
 			esc_html_e( 'On demand', 'emailexpert-events' );
 		}

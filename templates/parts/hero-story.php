@@ -1,7 +1,10 @@
 <?php
 /**
  * Homepage featured story: the dominant editorial region of the Homepage
- * Editorial Hero. Override by copying to yourtheme/emailexpert-events/parts/.
+ * Editorial Hero. The default arrangement follows the approved design —
+ * copy on the left, editorial media beside it — and drops to a deliberate
+ * text-led arrangement when no image exists. Override by copying to
+ * yourtheme/emailexpert-events/parts/.
  *
  * @package Emailexpert\Events
  *
@@ -11,7 +14,7 @@
  *     @type bool   $show_eyebrow   Show the eyebrow label.
  *     @type string $eyebrow        Eyebrow text ('' = "Featured story").
  *     @type bool   $show_image     Show the story image.
- *     @type string $image_position 'below' or 'above'.
+ *     @type string $image_position 'beside', 'below' or 'above'.
  *     @type string $media_fit      'cover' or 'contain'.
  *     @type bool   $show_excerpt   Show the standfirst.
  *     @type int    $excerpt_length Standfirst length in words.
@@ -65,7 +68,15 @@ if ( ! empty( $args['show_image'] ) ) {
 	}
 }
 
-// No image (or images off): the layout is text-led, never an empty frame.
+$eex_position = (string) ( $args['image_position'] ?? 'beside' );
+if ( ! in_array( $eex_position, [ 'beside', 'below', 'above' ], true ) ) {
+	$eex_position = 'beside';
+}
+
+// No image (or images off): a deliberate text-led arrangement, never an
+// empty media slot.
+$eex_beside = 'beside' === $eex_position && '' !== $eex_image_html;
+
 $eex_meta = [];
 
 if ( ! empty( $args['show_category'] ) && '' !== (string) ( $eex_story['category'] ?? '' ) ) {
@@ -93,16 +104,9 @@ if ( ! empty( $args['show_excerpt'] ) && '' !== (string) ( $eex_story['excerpt']
 	$eex_words   = max( 5, (int) ( $args['excerpt_length'] ?? 32 ) );
 	$eex_excerpt = wp_trim_words( (string) $eex_story['excerpt'], $eex_words, '…' );
 }
+
+ob_start();
 ?>
-<article class="eex-hh__story-card">
-	<?php if ( ! empty( $args['show_eyebrow'] ) ) : ?>
-		<p class="eex-comp-eyebrow eex-eyebrow"><?php echo esc_html( '' !== (string) ( $args['eyebrow'] ?? '' ) ? (string) $args['eyebrow'] : __( 'Featured story', 'emailexpert-events' ) ); ?></p>
-	<?php endif; ?>
-
-	<?php if ( 'above' === (string) ( $args['image_position'] ?? 'below' ) ) : ?>
-		<?php echo $eex_image_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
-	<?php endif; ?>
-
 	<<?php echo esc_attr( $eex_tag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag. ?> class="eex-hh__story-title">
 		<?php if ( '' !== $eex_url ) : ?>
 			<a href="<?php echo esc_url( $eex_url ); ?>" data-eex-action="story" data-eex-position="featured-story"><?php echo esc_html( (string) $eex_story['title'] ); ?></a>
@@ -116,10 +120,10 @@ if ( ! empty( $args['show_excerpt'] ) && '' !== (string) ( $eex_story['excerpt']
 	<?php endif; ?>
 
 	<?php if ( ! empty( $eex_meta ) ) : ?>
-		<p class="eex-hh__story-meta"><?php echo implode( '<span class="eex-hh__meta-dot" aria-hidden="true"> · </span>', $eex_meta ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per part above. ?></p>
+		<p class="eex-hh__story-meta"><?php echo implode( '<span class="eex-hh__meta-dot" aria-hidden="true"> | </span>', $eex_meta ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped per part above. ?></p>
 	<?php endif; ?>
 
-	<?php if ( 'below' === (string) ( $args['image_position'] ?? 'below' ) ) : ?>
+	<?php if ( ! $eex_beside && 'below' === $eex_position ) : ?>
 		<?php echo $eex_image_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
 	<?php endif; ?>
 
@@ -129,5 +133,25 @@ if ( ! empty( $args['show_excerpt'] ) && '' !== (string) ( $eex_story['excerpt']
 				<?php echo esc_html( '' !== (string) ( $args['cta_text'] ?? '' ) ? (string) $args['cta_text'] : __( 'Read the full story', 'emailexpert-events' ) ); ?><span class="eex-cta-arrow" aria-hidden="true">→</span>
 			</a>
 		</p>
+	<?php endif; ?>
+<?php
+$eex_copy = (string) ob_get_clean();
+?>
+<article class="eex-hh__story-card<?php echo '' === $eex_image_html ? ' eex-hh__story-card--text' : ''; ?>">
+	<?php if ( ! empty( $args['show_eyebrow'] ) ) : ?>
+		<p class="eex-comp-eyebrow eex-eyebrow"><?php echo esc_html( '' !== (string) ( $args['eyebrow'] ?? '' ) ? (string) $args['eyebrow'] : __( 'Featured story', 'emailexpert-events' ) ); ?></p>
+	<?php endif; ?>
+
+	<?php if ( ! $eex_beside && 'above' === $eex_position && '' !== $eex_image_html ) : ?>
+		<?php echo $eex_image_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
+	<?php endif; ?>
+
+	<?php if ( $eex_beside ) : ?>
+		<div class="eex-hh__story-split">
+			<div class="eex-hh__story-copy"><?php echo $eex_copy; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?></div>
+			<?php echo $eex_image_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
+		</div>
+	<?php else : ?>
+		<?php echo $eex_copy; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped when built. ?>
 	<?php endif; ?>
 </article>

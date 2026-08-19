@@ -78,24 +78,50 @@ $eex_has_media = 'image' === (string) ( $eex_media['type'] ?? '' ) || ( 'portrai
 	<div class="eex-el__hero-body">
 		<p class="eex-live-indicator" data-eex-live-slot="1" hidden aria-live="polite"></p>
 
-		<?php if ( ! empty( $eex_event['series'] ) || isset( $eex_status_labels[ $eex_status ] ) ) : ?>
-			<p class="eex-badges">
-				<?php if ( isset( $eex_status_labels[ $eex_status ] ) ) : ?>
-					<span class="eex-badge eex-badge-status eex-badge--<?php echo esc_attr( $eex_status ); ?>"><?php echo esc_html( $eex_status_labels[ $eex_status ] ); ?></span>
+		<?php
+		// The format pill (the same rules as the homepage card): the
+		// platform's own label leads; a venue-less target reads as online,
+		// the claim the schema layer already makes for it. Lifecycle states
+		// outrank it.
+		$eex_hero_place = null !== $eex_session ? (string) ( $eex_session['venue'] ?? '' ) : (string) ( $eex_event['venue'] ?? '' );
+
+		$eex_pill = '';
+		if ( ! isset( $eex_status_labels[ $eex_status ] ) ) {
+			if ( null !== $eex_session && '' !== trim( (string) ( $eex_session['format'] ?? '' ) ) ) {
+				$eex_pill = trim( (string) $eex_session['format'] );
+			} elseif ( ( null !== $eex_session && ! empty( $eex_session['inperson'] ) ) || ( null === $eex_session && '' !== $eex_hero_place ) ) {
+				$eex_pill = __( 'In person', 'emailexpert-events' );
+			} else {
+				$eex_pill = __( 'Online', 'emailexpert-events' );
+			}
+		}
+		?>
+		<p class="eex-badges">
+			<?php if ( isset( $eex_status_labels[ $eex_status ] ) ) : ?>
+				<span class="eex-badge eex-badge-status eex-badge--<?php echo esc_attr( $eex_status ); ?>"><?php echo esc_html( $eex_status_labels[ $eex_status ] ); ?></span>
+			<?php elseif ( '' !== $eex_pill ) : ?>
+				<span class="eex-hh__event-pill"><?php echo esc_html( $eex_pill ); ?></span>
+			<?php endif; ?>
+			<?php foreach ( (array) $eex_event['series'] as $eex_series ) : ?>
+				<?php $eex_series = (array) $eex_series; ?>
+				<?php if ( '' !== (string) ( $eex_series['name'] ?? '' ) ) : ?>
+					<span class="eex-badge eex-badge-series-<?php echo esc_attr( (string) ( $eex_series['slug'] ?? '' ) ); ?>"><?php echo esc_html( (string) $eex_series['name'] ); ?></span>
 				<?php endif; ?>
-				<?php foreach ( (array) $eex_event['series'] as $eex_series ) : ?>
-					<?php $eex_series = (array) $eex_series; ?>
-					<?php if ( '' !== (string) ( $eex_series['name'] ?? '' ) ) : ?>
-						<span class="eex-badge eex-badge-series-<?php echo esc_attr( (string) ( $eex_series['slug'] ?? '' ) ); ?>"><?php echo esc_html( (string) $eex_series['name'] ); ?></span>
-					<?php endif; ?>
-				<?php endforeach; ?>
-			</p>
-		<?php endif; ?>
+			<?php endforeach; ?>
+		</p>
 
 		<<?php echo esc_attr( $eex_tag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag. ?> class="eex-el__hero-title"><?php echo esc_html( (string) $eex_event['title'] ); ?></<?php echo esc_attr( $eex_tag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag. ?>>
 
 		<?php if ( null !== $eex_session && (string) ( $eex_session['title'] ?? '' ) !== (string) $eex_event['title'] ) : ?>
 			<p class="eex-el__hero-session"><?php echo esc_html( (string) $eex_session['title'] ); ?></p>
+		<?php endif; ?>
+
+		<?php if ( null !== $eex_session && ! empty( $eex_session['speakers'] ) ) : ?>
+			<ul class="eex-hh__speakers" role="list">
+				<?php foreach ( array_slice( (array) $eex_session['speakers'], 0, 3 ) as $eex_speaker ) : ?>
+					<li><?php TemplateLoader::part( 'speaker-block', [ 'speaker' => (array) $eex_speaker ] ); ?></li>
+				<?php endforeach; ?>
+			</ul>
 		<?php endif; ?>
 
 		<div class="eex-el__hero-meta">
@@ -181,7 +207,8 @@ $eex_has_media = 'image' === (string) ( $eex_media['type'] ?? '' ) || ( 'portrai
 		<?php endif; ?>
 	</div>
 
-	<?php if ( 'portraits' === (string) ( $eex_media['type'] ?? '' ) && ! empty( $eex_media['speakers'] ) ) : ?>
+	<?php // The named speaker blocks above already carry the portraits for a session; the strip only stands in when they could not. ?>
+	<?php if ( 'portraits' === (string) ( $eex_media['type'] ?? '' ) && ! empty( $eex_media['speakers'] ) && ( null === $eex_session || empty( $eex_session['speakers'] ) ) ) : ?>
 		<div class="eex-el__hero-media eex-hh__portraits">
 			<?php foreach ( array_slice( (array) $eex_media['speakers'], 0, 5 ) as $eex_speaker ) : ?>
 				<?php $eex_speaker = (array) $eex_speaker; ?>
