@@ -1062,7 +1062,8 @@ final class SettingsPage {
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Uninstall', 'emailexpert-events' ); ?></th>
 				<td>
-					<label><input type="checkbox" name="settings[uninstall_delete]" value="1" <?php checked( (bool) Options::setting( 'uninstall_delete' ) ); ?> /> <?php esc_html_e( 'On uninstall, delete all synced content and data', 'emailexpert-events' ); ?></label>
+					<label><input type="checkbox" name="settings[uninstall_delete]" value="1" <?php checked( (bool) Options::setting( 'uninstall_delete' ) ); ?> /> <?php esc_html_e( 'On uninstall, delete all settings, content and data', 'emailexpert-events' ); ?></label>
+					<p class="description"><?php esc_html_e( 'Off by default: deleting the plugin keeps your settings, connections and API keys, chosen events and synced content, so a reinstall picks up exactly where you left off. Only caches and scheduled jobs are cleared. Tick this to have deletion remove everything.', 'emailexpert-events' ); ?></p>
 				</td>
 			</tr>
 		</table>

@@ -3,6 +3,17 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.50.1
+- **Deleting the plugin no longer erases its configuration.** The
+  uninstall routine wiped every `eex_*` option unconditionally, so a
+  delete-and-reinstall (instead of an in-place update) silently lost the
+  API keys, connections, chosen events, sponsors and the Lite/Full mode
+  choice — the site fell back to Full mode with empty components.
+  Uninstall now clears only caches and scheduled jobs; settings,
+  connections and synced content survive so a reinstall resumes exactly
+  where the site left off. The existing "on uninstall, delete all"
+  opt-in still removes everything, and its label now says so.
+
 ## 1.50.0
 - **New component: Homepage Editorial Hero** (`eex/homepage-hero`,
   `[eex_homepage_hero]`, an Elementor widget). One composition replaces

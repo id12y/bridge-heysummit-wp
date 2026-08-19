@@ -2,9 +2,13 @@
 /**
  * Uninstall routine.
  *
- * Removes options, custom tables and scheduled events. Synced content (the
- * CPT posts) is left in place unless the operator enabled "on uninstall,
- * delete all data" in Settings → emailexpert Events → Display.
+ * Deleting the plugin clears only what is ephemeral: scheduled events and
+ * cached data. Configuration — settings, connections and their API keys,
+ * the chosen events, presentation rows — and synced content survive, so
+ * deleting and reinstalling the plugin brings the site back exactly as it
+ * was. Everything is removed only when the operator enabled "on uninstall,
+ * delete all settings, content and data" in Settings → emailexpert Events
+ * → Display.
  *
  * @package Emailexpert\Events
  */
@@ -40,37 +44,39 @@ foreach ( $eex_cron_hooks as $eex_cron_hook ) {
 	}
 }
 
-// Custom tables.
-// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}eex_log" );
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}eex_attribution" );
-// phpcs:enable
-
-// Options (including per-connection discovery reports).
-$eex_option_names = $wpdb->get_col(
-	$wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'eex_' ) . '%' )
-);
-
-foreach ( (array) $eex_option_names as $eex_option_name ) {
-	delete_option( (string) $eex_option_name );
-}
-
-// Transients created by component caching use the eex_ prefix and are
-// covered by the LIKE delete above (both _transient_eex_* variants).
+// Cached data is always cleared: component-cache transients (both
+// _transient_eex_* variants) and the live-cache bookkeeping options.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 $eex_transient_names = $wpdb->get_col(
 	$wpdb->prepare(
-		"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s",
+		"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s OR option_name LIKE %s OR option_name LIKE %s",
 		$wpdb->esc_like( '_transient_eex_' ) . '%',
-		$wpdb->esc_like( '_transient_timeout_eex_' ) . '%'
+		$wpdb->esc_like( '_transient_timeout_eex_' ) . '%',
+		$wpdb->esc_like( 'eex_live_' ) . '%'
 	)
 );
+// phpcs:enable
 
 foreach ( (array) $eex_transient_names as $eex_transient_name ) {
 	delete_option( (string) $eex_transient_name );
 }
 
-// Content: only when explicitly enabled.
+// Configuration, tables and content: only when explicitly enabled.
 if ( $eex_delete_all ) {
+	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}eex_log" );
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}eex_attribution" );
+
+	// Options (including per-connection discovery reports).
+	$eex_option_names = $wpdb->get_col(
+		$wpdb->prepare( "SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s", $wpdb->esc_like( 'eex_' ) . '%' )
+	);
+	// phpcs:enable
+
+	foreach ( (array) $eex_option_names as $eex_option_name ) {
+		delete_option( (string) $eex_option_name );
+	}
+
 	$eex_post_ids = get_posts(
 		[
 			'post_type'      => [ 'eex_event', 'eex_talk', 'eex_speaker', 'eex_sponsor' ],
