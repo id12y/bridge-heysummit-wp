@@ -49,14 +49,21 @@
 		story2_source: function ( a ) { return '2' === a.story_count; },
 		story2_id: function ( a ) { return '2' === a.story_count && 'manual' === a.story2_source; },
 		story2_placement: function ( a ) { return '2' === a.story_count; },
-		news_image_position: function ( a ) { return void 0 === a.news_show_image || !! a.news_show_image; },
+		news_image_position: function ( a ) {
+			var layout = a.news_layout || 'auto';
+			return ( void 0 === a.news_show_image || !! a.news_show_image ) && -1 !== [ 'media', 'editorial', 'list' ].indexOf( layout );
+		},
+		news_lead_standfirst: function ( a ) { return -1 !== [ 'auto', 'newsroom' ].indexOf( a.news_layout || 'auto' ); },
+		news_dense_heading: function ( a ) { return -1 !== [ 'auto', 'newsroom' ].indexOf( a.news_layout || 'auto' ); },
+		news_media_emphasis: function ( a ) { return -1 !== [ 'auto', 'newsroom' ].indexOf( a.news_layout || 'auto' ); },
 		news_link_categories: function ( a ) { return void 0 === a.news_show_category || !! a.news_show_category; },
 		news_link_images: function ( a ) { return void 0 === a.news_show_image || !! a.news_show_image; },
 		news_all_text: function ( a ) { return void 0 === a.news_all_show || !! a.news_all_show; },
 		news_all_url: function ( a ) { return void 0 === a.news_all_show || !! a.news_all_show; },
 		news_image_size: function ( a ) {
 			var position = a.news_image_position || 'auto';
-			return ( void 0 === a.news_show_image || !! a.news_show_image ) && ( 'auto' === position || 'above' === position );
+			var layout = a.news_layout || 'auto';
+			return ( void 0 === a.news_show_image || !! a.news_show_image ) && ( 'auto' === position || 'above' === position ) && -1 !== [ 'media', 'editorial', 'list' ].indexOf( layout );
 		},
 		more_events_speakers: function ( a ) {
 			var presentation = a.more_events_presentation || 'events';

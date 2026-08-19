@@ -2708,6 +2708,186 @@
 	margin: 0 0 0.4em;
 }
 
+/* Composed layouts (Front Page, Newsroom): the lead and its secondary
+   rail share the top row; standard stories take an editorial row; briefs
+   become a dense headline list. Everything stacks linearly on mobile in
+   DOM order. */
+.eex-hh__news-top {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--eex-composition-gap);
+	align-items: start;
+}
+
+@media (min-width: 900px) {
+	.eex-hh__news-top {
+		grid-template-columns: minmax(0, 62fr) minmax(0, 38fr);
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-top {
+		grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+	}
+}
+
+.eex-hh__news-leadwrap {
+	min-width: 0;
+}
+
+/* The news lead is visibly important yet stays beneath the homepage
+   featured story: a wide editorial frame, never a tower. */
+.eex-hh__news-card--lead .eex-hh__news-media {
+	aspect-ratio: 16 / 9;
+	max-height: 20rem;
+}
+
+.eex-hh__news-rail {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	min-width: 0;
+}
+
+/* Secondary stories: compact editorial rail rows — medium thumbnail
+   beside the text. */
+.eex-hh__news-rail .eex-hh__news-card--thumb {
+	grid-template-columns: 7.5em minmax(0, 1fr);
+}
+
+.eex-hh__news-rail .eex-hh__news-card--thumb .eex-hh__news-img {
+	width: 7.5em;
+	height: 5em;
+}
+
+/* The standard row reuses the count-aware column classes. */
+.eex-hh__news-standard {
+	list-style: none;
+	margin: var(--eex-composition-gap) 0 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 0 var(--eex-composition-gap);
+}
+
+@media (min-width: 600px) {
+	.eex-hh__news-standard {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 900px) {
+	.eex-hh__news-standard.eex-hh__news-list--cols-4 {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+
+	.eex-hh__news-standard.eex-hh__news-list--cols-3 {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.eex-hh__news-standard.eex-hh__news-list--cols-2 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* The dense headline region: category, headline and date on one scanning
+   line at desktop; two columns when the list is long. */
+.eex-hh__news-briefs {
+	margin-top: var(--eex-composition-gap);
+}
+
+.eex-hh__news-brieflist {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+@media (min-width: 900px) {
+	.eex-hh__news-briefs--split .eex-hh__news-brieflist {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0 calc(var(--eex-composition-gap) * 1.4);
+	}
+}
+
+.eex-hh__news-card--brief {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	grid-template-areas: "category date" "title title";
+	align-items: baseline;
+	gap: 0.1em 1em;
+	padding: 0.55em 0;
+}
+
+.eex-hh__news-card--brief .eex-hh__news-category {
+	grid-area: category;
+	margin: 0;
+}
+
+.eex-hh__news-card--brief .eex-hh__news-title {
+	grid-area: title;
+	margin: 0;
+}
+
+.eex-hh__news-card--brief .eex-hh__news-date {
+	grid-area: date;
+	margin: 0;
+	white-space: nowrap;
+}
+
+@media (min-width: 700px) {
+	.eex-hh__news-card--brief {
+		grid-template-columns: 11rem minmax(0, 1fr) auto;
+		grid-template-areas: "category title date";
+		gap: 0 1.25em;
+	}
+}
+
+/* Newsroom: the briefs become a side rail beside the lead + standard
+   stack on wide screens — the reading order (lead, secondaries,
+   standards, briefs) is unchanged; only the placement moves. */
+@media (min-width: 1100px) {
+	.eex-hh__news--newsroom {
+		display: grid;
+		grid-template-columns: minmax(0, 68fr) minmax(0, 32fr);
+		grid-template-areas:
+			"head head"
+			"top rail"
+			"standard rail";
+		gap: 0 var(--eex-composition-gap);
+		align-items: start;
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-head {
+		grid-area: head;
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-top {
+		grid-area: top;
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-standard {
+		grid-area: standard;
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-standard.eex-hh__news-list--cols-4 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-briefs {
+		grid-area: rail;
+		margin-top: 0;
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-briefs--split .eex-hh__news-brieflist {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-card--brief {
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas: "category date" "title title";
+	}
+}
+
 .eex-hh__news-category {
 	margin: 0 0 0.25em;
 }

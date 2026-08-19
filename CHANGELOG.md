@@ -3,6 +3,36 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.56.0
+- **Latest News becomes a composed front page.** Up to 20 stories
+  (`news_count` 2–20; 12 is the sensible everyday setting), presented
+  through deterministic editorial roles assigned from the existing
+  selector's order — selection still decides WHICH stories appear, the
+  layout only decides HOW, and switching layouts never changes the
+  selection. Nothing is persisted to posts; no story is ever dropped.
+  - **Front Page** (the `auto` layout, now the flagship): 1 lead (large
+    image, optional short standfirst), up to 3 secondary rail stories
+    (medium thumbnails, hairline rows), a standard row from nine stories
+    (small thumbnails, 2/2/3/4 for 9–12, capped at four), and everything
+    later as typography-led headline rows under a configurable "Latest"
+    label (two columns when eight or more). More stories means lighter
+    treatment, never more equal cards.
+  - **Newsroom**: denser — 1 lead, 2 secondaries, up to 4 standards, and
+    a dedicated Latest side rail on wide screens (reading order
+    unchanged). Built for a high publishing tempo at 12–20 stories.
+  - **Media Grid and the Newswire list are preserved unchanged** (the
+    grid remains best at 4–8 illustrated stories; the control says so).
+  - **Image economy**: briefs never build image markup at all — a
+    20-story Front Page requests at most eight story images (lead,
+    secondaries, standards); `news_media_emphasis`
+    (auto/restrained/strong) trims or extends that deliberately.
+  - Headline scale follows the role (lead clearly beneath the homepage
+    featured story, briefs built for scanning); category links, image
+    links, dates, the All-news route, balancing, exclusions and caching
+    are untouched. New controls: layout names, lead standfirst toggle,
+    headline-section label, image emphasis — same everywhere via the
+    shared renderer.
+
 ## 1.55.0
 - **Rich More Sessions presentations.** The presentation control gains
   Rich horizontal (a publisher programme strip: date, format, location,

@@ -323,13 +323,17 @@ final class HomepageHero {
 				$news_title = __( 'Latest news', 'emailexpert-events' );
 			}
 
-			// The layout mode and the image treatment resolve once, here:
-			// auto follows the item count and the chosen mode, and images
-			// respect the on/off flag whatever the placement says.
+			// The layout mode resolves once. Front Page (auto) and Newsroom
+			// COMPOSE the selected stories through deterministic roles; the
+			// grid and newswire modes keep their established flat treatment.
+			// Selection decided which stories these are — the layout only
+			// decides how they appear.
 			$news_layout = (string) $atts['news_layout'];
-			if ( ! in_array( $news_layout, [ 'list', 'editorial', 'media' ], true ) ) {
+			if ( ! in_array( $news_layout, [ 'list', 'editorial', 'media', 'newsroom' ], true ) ) {
 				$news_layout = 'auto';
 			}
+
+			$news_composed = in_array( $news_layout, [ 'auto', 'newsroom' ], true );
 
 			$news_image = (string) $atts['news_image_position'];
 			if ( empty( $atts['news_show_image'] ) ) {
@@ -338,10 +342,13 @@ final class HomepageHero {
 				$news_image = 'media' === $news_layout ? 'above' : ( 'list' === $news_layout ? 'none' : 'beside' );
 			}
 
-			$news_effective = 'auto' === $news_layout ? ( 'above' === $news_image ? 'media' : 'editorial' ) : $news_layout;
+			$news_effective = $news_layout;
+			if ( 'auto' === $news_layout ) {
+				$news_effective = 'front';
+			}
 
-			// Desktop columns follow the item count: full-width rows never
-			// pretend to be a four-column grid.
+			// Desktop columns follow the item count in the flat modes:
+			// full-width rows never pretend to be a four-column grid.
 			$news_n = count( $news );
 			if ( $news_n <= 4 ) {
 				$news_cols = max( 2, $news_n );
@@ -384,28 +391,157 @@ final class HomepageHero {
 			}
 			echo '</div>';
 
-			printf(
-				'<ul class="eex-hh__news-list eex-hh__news-list--cols-%d" role="list">',
-				(int) $news_cols
-			);
-			foreach ( $news as $item ) {
-				echo '<li class="eex-hh__news-item">';
-				TemplateLoader::part(
-					'hero-news-item',
-					[
-						'story'          => $item,
-						'heading_tag'    => $item_tag,
-						'image_position' => $news_image,
-						'image_size'     => (string) $atts['news_image_size'],
-						'show_category'  => ! empty( $atts['news_show_category'] ),
-						'link_category'  => ! empty( $atts['news_link_categories'] ),
-						'link_image'     => ! empty( $atts['news_link_images'] ),
-						'show_date'      => ! empty( $atts['news_show_date'] ),
-					]
+			$news_item_args = static function ( array $item, array $extra = [] ) use ( $atts, $item_tag, $news_image ): array {
+				return $extra + [
+					'story'          => $item,
+					'heading_tag'    => $item_tag,
+					'image_position' => $news_image,
+					'image_size'     => (string) $atts['news_image_size'],
+					'show_category'  => ! empty( $atts['news_show_category'] ),
+					'link_category'  => ! empty( $atts['news_link_categories'] ),
+					'link_image'     => ! empty( $atts['news_link_images'] ),
+					'show_date'      => ! empty( $atts['news_show_date'] ),
+				];
+			};
+
+			if ( $news_composed ) {
+				// Deterministic editorial roles from the selector's order:
+				// as the count rises, later stories become lighter and
+				// typography-led — never more equal cards.
+				$roles    = self::news_roles( $news_n, $news_layout );
+				$emphasis = (string) $atts['news_media_emphasis'];
+				if ( ! in_array( $emphasis, [ 'restrained', 'strong' ], true ) ) {
+					$emphasis = 'auto';
+				}
+
+				$grouped_items = [
+					'lead'      => [],
+					'secondary' => [],
+					'standard'  => [],
+					'brief'     => [],
+				];
+				$cursor        = 0;
+				foreach ( [ 'lead', 'secondary', 'standard', 'brief' ] as $role ) {
+					for ( $i = 0; $i < $roles[ $role ]; $i++ ) {
+						if ( isset( $news[ $cursor ] ) ) {
+							$grouped_items[ $role ][] = $news[ $cursor ];
+							++$cursor;
+						}
+					}
+				}
+
+				$role_image = [
+					'lead'      => 'none' === $news_image ? 'none' : 'above',
+					'secondary' => 'none' === $news_image || 'restrained' === $emphasis ? 'none' : 'beside',
+					'standard'  => 'none' === $news_image || 'restrained' === $emphasis ? 'none' : ( 'strong' === $emphasis ? 'above' : 'beside' ),
+					'brief'     => 'none',
+				];
+
+				echo '<div class="eex-hh__news-top">';
+
+				foreach ( $grouped_items['lead'] as $item ) {
+					echo '<div class="eex-hh__news-leadwrap">';
+					TemplateLoader::part(
+						'hero-news-item',
+						$news_item_args(
+							$item,
+							[
+								'role'            => 'lead',
+								'image_position'  => $role_image['lead'],
+								'image_size'      => 'large',
+								'show_standfirst' => ! empty( $atts['news_lead_standfirst'] ),
+							]
+						)
+					);
+					echo '</div>';
+				}
+
+				if ( ! empty( $grouped_items['secondary'] ) ) {
+					echo '<ul class="eex-hh__news-rail" role="list">';
+					foreach ( $grouped_items['secondary'] as $item ) {
+						echo '<li class="eex-hh__news-item">';
+						TemplateLoader::part(
+							'hero-news-item',
+							$news_item_args(
+								$item,
+								[
+									'role'           => 'secondary',
+									'image_position' => $role_image['secondary'],
+									'image_size'     => 'medium',
+								]
+							)
+						);
+						echo '</li>';
+					}
+					echo '</ul>';
+				}
+
+				echo '</div>';
+
+				if ( ! empty( $grouped_items['standard'] ) ) {
+					printf(
+						'<ul class="eex-hh__news-standard eex-hh__news-list--cols-%d" role="list">',
+						count( $grouped_items['standard'] ) >= 4 ? 4 : max( 2, count( $grouped_items['standard'] ) )
+					);
+					foreach ( $grouped_items['standard'] as $item ) {
+						echo '<li class="eex-hh__news-item">';
+						TemplateLoader::part(
+							'hero-news-item',
+							$news_item_args(
+								$item,
+								[
+									'role'           => 'standard',
+									'image_position' => $role_image['standard'],
+									'image_size'     => 'compact',
+								]
+							)
+						);
+						echo '</li>';
+					}
+					echo '</ul>';
+				}
+
+				if ( ! empty( $grouped_items['brief'] ) ) {
+					$dense_heading = trim( (string) $atts['news_dense_heading'] );
+					if ( '' === $dense_heading ) {
+						$dense_heading = __( 'Latest', 'emailexpert-events' );
+					}
+
+					printf( '<div class="eex-hh__news-briefs%s">', count( $grouped_items['brief'] ) >= 8 ? ' eex-hh__news-briefs--split' : '' );
+					printf(
+						'<%1$s class="eex-hh__label">%2$s</%1$s>',
+						esc_attr( $item_tag ), // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag.
+						esc_html( $dense_heading )
+					);
+					echo '<ul class="eex-hh__news-brieflist" role="list">';
+					foreach ( $grouped_items['brief'] as $item ) {
+						echo '<li class="eex-hh__news-item">';
+						TemplateLoader::part(
+							'hero-news-item',
+							$news_item_args(
+								$item,
+								[
+									'role'           => 'brief',
+									'image_position' => 'none',
+								]
+							)
+						);
+						echo '</li>';
+					}
+					echo '</ul></div>';
+				}
+			} else {
+				printf(
+					'<ul class="eex-hh__news-list eex-hh__news-list--cols-%d" role="list">',
+					(int) $news_cols
 				);
-				echo '</li>';
+				foreach ( $news as $item ) {
+					echo '<li class="eex-hh__news-item">';
+					TemplateLoader::part( 'hero-news-item', $news_item_args( $item ) );
+					echo '</li>';
+				}
+				echo '</ul>';
 			}
-			echo '</ul>';
 
 			echo '</section>';
 		}
@@ -425,6 +561,81 @@ final class HomepageHero {
 		}
 
 		return $html;
+	}
+
+	/**
+	 * The deterministic editorial roles for a composed Latest News layout:
+	 * how many of the already selected stories render as the lead, as
+	 * secondary stories, as standard stories and as headline-led briefs.
+	 * Pure arithmetic over the selector's order — selection decides WHICH
+	 * stories appear, this only decides HOW; nothing is persisted and no
+	 * story is ever dropped.
+	 *
+	 * Front Page: 1 lead; up to 3 secondaries; a standard row appears from
+	 * nine stories (2/2/3/4 for 9–12, capped at 4); everything later is a
+	 * brief. Newsroom trades secondaries for density: 2 secondaries, up to
+	 * 4 standards, and a larger Latest list.
+	 *
+	 * @param int    $count  Selected story count.
+	 * @param string $layout 'auto' (Front Page) or 'newsroom'.
+	 * @return array{lead:int,secondary:int,standard:int,brief:int}
+	 */
+	private static function news_roles( int $count, string $layout ): array {
+		$count = max( 0, $count );
+
+		if ( 0 === $count ) {
+			return [
+				'lead'      => 0,
+				'secondary' => 0,
+				'standard'  => 0,
+				'brief'     => 0,
+			];
+		}
+
+		if ( 'newsroom' === $layout ) {
+			$lead      = 1;
+			$secondary = min( 2, $count - 1 );
+			$standard  = min( 4, max( 0, $count - 3 ) );
+			$brief     = $count - $lead - $secondary - $standard;
+
+			return [
+				'lead'      => $lead,
+				'secondary' => $secondary,
+				'standard'  => $standard,
+				'brief'     => $brief,
+			];
+		}
+
+		$lead = 1;
+
+		if ( $count <= 4 ) {
+			$secondary = $count - 1;
+		} elseif ( $count <= 6 ) {
+			$secondary = 2;
+		} else {
+			$secondary = 3;
+		}
+
+		$standard = 0;
+		if ( $count >= 13 ) {
+			$standard = 4;
+		} elseif ( $count >= 9 ) {
+			$standard = [
+				9  => 2,
+				10 => 2,
+				11 => 3,
+				12 => 4,
+			][ $count ];
+		}
+
+		$brief = $count - $lead - $secondary - $standard;
+
+		return [
+			'lead'      => $lead,
+			'secondary' => $secondary,
+			'standard'  => $standard,
+			'brief'     => $brief,
+		];
 	}
 
 	/**

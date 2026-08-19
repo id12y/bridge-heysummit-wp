@@ -57,7 +57,7 @@ final class EditorialSelector {
 	 * @param array<string,mixed> $atts Attributes.
 	 */
 	private static function pool_bound( array $atts ): int {
-		$count = min( 12, max( 2, (int) ( $atts['news_count'] ?? 4 ) ) );
+		$count = min( 20, max( 2, (int) ( $atts['news_count'] ?? 4 ) ) );
 
 		return min( 50, max( 26, $count * 2 + 6 ) );
 	}
@@ -184,7 +184,7 @@ final class EditorialSelector {
 	 * @return array<int,array<string,mixed>>
 	 */
 	private static function news_items( array $atts, ?array $lead, ?array $second = null ): array {
-		$count = min( 12, max( 2, (int) ( $atts['news_count'] ?? 4 ) ) );
+		$count = min( 20, max( 2, (int) ( $atts['news_count'] ?? 4 ) ) );
 
 		// A bounded recent pool: enough to refill after exclusions and to
 		// balance categories, never an unbounded crawl.

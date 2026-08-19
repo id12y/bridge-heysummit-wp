@@ -744,7 +744,7 @@ final class CompositionsTest extends TestCase {
 		}
 		\EEX_Test_State::$user_can = false;
 
-		$eight = Components::render( 'homepage-hero', [ 'news_count' => 8 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$eight = Components::render( 'homepage-hero', [ 'news_count' => 8, 'news_layout' => 'media' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 		$this->assertStringContainsString( 'eex-hh__news-list--cols-4', $eight, 'eight items take four desktop columns' );
 		$this->assertSame( 8, substr_count( $eight, 'eex-hh__news-item' ), 'eight items render' );
 
@@ -753,9 +753,102 @@ final class CompositionsTest extends TestCase {
 		EventSelector::reset_request_state();
 		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
 
-		$three = Components::render( 'homepage-hero', [ 'news_count' => 3 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$three = Components::render( 'homepage-hero', [ 'news_count' => 3, 'news_layout' => 'media' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 		$this->assertStringContainsString( 'eex-hh__news-list--cols-3', $three, 'three items take three columns' );
 		$this->assertSame( 3, substr_count( $three, 'eex-hh__news-item' ) );
+	}
+
+	public function test_front_page_roles_are_deterministic_for_each_count(): void {
+		$this->fixture();
+		for ( $i = 4; $i <= 24; $i++ ) {
+			$this->make_story( 'Extra story ' . $i, $i * 3600 );
+		}
+		foreach ( get_posts( [ 'post_type' => 'post', 'numberposts' => -1 ] ) as $eex_post ) { // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			update_post_meta( $eex_post->ID, '_eex_test_thumbnail', 'https://cdn.example/t.jpg' );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$cases = [
+			8  => [ 1, 3, 0, 4 ],
+			12 => [ 1, 3, 4, 4 ],
+			20 => [ 1, 3, 4, 12 ],
+		];
+
+		foreach ( $cases as $count => [ $lead, $secondary, $standard, $brief ] ) {
+			Cache::flush();
+			Components::reset_request_state();
+			EventSelector::reset_request_state();
+			\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+			$html = Components::render( 'homepage-hero', [ 'news_count' => $count ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+			$this->assertSame( $lead, substr_count( $html, 'eex-hh__news-card--lead' ), $count . ': lead count' );
+			$this->assertSame( $secondary, substr_count( $html, 'eex-hh__news-card--secondary' ), $count . ': secondary count' );
+			$this->assertSame( $standard, substr_count( $html, 'eex-hh__news-card--standard' ), $count . ': standard count' );
+			$this->assertSame( $brief, substr_count( $html, 'eex-hh__news-card--brief' ), $count . ': brief count' );
+		}
+
+		// Twenty stories request far fewer images: briefs carry no image
+		// markup at all (1 lead + 3 secondary + 4 standard = 8 at most).
+		$this->assertLessThanOrEqual(
+			8,
+			substr_count( (string) $html, '<img class="eex-hh__news-img' ),
+			'a 20-story front page renders at most eight story images'
+		);
+		preg_match_all( '/<article class="eex-hh__news-card eex-hh__news-card--brief".*?<\/article>/s', (string) $html, $m );
+		$this->assertNotEmpty( $m[0] );
+		foreach ( $m[0] as $brief_card ) {
+			$this->assertStringNotContainsString( '<img', $brief_card, 'briefs never build image markup' );
+		}
+	}
+
+	public function test_changing_the_layout_never_changes_the_selected_stories(): void {
+		$this->fixture();
+		for ( $i = 4; $i <= 12; $i++ ) {
+			$this->make_story( 'Extra story ' . $i, $i * 3600 );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$titles = static function ( string $html ): array {
+			preg_match_all( '/eex-hh__news-title[^>]*>\s*<a[^>]*>([^<]+)</', $html, $m );
+			$out = $m[1];
+			sort( $out );
+			return $out;
+		};
+
+		$selections = [];
+		foreach ( [ 'auto', 'newsroom', 'media', 'list' ] as $layout ) {
+			Cache::flush();
+			Components::reset_request_state();
+			EventSelector::reset_request_state();
+			\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+			$html                  = Components::render( 'homepage-hero', [ 'news_count' => 8, 'news_layout' => $layout ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			$selections[ $layout ] = $titles( $html );
+			$this->assertCount( 8, $selections[ $layout ], $layout . ' renders eight stories' );
+		}
+
+		$this->assertSame( $selections['auto'], $selections['newsroom'], 'selection is identical across layouts' );
+		$this->assertSame( $selections['auto'], $selections['media'] );
+		$this->assertSame( $selections['auto'], $selections['list'] );
+	}
+
+	public function test_newsroom_composes_with_a_latest_rail_and_twenty_stories_work(): void {
+		$this->fixture();
+		for ( $i = 4; $i <= 24; $i++ ) {
+			$this->make_story( 'Extra story ' . $i, $i * 3600 );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$html = Components::render( 'homepage-hero', [ 'news_count' => 20, 'news_layout' => 'newsroom' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertStringContainsString( 'eex-hh__news--newsroom', $html );
+		$this->assertSame( 1, substr_count( $html, 'eex-hh__news-card--lead' ) );
+		$this->assertSame( 2, substr_count( $html, 'eex-hh__news-card--secondary' ), 'newsroom trades secondaries for density' );
+		$this->assertSame( 4, substr_count( $html, 'eex-hh__news-card--standard' ) );
+		$this->assertSame( 13, substr_count( $html, 'eex-hh__news-card--brief' ) );
+		$this->assertStringContainsString( '>Latest<', $html, 'the dense region takes the Latest label by default' );
+		$this->assertStringContainsString( 'eex-hh__news-briefs--split', $html, 'a long brief list splits into columns' );
 	}
 
 	public function test_news_images_render_above_the_headline_when_configured(): void {
@@ -768,6 +861,7 @@ final class CompositionsTest extends TestCase {
 		$html = Components::render(
 			'homepage-hero',
 			[
+				'news_layout'         => 'media',
 				'news_image_position' => 'above',
 				'news_image_size'     => 'large',
 			]
@@ -783,7 +877,7 @@ final class CompositionsTest extends TestCase {
 		EventSelector::reset_request_state();
 		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
 
-		$off = Components::render( 'homepage-hero', [ 'news_show_image' => 0, 'news_image_position' => 'above' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$off = Components::render( 'homepage-hero', [ 'news_layout' => 'media', 'news_show_image' => 0, 'news_image_position' => 'above' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 		$this->assertStringNotContainsString( 'eex-hh__news-media', $off, 'the image flag still switches every treatment off' );
 	}
 
@@ -796,7 +890,7 @@ final class CompositionsTest extends TestCase {
 		}
 		\EEX_Test_State::$user_can = false;
 
-		$on = Components::render( 'homepage-hero', [ 'news_image_position' => 'above' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$on = Components::render( 'homepage-hero', [ 'news_layout' => 'media', 'news_image_position' => 'above' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 
 		$this->assertMatchesRegularExpression(
 			'/eex-hh__news-category"><a href="[^"]*term[^"]*"/',
@@ -812,7 +906,7 @@ final class CompositionsTest extends TestCase {
 		EventSelector::reset_request_state();
 		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
 
-		$off = Components::render( 'homepage-hero', [ 'news_image_position' => 'above', 'news_link_categories' => 0, 'news_link_images' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$off = Components::render( 'homepage-hero', [ 'news_layout' => 'media', 'news_image_position' => 'above', 'news_link_categories' => 0, 'news_link_images' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
 		$this->assertStringNotContainsString( 'eex-hh__news-imglink', $off, 'image links switch off' );
 		$this->assertDoesNotMatchRegularExpression( '/eex-hh__news-category"><a /', $off, 'category links switch off; the label stays as plain text' );
 		$this->assertStringContainsString( 'eex-hh__news-category', $off, 'the label itself still renders' );

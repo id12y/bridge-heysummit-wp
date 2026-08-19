@@ -1093,6 +1093,97 @@
 	--eex-news-title-size: var(--eex-step-0, 1rem);
 }
 
+/* Composed layouts: headline scale follows the editorial role — the news
+   lead clearly beneath the homepage featured story, secondaries beneath
+   the lead, standards lighter again, briefs built for scanning. */
+.eex .eex-hh__news-card--lead .eex-hh__news-title {
+	font-size: clamp(1.3rem, 1.1rem + 1vw, 1.9rem);
+	line-height: 1.18;
+}
+
+.eex .eex-hh__news-card--secondary .eex-hh__news-title {
+	font-size: clamp(1.02rem, 0.95rem + 0.4vw, 1.3rem);
+}
+
+.eex .eex-hh__news-card--standard .eex-hh__news-title {
+	font-size: clamp(0.95rem, 0.9rem + 0.3vw, 1.1rem);
+}
+
+.eex .eex-hh__news-card--brief .eex-hh__news-title {
+	font-size: var(--eex-step-0, 0.95rem);
+	line-height: 1.35;
+}
+
+.eex .eex-hh__news-standfirst {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step-0);
+	line-height: 1.5;
+	color: var(--eex-muted);
+	margin: 0.15em 0 0.35em;
+	max-width: 38em;
+}
+
+/* Rail secondaries and brief rows: hairline-separated editorial rows. */
+.eex .eex-hh__news-rail > li + li .eex-hh__news-card,
+.eex .eex-hh__news-brieflist > li + li .eex-hh__news-card--brief {
+	border-top: 1px solid var(--eex-news-line, var(--eex-line));
+}
+
+.eex .eex-hh__news-rail > li + li .eex-hh__news-card {
+	margin-top: 0.55em;
+	padding-top: 0.8em;
+}
+
+.eex .eex-hh__news-briefs .eex-hh__label {
+	margin: 0 0 0.4em;
+	padding-top: calc(var(--eex-composition-gap) * 0.55);
+	border-top: 1px solid var(--eex-line);
+	width: 100%;
+}
+
+.eex .eex-hh__news-standard {
+	border-top: 1px solid var(--eex-news-line, var(--eex-line));
+	padding-top: calc(var(--eex-composition-gap) * 0.55);
+}
+
+/* The standard row's own top rules never double up with the composed
+   row's shared rule. */
+.eex .eex-hh__news-standard .eex-hh__news-item .eex-hh__news-card {
+	border-top: 0;
+}
+
+@media (min-width: 900px) {
+	.eex .eex-hh__news-standard .eex-hh__news-item:nth-child(n + 2) {
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
+		padding-left: calc(var(--eex-composition-gap) * 0.7);
+	}
+
+	.eex .eex-hh__news-top .eex-hh__news-rail {
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
+		padding-left: var(--eex-composition-gap);
+	}
+
+	.eex .eex-hh__news--newsroom .eex-hh__news-top .eex-hh__news-rail {
+		border-left: 0;
+		padding-left: 0;
+		border-top: 1px solid var(--eex-news-line, var(--eex-line));
+		padding-top: 0.8em;
+		margin-top: 0.8em;
+	}
+}
+
+@media (min-width: 1100px) {
+	.eex .eex-hh__news--newsroom .eex-hh__news-briefs {
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
+		padding-left: var(--eex-composition-gap);
+	}
+
+	.eex .eex-hh__news--newsroom .eex-hh__news-briefs .eex-hh__label {
+		border-top: 0;
+		padding-top: 0;
+	}
+}
+
 /* Separators: quieter than the site hairline — editorial separation, not
    four rigid boxes (color-mix browsers get the lighter rule; others keep
    the standard hairline). */

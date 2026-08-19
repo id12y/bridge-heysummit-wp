@@ -78,14 +78,28 @@ class HomepageHeroWidget extends CompositeWidget {
 			'news_order'               => [ 'news_show' => '1' ],
 			'news_show_image'          => [ 'news_show' => '1' ],
 			'news_layout'              => [ 'news_show' => '1' ],
+			'news_lead_standfirst'     => [
+				'news_show'   => '1',
+				'news_layout' => [ 'auto', 'newsroom' ],
+			],
+			'news_dense_heading'       => [
+				'news_show'   => '1',
+				'news_layout' => [ 'auto', 'newsroom' ],
+			],
+			'news_media_emphasis'      => [
+				'news_show'   => '1',
+				'news_layout' => [ 'auto', 'newsroom' ],
+			],
 			'news_image_position'      => [
 				'news_show'       => '1',
 				'news_show_image' => '1',
+				'news_layout'     => [ 'media', 'editorial', 'list' ],
 			],
 			'news_image_size'          => [
 				'news_show'           => '1',
 				'news_show_image'     => '1',
 				'news_image_position' => [ 'auto', 'above' ],
+				'news_layout'         => [ 'media', 'editorial', 'list' ],
 			],
 			'news_show_category'       => [ 'news_show' => '1' ],
 			'news_link_categories'     => [

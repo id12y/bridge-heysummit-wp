@@ -292,18 +292,27 @@ category/date/read-time toggles, CTA text, and a fallback
 manual`, `story2_id`) that can never duplicate the lead, placed by
 `story2_placement="auto"` (beneath the primary story) `| beneath | side |
 hidden`; both features are excluded from Latest News before its limit.
-**Latest News** (`news_show`, `news_count` 2–12, post types, include and
+**Latest News** (`news_show`, `news_count` 2–20, post types, include and
 exclude categories, `news_order="latest" | balanced`): the featured
 stories are always removed before the limit and the list refills;
 balanced mode is deterministic — a different category per initial slot
-where alternatives exist, chronological fill, no randomness. Desktop
-columns follow the item count (2→2, 3→3, 4→4, 6→3×2, 8→4×2, 12→4×3).
-Layout (`news_layout="auto" | list | editorial | media`) and images
+where alternatives exist, chronological fill, no randomness.
+`news_layout="auto"` is the **Front Page** (recommended): deterministic
+editorial roles from the selection order — one lead (large image,
+optional standfirst via `news_lead_standfirst`), up to three secondary
+rail stories, a standard row from nine stories, and every later story as
+a typography-led headline under a configurable label
+(`news_dense_heading`, default "Latest"). Briefs build no image markup,
+so 20 stories request at most eight images (`news_media_emphasis="auto"
+| restrained | strong`). `newsroom` is denser, with a Latest side rail
+on wide screens. `media` (equal illustrated cards — best at 4–8) and
+`list` (the newswire) keep their flat treatment, where desktop columns
+follow the item count (2→2, 3→3, 4→4, 6→3×2, 8→4×2, 12→4×3) and images
 (`news_image_position="auto" | none | beside | above`,
-`news_image_size="compact" | medium | large`): above renders category,
-image, headline, date at content width in a stable ratio (no layout
-shift), everything lazy-loads, and a story without an image aligns
-cleanly beside its neighbours.
+`news_image_size="compact" | medium | large`) render at content width in
+a stable ratio (no layout shift). Everything lazy-loads, a story without
+an image aligns cleanly beside its neighbours, and switching layouts
+never changes which stories are selected.
 
 ```text
 [eex_homepage_hero]
