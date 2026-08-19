@@ -47,11 +47,22 @@ final class HomepageHero {
 		$more      = [];
 
 		if ( ! empty( $atts['more_events'] ) && 'hidden' !== $placement ) {
-			$more = EventSelector::more_events(
-				(string) $atts['more_events_mode'],
-				max( 0, (int) $atts['more_events_limit'] ),
-				null !== $target ? (array) $target['event'] : null
-			);
+			$mode = (string) $atts['more_events_mode'];
+
+			if ( 'upcoming_sessions' === $mode ) {
+				$featured_session = null !== $target && is_array( $target['session'] ?? null ) ? (array) $target['session'] : null;
+
+				$more = EventSelector::more_sessions(
+					max( 0, (int) $atts['more_events_limit'] ),
+					$featured_session
+				);
+			} else {
+				$more = EventSelector::more_events(
+					$mode,
+					max( 0, (int) $atts['more_events_limit'] ),
+					null !== $target ? (array) $target['event'] : null
+				);
+			}
 		}
 
 		if ( null === $lead && null === $target && empty( $news ) && empty( $more ) ) {

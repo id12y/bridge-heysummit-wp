@@ -1489,9 +1489,10 @@ final class Components {
 					'default' => 'all_upcoming',
 					'label'   => __( 'More Events source', 'emailexpert-events' ),
 					'options' => [
-						'all_upcoming'   => __( 'All upcoming events, excluding featured', 'emailexpert-events' ),
-						'after_featured' => __( 'Events starting after the featured event', 'emailexpert-events' ),
-						'same_series'    => __( 'Upcoming events from the same series, excluding featured', 'emailexpert-events' ),
+						'all_upcoming'      => __( 'All upcoming events, excluding featured', 'emailexpert-events' ),
+						'after_featured'    => __( 'Events starting after the featured event', 'emailexpert-events' ),
+						'same_series'       => __( 'Upcoming events from the same series, excluding featured', 'emailexpert-events' ),
+						'upcoming_sessions' => __( 'Upcoming sessions, excluding the featured one', 'emailexpert-events' ),
 					],
 					'group'   => $g_more,
 				],

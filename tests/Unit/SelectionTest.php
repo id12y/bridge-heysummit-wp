@@ -204,6 +204,52 @@ final class SelectionTest extends TestCase {
 		);
 	}
 
+	public function test_upcoming_sessions_mode_lists_sessions_excluding_the_featured_one(): void {
+		$this->calendar();
+
+		$make_talk = function ( string $title, string $hs_id, string $event_hs_id, int $days ): void {
+			wp_insert_post(
+				[
+					'post_type'   => 'eex_talk',
+					'post_status' => 'publish',
+					'post_title'  => $title,
+					'meta_input'  => [
+						'_eex_heysummit_id'    => $hs_id,
+						'_eex_source_event_id' => $event_hs_id,
+						'_eex_starts_at'       => $this->iso( $this->t0 + $days * DAY_IN_SECONDS ),
+						'_eex_ends_at'         => $this->iso( $this->t0 + $days * DAY_IN_SECONDS + 3600 ),
+					],
+				]
+			);
+		};
+
+		// One long-running event (101) holding several sessions — the
+		// calendar shape where distinct-event modes have nothing to list.
+		$make_talk( 'RFP panel', '501', '101', 9 );
+		$make_talk( 'Deliverability clinic', '502', '101', 12 );
+		$make_talk( 'Roundtable session', '601', '102', 13 );
+
+		$target = FeatureTargetResolver::resolve(
+			[
+				'featured_source'  => 'manual_session',
+				'featured_session' => '501',
+			]
+		);
+
+		$more = EventSelector::more_sessions( 3, (array) $target['session'] );
+
+		$this->assertSame(
+			[ 'Deliverability clinic', 'Roundtable session' ],
+			array_map( static fn( array $row ): string => (string) $row['title'], $more ),
+			'upcoming sessions mode lists the following sessions, featured one excluded — including siblings from the same event'
+		);
+		$this->assertNotSame( '', (string) $more[0]['first_talk_at'], 'rows carry the session start for the compact row date' );
+		$this->assertNotSame( '', (string) $more[0]['url'], 'rows link to the session' );
+
+		$limited = EventSelector::more_sessions( 1, (array) $target['session'] );
+		$this->assertCount( 1, $limited, 'the row limit still applies after exclusion' );
+	}
+
 	public function test_exclusion_happens_before_the_limit_so_the_list_refills(): void {
 		$this->calendar();
 

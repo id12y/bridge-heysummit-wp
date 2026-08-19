@@ -263,12 +263,16 @@ default) `| keep | hide`. A missing manual selection follows the same
 fallback and explains itself to editors.
 
 **More Events** (`more_events`, default on, three rows, soonest first):
-`more_events_mode="all_upcoming" | after_featured | same_series`. The
+`more_events_mode="all_upcoming" | after_featured | same_series |
+upcoming_sessions`. The event modes list distinct events, and the
 featured event is always excluded by canonical identity (connection +
 HeySummit event ID) *before* the limit, so the list refills — and a
 manually featured future event never removes the wrong chronological
-event. Placement: `more_events_placement="event-column"` (default)
-`| strip | hidden`.
+event. `upcoming_sessions` lists the next sessions across the displayed
+events instead (the featured session excluded) — the mode for a calendar
+that is one long-running event holding many sessions, where the event
+modes have nothing left to list. Placement:
+`more_events_placement="strip"` (default) `| event-column | hidden`.
 
 **Featured story** (`story_source="latest" | sticky | manual | none`,
 manual picks are searchable by title in the editors with an ID fallback

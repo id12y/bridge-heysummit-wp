@@ -3,6 +3,18 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.51.0
+- **The hero's More Events strip can list upcoming sessions.** The strip
+  only listed distinct HeySummit events, with the featured event always
+  excluded — so on a calendar that is one long-running event holding many
+  sessions (the emailexpert shape), enabling it showed nothing. A new
+  source mode, `more_events_mode="upcoming_sessions"`, lists the next
+  sessions across the displayed events instead: same compact rows (date,
+  title, link), the featured session excluded, cancelled sessions
+  skipped, and the cached fragment expires when a listed session starts.
+  Available in the widget, block and shortcode; the default mode is
+  unchanged.
+
 ## 1.50.1
 - **Deleting the plugin no longer erases its configuration.** The
   uninstall routine wiped every `eex_*` option unconditionally, so a

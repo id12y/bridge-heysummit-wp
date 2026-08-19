@@ -31,7 +31,7 @@ final class EventSelector {
 	/**
 	 * The More Events source modes.
 	 */
-	public const MORE_MODES = [ 'all_upcoming', 'after_featured', 'same_series' ];
+	public const MORE_MODES = [ 'all_upcoming', 'after_featured', 'same_series', 'upcoming_sessions' ];
 
 	/**
 	 * The automatic selection strategies.
@@ -291,6 +291,91 @@ final class EventSelector {
 		 * @param array<string,mixed>|null       $featured The featured owning event.
 		 */
 		return (array) apply_filters( 'eex_more_events', $out, $mode, $featured );
+	}
+
+	/**
+	 * The More Events rows in "upcoming sessions" mode: the next sessions
+	 * across the displayable events, shaped like compact event rows (title,
+	 * date, link), with the featured session excluded. This is the mode for
+	 * a calendar that is one or two long-running events holding many
+	 * sessions — where distinct-event modes have nothing left to list once
+	 * the featured event is removed.
+	 *
+	 * @param int                       $limit    Maximum rows (0 = all).
+	 * @param array<string,mixed>|null  $featured The featured session, when the
+	 *                                            hero features one.
+	 * @return array<int,array<string,mixed>> Compact-row-shaped arrays.
+	 */
+	public static function more_sessions( int $limit, ?array $featured ): array {
+		$featured_key = null !== $featured
+			? (string) ( $featured['event_hs_id'] ?? '' ) . '|' . (string) ( $featured['hs_id'] ?? '' )
+			: '';
+
+		$out  = [];
+		$seen = [];
+
+		foreach ( Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ) as $talk ) {
+			$title = (string) ( $talk['title'] ?? '' );
+			$key   = (string) ( $talk['event_hs_id'] ?? '' ) . '|' . (string) ( $talk['hs_id'] ?? '' );
+
+			if ( '' === $title || isset( $seen[ $key ] ) ) {
+				continue;
+			}
+			$seen[ $key ] = true;
+
+			if ( '' !== $featured_key && $key === $featured_key ) {
+				Diagnostics::note(
+					/* translators: %s: session title. */
+					sprintf( __( '%s: excluded from More Events because it is the featured session.', 'emailexpert-events' ), $title )
+				);
+				continue;
+			}
+
+			if ( ! empty( $talk['cancelled'] ) ) {
+				Diagnostics::note(
+					/* translators: %s: session title. */
+					sprintf( __( '%s: excluded from More Events because it is cancelled.', 'emailexpert-events' ), $title )
+				);
+				continue;
+			}
+
+			Diagnostics::note(
+				/* translators: %s: session title. */
+				sprintf( __( '%s: included in More Events (upcoming session).', 'emailexpert-events' ), $title )
+			);
+
+			// The list changes when a listed session starts (Full-mode talk
+			// data carries no precomputed timestamp, only the ISO string).
+			$start_ts = (int) ( $talk['start_ts'] ?? 0 );
+			if ( $start_ts <= 0 ) {
+				$start_ts = (int) strtotime( (string) ( $talk['starts_at'] ?? '' ) );
+			}
+			if ( $start_ts > 0 ) {
+				Diagnostics::boundary( $start_ts );
+			}
+
+			// The compact row's event shape (see parts/compact-event-row.php).
+			$out[] = [
+				'title'         => $title,
+				'first_talk_at' => (string) ( $talk['starts_at'] ?? '' ),
+				'timezone'      => (string) ( $talk['timezone'] ?? '' ),
+				'url'           => (string) ( $talk['permalink'] ?? '' ),
+				'hs_id'         => (string) ( $talk['hs_id'] ?? '' ),
+				'evergreen'     => false,
+			];
+
+			if ( $limit > 0 && count( $out ) >= $limit ) {
+				break;
+			}
+		}
+
+		/**
+		 * Filter the final More Events rows in "upcoming sessions" mode.
+		 *
+		 * @param array<int,array<string,mixed>> $out      Compact-row-shaped arrays.
+		 * @param array<string,mixed>|null       $featured The featured session.
+		 */
+		return (array) apply_filters( 'eex_more_sessions', $out, $featured );
 	}
 
 	/**
