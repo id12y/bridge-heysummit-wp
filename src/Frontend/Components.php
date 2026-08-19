@@ -1458,7 +1458,10 @@ final class Components {
 					'group'   => $g_news,
 				],
 				'news_show_category'       => $grouped( $flag( __( 'Show news categories', 'emailexpert-events' ) ), $g_news ),
+				'news_link_categories'     => $grouped( $flag( __( 'Link categories to their archive', 'emailexpert-events' ) ), $g_news ),
+				'news_link_images'         => $grouped( $flag( __( 'Link images to the article', 'emailexpert-events' ) ), $g_news ),
 				'news_show_date'           => $grouped( $flag( __( 'Show news dates', 'emailexpert-events' ) ), $g_news ),
+				'news_all_show'            => $grouped( $flag( __( 'Show the View all news link', 'emailexpert-events' ) ), $g_news ),
 				'news_all_text'            => [
 					'type'    => 'string',
 					'default' => '',

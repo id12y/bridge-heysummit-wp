@@ -515,6 +515,72 @@ final class CompositionsTest extends TestCase {
 		$this->assertStringNotContainsString( 'eex-hh__news-media', $off, 'the image flag still switches every treatment off' );
 	}
 
+	public function test_news_categories_and_images_link_by_default_and_can_be_switched_off(): void {
+		$this->fixture();
+		wp_insert_term( 'Deliverability', 'category' );
+		foreach ( get_posts( [ 'post_type' => 'post', 'numberposts' => -1 ] ) as $eex_post ) { // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			update_post_meta( $eex_post->ID, '_eex_test_thumbnail', 'https://cdn.example/thumb.jpg' );
+			wp_set_object_terms( $eex_post->ID, [ 'deliverability' ], 'category' );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$on = Components::render( 'homepage-hero', [ 'news_image_position' => 'above' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertMatchesRegularExpression(
+			'/eex-hh__news-category"><a href="[^"]*term[^"]*"/',
+			$on,
+			'category labels link to the real term archive by default'
+		);
+		$this->assertStringContainsString( 'eex-hh__news-imglink', $on, 'images link to the article by default' );
+		$this->assertStringContainsString( 'tabindex="-1" aria-hidden="true"', $on, 'the image link stays out of the tab order and accessibility tree' );
+		$this->assertStringNotContainsString( '<a', (string) preg_replace( '/.*?(<a[^>]*eex-hh__news-imglink[^>]*>).*/s', '', $on ), 'sanity' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$off = Components::render( 'homepage-hero', [ 'news_image_position' => 'above', 'news_link_categories' => 0, 'news_link_images' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringNotContainsString( 'eex-hh__news-imglink', $off, 'image links switch off' );
+		$this->assertDoesNotMatchRegularExpression( '/eex-hh__news-category"><a /', $off, 'category links switch off; the label stays as plain text' );
+		$this->assertStringContainsString( 'eex-hh__news-category', $off, 'the label itself still renders' );
+	}
+
+	public function test_view_all_news_falls_back_to_the_posts_page_and_can_be_hidden(): void {
+		$this->fixture();
+		\EEX_Test_State::$user_can = false;
+
+		$none = Components::render( 'homepage-hero', [] );
+		$this->assertStringNotContainsString( 'eex-hh__news-all', $none, 'no destination configured and no posts page: no link, never a broken one' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$news_page = wp_insert_post(
+			[
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+				'post_title'  => 'News',
+			]
+		);
+		update_option( 'page_for_posts', $news_page );
+
+		$fallback = Components::render( 'homepage-hero', [] );
+		$this->assertStringContainsString( 'eex-hh__news-all', $fallback, 'the posts page becomes the All-news destination' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$hidden = Components::render( 'homepage-hero', [ 'news_all_show' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringNotContainsString( 'eex-hh__news-all', $hidden, 'the link can be switched off' );
+
+		delete_option( 'page_for_posts' );
+	}
+
 	public function test_more_events_speaker_and_people_presentations(): void {
 		$this->fixture();
 

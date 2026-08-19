@@ -14,6 +14,8 @@
  *     @type string $image_position 'none', 'beside' or 'above' (resolved).
  *     @type string $image_size     'compact', 'medium' or 'large' (above only).
  *     @type bool   $show_category  Show the category label.
+ *     @type bool   $link_category  Link the category to its term archive.
+ *     @type bool   $link_image     Link the image to the article.
  *     @type bool   $show_date      Show the date.
  * }
  */
@@ -66,9 +68,27 @@ if ( '' !== $eex_thumb ) {
 		: ' eex-hh__news-card--thumb';
 }
 
-$eex_category = ! empty( $args['show_category'] ) && '' !== (string) ( $eex_story['category'] ?? '' )
-	? '<p class="eex-hh__news-category">' . esc_html( (string) $eex_story['category'] ) . '</p>'
-	: '';
+// The image as a pointer-only shortcut to the article: hidden from the
+// accessibility tree and the tab order, because the adjacent headline link
+// is the accessible route to the same destination — one announcement, not
+// two, and never a nested link.
+if ( '' !== $eex_thumb && ! empty( $args['link_image'] ) && '' !== $eex_url ) {
+	$eex_thumb = '<a class="eex-hh__news-imglink" href="' . esc_url( $eex_url ) . '" tabindex="-1" aria-hidden="true" data-eex-action="news">' . $eex_thumb . '</a>';
+}
+
+// The category label: a link to its real term archive when one exists and
+// the option is on; plain text otherwise — never a hand-built URL, never a
+// broken link.
+$eex_category = '';
+if ( ! empty( $args['show_category'] ) && '' !== (string) ( $eex_story['category'] ?? '' ) ) {
+	$eex_category_link = ! empty( $args['link_category'] ) ? (string) ( $eex_story['category_link'] ?? '' ) : '';
+
+	$eex_category = '<p class="eex-hh__news-category">'
+		. ( '' !== $eex_category_link
+			? '<a href="' . esc_url( $eex_category_link ) . '" data-eex-action="news-category">' . esc_html( (string) $eex_story['category'] ) . '</a>'
+			: esc_html( (string) $eex_story['category'] ) )
+		. '</p>';
+}
 ?>
 <article class="<?php echo esc_attr( $eex_classes ); ?>">
 	<?php if ( 'above' === $eex_position && '' !== $eex_thumb ) : ?>
@@ -91,7 +111,8 @@ $eex_category = ! empty( $args['show_category'] ) && '' !== (string) ( $eex_stor
 		</<?php echo esc_attr( $eex_tag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag. ?>>
 
 		<?php if ( ! empty( $args['show_date'] ) && (int) ( $eex_story['timestamp'] ?? 0 ) > 0 ) : ?>
-			<p class="eex-hh__news-date"><time datetime="<?php echo esc_attr( gmdate( 'Y-m-d', (int) $eex_story['timestamp'] ) ); ?>"><?php echo esc_html( date_i18n( (string) get_option( 'date_format', 'j F Y' ), (int) $eex_story['timestamp'] ) ); ?></time></p>
+			<?php // The compact editorial date, local to this component ("19 Aug 2026"); month names still localise through date_i18n. Other widgets keep the site format. ?>
+			<p class="eex-hh__news-date"><time datetime="<?php echo esc_attr( gmdate( 'Y-m-d', (int) $eex_story['timestamp'] ) ); ?>"><?php echo esc_html( date_i18n( 'j M Y', (int) $eex_story['timestamp'] ) ); ?></time></p>
 		<?php endif; ?>
 	</div>
 </article>

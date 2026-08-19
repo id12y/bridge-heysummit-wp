@@ -3,6 +3,30 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.54.0
+- **Latest News refinement pass** (UI and navigation only; selection,
+  exclusion, balancing, caching and every other region untouched).
+  - Category labels can link to their real term archive
+    (`news_link_categories`, on by default; resolved via get_term_link,
+    plain text when a term has no valid archive). Restrained caps stay;
+    linked labels gain a clear hover underline and a visible focus
+    outline.
+  - Story images can link to the article (`news_link_images`, on by
+    default) as a pointer-only shortcut — out of the tab order and the
+    accessibility tree, so the adjacent headline stays the one announced
+    route and no nested links exist.
+  - Headline hierarchy: news headlines take a layout-aware scale token
+    (quieter than the featured story; larger in the two-wide grid,
+    smaller in the compact list) that explicit Elementor typography
+    overrides still outrank. Long headlines wrap naturally
+    (`text-wrap: pretty`); no truncation, no fixed heights.
+  - The component's dates render as compact editorial dates ("19 Aug
+    2026") locally — site-wide date formatting is untouched.
+  - Column and row separators within Latest News use a quieter hairline.
+  - The View all news link can be switched off (`news_all_show`, on by
+    default) and, when no destination is configured, falls back to the
+    site's own posts page — never a guessed URL, never a broken link.
+
 ## 1.53.0
 - **The compositions now lead with the plugin's own registration
   experience by default.** The Homepage Editorial Hero and the Event

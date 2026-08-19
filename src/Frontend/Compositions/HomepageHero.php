@@ -351,10 +351,20 @@ final class HomepageHero {
 				esc_html( $news_title )
 			);
 
-			if ( '' !== (string) $atts['news_all_url'] ) {
+			// The All-news route: the configured destination, else the site's
+			// own posts page when one is set — never a guessed URL, never a
+			// broken link.
+			$news_all_url = (string) $atts['news_all_url'];
+
+			if ( '' === $news_all_url ) {
+				$posts_page   = (int) get_option( 'page_for_posts' );
+				$news_all_url = $posts_page > 0 ? (string) get_permalink( $posts_page ) : '';
+			}
+
+			if ( ! empty( $atts['news_all_show'] ) && '' !== $news_all_url ) {
 				printf(
 					'<a class="eex-hh__news-all eex-cta-quiet" href="%s" data-eex-action="news">%s<span class="eex-cta-arrow" aria-hidden="true">→</span></a>',
-					esc_url( (string) $atts['news_all_url'] ),
+					esc_url( $news_all_url ),
 					esc_html( '' !== (string) $atts['news_all_text'] ? (string) $atts['news_all_text'] : __( 'View all latest news', 'emailexpert-events' ) )
 				);
 			}
@@ -374,6 +384,8 @@ final class HomepageHero {
 						'image_position' => $news_image,
 						'image_size'     => (string) $atts['news_image_size'],
 						'show_category'  => ! empty( $atts['news_show_category'] ),
+						'link_category'  => ! empty( $atts['news_link_categories'] ),
+						'link_image'     => ! empty( $atts['news_link_images'] ),
 						'show_date'      => ! empty( $atts['news_show_date'] ),
 					]
 				);

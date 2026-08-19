@@ -2629,10 +2629,17 @@
 }
 
 .eex-hh__news-title {
-	margin: 0 0 0.3em;
-	font-size: var(--eex-step-0, 1em);
+	margin: 0 0 0.25em;
+	font-size: var(--eex-news-title-size, var(--eex-step-0, 1em));
 	line-height: 1.3;
 	overflow-wrap: break-word;
+}
+
+/* The image as a pointer shortcut to the article (aria-hidden; the
+   headline is the accessible route). */
+.eex-hh__news-imglink {
+	display: block;
+	line-height: 0;
 }
 
 .eex-hh__news-date {

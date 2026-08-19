@@ -1025,11 +1025,73 @@
 	font-family: var(--eex-serif);
 	font-weight: 650;
 	color: var(--eex-ink);
-	line-height: 1.3;
+	line-height: 1.28;
+	text-wrap: pretty;
 }
 
 .eex .eex-hh__news-title a:hover {
 	color: var(--eex-accent);
+}
+
+/* News headline scale, per layout: strong editorial headlines that never
+   compete with the featured story. The token flows through the base rule,
+   so an explicit Elementor typography override still wins. */
+.eex .eex-hh__news {
+	--eex-news-title-size: clamp(1rem, 0.95rem + 0.3vw, 1.2rem);
+	--eex-news-line: var(--eex-line);
+}
+
+.eex .eex-hh__news--media {
+	--eex-news-title-size: clamp(1.05rem, 0.95rem + 0.55vw, 1.4rem);
+}
+
+.eex .eex-hh__news--media .eex-hh__news-list--cols-2 {
+	--eex-news-title-size: clamp(1.15rem, 1rem + 0.85vw, 1.65rem);
+}
+
+.eex .eex-hh__news--list {
+	--eex-news-title-size: var(--eex-step-0, 1rem);
+}
+
+/* Separators: quieter than the site hairline — editorial separation, not
+   four rigid boxes (color-mix browsers get the lighter rule; others keep
+   the standard hairline). */
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+	.eex .eex-hh__news {
+		--eex-news-line: color-mix(in srgb, var(--eex-line) 55%, transparent);
+	}
+}
+
+/* Tight within a story, clear space between stories (media grid). */
+.eex .eex-hh__news--media .eex-hh__news-media {
+	margin-bottom: 0.45em;
+}
+
+.eex .eex-hh__news--media .eex-hh__news-card--stacked > .eex-hh__news-category {
+	margin-bottom: 0.35em;
+}
+
+.eex .eex-hh__news--media .eex-hh__news-date {
+	margin-top: 0.1em;
+}
+
+/* The linked category label: same restrained caps, plainly interactive on
+   hover and focus (underline + outline, never colour alone). */
+.eex .eex-hh__news-category a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.eex .eex-hh__news-category a:hover {
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+}
+
+.eex .eex-hh__news-category a:focus-visible {
+	outline: 2px solid var(--eex-accent);
+	outline-offset: 2px;
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
 }
 
 /* Column hairlines between news items, per row shape. The server states
@@ -1041,14 +1103,14 @@
 	.eex .eex-hh__news-list--cols-3 .eex-hh__news-item:not(:nth-child(3n + 1)),
 	.eex .eex-hh__news-list--cols-4 .eex-hh__news-item:not(:nth-child(4n + 1)),
 	.eex .eex-hh__news-list:not([class*="--cols-"]) .eex-hh__news-item:nth-child(n + 2) {
-		border-left: 1px solid var(--eex-line);
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
 		padding-left: calc(var(--eex-composition-gap) * 0.7);
 	}
 
 	.eex .eex-hh__news-list--cols-2 .eex-hh__news-item:nth-child(n + 3) .eex-hh__news-card,
 	.eex .eex-hh__news-list--cols-3 .eex-hh__news-item:nth-child(n + 4) .eex-hh__news-card,
 	.eex .eex-hh__news-list--cols-4 .eex-hh__news-item:nth-child(n + 5) .eex-hh__news-card {
-		border-top: 1px solid var(--eex-line);
+		border-top: 1px solid var(--eex-news-line, var(--eex-line));
 		margin-top: 0.7em;
 		padding-top: 0.9em;
 	}
@@ -1056,12 +1118,12 @@
 
 @media (min-width: 600px) and (max-width: 899.98px) {
 	.eex .eex-hh__news-item:nth-child(even) {
-		border-left: 1px solid var(--eex-line);
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
 		padding-left: var(--eex-composition-gap);
 	}
 
 	.eex .eex-hh__news-item:nth-child(n + 3) .eex-hh__news-card {
-		border-top: 1px solid var(--eex-line);
+		border-top: 1px solid var(--eex-news-line, var(--eex-line));
 		margin-top: 0.6em;
 		padding-top: 0.9em;
 	}
@@ -1069,7 +1131,7 @@
 
 @media (max-width: 599.98px) {
 	.eex .eex-hh__news-item + .eex-hh__news-item .eex-hh__news-card {
-		border-top: 1px solid var(--eex-line);
+		border-top: 1px solid var(--eex-news-line, var(--eex-line));
 		margin-top: 0.35em;
 		padding-top: 0.7em;
 	}

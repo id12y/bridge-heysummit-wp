@@ -424,7 +424,8 @@ final class EditorialSelector {
 
 		$words = str_word_count( wp_strip_all_tags( $content ) );
 
-		$categories = self::category_names( $post_id );
+		$categories    = self::category_names( $post_id );
+		$category_link = self::primary_category_link( $post_id, (string) ( $categories[0] ?? '' ) );
 
 		$image_id  = function_exists( 'get_post_thumbnail_id' ) ? (int) get_post_thumbnail_id( $post_id ) : 0;
 		$image_url = function_exists( 'get_the_post_thumbnail_url' )
@@ -444,6 +445,9 @@ final class EditorialSelector {
 			'image_id'     => $image_id,
 			'image'        => $image_url,
 			'category'     => (string) ( $categories[0] ?? '' ),
+			// The primary category's archive URL ('' when the term has no
+			// valid archive), so templates can offer the label as navigation.
+			'category_link' => $category_link,
 			'categories'   => $categories,
 			'date'         => $date,
 			'timestamp'    => (int) strtotime( $date ),
@@ -479,6 +483,39 @@ final class EditorialSelector {
 		}
 
 		return $names;
+	}
+
+	/**
+	 * The archive URL of the post's primary displayed category — the same
+	 * term the view model names first, resolved through get_term_link so
+	 * URLs are never constructed by hand. '' when the term has no valid
+	 * archive (the label then renders as plain text, never a broken link).
+	 *
+	 * @param int    $post_id      Post ID.
+	 * @param string $primary_name The first displayed category name.
+	 */
+	private static function primary_category_link( int $post_id, string $primary_name ): string {
+		if ( '' === $primary_name || ! function_exists( 'get_the_terms' ) || ! function_exists( 'get_term_link' ) ) {
+			return '';
+		}
+
+		$terms = get_the_terms( $post_id, 'category' );
+
+		if ( ! is_array( $terms ) ) {
+			return '';
+		}
+
+		foreach ( $terms as $term ) {
+			if ( (string) ( $term->name ?? '' ) !== $primary_name ) {
+				continue;
+			}
+
+			$link = get_term_link( $term, 'category' );
+
+			return is_string( $link ) ? $link : '';
+		}
+
+		return '';
 	}
 
 	/**
