@@ -55,14 +55,23 @@ final class Cache {
 	 * so a slightly stale list degrades gracefully; a genuinely emptied
 	 * schedule shows through once the last good copy ages out.
 	 *
+	 * $boundary is the compositions' time-awareness: the next Unix timestamp
+	 * at which the fragment's selection or lifecycle would change (a featured
+	 * event ending, a pin or promotion window expiring, an event going live).
+	 * The effective TTL becomes the smaller of the normal display lifetime
+	 * and the time until that boundary, floored at one minute so a boundary
+	 * seconds away cannot churn the cache. 0 means no boundary — the normal
+	 * lifetime applies, exactly as before this parameter existed.
+	 *
 	 * @param string              $component Component name.
 	 * @param array<string,mixed> $atts      Attributes.
 	 * @param string              $html      Rendered HTML.
 	 * @param bool                $fallible  Whether the source can fail (Lite mode, ticket fetches).
+	 * @param int                 $boundary  Next selection/lifecycle change (Unix timestamp, 0 = none).
 	 */
-	public static function keep( string $component, array $atts, string $html, bool $fallible ): string {
+	public static function keep( string $component, array $atts, string $html, bool $fallible, int $boundary = 0 ): string {
 		if ( ! str_contains( $html, 'eex-empty' ) ) {
-			set_transient( self::key( $component, $atts ), $html, self::ttl() );
+			set_transient( self::key( $component, $atts ), $html, self::bounded_ttl( $boundary ) );
 
 			if ( $fallible ) {
 				set_transient( self::stale_key( $component, $atts ), $html, 6 * HOUR_IN_SECONDS );
@@ -94,6 +103,30 @@ final class Cache {
 	 */
 	private static function ttl(): int {
 		return max( 1, min( 1440, (int) \Emailexpert\Events\Options::setting( 'cache_ttl' ) ) ) * MINUTE_IN_SECONDS;
+	}
+
+	/**
+	 * The effective TTL against a selection/lifecycle boundary: the normal
+	 * lifetime, shortened so a cached composition cannot outlive the moment
+	 * its content stops being true. Floored at one minute — an imminent
+	 * boundary must not make every request a fresh render.
+	 *
+	 * @param int $boundary Next change (Unix timestamp, 0 = none).
+	 */
+	public static function bounded_ttl( int $boundary ): int {
+		$ttl = self::ttl();
+
+		if ( $boundary <= 0 ) {
+			return $ttl;
+		}
+
+		$until = $boundary - time();
+
+		if ( $until <= 0 ) {
+			return MINUTE_IN_SECONDS;
+		}
+
+		return max( MINUTE_IN_SECONDS, min( $ttl, $until ) );
 	}
 
 	/**

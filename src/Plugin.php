@@ -69,6 +69,7 @@ final class Plugin {
 			new Forms\Module(), // Form plugins → attendees; like the Woo bridge it works in both modes.
 			new Frontend\Feeds(), // Calendar subscribe feed: pretty URL in Full, ?eex_feed=calendar in Lite.
 			new Logging\Retention(), // Handler only; the cron exists only once a table does.
+			new Frontend\CacheFlush(), // Editorial and plugin-content saves flush fragments in both modes.
 		];
 
 		if ( ! $lite || (bool) Options::setting( 'lite_archive' ) ) {
@@ -87,7 +88,6 @@ final class Plugin {
 			$services[] = new Webhooks\Processor();
 			$services[] = new Webhooks\Privacy();
 			$services[] = new Rest\CounterController();
-			$services[] = new Frontend\CacheFlush();
 			$services[] = new Frontend\PurgeIntegration();
 			$services[] = new Webhooks\Relay();
 			$services[] = new Admin\Digest();
@@ -106,6 +106,7 @@ final class Plugin {
 			if ( ! $lite ) {
 				$services[] = new Admin\AttributionReport();
 				$services[] = new PostTypes\SyncModeUi();
+				$services[] = new Admin\PresentationMetaBox();
 			}
 		}
 

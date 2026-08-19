@@ -352,3 +352,40 @@
 	line-height: 1.2;
 	color: var(--eex-ink);
 }
+
+/* ---- Compositions (Classic) ---------------------------------------------- */
+
+/* Classic keeps its plainer manner: bold sans headlines, standard borders.
+   Structure comes from the base; these few rules keep the compositions
+   presentable without importing the editorial voice. */
+.eex .eex-comp-eyebrow,
+.eex .eex-hh__label {
+	font-size: 0.78em;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--eex-accent);
+}
+
+.eex .eex-hh__story-title {
+	font-size: var(--eex-step-3, 1.75em);
+	line-height: 1.15;
+}
+
+.eex .eex-hh__event-card {
+	border: 1px solid var(--eex-border);
+	border-radius: var(--eex-radius);
+	padding: var(--eex-gap);
+	background: var(--eex-card-bg, #ffffff);
+}
+
+.eex .eex-el__hero--editorial,
+.eex .eex-el__hero--dark {
+	padding: var(--eex-gap);
+	border-radius: var(--eex-radius);
+}
+
+.eex .eex-el__hero--dark {
+	background: #1a1d23;
+	color: #f2f4f7;
+}

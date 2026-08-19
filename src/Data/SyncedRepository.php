@@ -320,6 +320,12 @@ class SyncedRepository implements Repository {
 			'venue'         => (string) get_post_meta( $post_id, '_eex_venue_name', true ),
 			'reg_count'     => (int) get_post_meta( $post_id, '_eex_registration_count', true ),
 			'series'        => $series,
+			// Optional extras the compositions read: the editor-owned hero
+			// override wins over the featured image; description is the
+			// sync-owned meta (post_content stays editor-owned, D6).
+			'image_id'      => (int) get_post_meta( $post_id, '_eex_hero_override', true ) ?: (int) get_post_thumbnail_id( $post_id ),
+			'image'         => '',
+			'description'   => (string) get_post_meta( $post_id, '_eex_description', true ),
 		];
 	}
 

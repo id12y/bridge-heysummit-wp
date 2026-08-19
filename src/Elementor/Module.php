@@ -64,8 +64,17 @@ final class Module {
 	 */
 	public function register_widgets( $widgets_manager ): void {
 		foreach ( array_keys( \Emailexpert\Events\Frontend\Components::available_definitions() ) as $component ) {
+			// Compositions get dedicated widgets with organised, conditional
+			// control sections; the generic mapping widget serves the rest.
+			if ( in_array( $component, \Emailexpert\Events\Frontend\Components::COMPOSITES, true ) ) {
+				continue;
+			}
+
 			$widgets_manager->register( new ComponentWidget( [], [ 'eex_component' => $component ] ) );
 		}
+
+		$widgets_manager->register( new HomepageHeroWidget() );
+		$widgets_manager->register( new EventLandingWidget() );
 	}
 
 	/**

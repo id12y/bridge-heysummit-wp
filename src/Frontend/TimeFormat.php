@@ -54,6 +54,83 @@ final class TimeFormat {
 	}
 
 	/**
+	 * Render a date-only `<time>`: the day matters, the wall clock does not
+	 * (compact event rows, range endpoints). Carries data-eex-date-only so
+	 * the client-side localiser keeps it a date after converting to the
+	 * visitor's zone instead of expanding it to a full timestamp.
+	 *
+	 * @param string $utc_iso   UTC ISO 8601 timestamp.
+	 * @param string $timezone  Event timezone identifier ('' = site timezone).
+	 * @param bool   $with_zone Name the zone after the date.
+	 * @return string HTML, '' when the timestamp is unparseable.
+	 */
+	public static function render_date( string $utc_iso, string $timezone = '', bool $with_zone = false ): string {
+		$timestamp = strtotime( $utc_iso );
+
+		if ( false === $timestamp || '' === $utc_iso ) {
+			return '';
+		}
+
+		$date_format = (string) Options::setting( 'date_format' );
+		if ( '' === $date_format ) {
+			$date_format = (string) get_option( 'date_format', 'j F Y' );
+		}
+
+		$local = ( new \DateTimeImmutable( '@' . $timestamp ) )->setTimezone( self::timezone( $timezone ) );
+
+		$zone = $with_zone
+			? ' <span class="eex-tz">(' . esc_html( self::zone_label( $timezone ) ) . ')</span>'
+			: '';
+
+		return sprintf(
+			'<time datetime="%s" data-eex-time="1" data-eex-date-only="1" data-eex-zone="%s">%s%s</time>',
+			esc_attr( gmdate( 'Y-m-d\TH:i:s\Z', $timestamp ) ),
+			$with_zone ? '1' : '0',
+			esc_html( $local->format( $date_format ) ),
+			$zone // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped above.
+		);
+	}
+
+	/**
+	 * Render an event date range: one shared formatter, so no composition
+	 * template hand-formats dates. A single-day (or end-less) range renders
+	 * exactly as render() would; a multi-day range renders two date-only
+	 * `<time>` elements — each carrying its UTC attribute for the
+	 * client-side localiser — with the zone named once, on the closing end.
+	 *
+	 * @param string $start_iso UTC ISO 8601 start.
+	 * @param string $end_iso   UTC ISO 8601 end ('' = none).
+	 * @param string $timezone  Event timezone identifier ('' = site timezone).
+	 * @return string HTML, '' when the start is unparseable.
+	 */
+	public static function render_range( string $start_iso, string $end_iso, string $timezone = '' ): string {
+		$start = strtotime( $start_iso );
+
+		if ( false === $start || '' === $start_iso ) {
+			return '';
+		}
+
+		$end = '' !== $end_iso ? strtotime( $end_iso ) : false;
+
+		$tz = self::timezone( $timezone );
+
+		$same_day = false !== $end
+			&& ( new \DateTimeImmutable( '@' . $start ) )->setTimezone( $tz )->format( 'Y-m-d' )
+				=== ( new \DateTimeImmutable( '@' . $end ) )->setTimezone( $tz )->format( 'Y-m-d' );
+
+		if ( false === $end || $end <= $start || $same_day ) {
+			return self::render( $start_iso, $timezone );
+		}
+
+		return sprintf(
+			'<span class="eex-time-range">%s<span aria-hidden="true"> – </span><span class="screen-reader-text">%s</span>%s</span>',
+			self::render_date( $start_iso, $timezone ),
+			esc_html__( 'to', 'emailexpert-events' ),
+			self::render_date( $end_iso, $timezone, true )
+		);
+	}
+
+	/**
 	 * Render a `<time>` as two lines: the date, then the clock.
 	 *
 	 * The single-line form gives a timezone the same weight as the date it

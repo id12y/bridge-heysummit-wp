@@ -42,6 +42,8 @@ final class Shortcodes {
 		'replay-gallery'    => 'eex_replay_gallery',
 		'venue'             => 'eex_venue',
 		'featured-session'  => 'eex_featured_session',
+		'homepage-hero'     => 'eex_homepage_hero',
+		'event-landing'     => 'eex_event_landing',
 	];
 
 	/**

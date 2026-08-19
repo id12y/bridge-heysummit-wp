@@ -1438,6 +1438,11 @@ class LiveRepository extends BaseMapper implements Repository {
 			'venue_address' => self::venue_address_of( $raw ),
 			'reg_count'     => 0,
 			'series'        => [],
+			// Optional extras the compositions read; all from documented /
+			// live-verified fields (docs/api-notes.md), absent-tolerant.
+			'image'         => self::url_str( $raw, [ 'feature_image' ] ),
+			'company'       => self::str( $raw, [ 'company_name' ] ),
+			'description'   => self::str( $raw, [ 'description', 'description_short' ] ),
 		];
 	}
 

@@ -13,6 +13,36 @@ defined( 'ABSPATH' ) || exit;
 
 get_header();
 
+// Operator opt-in (Settings > Display > Single event page layout): the
+// Editorial Event Landing Page composition replaces this template's
+// classic layout. The composition owns the H1 (heading_context "page");
+// a theme override of this file or an Elementor Theme Builder template
+// still takes precedence exactly as before, upstream of this check.
+if ( 'landing' === (string) \Emailexpert\Events\Options::setting( 'single_event_layout' ) ) {
+	while ( have_posts() ) :
+		the_post();
+		?>
+		<main id="primary" class="eex-single eex-single-event eex-single-landing">
+			<article <?php post_class(); ?>>
+				<?php
+				echo Components::render( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- component output is escaped at build time.
+					'event-landing',
+					[
+						'event_source'    => 'current',
+						'heading_context' => 'page',
+					]
+				);
+				?>
+			</article>
+		</main>
+		<?php
+	endwhile;
+
+	get_footer();
+
+	return;
+}
+
 while ( have_posts() ) :
 	the_post();
 

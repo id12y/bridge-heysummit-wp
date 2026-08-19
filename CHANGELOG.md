@@ -3,6 +3,74 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.50.0
+- **New component: Homepage Editorial Hero** (`eex/homepage-hero`,
+  `[eex_homepage_hero]`, an Elementor widget). One composition replaces
+  the manually stacked homepage event and news area: a dominant featured
+  story, a prominent but compact featured event or session, compact More
+  Events rows and a Latest News strip. Four layout presets (Editorial
+  split, Compact split, News led, Event led) change classes and design
+  tokens, never the renderer.
+- **New component: Event Landing Page** (`eex/event-landing`,
+  `[eex_event_landing]`, an Elementor widget). A complete event site in
+  one component — hero, status notice, stats, introduction, sessions,
+  speakers, schedule, tickets, venue, sponsors, replays, More Events and
+  a final CTA — every section fed by the existing component renderers.
+  Sections reorder through one attribute (a repeater in Elementor, an
+  accessible order control in Gutenberg), hide themselves when empty,
+  and the page transforms automatically after the event: replays lead,
+  dead registration surfaces drop out.
+- **Featured event or session selection.** Feature the next eligible
+  event automatically, a specific event, or a specific session. A
+  featured session always resolves — and deduplicates by — its owning
+  event, so a manually featured London Forum session removes London
+  Forum itself from More Events. Manual pins expire (until the target
+  ends, a set date, or never) and then return to automatic, keep as
+  post-event content, or hide.
+- **More Events deduplication is automatic.** The featured event is
+  excluded by canonical identity (connection + HeySummit event ID),
+  exclusion happens before the limit so the list refills, and a manually
+  featured future event never knocks out the wrong chronological event.
+  Source modes: all upcoming, after the featured event, same series.
+- **Per-event presentation settings** — Homepage and landing-page
+  presentation. Eligibility switches, a promotion level (Normal /
+  Featured / Flagship / Do not promote) with an optional window, a
+  public status override (Postponed and Cancelled shown honestly, with
+  a message, and mapped to valid schema.org eventStatus values), and
+  optional intro / hero-media / CTA overrides. A meta box on event posts
+  in Full mode; per configured event under Settings > Live display in
+  Lite. Saving flushes the display cache.
+- **New setting: Single event page layout** (Full mode). The plugin's
+  fallback single-event template can render the Editorial Event Landing
+  Page; the existing template remains the default, and theme overrides
+  and Elementor Pro Theme Builder templates keep taking precedence.
+- **Preview as at** (editors only): render either composition as though
+  it were another moment — before registration, mid-event, after a pin
+  expires — with an explanation of every selection decision. Never
+  affects public output or the public cache.
+- **Time-aware caching.** A cached composition now expires by the
+  earliest relevant boundary (featured event ending, pin or promotion
+  window turning, an event going live), never outliving its own truth,
+  with a one-minute floor against churn.
+- Lifecycle-aware CTAs on the compositions: Register / RSVP free / Get
+  tickets / Join waitlist (sold out) / View details / Watch replay, all
+  on the existing registration stack — checkout, external ticketing,
+  the ticket panel, the in-place RSVP form, WooCommerce routing and
+  coupons behave exactly as on every other widget. A cancelled event
+  shows no registration language.
+- Publishing or unpublishing a post now flushes the display cache (the
+  homepage compositions list news), filterable via
+  `eex_editorial_post_types`.
+- New shared formatters: an event date range and a date-only `<time>`
+  that stays a date after visitor-timezone conversion.
+- New filters: `eex_feature_candidates`, `eex_feature_target`,
+  `eex_more_events`, `eex_editorial_query_args`, `eex_lifecycle_result`,
+  `eex_cta_view_model`.
+- The Lite event shape gains optional `image` (the documented
+  `feature_image`), `company` and `description` fields; the Full shape
+  gains `image_id` (hero override, then featured image) and
+  `description`. Purely additive.
+
 ## 1.49.1
 - Fixed: the new Session images setting saved in Lite mode but not in
   Full. The settings page has two save paths, one per mode, and 1.49.0

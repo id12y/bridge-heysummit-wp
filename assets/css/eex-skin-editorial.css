@@ -659,3 +659,237 @@
 	   means the heading stays in step if the ink is ever retuned. */
 	color: var(--eex-ink);
 }
+
+/* ---- Compositions: the editorial voice ----------------------------------- */
+
+/*
+ * The Homepage Editorial Hero and Event Landing Page read as the site's own
+ * editorial sections: serif display headlines, the blue whisper eyebrow,
+ * quiet lines, orange only where the brand already uses it. Structure lives
+ * in the base; everything here is voice.
+ */
+.eex .eex-comp-eyebrow,
+.eex .eex-hh__label {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-whisper-size, 0.78rem);
+	font-weight: var(--eex-whisper-weight, 750);
+	line-height: var(--eex-whisper-leading, 1.35);
+	letter-spacing: var(--eex-whisper-tracking, 0.11em);
+	text-transform: var(--eex-whisper-transform, uppercase);
+	color: var(--eex-whisper-color, #2864dc);
+}
+
+/* The story headline is the page's editorial lead. */
+.eex .eex-hh__story-title {
+	font-family: var(--eex-display, Fraunces, var(--eex-serif));
+	font-size: var(--eex-title-size, clamp(1.6rem, 1.1rem + 2.4vw, 3.25rem));
+	font-weight: var(--eex-title-weight, 600);
+	line-height: var(--eex-title-leading, 1.05);
+	letter-spacing: var(--eex-title-tracking, -0.035em);
+	color: var(--eex-ink);
+	text-wrap: balance;
+}
+
+.eex .eex-hh__story-title a:hover,
+.eex .eex-hh__story-title a:focus-visible,
+.eex .eex-hh__news-title a:hover,
+.eex .eex-hh__news-title a:focus-visible,
+.eex .eex-hh__event-title a:hover,
+.eex .eex-hh__event-title a:focus-visible {
+	text-decoration: underline;
+	text-underline-offset: 0.12em;
+}
+
+.eex .eex-hh__story-standfirst {
+	font-family: var(--eex-serif);
+	font-size: var(--eex-step-1);
+	line-height: 1.5;
+	color: var(--eex-ink);
+	max-width: 38em;
+}
+
+.eex .eex-hh__story-meta,
+.eex .eex-hh__news-meta,
+.eex .eex-hh__event-time,
+.eex .eex-hh__event-where,
+.eex .eex-el__hero-meta {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1);
+	color: var(--eex-muted);
+}
+
+.eex .eex-hh__story-category,
+.eex .eex-hh__news-category {
+	color: var(--eex-whisper-color, #2864dc);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-size: 0.7rem;
+}
+
+.eex .eex-hh__story-media,
+.eex .eex-hh__event-media {
+	box-shadow: var(--eex-shadow-1);
+	background: var(--eex-surface);
+}
+
+/* The featured event: a quiet panel, prominent but never dominant. */
+.eex .eex-hh__event-card {
+	background: var(--eex-card-bg, #ffffff);
+	border: 1px solid var(--eex-line);
+	border-radius: var(--eex-radius);
+	box-shadow: var(--eex-shadow-1);
+	padding: var(--eex-inline);
+}
+
+.eex .eex-hh__event-title {
+	font-family: var(--eex-serif);
+	font-size: var(--eex-step-2);
+	line-height: 1.2;
+	color: var(--eex-ink);
+	text-wrap: balance;
+}
+
+.eex .eex-hh__event-intro,
+.eex .eex-hh__event-notice {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step-0);
+	color: var(--eex-muted);
+}
+
+.eex .eex-hh__event-notice {
+	background: var(--eex-surface);
+	border-left: 3px solid var(--eex-accent);
+	border-radius: calc(var(--eex-radius) * 0.5);
+	padding: 0.6em 0.9em;
+	color: var(--eex-ink);
+}
+
+/* News rows: hairline dividers, headline-first. */
+.eex .eex-hh__news-item + .eex-hh__news-item .eex-hh__news-card {
+	border-top: 1px solid var(--eex-line);
+}
+
+@media (min-width: 600px) {
+	.eex .eex-hh__news-item .eex-hh__news-card {
+		border-top: 1px solid var(--eex-line);
+		padding-top: 0.8em;
+	}
+}
+
+.eex .eex-hh__news-title {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+	color: var(--eex-ink);
+}
+
+.eex .eex-hh__news-title a:hover {
+	color: var(--eex-accent);
+}
+
+/* Compact event rows share the news rows' quiet manner. */
+.eex .eex-compact-event {
+	border-bottom-color: var(--eex-line);
+}
+
+.eex .eex-compact-event__title {
+	font-family: var(--eex-serif);
+	color: var(--eex-ink);
+}
+
+.eex .eex-compact-event__title:hover,
+.eex .eex-compact-event__title:focus-visible {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+.eex .eex-compact-event__date {
+	font-family: var(--eex-sans);
+	font-weight: 600;
+}
+
+/* Landing hero styles. Editorial is the light default; the dark preset
+   reuses the established eex-dark token block so contrast maths is done
+   once; compact simply tightens the rhythm. */
+.eex .eex-el__hero--editorial {
+	background: var(--eex-surface);
+	padding: var(--eex-composition-gap);
+}
+
+.eex .eex-el__hero--dark {
+	--eex-ink: #eef2f8;
+	--eex-muted: #a3b1c6;
+	--eex-accent: #8ab8e0;
+	--eex-accent-fg: #0e1a2e;
+	--eex-surface: rgba(255, 255, 255, 0.07);
+	--eex-line: rgba(255, 255, 255, 0.18);
+	--eex-card-bg: rgba(255, 255, 255, 0.06);
+	--eex-badge-bg: rgba(255, 255, 255, 0.09);
+	--eex-badge-fg: var(--eex-ink);
+	--eex-whisper-color: #9fc1ff;
+	background: #132038;
+	color: var(--eex-ink);
+	padding: var(--eex-composition-gap);
+}
+
+.eex .eex-el__hero--dark .eex-el__hero-title,
+.eex .eex-el__hero--dark .eex-el__hero-meta,
+.eex .eex-el__hero--dark .eex-el__hero-session {
+	color: var(--eex-ink);
+}
+
+.eex .eex-el__hero--compact {
+	padding: 0;
+}
+
+.eex .eex-el__hero-title {
+	font-family: var(--eex-display, Fraunces, var(--eex-serif));
+	font-size: var(--eex-title-size, clamp(1.6rem, 1.1rem + 2.4vw, 3rem));
+	font-weight: var(--eex-title-weight, 600);
+	line-height: var(--eex-title-leading, 1.05);
+	letter-spacing: var(--eex-title-tracking, -0.035em);
+	color: var(--eex-ink);
+	text-wrap: balance;
+}
+
+.eex .eex-el__hero-session {
+	font-family: var(--eex-serif);
+	font-size: var(--eex-step-1);
+	color: var(--eex-ink);
+}
+
+.eex .eex-el__title {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	font-size: var(--eex-step-2);
+	color: var(--eex-ink);
+	text-wrap: balance;
+}
+
+.eex .eex-el__status {
+	background: var(--eex-surface);
+	border-left-color: var(--eex-accent);
+}
+
+.eex .eex-el__status--cancelled,
+.eex .eex-el__status--postponed {
+	border-left-color: var(--eex-live);
+}
+
+.eex .eex-el__final {
+	background: var(--eex-surface);
+	border-color: var(--eex-line);
+}
+
+.eex .eex-el__final-title {
+	font-family: var(--eex-serif);
+	font-size: var(--eex-step-2);
+	color: var(--eex-ink);
+}
+
+.eex .eex-preview-notes {
+	background: #fffbeb;
+	border-color: #d9b44a;
+	font-family: var(--eex-sans);
+}

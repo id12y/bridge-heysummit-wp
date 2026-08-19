@@ -67,6 +67,10 @@
 				// would flatten the date hierarchy the layout depends on.
 				dateEl.textContent = dateOnly.format( date );
 				clockEl.textContent = clockOnly.format( date );
+			} else if ( node.getAttribute( 'data-eex-date-only' ) ) {
+				// Date-only rows (compact event rails, range endpoints) stay
+				// dates after localisation — a full timestamp would be noise.
+				node.textContent = dateOnly.format( date );
 			} else {
 				node.textContent = timeFormat.format( date );
 			}
