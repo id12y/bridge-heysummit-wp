@@ -74,28 +74,38 @@ final class HomepageHero {
 			}
 		}
 
-		// More Events presentation: speaker and people treatments reuse the
-		// session data the page already loads; absent speaker information
-		// degrades to the event-only rows.
+		// More Sessions presentation: every mode presents the same selected
+		// rows. Rich and speaker treatments reuse the session data the page
+		// already loads; absent information simplifies the row rather than
+		// leaving placeholders.
 		$more_presentation = (string) $atts['more_events_presentation'];
 		$more_people       = [];
+		$is_sessions       = 'upcoming_sessions' === (string) $atts['more_events_mode'];
 
-		if ( ! empty( $more ) && in_array( $more_presentation, [ 'speakers', 'auto' ], true ) ) {
-			$more = EventSelector::attach_speakers( $more );
+		if ( ! empty( $more ) && 'auto' === $more_presentation ) {
+			if ( $is_sessions ) {
+				// Session rows carry enough context for the rich treatment:
+				// horizontal across the wide strip, vertical in the column.
+				$more_presentation = 'event-column' === $placement ? 'rich_vertical' : 'rich_horizontal';
+			} else {
+				$more = EventSelector::attach_speakers( $more );
 
-			$has_portrait = false;
-			foreach ( $more as $row ) {
-				foreach ( (array) ( $row['speakers_row'] ?? [] ) as $speaker ) {
-					if ( (int) ( $speaker['photo_id'] ?? 0 ) > 0 || '' !== (string) ( $speaker['photo_url'] ?? '' ) ) {
-						$has_portrait = true;
-						break 2;
+				$has_portrait = false;
+				foreach ( $more as $row ) {
+					foreach ( (array) ( $row['speakers_row'] ?? [] ) as $speaker ) {
+						if ( (int) ( $speaker['photo_id'] ?? 0 ) > 0 || '' !== (string) ( $speaker['photo_url'] ?? '' ) ) {
+							$has_portrait = true;
+							break 2;
+						}
 					}
 				}
-			}
 
-			if ( 'auto' === $more_presentation ) {
 				$more_presentation = $has_portrait ? 'speakers' : 'events';
 			}
+		} elseif ( ! empty( $more ) && in_array( $more_presentation, [ 'speakers', 'rich_horizontal', 'rich_vertical' ], true ) && ! $is_sessions ) {
+			// Event rows gain their soonest session's speakers for the
+			// speaker and rich treatments.
+			$more = EventSelector::attach_speakers( $more );
 		}
 
 		if ( ! empty( $more ) && 'people' === $more_presentation ) {
@@ -194,6 +204,10 @@ final class HomepageHero {
 
 		$event_first = 'event-first' === (string) $atts['mobile_order'];
 
+		// Ticket drawers rendered for rich More Sessions rows ride outside
+		// the grid, exactly like the featured card's drawer.
+		$more_extra = '';
+
 		ob_start();
 
 		printf(
@@ -257,7 +271,7 @@ final class HomepageHero {
 			echo '</div>';
 		};
 
-		$event_column = static function () use ( $target, $more, $more_people, $more_presentation, $placement, $atts, $section_tag, $item_tag, $media, $cta, $drawer, $rsvp, $eager ): void {
+		$event_column = static function () use ( $target, $more, $more_people, $more_presentation, $placement, $atts, $section_tag, $item_tag, $media, $cta, $drawer, $rsvp, $eager, &$more_extra ): void {
 			if ( null === $target && ( empty( $more ) || 'event-column' !== $placement ) ) {
 				return;
 			}
@@ -283,7 +297,7 @@ final class HomepageHero {
 			}
 
 			if ( ! empty( $more ) && 'event-column' === $placement ) {
-				self::more_events_block( $more, $atts, $item_tag, 'column', $more_presentation, $more_people );
+				$more_extra .= self::more_events_block( $more, $atts, $item_tag, 'column', $more_presentation, $more_people );
 			}
 
 			echo '</div>';
@@ -300,7 +314,7 @@ final class HomepageHero {
 		echo '</div>';
 
 		if ( ! empty( $more ) && 'strip' === $placement ) {
-			self::more_events_block( $more, $atts, $section_tag, 'strip', $more_presentation, $more_people );
+			$more_extra .= self::more_events_block( $more, $atts, $section_tag, 'strip', $more_presentation, $more_people );
 		}
 
 		if ( ! empty( $news ) ) {
@@ -400,9 +414,9 @@ final class HomepageHero {
 
 		$html = (string) ob_get_clean();
 
-		// The drawer rides outside the grid so its fixed positioning is
-		// never trapped by a transformed ancestor.
-		$html .= $drawer['html'];
+		// Drawers ride outside the grid so their fixed positioning is never
+		// trapped by a transformed ancestor.
+		$html .= $drawer['html'] . $more_extra;
 
 		// One inline Event schema for the featured target (Lite mode only;
 		// the lead article's own NewsArticle schema is never duplicated).
@@ -423,8 +437,9 @@ final class HomepageHero {
 	 * @param string                         $presentation 'events', 'speakers' or 'people'.
 	 * @param array<int,array<string,mixed>> $people       Person rows (people mode).
 	 */
-	private static function more_events_block( array $more, array $atts, string $tag, string $variant, string $presentation = 'events', array $people = [] ): void {
+	private static function more_events_block( array $more, array $atts, string $tag, string $variant, string $presentation = 'events', array $people = [] ): string {
 		$is_people = 'people' === $presentation && ! empty( $people );
+		$rich      = in_array( $presentation, [ 'rich_horizontal', 'rich_vertical' ], true );
 
 		$title = trim( (string) $atts['more_events_title'] );
 		if ( '' === $title ) {
@@ -438,13 +453,102 @@ final class HomepageHero {
 		}
 
 		// The arrangement: auto keeps the established behaviour (a wrapping
-		// row in the strip, stacked rows in the event column).
+		// row in the strip, stacked rows in the event column); the rich
+		// presentations carry their own arrangement.
 		$layout = (string) $atts['more_events_layout'];
-		if ( ! in_array( $layout, [ 'vertical', 'horizontal', 'grid' ], true ) ) {
+		if ( $rich ) {
+			$layout = 'rich_horizontal' === $presentation ? 'rich-h' : 'rich-v';
+		} elseif ( ! in_array( $layout, [ 'vertical', 'horizontal', 'grid' ], true ) ) {
 			$layout = 'strip' === $variant ? 'horizontal' : 'vertical';
 		}
 
 		$speakers_per_row = min( 3, max( 1, (int) $atts['more_events_speakers'] ) );
+
+		// Rich rows carry one action each, resolved by the same registration
+		// system every other surface uses: the shared RSVP form when its
+		// free-ticket rules apply, the shared ticket panel when tickets
+		// exist, the session page otherwise. One cached decision per owning
+		// event — never one fetch per row.
+		$row_ctas = [];
+		$extra    = '';
+
+		if ( $rich && ! $is_people ) {
+			$interaction = (string) $atts['more_events_interaction'];
+			$rsvp_cache  = [];
+			$panel_cache = [];
+
+			$commerce_keys = [ 'register_url', 'buy_on', 'coupon', 'currency', 'tickets', 'exclude' ];
+
+			foreach ( $more as $index => $row ) {
+				$event_ref = (string) ( $row['event_hs_id'] ?? '' );
+				if ( '' === $event_ref ) {
+					$event_ref = (string) ( $row['hs_id'] ?? '' ); // Event rows: the row is the event.
+				}
+
+				$details = (string) ( $row['url'] ?? '' );
+				if ( '' === $details ) {
+					$details = (string) ( $row['presentation']['details_url'] ?? '' );
+				}
+
+				$cta = null;
+
+				if ( 'details' !== $interaction && '' !== $event_ref ) {
+					$commerce = array_intersect_key( $atts, array_flip( $commerce_keys ) );
+
+					if ( ! array_key_exists( $event_ref, $rsvp_cache ) ) {
+						$rsvp_cache[ $event_ref ] = Components::rsvp_context(
+							$commerce + [
+								'event'           => $event_ref,
+								'register_action' => 'form',
+							]
+						);
+					}
+
+					if ( ! empty( $rsvp_cache[ $event_ref ] ) ) {
+						$cta = [
+							'kind'  => 'rsvp',
+							'label' => __( 'Register', 'emailexpert-events' ),
+							'rsvp'  => $rsvp_cache[ $event_ref ],
+							'url'   => $details,
+						];
+					} else {
+						if ( ! array_key_exists( $event_ref, $panel_cache ) ) {
+							$panel_cache[ $event_ref ] = Components::ticket_drawer(
+								$commerce + [
+									'event'           => $event_ref,
+									'register_action' => 'panel',
+								]
+							);
+						}
+
+						if ( '' !== (string) $panel_cache[ $event_ref ]['id'] ) {
+							$cta = [
+								'kind'      => 'drawer',
+								'label'     => __( 'Get tickets', 'emailexpert-events' ),
+								'drawer_id' => (string) $panel_cache[ $event_ref ]['id'],
+								'url'       => $details,
+							];
+						}
+					}
+				}
+
+				if ( null === $cta && 'register' !== $interaction && '' !== $details ) {
+					$cta = [
+						'kind'  => 'link',
+						'label' => __( 'View session', 'emailexpert-events' ),
+						'url'   => $details,
+					];
+				}
+
+				$row_ctas[ $index ] = $cta;
+			}
+
+			foreach ( $panel_cache as $panel ) {
+				$extra .= (string) $panel['html'];
+			}
+		}
+
+		ob_start();
 
 		printf(
 			'<div class="eex-hh__more eex-hh__more--%s eex-hh__more--lay-%s">',
@@ -465,15 +569,20 @@ final class HomepageHero {
 				echo '</li>';
 			}
 		} else {
-			foreach ( $more as $event ) {
+			foreach ( $more as $index => $event ) {
 				echo '<li>';
 				TemplateLoader::part(
 					'compact-event-row',
 					[
 						'event'         => $event,
-						'show_speakers' => 'speakers' === $presentation,
+						'show_speakers' => $rich || 'speakers' === $presentation,
 						'speaker_limit' => $speakers_per_row,
 						'whisper'       => (string) $atts['more_events_whisper'],
+						'rich'          => $rich,
+						'show_time'     => ! empty( $atts['more_show_time'] ),
+						'show_event'    => ! empty( $atts['more_show_event'] ),
+						'show_media'    => ! empty( $atts['more_show_media'] ),
+						'cta'           => $row_ctas[ $index ] ?? null,
 					]
 				);
 				echo '</li>';
@@ -489,5 +598,9 @@ final class HomepageHero {
 				$is_people ? count( $people ) : count( $more )
 			)
 		);
+
+		echo ob_get_clean(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- template output escaped at build time.
+
+		return $extra;
 	}
 }

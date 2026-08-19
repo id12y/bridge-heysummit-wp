@@ -113,9 +113,28 @@ class HomepageHeroWidget extends CompositeWidget {
 			'more_events_presentation' => [ 'more_events' => '1' ],
 			'more_events_speakers'     => [
 				'more_events'              => '1',
-				'more_events_presentation' => [ 'speakers', 'auto' ],
+				'more_events_presentation' => [ 'speakers', 'auto', 'rich_horizontal', 'rich_vertical' ],
 			],
-			'more_events_layout'       => [ 'more_events' => '1' ],
+			'more_events_interaction'  => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'rich_horizontal', 'rich_vertical' ],
+			],
+			'more_show_time'           => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'rich_horizontal', 'rich_vertical' ],
+			],
+			'more_show_event'          => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'rich_horizontal', 'rich_vertical' ],
+			],
+			'more_show_media'          => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'rich_horizontal', 'rich_vertical' ],
+			],
+			'more_events_layout'       => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'events', 'speakers', 'people' ],
+			],
 			'more_events_whisper'      => [ 'more_events' => '1' ],
 		];
 	}

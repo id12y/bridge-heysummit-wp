@@ -196,7 +196,7 @@ final class Components {
 			]
 		);
 
-		$buy_on          = [
+		$buy_on      = [
 			'type'    => 'string',
 			'default' => 'heysummit',
 			'label'   => __( 'Paid tickets buy on', 'emailexpert-events' ),
@@ -205,17 +205,17 @@ final class Components {
 				'woo'       => __( 'This site (mapped WooCommerce products)', 'emailexpert-events' ),
 			],
 		];
-		$coupon          = [
+		$coupon      = [
 			'type'    => 'string',
 			'default' => '',
 			'label'   => __( 'Coupon code baked into ticket checkout links (HeySummit checkout only)', 'emailexpert-events' ),
 		];
-		$currency        = [
+		$currency    = [
 			'type'    => 'string',
 			'default' => '',
 			'label'   => __( 'Currency symbol shown before prices (empty = bare numbers, as the API sends them)', 'emailexpert-events' ),
 		];
-		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
+		$limit_label = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		// Skipping the head of the list is how a listing avoids repeating a
 		// featured card placed above it. It stays a number rather than a
@@ -1614,16 +1614,33 @@ final class Components {
 				'more_events_presentation' => [
 					'type'        => 'string',
 					'default'     => 'events',
-					'label'       => __( 'More Events presentation', 'emailexpert-events' ),
+					'label'       => __( 'More Sessions presentation', 'emailexpert-events' ),
 					'options'     => [
-						'events'   => __( 'Events only (compact rows)', 'emailexpert-events' ),
-						'speakers' => __( 'Events with featured speakers', 'emailexpert-events' ),
-						'people'   => __( 'Featured people (person first, event context)', 'emailexpert-events' ),
-						'auto'     => __( 'Auto (speakers where good portraits exist)', 'emailexpert-events' ),
+						'auto'            => __( 'Auto (rich for session rows, speakers where portraits exist)', 'emailexpert-events' ),
+						'events'          => __( 'Compact (date and title rows)', 'emailexpert-events' ),
+						'speakers'        => __( 'Compact with featured speakers', 'emailexpert-events' ),
+						'rich_horizontal' => __( 'Rich horizontal (programme strip: meta, speakers, action)', 'emailexpert-events' ),
+						'rich_vertical'   => __( 'Rich vertical (stacked rich rows)', 'emailexpert-events' ),
+						'people'          => __( 'People led (person first, session context)', 'emailexpert-events' ),
 					],
-					'description' => __( 'Speaker treatments reuse the session data the page already loads; rows without speaker information fall back to the event-only treatment.', 'emailexpert-events' ),
+					'description' => __( 'All presentations show the same selected sessions; rich modes add format, location, speakers and one action per session, simplifying automatically where information is absent.', 'emailexpert-events' ),
 					'group'       => $g_more,
 				],
+				'more_events_interaction'  => [
+					'type'        => 'string',
+					'default'     => 'auto',
+					'label'       => __( 'Rich row action', 'emailexpert-events' ),
+					'options'     => [
+						'auto'     => __( 'Auto (RSVP form, ticket panel or session page — the existing registration rules)', 'emailexpert-events' ),
+						'details'  => __( 'Details only (link to the session)', 'emailexpert-events' ),
+						'register' => __( 'Registration only (nothing when registration is unavailable)', 'emailexpert-events' ),
+					],
+					'description' => __( 'Rich rows use the same registration implementation as every other surface: the shared RSVP form, the shared ticket panel, the shared checkout routing.', 'emailexpert-events' ),
+					'group'       => $g_more,
+				],
+				'more_show_time'           => $grouped( $flag( __( 'Rich rows: show the start time', 'emailexpert-events' ), 0 ), $g_more ),
+				'more_show_event'          => $grouped( $flag( __( 'Rich rows: show the owning event', 'emailexpert-events' ) ), $g_more ),
+				'more_show_media'          => $grouped( $flag( __( 'Rich rows: show restrained session media', 'emailexpert-events' ), 0 ), $g_more ),
 				'more_events_speakers'     => [
 					'type'    => 'integer',
 					'default' => 2,
@@ -2457,6 +2474,31 @@ final class Components {
 	}
 
 	/**
+	 * One canonical Full-mode speaker record, from the existing speaker
+	 * post — the single mapping every consumer shares (session speaker
+	 * lists, local speaker overrides). Null for missing/unpublished posts,
+	 * so stale references fail safely.
+	 *
+	 * @param int $speaker_id Speaker post ID.
+	 * @return array<string,mixed>|null
+	 */
+	public static function speaker_record( int $speaker_id ): ?array {
+		$speaker = $speaker_id > 0 ? get_post( $speaker_id ) : null;
+
+		if ( ! $speaker || 'publish' !== (string) $speaker->post_status ) {
+			return null;
+		}
+
+		return [
+			'id'       => $speaker_id,
+			'name'     => (string) $speaker->post_title,
+			'url'      => (string) get_permalink( $speaker_id ),
+			'headline' => (string) get_post_meta( $speaker_id, '_eex_headline', true ),
+			'photo_id' => (int) get_post_thumbnail_id( $speaker_id ),
+		];
+	}
+
+	/**
 	 * Assemble the render data for one talk (synced-post path; the Lite
 	 * repository assembles the same shape from the live API).
 	 *
@@ -2488,19 +2530,7 @@ final class Components {
 		}
 
 		$speaker_ids = array_filter( array_map( 'intval', (array) get_post_meta( $post_id, '_eex_speaker_ids', true ) ) );
-		$speakers    = [];
-		foreach ( $speaker_ids as $speaker_id ) {
-			$speaker = get_post( $speaker_id );
-			if ( $speaker && 'publish' === $speaker->post_status ) {
-				$speakers[] = [
-					'id'       => $speaker_id,
-					'name'     => (string) $speaker->post_title,
-					'url'      => (string) get_permalink( $speaker_id ),
-					'headline' => (string) get_post_meta( $speaker_id, '_eex_headline', true ),
-					'photo_id' => (int) get_post_thumbnail_id( $speaker_id ),
-				];
-			}
-		}
+		$speakers    = array_values( array_filter( array_map( [ self::class, 'speaker_record' ], $speaker_ids ) ) );
 
 		$categories = get_the_terms( $post_id, Taxonomies::CATEGORY );
 
@@ -2607,6 +2637,53 @@ final class Components {
 	 * never diverge. Operators override it in Settings; the legacy filter
 	 * still applies last.
 	 */
+	/**
+	 * The one format resolver: Online / In person / Hybrid, or '' to omit.
+	 *
+	 * Format is an editorial fact about the gathering. It is derived only
+	 * from gathering data — the in-person flag, venue fields — and the
+	 * deliberate presentation override; by construction no URL, checkout
+	 * type, registration mechanism or details destination can influence it
+	 * (none is even an input). Resolution order: the session's own data,
+	 * the owning event's data, the presentation override, then the
+	 * platform's established venue-less claim (a HeySummit-hosted gathering
+	 * with no venue anywhere is an online broadcast — the same claim the
+	 * structured-data layer has always made).
+	 *
+	 * @param array<string,mixed> $data         Session or event data (inperson, venue,
+	 *                                          venue_city, venue_country).
+	 * @param array<string,mixed> $presentation The owning event's sanitised presentation.
+	 * @return string Translated label, or '' to omit.
+	 */
+	public static function format_label( array $data, array $presentation = [] ): string {
+		// A deliberate override is the operator's explicit statement — the
+		// only way to claim Hybrid, and the correction for anything the
+		// platform data gets wrong.
+		$override = (string) ( $presentation['format'] ?? 'auto' );
+
+		if ( 'online' === $override ) {
+			return __( 'Online', 'emailexpert-events' );
+		}
+		if ( 'inperson' === $override ) {
+			return __( 'In person', 'emailexpert-events' );
+		}
+		if ( 'hybrid' === $override ) {
+			return __( 'Hybrid', 'emailexpert-events' );
+		}
+
+		// Auto: the session's (or event's) own data first…
+		if ( ! empty( $data['inperson'] ) || '' !== trim( (string) ( $data['venue'] ?? '' ) ) ) {
+			return __( 'In person', 'emailexpert-events' );
+		}
+
+		// …then the owning event's inherited venue fields.
+		if ( '' !== trim( (string) ( $data['venue_city'] ?? '' ) ) || '' !== trim( (string) ( $data['venue_country'] ?? '' ) ) ) {
+			return __( 'In person', 'emailexpert-events' );
+		}
+
+		return __( 'Online', 'emailexpert-events' );
+	}
+
 	public static function consent_disclosure_text(): string {
 		$text = trim( (string) Options::setting( 'reg_disclosure_text' ) );
 

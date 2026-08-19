@@ -94,6 +94,52 @@ final class PresentationFields {
 			<label for="<?php echo esc_attr( $name( 'cta_url' ) ); ?>"><?php esc_html_e( 'destination URL', 'emailexpert-events' ); ?></label>
 			<input type="url" id="<?php echo esc_attr( $name( 'cta_url' ) ); ?>" name="<?php echo esc_attr( $name( 'cta_url' ) ); ?>" value="<?php echo esc_attr( (string) $values['cta_url'] ); ?>" size="30" />
 		</p>
+		<p>
+			<label for="<?php echo esc_attr( $name( 'format' ) ); ?>"><strong><?php esc_html_e( 'Format', 'emailexpert-events' ); ?></strong></label><br />
+			<select id="<?php echo esc_attr( $name( 'format' ) ); ?>" name="<?php echo esc_attr( $name( 'format' ) ); ?>">
+				<option value="auto" <?php selected( 'auto', $values['format'] ); ?>><?php esc_html_e( 'Auto (from the session and event data)', 'emailexpert-events' ); ?></option>
+				<option value="online" <?php selected( 'online', $values['format'] ); ?>><?php esc_html_e( 'Online', 'emailexpert-events' ); ?></option>
+				<option value="inperson" <?php selected( 'inperson', $values['format'] ); ?>><?php esc_html_e( 'In person', 'emailexpert-events' ); ?></option>
+				<option value="hybrid" <?php selected( 'hybrid', $values['format'] ); ?>><?php esc_html_e( 'Hybrid', 'emailexpert-events' ); ?></option>
+			</select>
+			<span class="description"><?php esc_html_e( 'Format is an editorial fact about the gathering — URLs, checkout types and registration mechanisms never influence it.', 'emailexpert-events' ); ?></span>
+		</p>
+		<p>
+			<label for="<?php echo esc_attr( $name( 'details_url' ) ); ?>"><?php esc_html_e( 'Details destination override (a good public landing page; empty = the default)', 'emailexpert-events' ); ?></label><br />
+			<input type="url" class="widefat" id="<?php echo esc_attr( $name( 'details_url' ) ); ?>" name="<?php echo esc_attr( $name( 'details_url' ) ); ?>" value="<?php echo esc_attr( (string) $values['details_url'] ); ?>" />
+		</p>
+		<?php
+	}
+
+	/**
+	 * Render one per-session speaker relationship row (Lite settings and the
+	 * Full-mode talk meta box share this markup, so the two surfaces can
+	 * never drift).
+	 *
+	 * @param string                          $prefix    Input name prefix.
+	 * @param array<string,mixed>             $relation  { source, refs } (sanitised).
+	 * @param array<int,array<string,string>> $catalogue Choices: [{ value, label }].
+	 */
+	public static function render_speaker_relation( string $prefix, array $relation, array $catalogue ): void {
+		$relation = EventPresentation::sanitise_talk( $relation );
+		?>
+		<p>
+			<label for="<?php echo esc_attr( $prefix . '[source]' ); ?>"><strong><?php esc_html_e( 'Speaker source', 'emailexpert-events' ); ?></strong></label><br />
+			<select id="<?php echo esc_attr( $prefix . '[source]' ); ?>" name="<?php echo esc_attr( $prefix . '[source]' ); ?>">
+				<option value="auto" <?php selected( 'auto', $relation['source'] ); ?>><?php esc_html_e( 'Auto (local assignment first, else HeySummit)', 'emailexpert-events' ); ?></option>
+				<option value="heysummit" <?php selected( 'heysummit', $relation['source'] ); ?>><?php esc_html_e( 'HeySummit only', 'emailexpert-events' ); ?></option>
+				<option value="local" <?php selected( 'local', $relation['source'] ); ?>><?php esc_html_e( 'Local assignment only', 'emailexpert-events' ); ?></option>
+				<option value="none" <?php selected( 'none', $relation['source'] ); ?>><?php esc_html_e( 'None (suppress speakers)', 'emailexpert-events' ); ?></option>
+			</select>
+		</p>
+		<p>
+			<label for="<?php echo esc_attr( $prefix . '[refs]' ); ?>"><?php esc_html_e( 'Locally assigned speakers (references to the existing speaker records — their names, portraits and roles stay canonical)', 'emailexpert-events' ); ?></label><br />
+			<select id="<?php echo esc_attr( $prefix . '[refs]' ); ?>" name="<?php echo esc_attr( $prefix . '[refs][]' ); ?>" multiple size="5" class="widefat">
+				<?php foreach ( $catalogue as $choice ) : ?>
+					<option value="<?php echo esc_attr( (string) $choice['value'] ); ?>" <?php selected( in_array( (string) $choice['value'], $relation['refs'], true ) ); ?>><?php echo esc_html( (string) $choice['label'] ); ?></option>
+				<?php endforeach; ?>
+			</select>
+		</p>
 		<?php
 	}
 
@@ -118,6 +164,9 @@ final class PresentationFields {
 			'hero_media'       => (string) ( $posted['hero_media'] ?? '' ),
 			'cta_label'        => (string) ( $posted['cta_label'] ?? '' ),
 			'cta_url'          => (string) ( $posted['cta_url'] ?? '' ),
+			'format'           => (string) ( $posted['format'] ?? 'auto' ),
+			'details_url'      => (string) ( $posted['details_url'] ?? '' ),
+			'session_speakers' => array_filter( (array) ( $posted['session_speakers'] ?? [] ), 'is_array' ),
 		];
 	}
 }

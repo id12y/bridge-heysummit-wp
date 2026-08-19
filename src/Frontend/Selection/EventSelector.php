@@ -46,10 +46,18 @@ final class EventSelector {
 	private static ?array $pool = null;
 
 	/**
+	 * Per-request memo of the Lite speaker pool, keyed by HeySummit ID.
+	 *
+	 * @var array<string,array<string,mixed>>|null
+	 */
+	private static ?array $lite_speaker_pool = null;
+
+	/**
 	 * Drop request-scoped memos (tests, admin preview, long processes).
 	 */
 	public static function reset_request_state(): void {
-		self::$pool = null;
+		self::$pool              = null;
+		self::$lite_speaker_pool = null;
 	}
 
 	/**
@@ -311,8 +319,9 @@ final class EventSelector {
 			? (string) ( $featured['event_hs_id'] ?? '' ) . '|' . (string) ( $featured['hs_id'] ?? '' )
 			: '';
 
-		$out  = [];
-		$seen = [];
+		$owners = self::owners_by_hs_id();
+		$out    = [];
+		$seen   = [];
 
 		foreach ( Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ) as $talk ) {
 			$title = (string) ( $talk['title'] ?? '' );
@@ -354,17 +363,39 @@ final class EventSelector {
 				Diagnostics::boundary( $start_ts );
 			}
 
-			// The compact row's event shape (see parts/compact-event-row.php).
+			$owner        = (array) ( $owners[ (string) ( $talk['event_hs_id'] ?? '' ) ] ?? [] );
+			$presentation = (array) ( $owner['presentation'] ?? [] );
+
+			// The compact row's session shape (see parts/compact-event-row.php):
+			// the session leads; the owning event contributes inherited
+			// context (name, venue city/country, presentation) only.
 			$out[] = [
 				'title'         => $title,
 				'first_talk_at' => (string) ( $talk['starts_at'] ?? '' ),
+				'ends_at'       => (string) ( $talk['ends_at'] ?? '' ),
 				'timezone'      => (string) ( $talk['timezone'] ?? '' ),
 				'url'           => (string) ( $talk['permalink'] ?? '' ),
 				'hs_id'         => (string) ( $talk['hs_id'] ?? '' ),
+				'event_hs_id'   => (string) ( $talk['event_hs_id'] ?? '' ),
 				'evergreen'     => false,
-				'speakers_row'  => self::normalise_speakers( (array) ( $talk['speakers'] ?? [] ) ),
+				'speakers_row'  => self::session_speakers( $talk, $presentation ),
 				'venue'         => (string) ( $talk['venue'] ?? '' ),
 				'inperson'      => ! empty( $talk['inperson'] ),
+				'venue_city'    => (string) ( $owner['venue_city'] ?? '' ),
+				'venue_country' => (string) ( $owner['venue_country'] ?? '' ),
+				'event_title'   => (string) ( $owner['title'] ?? '' ),
+				'image'         => (string) ( $talk['image'] ?? '' ),
+				'image_id'      => 0,
+				'presentation'  => $presentation,
+				'format_label'  => \Emailexpert\Events\Frontend\Components::format_label(
+					[
+						'inperson'      => ! empty( $talk['inperson'] ),
+						'venue'         => (string) ( $talk['venue'] ?? '' ),
+						'venue_city'    => (string) ( $owner['venue_city'] ?? '' ),
+						'venue_country' => (string) ( $owner['venue_country'] ?? '' ),
+					],
+					$presentation
+				),
 			];
 
 			if ( $limit > 0 && count( $out ) >= $limit ) {
@@ -393,6 +424,7 @@ final class EventSelector {
 	 */
 	public static function attach_speakers( array $rows ): array {
 		$by_event = [];
+		$owners   = self::owners_by_hs_id();
 
 		foreach ( Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ) as $talk ) {
 			$event_id = (string) ( $talk['event_hs_id'] ?? '' );
@@ -401,7 +433,7 @@ final class EventSelector {
 				continue; // Soonest session wins; the list is soonest-first.
 			}
 
-			$speakers = self::normalise_speakers( (array) ( $talk['speakers'] ?? [] ) );
+			$speakers = self::session_speakers( $talk, (array) ( $owners[ $event_id ]['presentation'] ?? [] ) );
 
 			if ( ! empty( $speakers ) ) {
 				$by_event[ $event_id ] = $speakers;
@@ -437,14 +469,17 @@ final class EventSelector {
 		}
 		unset( $seen[''] );
 
-		$out = [];
+		$out    = [];
+		$owners = self::owners_by_hs_id();
 
 		foreach ( Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ) as $talk ) {
 			if ( ! empty( $talk['cancelled'] ) ) {
 				continue;
 			}
 
-			foreach ( self::normalise_speakers( (array) ( $talk['speakers'] ?? [] ) ) as $speaker ) {
+			$owner_presentation = (array) ( $owners[ (string) ( $talk['event_hs_id'] ?? '' ) ]['presentation'] ?? [] );
+
+			foreach ( self::session_speakers( $talk, $owner_presentation ) as $speaker ) {
 				$key = strtolower( trim( (string) $speaker['name'] ) );
 
 				if ( '' === $key || isset( $seen[ $key ] ) ) {
@@ -472,6 +507,109 @@ final class EventSelector {
 		}
 
 		return $out;
+	}
+
+	/**
+	 * The owning-event lookup for session rows: hs_id → title, venue city
+	 * and country, presentation — from the candidate pool the render has
+	 * already loaded, never a second query.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	private static function owners_by_hs_id(): array {
+		$owners = [];
+
+		foreach ( self::candidates() as $event ) {
+			$owners[ (string) ( $event['hs_id'] ?? '' ) ] = [
+				'title'         => (string) ( $event['title'] ?? '' ),
+				'venue_city'    => (string) ( $event['venue_city'] ?? '' ),
+				'venue_country' => (string) ( $event['venue_country'] ?? '' ),
+				'presentation'  => (array) ( $event['presentation'] ?? [] ),
+			];
+		}
+
+		return $owners;
+	}
+
+	/**
+	 * One session's displayed speakers, honouring the per-session speaker
+	 * relationship (Data\EventPresentation::for_talk): a deliberate local
+	 * assignment resolves against the canonical speaker records the plugin
+	 * already holds — never copies — and unresolvable references are
+	 * skipped, falling back to the HeySummit association in auto mode.
+	 * Speaker assignment is independent of every URL on the session.
+	 *
+	 * @param array<string,mixed> $talk               Talk data.
+	 * @param array<string,mixed> $event_presentation Owning event's presentation.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function session_speakers( array $talk, array $event_presentation = [] ): array {
+		$relation  = EventPresentation::for_talk( $talk, $event_presentation );
+		$heysummit = self::normalise_speakers( (array) ( $talk['speakers'] ?? [] ) );
+
+		if ( 'none' === $relation['source'] ) {
+			return [];
+		}
+
+		if ( 'heysummit' === $relation['source'] ) {
+			return $heysummit;
+		}
+
+		$local = self::resolve_speaker_refs( $relation['refs'] );
+
+		if ( 'local' === $relation['source'] ) {
+			return $local;
+		}
+
+		// Auto: a deliberate local assignment first, else HeySummit.
+		return ! empty( $local ) ? $local : $heysummit;
+	}
+
+	/**
+	 * Resolve canonical speaker references: speaker post IDs in Full mode
+	 * (Components::speaker_record — the same mapping the session lists use),
+	 * HeySummit speaker IDs against the cached speaker pool in Lite. A
+	 * reference that no longer resolves is ignored, never fatal.
+	 *
+	 * @param string[] $refs Stored references.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function resolve_speaker_refs( array $refs ): array {
+		if ( empty( $refs ) ) {
+			return [];
+		}
+
+		$out = [];
+
+		if ( ! \Emailexpert\Events\Options::is_lite() ) {
+			foreach ( $refs as $ref ) {
+				$record = \Emailexpert\Events\Frontend\Components::speaker_record( (int) $ref );
+
+				if ( null !== $record ) {
+					$out[] = $record;
+				}
+			}
+
+			return self::normalise_speakers( $out );
+		}
+
+		// Lite: the cached speaker pool the repository already builds from
+		// the session data (one bounded, cached pass — no per-ref fetches).
+		if ( null === self::$lite_speaker_pool ) {
+			$pool = [];
+			foreach ( Repositories::current()->speakers( [ 'limit' => 0 ] ) as $speaker ) {
+				$pool[ (string) ( $speaker['id'] ?? '' ) ] = $speaker;
+			}
+			self::$lite_speaker_pool = $pool;
+		}
+
+		foreach ( $refs as $ref ) {
+			if ( isset( self::$lite_speaker_pool[ (string) $ref ] ) ) {
+				$out[] = self::$lite_speaker_pool[ (string) $ref ];
+			}
+		}
+
+		return self::normalise_speakers( $out );
 	}
 
 	/**

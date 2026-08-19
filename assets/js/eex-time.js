@@ -315,6 +315,26 @@
 	} else {
 		init();
 	}
+
+	// Elementor editor parity: the preview iframe re-renders widgets over
+	// AJAX after load, so freshly inserted components re-run the passive
+	// initialisation (localised dates, countdowns, session states) through
+	// Elementor's own ready hook. Same code paths, no editor-only logic.
+	if ( window.elementorFrontend && window.elementorFrontend.hooks && window.elementorFrontend.hooks.addAction ) {
+		window.elementorFrontend.hooks.addAction( 'frontend/element_ready/global', function () {
+			localise();
+			tick();
+		} );
+	} else {
+		window.addEventListener( 'elementor/frontend/init', function () {
+			if ( window.elementorFrontend && window.elementorFrontend.hooks && window.elementorFrontend.hooks.addAction ) {
+				window.elementorFrontend.hooks.addAction( 'frontend/element_ready/global', function () {
+					localise();
+					tick();
+				} );
+			}
+		} );
+	}
 }() );
 
 /**

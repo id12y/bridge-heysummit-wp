@@ -28,6 +28,17 @@ final class Module {
 		add_action( 'elementor/elements/categories_registered', [ $module, 'register_category' ] );
 		add_action( 'elementor/widgets/register', [ $module, 'register_widgets' ] );
 
+		// Editor/frontend parity: the production stylesheet, the active skin
+		// and the time module normally enqueue on demand while a component
+		// renders (Assets::mark_needed) — but inside the Elementor editor the
+		// widgets render over AJAX after the preview document has printed its
+		// head, so the on-demand enqueue never reaches the iframe and the
+		// canvas showed unstyled components. The preview iframe therefore
+		// carries the SAME registered production assets up front: no copied
+		// rules, no editor-only stylesheet, one CSS source of truth.
+		add_action( 'elementor/preview/enqueue_styles', [ \Emailexpert\Events\Frontend\Assets::class, 'mark_needed' ] );
+		add_action( 'elementor/preview/enqueue_scripts', [ \Emailexpert\Events\Frontend\Assets::class, 'mark_needed' ] );
+
 		if ( self::has_pro() && ! \Emailexpert\Events\Options::is_lite() ) {
 			// Dynamic tags, Loop Grid queries and Theme Builder need local
 			// content; in Lite only the plain widgets register.

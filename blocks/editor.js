@@ -60,10 +60,29 @@
 		},
 		more_events_speakers: function ( a ) {
 			var presentation = a.more_events_presentation || 'events';
-			return ( void 0 === a.more_events || !! a.more_events ) && ( 'speakers' === presentation || 'auto' === presentation );
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'speakers', 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_events_interaction: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_show_time: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_show_event: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_show_media: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
 		},
 		more_events_presentation: function ( a ) { return void 0 === a.more_events || !! a.more_events; },
-		more_events_layout: function ( a ) { return void 0 === a.more_events || !! a.more_events; },
+		more_events_layout: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 === [ 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
 		more_events_whisper: function ( a ) { return void 0 === a.more_events || !! a.more_events; },
 		featured_event: function ( a ) { return 'manual_event' === a.featured_source; },
 		featured_session: function ( a ) { return 'manual_session' === a.featured_source; },

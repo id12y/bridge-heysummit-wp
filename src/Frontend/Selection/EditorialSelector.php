@@ -438,22 +438,22 @@ final class EditorialSelector {
 		}
 
 		return [
-			'id'           => $post_id,
-			'title'        => (string) $post->post_title,
-			'url'          => (string) get_permalink( $post_id ),
-			'excerpt'      => $excerpt,
-			'image_id'     => $image_id,
-			'image'        => $image_url,
-			'category'     => (string) ( $categories[0] ?? '' ),
+			'id'            => $post_id,
+			'title'         => (string) $post->post_title,
+			'url'           => (string) get_permalink( $post_id ),
+			'excerpt'       => $excerpt,
+			'image_id'      => $image_id,
+			'image'         => $image_url,
+			'category'      => (string) ( $categories[0] ?? '' ),
 			// The primary category's archive URL ('' when the term has no
 			// valid archive), so templates can offer the label as navigation.
 			'category_link' => $category_link,
-			'categories'   => $categories,
-			'date'         => $date,
-			'timestamp'    => (int) strtotime( $date ),
+			'categories'    => $categories,
+			'date'          => $date,
+			'timestamp'     => (int) strtotime( $date ),
 			// Deterministic: word count over a fixed reading speed; 0 means
 			// "too short to claim a reading time" and templates omit it.
-			'reading_time' => $words >= self::MIN_WORDS_FOR_TIME ? max( 1, (int) round( $words / self::WORDS_PER_MINUTE ) ) : 0,
+			'reading_time'  => $words >= self::MIN_WORDS_FOR_TIME ? max( 1, (int) round( $words / self::WORDS_PER_MINUTE ) ) : 0,
 		];
 	}
 

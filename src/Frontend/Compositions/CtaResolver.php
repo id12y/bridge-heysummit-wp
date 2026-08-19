@@ -61,7 +61,13 @@ final class CtaResolver {
 			$label_override = trim( (string) ( $presentation['cta_label'] ?? '' ) );
 		}
 
-		$details_url   = (string) ( $event['url'] ?? '' );
+		// Details is its own concept — independent of registration and of
+		// format. The presentation's Details destination (a good external
+		// landing page, a local page) wins over the default event URL.
+		$details_url = (string) ( $presentation['details_url'] ?? '' );
+		if ( '' === $details_url ) {
+			$details_url = (string) ( $event['url'] ?? '' );
+		}
 		$details_label = __( 'Details', 'emailexpert-events' );
 
 		$buttons = (string) ( $atts['buttons'] ?? 'both' );

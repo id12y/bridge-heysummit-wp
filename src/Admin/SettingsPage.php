@@ -387,6 +387,19 @@ final class SettingsPage {
 					$known_titles = \Emailexpert\Events\Data\EventTitles::known();
 					$stored_rows  = array_filter( (array) Options::setting( \Emailexpert\Events\Data\EventPresentation::SETTING_KEY ), 'is_array' );
 
+					// The cached sessions and the canonical speaker catalogue,
+					// once for every row below (existing repository caches —
+					// no per-row fetches).
+					$eex_cached_talks      = array_filter( \Emailexpert\Events\Data\Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ), 'is_array' );
+					$eex_speaker_catalogue = [];
+					foreach ( \Emailexpert\Events\Data\Repositories::current()->speakers( [ 'limit' => 0 ] ) as $eex_cat_speaker ) {
+						$eex_cat_headline        = (string) ( $eex_cat_speaker['headline'] ?? '' );
+						$eex_speaker_catalogue[] = [
+							'value' => (string) ( $eex_cat_speaker['id'] ?? '' ),
+							'label' => (string) ( $eex_cat_speaker['name'] ?? '' ) . ( '' !== $eex_cat_headline ? ' — ' . $eex_cat_headline : '' ),
+						];
+					}
+
 					foreach ( $lite_keys as $lite_key ) :
 						[ , $lite_event_id ] = array_pad( explode( '|', $lite_key, 2 ), 2, '' );
 						$lite_event_label    = (string) ( $known_titles[ $lite_event_id ] ?? '' );
@@ -395,6 +408,31 @@ final class SettingsPage {
 							<summary><strong><?php echo esc_html( '' !== $lite_event_label ? $lite_event_label : $lite_key ); ?></strong> <code><?php echo esc_html( $lite_key ); ?></code></summary>
 							<div class="eex-presentation-fields">
 								<?php PresentationFields::render( 'eex_presentation[' . $lite_key . ']', (array) ( $stored_rows[ $lite_key ] ?? [] ) ); ?>
+								<?php
+								// Per-session speaker relationships, for the
+								// sessions the cache already knows: references
+								// to the canonical speaker records only.
+								$lite_row_values = \Emailexpert\Events\Data\EventPresentation::sanitise( (array) ( $stored_rows[ $lite_key ] ?? [] ) );
+								$lite_talks      = array_filter(
+									$eex_cached_talks,
+									static fn( array $talk ): bool => (string) ( $talk['event_hs_id'] ?? '' ) === $lite_event_id
+								);
+								?>
+								<?php if ( ! empty( $lite_talks ) ) : ?>
+									<h4><?php esc_html_e( 'Session speakers (local assignment)', 'emailexpert-events' ); ?></h4>
+									<?php foreach ( $lite_talks as $lite_talk ) : ?>
+										<details class="eex-presentation-row">
+											<summary><?php echo esc_html( (string) $lite_talk['title'] ); ?> <code><?php echo esc_html( (string) $lite_talk['hs_id'] ); ?></code></summary>
+											<?php
+											PresentationFields::render_speaker_relation(
+												'eex_presentation[' . $lite_key . '][session_speakers][' . (string) $lite_talk['hs_id'] . ']',
+												(array) ( $lite_row_values['session_speakers'][ (string) $lite_talk['hs_id'] ] ?? [] ),
+												$eex_speaker_catalogue
+											);
+											?>
+										</details>
+									<?php endforeach; ?>
+								<?php endif; ?>
 							</div>
 						</details>
 					<?php endforeach; ?>

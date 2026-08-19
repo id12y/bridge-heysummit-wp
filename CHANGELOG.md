@@ -3,6 +3,48 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.55.0
+- **Rich More Sessions presentations.** The presentation control gains
+  Rich horizontal (a publisher programme strip: date, format, location,
+  title, speakers, owning event, one action) and Rich vertical (the same
+  entry stacked), alongside the kept Compact, Compact-with-speakers and
+  People-led modes. Auto now resolves session rows to the rich treatment
+  (horizontal in the strip, vertical in the column). Every rich row's
+  action is the existing registration system's answer: the shared RSVP
+  form ("Register") when its free-ticket rules apply, the shared ticket
+  panel ("Get tickets") when tickets exist, the session page ("View
+  session") otherwise — one cached decision per owning event, rows
+  compact until the visitor acts, never several open forms. New
+  restrained controls: rich row action (auto/details/registration),
+  show time, show owning event, show media.
+- **Format and location semantics corrected.** One shared resolver
+  (`Components::format_label`) derives Online / In person / Hybrid from
+  gathering data (in-person flag, venue fields) and the new per-event
+  presentation Format override only — URLs, checkout types and
+  registration mechanisms are not inputs and can never influence format.
+  Sessions inherit the owning event's city/country for location;
+  location, details, registration and speaker assignment are fully
+  independent fields.
+- **Local speaker assignment for sessions.** Sessions whose speakers
+  HeySummit cannot associate (external landing pages) can be assigned
+  speakers locally: references to the existing canonical speaker records
+  only — never copies, so a later change to the record shows everywhere.
+  Speaker source per session: Auto (local first, else HeySummit),
+  HeySummit only, Local only, None; stale references are skipped safely.
+  Full mode edits this in a meta box on the session edit screen; Lite
+  mode under each event's presentation row in Settings. Nothing is ever
+  written back to HeySummit.
+- **Details destination override** per event in the presentation layer:
+  a good public landing page can serve as Details without touching
+  registration or format.
+- **Elementor editor/frontend parity.** The editor preview iframe now
+  enqueues the same registered production stylesheet, skin and time
+  module the frontend uses (they previously enqueued only on demand
+  during render, which never reaches the preview head — the canvas
+  showed unstyled components). The time module re-initialises rendered
+  widgets through Elementor's own ready hook. Same renderer, same
+  templates, same CSS — no editor-only implementation of anything.
+
 ## 1.54.0
 - **Latest News refinement pass** (UI and navigation only; selection,
   exclusion, balancing, caching and every other region untouched).
