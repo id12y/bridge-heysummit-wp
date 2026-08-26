@@ -294,6 +294,735 @@ final class CompositionsTest extends TestCase {
 		$this->assertStringNotContainsString( 'Double Optin', $more, 'the featured event never repeats in the More Events markup' );
 	}
 
+	/**
+	 * A Lite mock with a configurable ticket list, so the auto registration
+	 * resolution can be exercised against free, paid and absent tickets.
+	 *
+	 * @param array<int,array<string,mixed>> $tickets Ticket rows for event 101.
+	 */
+	private function mock_lite_api_with_tickets( array $tickets ): void {
+		$t0 = $this->t0;
+		$this->mock_http( function ( $url ) use ( $tickets, $t0 ) {
+			if ( str_contains( (string) $url, 'tickets/' ) ) {
+				return self::json_response( [ 'results' => $tickets ] );
+			}
+			if ( str_contains( (string) $url, 'talks/' ) ) {
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'        => 501,
+								'title'     => 'Live keynote',
+								'starts_at' => gmdate( 'Y-m-d\TH:i:s\Z', $t0 + 5 * DAY_IN_SECONDS ),
+								'ends_at'   => gmdate( 'Y-m-d\TH:i:s\Z', $t0 + 5 * DAY_IN_SECONDS + 3600 ),
+								'event'     => 101,
+							],
+						],
+					]
+				);
+			}
+			if ( str_contains( (string) $url, 'events/' ) ) {
+				return self::json_response(
+					[
+						'results' => [
+							[
+								'id'                        => 101,
+								'title'                     => 'Lite Summit',
+								'starts_at'                 => gmdate( 'Y-m-d\TH:i:s\Z', $t0 + 5 * DAY_IN_SECONDS ),
+								'ends_at'                   => gmdate( 'Y-m-d\TH:i:s\Z', $t0 + 5 * DAY_IN_SECONDS + 7200 ),
+								'is_open_for_registrations' => true,
+								'event_url'                 => 'https://hs.example/lite-summit/',
+							],
+						],
+					]
+				);
+			}
+
+			return null;
+		} );
+	}
+
+	public function test_rich_session_rows_register_through_the_shared_rsvp_implementation(): void {
+		$this->go_lite();
+		$this->mock_lite_api_with_tickets(
+			[
+				[
+					'id'      => 11,
+					'title'   => 'Free pass',
+					'is_paid' => false,
+					'prices'  => [ [ 'id' => 111, 'price' => '0.00' ] ],
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		// Featured presents the event itself, so its session fills the rich
+		// strip; presentation auto resolves to rich horizontal there.
+		$html = Components::render(
+			'homepage-hero',
+			[
+				'story_source'             => 'none',
+				'news_show'                => 0,
+				'event_presentation'       => 'event',
+				'more_events_mode'         => 'upcoming_sessions',
+				'more_events_presentation' => 'auto',
+			]
+		);
+
+		$this->assertStringContainsString( 'eex-compact-event--rich', $html, 'auto resolves session rows to the rich treatment' );
+		$this->assertStringContainsString( 'eex-hh__more--lay-rich-h', $html, 'the strip takes the horizontal arrangement' );
+
+		$more = substr( $html, (int) strpos( $html, 'eex-hh__more' ) );
+		$this->assertStringContainsString( '>Register<', $more, 'a free session says Register, not Get tickets' );
+		$this->assertStringContainsString( 'data-eex-reg-toggle="1"', $more, 'the shared RSVP toggle contract' );
+		$this->assertStringContainsString( 'data-eex-reg="1"', $more, 'the shared register-form part renders (hidden) in the row' );
+		$this->assertStringContainsString( 'name="ticket" value="11"', $more, 'the same free ticket the classic widgets register' );
+		$this->assertStringContainsString( 'name="talk" value="501"', $more, 'the session lands on the schedule through the same form' );
+		$this->assertStringContainsString( 'Online', $more, 'the meta line carries the format' );
+	}
+
+	public function test_rich_session_rows_use_the_shared_ticket_panel_for_paid_events(): void {
+		$this->go_lite();
+		$this->mock_lite_api_with_tickets(
+			[
+				[
+					'id'      => 22,
+					'title'   => 'Full pass',
+					'is_paid' => true,
+					'prices'  => [ [ 'id' => 221, 'price' => '199.00' ] ],
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		$html = Components::render(
+			'homepage-hero',
+			[
+				'story_source'             => 'none',
+				'news_show'                => 0,
+				'event_presentation'       => 'event',
+				'more_events_mode'         => 'upcoming_sessions',
+				'more_events_presentation' => 'rich_horizontal',
+			]
+		);
+
+		$more = substr( $html, (int) strpos( $html, 'eex-hh__more' ) );
+		$this->assertStringContainsString( '>Get tickets<', $more, 'a ticketed session says Get tickets' );
+		$this->assertStringContainsString( 'data-eex-drawer=', $more, 'the row opens the shared ticket drawer' );
+		$this->assertStringContainsString( 'eex-drawer', $html, 'the shared drawer markup renders once for the owning event' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		$details = Components::render(
+			'homepage-hero',
+			[
+				'story_source'             => 'none',
+				'news_show'                => 0,
+				'event_presentation'       => 'event',
+				'more_events_mode'         => 'upcoming_sessions',
+				'more_events_presentation' => 'rich_horizontal',
+				'more_events_interaction'  => 'details',
+			]
+		);
+		$this->assertStringContainsString( 'View session', $details, 'details-only interaction links to the session' );
+		$this->assertStringNotContainsString( 'data-eex-drawer=', substr( $details, (int) strpos( $details, 'eex-hh__more' ) ), 'no registration surfaces in details-only mode' );
+	}
+
+	public function test_urls_never_determine_format(): void {
+		$this->fixture();
+		// A venue-less talk with an external landing page stays Online; a
+		// talk whose owning event has a venue is In person regardless of any
+		// URL on either record.
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_talk',
+				'post_status' => 'publish',
+				'post_title'  => 'External online session',
+				'meta_input'  => [
+					'_eex_heysummit_id'    => '901',
+					'_eex_source_event_id' => '101',
+					'_eex_starts_at'       => $this->iso( $this->t0 + 3 * DAY_IN_SECONDS ),
+					'_eex_ends_at'         => $this->iso( $this->t0 + 3 * DAY_IN_SECONDS + 3600 ),
+					'_eex_external_url'    => 'https://external.example/landing/',
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		$html = Components::render(
+			'homepage-hero',
+			[
+				'story_source'             => 'none',
+				'news_show'                => 0,
+				'featured_source'          => 'none',
+				'more_events_mode'         => 'upcoming_sessions',
+				'more_events_presentation' => 'rich_horizontal',
+				'more_events_interaction'  => 'details',
+			]
+		);
+
+		preg_match( '/<article[^>]*data-eex-event-id="901".*?<\/article>/s', $html, $m );
+		$row = (string) ( $m[0] ?? '' );
+		$this->assertStringContainsString( 'Online', $row, 'an external URL never makes a session in-person' );
+		$this->assertStringNotContainsString( 'In person', $row );
+	}
+
+	public function test_format_override_and_inheritance(): void {
+		$this->fixture();
+		$forum = null;
+		foreach ( get_posts( [ 'post_type' => 'eex_event', 'numberposts' => -1 ] ) as $eex_post ) { // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			if ( 'London Forum' === $eex_post->post_title ) {
+				$forum = $eex_post->ID;
+				update_post_meta( $eex_post->ID, '_eex_venue_locality', 'London' );
+			}
+		}
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_talk',
+				'post_status' => 'publish',
+				'post_title'  => 'Forum session',
+				'meta_input'  => [
+					'_eex_heysummit_id'    => '801',
+					'_eex_source_event_id' => '104',
+					'_eex_starts_at'       => $this->iso( $this->t0 + 89 * DAY_IN_SECONDS ),
+					'_eex_ends_at'         => $this->iso( $this->t0 + 89 * DAY_IN_SECONDS + 3600 ),
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		$atts = [
+			'story_source'             => 'none',
+			'news_show'                => 0,
+			'featured_source'          => 'none',
+			'more_events_mode'         => 'upcoming_sessions',
+			'more_events_presentation' => 'rich_horizontal',
+			'more_events_interaction'  => 'details',
+		];
+
+		$html = Components::render( 'homepage-hero', $atts );
+		preg_match( '/<article[^>]*data-eex-event-id="801".*?<\/article>/s', $html, $m );
+		$this->assertStringContainsString( 'In person · London', (string) ( $m[0] ?? '' ), 'a venue-less session inherits the owning event\'s location' );
+
+		// A deliberate hybrid override on the owning event wins.
+		\Emailexpert\Events\Data\EventPresentation::save_full( (int) $forum, [ 'format' => 'hybrid' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		$html = Components::render( 'homepage-hero', $atts );
+		preg_match( '/<article[^>]*data-eex-event-id="801".*?<\/article>/s', $html, $m );
+		$this->assertStringContainsString( 'Hybrid', (string) ( $m[0] ?? '' ), 'the presentation format override claims Hybrid' );
+	}
+
+	public function test_local_speaker_assignment_uses_canonical_records_and_fails_safely(): void {
+		$this->fixture();
+		$speaker = wp_insert_post(
+			[
+				'post_type'   => 'eex_speaker',
+				'post_status' => 'publish',
+				'post_title'  => 'Laura Atkins',
+				'meta_input'  => [ '_eex_headline' => 'Word to the Wise' ],
+			]
+		);
+		$talk    = wp_insert_post(
+			[
+				'post_type'   => 'eex_talk',
+				'post_status' => 'publish',
+				'post_title'  => 'External session needing a speaker',
+				'meta_input'  => [
+					'_eex_heysummit_id'    => '901',
+					'_eex_source_event_id' => '101',
+					'_eex_starts_at'       => $this->iso( $this->t0 + 3 * DAY_IN_SECONDS ),
+					'_eex_ends_at'         => $this->iso( $this->t0 + 3 * DAY_IN_SECONDS + 3600 ),
+					'_eex_external_url'    => 'https://external.example/landing/',
+				],
+			]
+		);
+
+		// Local assignment: a reference to the canonical record plus one
+		// stale reference that must be skipped, never fatal.
+		\Emailexpert\Events\Data\EventPresentation::save_talk(
+			$talk,
+			[
+				'source' => 'local',
+				'refs'   => [ (string) $speaker, '999999' ],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		$atts = [
+			'story_source'             => 'none',
+			'news_show'                => 0,
+			'featured_source'          => 'none',
+			'more_events_mode'         => 'upcoming_sessions',
+			'more_events_presentation' => 'rich_horizontal',
+			'more_events_interaction'  => 'details',
+		];
+
+		$html = Components::render( 'homepage-hero', $atts );
+		preg_match( '/<article[^>]*data-eex-event-id="901".*?<\/article>/s', $html, $m );
+		$row = (string) ( $m[0] ?? '' );
+		$this->assertStringContainsString( 'Laura Atkins', $row, 'the locally assigned canonical speaker renders' );
+
+		// The canonical record changes; every consumer sees the new value —
+		// nothing was copied.
+		wp_update_post(
+			[
+				'ID'         => $speaker,
+				'post_title' => 'Laura Atkins (Word to the Wise)',
+			]
+		);
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		$html = Components::render( 'homepage-hero', $atts );
+		$this->assertStringContainsString( 'Laura Atkins (Word to the Wise)', $html, 'the reference resolves the updated canonical record' );
+
+		// HeySummit-only ignores the local assignment (this talk has no
+		// HeySummit speakers, so it simply shows none).
+		\Emailexpert\Events\Data\EventPresentation::save_talk(
+			$talk,
+			[
+				'source' => 'heysummit',
+				'refs'   => [ (string) $speaker ],
+			]
+		);
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		$html = Components::render( 'homepage-hero', $atts );
+		preg_match( '/<article[^>]*data-eex-event-id="901".*?<\/article>/s', $html, $m );
+		$this->assertStringNotContainsString( 'Laura Atkins', (string) ( $m[0] ?? '' ), 'HeySummit-only mode ignores the local assignment' );
+	}
+
+	public function test_details_url_override_wins_for_the_featured_card(): void {
+		$this->fixture();
+		$optin = null;
+		foreach ( get_posts( [ 'post_type' => 'eex_event', 'numberposts' => -1 ] ) as $eex_post ) { // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			if ( 'Double Optin' === $eex_post->post_title ) {
+				$optin = $eex_post->ID;
+			}
+		}
+		\Emailexpert\Events\Data\EventPresentation::save_full( (int) $optin, [ 'details_url' => 'https://good.example/landing/' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		\EEX_Test_State::$user_can = false;
+
+		$html = Components::render( 'homepage-hero', [ 'story_source' => 'none', 'news_show' => 0, 'more_events' => 0, 'event_presentation' => 'event' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertStringContainsString( 'https://good.example/landing/', $html, 'Details goes to the configured destination, not a generic landing page' );
+	}
+
+	public function test_free_event_shares_one_rsvp_renderer_across_old_and_new_surfaces(): void {
+		$this->go_lite();
+		$this->mock_lite_api_with_tickets(
+			[
+				[
+					'id'      => 11,
+					'title'   => 'Free pass',
+					'is_paid' => false,
+					'prices'  => [ [ 'id' => 111, 'price' => '0.00' ] ],
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		// The existing widget, configured for the inline form.
+		$bar = Components::render( 'register-bar', [ 'event' => '101', 'register_action' => 'form' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		// The compositions, on their default (auto) — the existing system
+		// answers "form" because its own free-ticket rules apply.
+		$hero = Components::render( 'homepage-hero', [ 'story_source' => 'none', 'news_show' => 0, 'more_events' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		$landing = Components::render( 'event-landing', [ 'event_source' => 'manual', 'event' => '101' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		// One shared implementation: the same register-form part (the same
+		// hidden inputs for the same free ticket, the same consent wording),
+		// toggled by the same JS contract, on all three surfaces.
+		foreach ( [ 'register-bar' => $bar, 'homepage-hero' => $hero, 'event-landing' => $landing ] as $surface => $html ) {
+			$this->assertStringContainsString( 'data-eex-reg="1"', $html, $surface . ' renders the shared register-form part' );
+			$this->assertStringContainsString( 'name="ticket" value="11"', $html, $surface . ' registers the same free ticket' );
+			$this->assertStringContainsString( 'data-eex-reg-toggle="1"', $html, $surface . ' uses the shared toggle contract' );
+			$this->assertStringContainsString( 'name="consent"', $html, $surface . ' carries the required consent checkbox' );
+			$this->assertStringContainsString( esc_html( \Emailexpert\Events\Frontend\Components::consent_disclosure_text() ), $html, $surface . ' shows the shared disclosure wording' );
+		}
+
+		$this->assertStringContainsString( 'RSVP free', $hero, 'the hero CTA reads RSVP free when the form applies' );
+	}
+
+	public function test_ticketed_event_shares_the_existing_ticket_panel(): void {
+		$this->go_lite();
+		$this->mock_lite_api_with_tickets(
+			[
+				[
+					'id'      => 22,
+					'title'   => 'Full pass',
+					'is_paid' => true,
+					'prices'  => [ [ 'id' => 221, 'price' => '199.00' ] ],
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		// The existing widget, configured for the panel.
+		$bar = Components::render( 'register-bar', [ 'event' => '101', 'register_action' => 'panel' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+
+		// The hero on auto: no free ticket, so the existing system answers
+		// "panel" — the same drawer, not a new implementation.
+		$hero = Components::render( 'homepage-hero', [ 'story_source' => 'none', 'news_show' => 0, 'more_events' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		foreach ( [ 'register-bar' => $bar, 'homepage-hero' => $hero ] as $surface => $html ) {
+			$this->assertStringContainsString( 'eex-drawer', $html, $surface . ' renders the shared ticket drawer' );
+			$this->assertStringContainsString( 'data-eex-drawer=', $html, $surface . ' opens it through the shared JS contract' );
+			$this->assertStringContainsString( 'Full pass', $html, $surface . ' lists the same ticket' );
+		}
+
+		$this->assertStringContainsString( 'Get tickets', $hero, 'the hero CTA reads Get tickets for paid-only events' );
+	}
+
+	public function test_explicit_link_behaviour_is_unchanged(): void {
+		$this->go_lite();
+		$this->mock_lite_api();
+		\EEX_Test_State::$user_can = false;
+
+		$hero = Components::render( 'homepage-hero', [ 'story_source' => 'none', 'news_show' => 0, 'more_events' => 0, 'register_action' => 'link' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertStringContainsString( 'checkout/select-tickets/', $hero, 'the explicit link mode keeps the existing checkout destination' );
+		$this->assertStringNotContainsString( 'data-eex-reg-toggle', $hero, 'no RSVP toggle in link mode' );
+		$this->assertStringNotContainsString( 'data-eex-drawer=', $hero, 'no drawer in link mode' );
+	}
+
+	public function test_two_story_frontage_renders_and_one_story_reserves_no_space(): void {
+		$this->fixture();
+		$this->make_story( 'Fourth story', 14400 );
+		\EEX_Test_State::$user_can = false;
+
+		$two = Components::render( 'homepage-hero', [ 'story_count' => '2' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertStringContainsString( 'eex-hh--two-story', $two, 'the two-story modifier is present' );
+		$this->assertStringContainsString( 'eex-hh__story-second--beneath', $two, 'auto placement resolves to beneath' );
+		$this->assertStringContainsString( 'DMARC adoption doubles', $two, 'the next eligible story is the secondary feature' );
+
+		$news = substr( $two, (int) strpos( $two, 'eex-hh__news' ) );
+		$this->assertStringNotContainsString( 'DMARC adoption doubles', $news, 'the secondary feature is excluded from Latest News' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$one = Components::render( 'homepage-hero', [] );
+		$this->assertStringNotContainsString( 'eex-hh__story-second', $one, 'one-story mode reserves no space for a second' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$side = Components::render( 'homepage-hero', [ 'story_count' => '2', 'story2_placement' => 'side' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-hh__story--with-side', $side, 'side placement marks the story column' );
+		$this->assertStringContainsString( 'eex-hh__story-second--side', $side );
+	}
+
+	public function test_latest_news_columns_follow_the_item_count(): void {
+		$this->fixture();
+		for ( $i = 4; $i <= 12; $i++ ) {
+			$this->make_story( 'Extra story ' . $i, $i * 3600 );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$eight = Components::render( 'homepage-hero', [ 'news_count' => 8, 'news_layout' => 'media' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-hh__news-list--cols-4', $eight, 'eight items take four desktop columns' );
+		$this->assertSame( 8, substr_count( $eight, 'eex-hh__news-item' ), 'eight items render' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$three = Components::render( 'homepage-hero', [ 'news_count' => 3, 'news_layout' => 'media' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-hh__news-list--cols-3', $three, 'three items take three columns' );
+		$this->assertSame( 3, substr_count( $three, 'eex-hh__news-item' ) );
+	}
+
+	public function test_front_page_roles_are_deterministic_for_each_count(): void {
+		$this->fixture();
+		for ( $i = 4; $i <= 24; $i++ ) {
+			$this->make_story( 'Extra story ' . $i, $i * 3600 );
+		}
+		foreach ( get_posts( [ 'post_type' => 'post', 'numberposts' => -1 ] ) as $eex_post ) { // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			update_post_meta( $eex_post->ID, '_eex_test_thumbnail', 'https://cdn.example/t.jpg' );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$cases = [
+			8  => [ 1, 3, 0, 4 ],
+			12 => [ 1, 3, 4, 4 ],
+			20 => [ 1, 3, 4, 12 ],
+		];
+
+		foreach ( $cases as $count => [ $lead, $secondary, $standard, $brief ] ) {
+			Cache::flush();
+			Components::reset_request_state();
+			EventSelector::reset_request_state();
+			\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+			$html = Components::render( 'homepage-hero', [ 'news_count' => $count ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+			$this->assertSame( $lead, substr_count( $html, 'eex-hh__news-card--lead' ), $count . ': lead count' );
+			$this->assertSame( $secondary, substr_count( $html, 'eex-hh__news-card--secondary' ), $count . ': secondary count' );
+			$this->assertSame( $standard, substr_count( $html, 'eex-hh__news-card--standard' ), $count . ': standard count' );
+			$this->assertSame( $brief, substr_count( $html, 'eex-hh__news-card--brief' ), $count . ': brief count' );
+		}
+
+		// Twenty stories request far fewer images: briefs carry no image
+		// markup at all (1 lead + 3 secondary + 4 standard = 8 at most).
+		$this->assertLessThanOrEqual(
+			8,
+			substr_count( (string) $html, '<img class="eex-hh__news-img' ),
+			'a 20-story front page renders at most eight story images'
+		);
+		preg_match_all( '/<article class="eex-hh__news-card eex-hh__news-card--brief".*?<\/article>/s', (string) $html, $m );
+		$this->assertNotEmpty( $m[0] );
+		foreach ( $m[0] as $brief_card ) {
+			$this->assertStringNotContainsString( '<img', $brief_card, 'briefs never build image markup' );
+		}
+	}
+
+	public function test_changing_the_layout_never_changes_the_selected_stories(): void {
+		$this->fixture();
+		for ( $i = 4; $i <= 12; $i++ ) {
+			$this->make_story( 'Extra story ' . $i, $i * 3600 );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$titles = static function ( string $html ): array {
+			preg_match_all( '/eex-hh__news-title[^>]*>\s*<a[^>]*>([^<]+)</', $html, $m );
+			$out = $m[1];
+			sort( $out );
+			return $out;
+		};
+
+		$selections = [];
+		foreach ( [ 'auto', 'newsroom', 'media', 'list' ] as $layout ) {
+			Cache::flush();
+			Components::reset_request_state();
+			EventSelector::reset_request_state();
+			\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+			$html                  = Components::render( 'homepage-hero', [ 'news_count' => 8, 'news_layout' => $layout ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			$selections[ $layout ] = $titles( $html );
+			$this->assertCount( 8, $selections[ $layout ], $layout . ' renders eight stories' );
+		}
+
+		$this->assertSame( $selections['auto'], $selections['newsroom'], 'selection is identical across layouts' );
+		$this->assertSame( $selections['auto'], $selections['media'] );
+		$this->assertSame( $selections['auto'], $selections['list'] );
+	}
+
+	public function test_newsroom_composes_with_a_latest_rail_and_twenty_stories_work(): void {
+		$this->fixture();
+		for ( $i = 4; $i <= 24; $i++ ) {
+			$this->make_story( 'Extra story ' . $i, $i * 3600 );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$html = Components::render( 'homepage-hero', [ 'news_count' => 20, 'news_layout' => 'newsroom' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertStringContainsString( 'eex-hh__news--newsroom', $html );
+		$this->assertSame( 1, substr_count( $html, 'eex-hh__news-card--lead' ) );
+		$this->assertSame( 2, substr_count( $html, 'eex-hh__news-card--secondary' ), 'newsroom trades secondaries for density' );
+		$this->assertSame( 4, substr_count( $html, 'eex-hh__news-card--standard' ) );
+		$this->assertSame( 13, substr_count( $html, 'eex-hh__news-card--brief' ) );
+		$this->assertStringContainsString( '>Latest<', $html, 'the dense region takes the Latest label by default' );
+		$this->assertStringContainsString( 'eex-hh__news-briefs--split', $html, 'a long brief list splits into columns' );
+	}
+
+	public function test_news_images_render_above_the_headline_when_configured(): void {
+		$this->fixture();
+		foreach ( get_posts( [ 'post_type' => 'post', 'numberposts' => -1 ] ) as $eex_post ) { // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			update_post_meta( $eex_post->ID, '_eex_test_thumbnail', 'https://cdn.example/thumb-' . $eex_post->ID . '.jpg' );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$html = Components::render(
+			'homepage-hero',
+			[
+				'news_layout'         => 'media',
+				'news_image_position' => 'above',
+				'news_image_size'     => 'large',
+			]
+		);
+
+		$this->assertStringContainsString( 'eex-hh__news-card--stacked', $html, 'stacked news cards render' );
+		$this->assertStringContainsString( 'eex-hh__news-card--large', $html, 'the emphasis class is present' );
+		$this->assertStringContainsString( 'eex-hh__news-media', $html, 'the media frame wraps the image' );
+		$this->assertStringContainsString( 'loading="lazy"', $html, 'news media lazy-loads' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$off = Components::render( 'homepage-hero', [ 'news_layout' => 'media', 'news_show_image' => 0, 'news_image_position' => 'above' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringNotContainsString( 'eex-hh__news-media', $off, 'the image flag still switches every treatment off' );
+	}
+
+	public function test_news_categories_and_images_link_by_default_and_can_be_switched_off(): void {
+		$this->fixture();
+		wp_insert_term( 'Deliverability', 'category' );
+		foreach ( get_posts( [ 'post_type' => 'post', 'numberposts' => -1 ] ) as $eex_post ) { // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+			update_post_meta( $eex_post->ID, '_eex_test_thumbnail', 'https://cdn.example/thumb.jpg' );
+			wp_set_object_terms( $eex_post->ID, [ 'deliverability' ], 'category' );
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$on = Components::render( 'homepage-hero', [ 'news_layout' => 'media', 'news_image_position' => 'above' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+
+		$this->assertMatchesRegularExpression(
+			'/eex-hh__news-category"><a href="[^"]*term[^"]*"/',
+			$on,
+			'category labels link to the real term archive by default'
+		);
+		$this->assertStringContainsString( 'eex-hh__news-imglink', $on, 'images link to the article by default' );
+		$this->assertStringContainsString( 'tabindex="-1" aria-hidden="true"', $on, 'the image link stays out of the tab order and accessibility tree' );
+		$this->assertStringNotContainsString( '<a', (string) preg_replace( '/.*?(<a[^>]*eex-hh__news-imglink[^>]*>).*/s', '', $on ), 'sanity' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$off = Components::render( 'homepage-hero', [ 'news_layout' => 'media', 'news_image_position' => 'above', 'news_link_categories' => 0, 'news_link_images' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringNotContainsString( 'eex-hh__news-imglink', $off, 'image links switch off' );
+		$this->assertDoesNotMatchRegularExpression( '/eex-hh__news-category"><a /', $off, 'category links switch off; the label stays as plain text' );
+		$this->assertStringContainsString( 'eex-hh__news-category', $off, 'the label itself still renders' );
+	}
+
+	public function test_view_all_news_falls_back_to_the_posts_page_and_can_be_hidden(): void {
+		$this->fixture();
+		\EEX_Test_State::$user_can = false;
+
+		$none = Components::render( 'homepage-hero', [] );
+		$this->assertStringNotContainsString( 'eex-hh__news-all', $none, 'no destination configured and no posts page: no link, never a broken one' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$news_page = wp_insert_post(
+			[
+				'post_type'   => 'page',
+				'post_status' => 'publish',
+				'post_title'  => 'News',
+			]
+		);
+		update_option( 'page_for_posts', $news_page );
+
+		$fallback = Components::render( 'homepage-hero', [] );
+		$this->assertStringContainsString( 'eex-hh__news-all', $fallback, 'the posts page becomes the All-news destination' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$hidden = Components::render( 'homepage-hero', [ 'news_all_show' => 0 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringNotContainsString( 'eex-hh__news-all', $hidden, 'the link can be switched off' );
+
+		delete_option( 'page_for_posts' );
+	}
+
+	public function test_more_events_speaker_and_people_presentations(): void {
+		$this->fixture();
+
+		$speaker = wp_insert_post(
+			[
+				'post_type'   => 'eex_speaker',
+				'post_status' => 'publish',
+				'post_title'  => 'Lauren Meyer',
+				'meta_input'  => [ '_eex_headline' => 'CMO, SocketLabs' ],
+			]
+		);
+		wp_insert_post(
+			[
+				'post_type'   => 'eex_talk',
+				'post_status' => 'publish',
+				'post_title'  => 'Forum keynote',
+				'meta_input'  => [
+					'_eex_heysummit_id'    => '801',
+					'_eex_source_event_id' => '104',
+					'_eex_starts_at'       => $this->iso( $this->t0 + 89 * DAY_IN_SECONDS ),
+					'_eex_ends_at'         => $this->iso( $this->t0 + 89 * DAY_IN_SECONDS + 3600 ),
+					'_eex_speaker_ids'     => [ $speaker ],
+				],
+			]
+		);
+		\EEX_Test_State::$user_can = false;
+
+		$speakers = Components::render( 'homepage-hero', [ 'more_events_presentation' => 'speakers' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$more     = substr( $speakers, (int) strpos( $speakers, 'eex-hh__more' ) );
+		$this->assertStringContainsString( 'eex-compact-event__speaker-name', $more, 'the London Forum row carries its speaker' );
+		$this->assertStringContainsString( 'Lauren Meyer', $more );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$people = Components::render( 'homepage-hero', [ 'more_events_presentation' => 'people' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-hh__person-name', $people, 'people mode renders person rows' );
+		$this->assertStringContainsString( 'Coming up', $people, 'people mode takes the Coming up label' );
+		$this->assertStringContainsString( 'Forum keynote', $people, 'each person carries their session context' );
+	}
+
+	public function test_more_events_whisper_shows_format_or_location(): void {
+		$this->fixture();
+		$forum = get_posts( [ 'post_type' => 'eex_event', 's' => '', 'numberposts' => -1 ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		foreach ( $forum as $eex_post ) {
+			if ( 'London Forum' === $eex_post->post_title ) {
+				update_post_meta( $eex_post->ID, '_eex_venue_name', 'The Brewery' );
+				update_post_meta( $eex_post->ID, '_eex_venue_locality', 'London' );
+				update_post_meta( $eex_post->ID, '_eex_venue_country', 'United Kingdom' );
+			}
+		}
+		\EEX_Test_State::$user_can = false;
+
+		$format = Components::render( 'homepage-hero', [ 'more_events_whisper' => 'format' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'eex-compact-event__whisper', $format );
+		$this->assertStringContainsString( 'In person', $format, 'a venue means In person' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$location = Components::render( 'homepage-hero', [ 'more_events_whisper' => 'location' ] ); // phpcs:ignore WordPress.Arrays.ArrayDeclarationSpacing.AssociativeArrayFound
+		$this->assertStringContainsString( 'London, United Kingdom', $location, 'location whisper names the city and country' );
+
+		Cache::flush();
+		Components::reset_request_state();
+		EventSelector::reset_request_state();
+		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
+
+		$none = Components::render( 'homepage-hero', [] );
+		$this->assertStringNotContainsString( 'eex-compact-event__whisper', $none, 'the default stays whisper-free' );
+	}
+
 	public function test_the_featured_story_is_absent_from_latest_news_markup(): void {
 		$this->fixture();
 		\EEX_Test_State::$user_can = false; // The visitor view, without editor comments.

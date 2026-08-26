@@ -31,7 +31,7 @@ final class EventSelector {
 	/**
 	 * The More Events source modes.
 	 */
-	public const MORE_MODES = [ 'all_upcoming', 'after_featured', 'same_series' ];
+	public const MORE_MODES = [ 'all_upcoming', 'after_featured', 'same_series', 'upcoming_sessions' ];
 
 	/**
 	 * The automatic selection strategies.
@@ -46,10 +46,18 @@ final class EventSelector {
 	private static ?array $pool = null;
 
 	/**
+	 * Per-request memo of the Lite speaker pool, keyed by HeySummit ID.
+	 *
+	 * @var array<string,array<string,mixed>>|null
+	 */
+	private static ?array $lite_speaker_pool = null;
+
+	/**
 	 * Drop request-scoped memos (tests, admin preview, long processes).
 	 */
 	public static function reset_request_state(): void {
-		self::$pool = null;
+		self::$pool              = null;
+		self::$lite_speaker_pool = null;
 	}
 
 	/**
@@ -291,6 +299,351 @@ final class EventSelector {
 		 * @param array<string,mixed>|null       $featured The featured owning event.
 		 */
 		return (array) apply_filters( 'eex_more_events', $out, $mode, $featured );
+	}
+
+	/**
+	 * The More Events rows in "upcoming sessions" mode: the next sessions
+	 * across the displayable events, shaped like compact event rows (title,
+	 * date, link), with the featured session excluded. This is the mode for
+	 * a calendar that is one or two long-running events holding many
+	 * sessions — where distinct-event modes have nothing left to list once
+	 * the featured event is removed.
+	 *
+	 * @param int                       $limit    Maximum rows (0 = all).
+	 * @param array<string,mixed>|null  $featured The featured session, when the
+	 *                                            hero features one.
+	 * @return array<int,array<string,mixed>> Compact-row-shaped arrays.
+	 */
+	public static function more_sessions( int $limit, ?array $featured ): array {
+		$featured_key = null !== $featured
+			? (string) ( $featured['event_hs_id'] ?? '' ) . '|' . (string) ( $featured['hs_id'] ?? '' )
+			: '';
+
+		$owners = self::owners_by_hs_id();
+		$out    = [];
+		$seen   = [];
+
+		foreach ( Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ) as $talk ) {
+			$title = (string) ( $talk['title'] ?? '' );
+			$key   = (string) ( $talk['event_hs_id'] ?? '' ) . '|' . (string) ( $talk['hs_id'] ?? '' );
+
+			if ( '' === $title || isset( $seen[ $key ] ) ) {
+				continue;
+			}
+			$seen[ $key ] = true;
+
+			if ( '' !== $featured_key && $key === $featured_key ) {
+				Diagnostics::note(
+					/* translators: %s: session title. */
+					sprintf( __( '%s: excluded from More Events because it is the featured session.', 'emailexpert-events' ), $title )
+				);
+				continue;
+			}
+
+			if ( ! empty( $talk['cancelled'] ) ) {
+				Diagnostics::note(
+					/* translators: %s: session title. */
+					sprintf( __( '%s: excluded from More Events because it is cancelled.', 'emailexpert-events' ), $title )
+				);
+				continue;
+			}
+
+			Diagnostics::note(
+				/* translators: %s: session title. */
+				sprintf( __( '%s: included in More Events (upcoming session).', 'emailexpert-events' ), $title )
+			);
+
+			// The list changes when a listed session starts (Full-mode talk
+			// data carries no precomputed timestamp, only the ISO string).
+			$start_ts = (int) ( $talk['start_ts'] ?? 0 );
+			if ( $start_ts <= 0 ) {
+				$start_ts = (int) strtotime( (string) ( $talk['starts_at'] ?? '' ) );
+			}
+			if ( $start_ts > 0 ) {
+				Diagnostics::boundary( $start_ts );
+			}
+
+			$owner        = (array) ( $owners[ (string) ( $talk['event_hs_id'] ?? '' ) ] ?? [] );
+			$presentation = (array) ( $owner['presentation'] ?? [] );
+
+			// The compact row's session shape (see parts/compact-event-row.php):
+			// the session leads; the owning event contributes inherited
+			// context (name, venue city/country, presentation) only.
+			$out[] = [
+				'title'         => $title,
+				'first_talk_at' => (string) ( $talk['starts_at'] ?? '' ),
+				'ends_at'       => (string) ( $talk['ends_at'] ?? '' ),
+				'timezone'      => (string) ( $talk['timezone'] ?? '' ),
+				'url'           => (string) ( $talk['permalink'] ?? '' ),
+				'hs_id'         => (string) ( $talk['hs_id'] ?? '' ),
+				'event_hs_id'   => (string) ( $talk['event_hs_id'] ?? '' ),
+				'evergreen'     => false,
+				'speakers_row'  => self::session_speakers( $talk, $presentation ),
+				'venue'         => (string) ( $talk['venue'] ?? '' ),
+				'inperson'      => ! empty( $talk['inperson'] ),
+				'venue_city'    => (string) ( $owner['venue_city'] ?? '' ),
+				'venue_country' => (string) ( $owner['venue_country'] ?? '' ),
+				'event_title'   => (string) ( $owner['title'] ?? '' ),
+				'image'         => (string) ( $talk['image'] ?? '' ),
+				'image_id'      => 0,
+				'presentation'  => $presentation,
+				'format_label'  => \Emailexpert\Events\Frontend\Components::format_label(
+					[
+						'inperson'      => ! empty( $talk['inperson'] ),
+						'venue'         => (string) ( $talk['venue'] ?? '' ),
+						'venue_city'    => (string) ( $owner['venue_city'] ?? '' ),
+						'venue_country' => (string) ( $owner['venue_country'] ?? '' ),
+					],
+					$presentation
+				),
+			];
+
+			if ( $limit > 0 && count( $out ) >= $limit ) {
+				break;
+			}
+		}
+
+		/**
+		 * Filter the final More Events rows in "upcoming sessions" mode.
+		 *
+		 * @param array<int,array<string,mixed>> $out      Compact-row-shaped arrays.
+		 * @param array<string,mixed>|null       $featured The featured session.
+		 */
+		return (array) apply_filters( 'eex_more_sessions', $out, $featured );
+	}
+
+	/**
+	 * Attach speaker rows to More Events rows in the event modes: each listed
+	 * event gains the speakers of its soonest upcoming session, from the talk
+	 * data the page already loads — one bounded pass, no per-row fetches.
+	 * Session-mode rows carry their own speakers already; rows without
+	 * speaker information simply stay event-only.
+	 *
+	 * @param array<int,array<string,mixed>> $rows More Events rows (event shape).
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function attach_speakers( array $rows ): array {
+		$by_event = [];
+		$owners   = self::owners_by_hs_id();
+
+		foreach ( Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ) as $talk ) {
+			$event_id = (string) ( $talk['event_hs_id'] ?? '' );
+
+			if ( '' === $event_id || isset( $by_event[ $event_id ] ) ) {
+				continue; // Soonest session wins; the list is soonest-first.
+			}
+
+			$speakers = self::session_speakers( $talk, (array) ( $owners[ $event_id ]['presentation'] ?? [] ) );
+
+			if ( ! empty( $speakers ) ) {
+				$by_event[ $event_id ] = $speakers;
+			}
+		}
+
+		foreach ( $rows as &$row ) {
+			if ( empty( $row['speakers_row'] ) ) {
+				$row['speakers_row'] = (array) ( $by_event[ (string) ( $row['hs_id'] ?? '' ) ] ?? [] );
+			}
+		}
+		unset( $row );
+
+		return $rows;
+	}
+
+	/**
+	 * The "featured people" rows: the people connected to the next sessions,
+	 * soonest first, each with their event context — person-led promotion of
+	 * upcoming activity. Built entirely from the talk data the page already
+	 * loads; people are deduplicated by name, and names already visible on
+	 * the featured card can be excluded so nobody appears twice.
+	 *
+	 * @param int      $limit         Maximum rows (0 = all).
+	 * @param string[] $exclude_names Names already shown elsewhere.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function people( int $limit, array $exclude_names = [] ): array {
+		$seen = [];
+
+		foreach ( $exclude_names as $name ) {
+			$seen[ strtolower( trim( (string) $name ) ) ] = true;
+		}
+		unset( $seen[''] );
+
+		$out    = [];
+		$owners = self::owners_by_hs_id();
+
+		foreach ( Repositories::current()->upcoming_talks( [ 'limit' => 0 ] ) as $talk ) {
+			if ( ! empty( $talk['cancelled'] ) ) {
+				continue;
+			}
+
+			$owner_presentation = (array) ( $owners[ (string) ( $talk['event_hs_id'] ?? '' ) ]['presentation'] ?? [] );
+
+			foreach ( self::session_speakers( $talk, $owner_presentation ) as $speaker ) {
+				$key = strtolower( trim( (string) $speaker['name'] ) );
+
+				if ( '' === $key || isset( $seen[ $key ] ) ) {
+					continue;
+				}
+				$seen[ $key ] = true;
+
+				$out[] = $speaker + [
+					'context'  => (string) ( $talk['title'] ?? '' ),
+					'date'     => (string) ( $talk['starts_at'] ?? '' ),
+					'timezone' => (string) ( $talk['timezone'] ?? '' ),
+					'link'     => (string) ( $talk['permalink'] ?? '' ),
+				];
+
+				// The list changes when this person's session starts.
+				$start_ts = (int) strtotime( (string) ( $talk['starts_at'] ?? '' ) );
+				if ( $start_ts > 0 ) {
+					Diagnostics::boundary( $start_ts );
+				}
+
+				if ( $limit > 0 && count( $out ) >= $limit ) {
+					return $out;
+				}
+			}
+		}
+
+		return $out;
+	}
+
+	/**
+	 * The owning-event lookup for session rows: hs_id → title, venue city
+	 * and country, presentation — from the candidate pool the render has
+	 * already loaded, never a second query.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	private static function owners_by_hs_id(): array {
+		$owners = [];
+
+		foreach ( self::candidates() as $event ) {
+			$owners[ (string) ( $event['hs_id'] ?? '' ) ] = [
+				'title'         => (string) ( $event['title'] ?? '' ),
+				'venue_city'    => (string) ( $event['venue_city'] ?? '' ),
+				'venue_country' => (string) ( $event['venue_country'] ?? '' ),
+				'presentation'  => (array) ( $event['presentation'] ?? [] ),
+			];
+		}
+
+		return $owners;
+	}
+
+	/**
+	 * One session's displayed speakers, honouring the per-session speaker
+	 * relationship (Data\EventPresentation::for_talk): a deliberate local
+	 * assignment resolves against the canonical speaker records the plugin
+	 * already holds — never copies — and unresolvable references are
+	 * skipped, falling back to the HeySummit association in auto mode.
+	 * Speaker assignment is independent of every URL on the session.
+	 *
+	 * @param array<string,mixed> $talk               Talk data.
+	 * @param array<string,mixed> $event_presentation Owning event's presentation.
+	 * @return array<int,array<string,mixed>>
+	 */
+	public static function session_speakers( array $talk, array $event_presentation = [] ): array {
+		$relation  = EventPresentation::for_talk( $talk, $event_presentation );
+		$heysummit = self::normalise_speakers( (array) ( $talk['speakers'] ?? [] ) );
+
+		if ( 'none' === $relation['source'] ) {
+			return [];
+		}
+
+		if ( 'heysummit' === $relation['source'] ) {
+			return $heysummit;
+		}
+
+		$local = self::resolve_speaker_refs( $relation['refs'] );
+
+		if ( 'local' === $relation['source'] ) {
+			return $local;
+		}
+
+		// Auto: a deliberate local assignment first, else HeySummit.
+		return ! empty( $local ) ? $local : $heysummit;
+	}
+
+	/**
+	 * Resolve canonical speaker references: speaker post IDs in Full mode
+	 * (Components::speaker_record — the same mapping the session lists use),
+	 * HeySummit speaker IDs against the cached speaker pool in Lite. A
+	 * reference that no longer resolves is ignored, never fatal.
+	 *
+	 * @param string[] $refs Stored references.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function resolve_speaker_refs( array $refs ): array {
+		if ( empty( $refs ) ) {
+			return [];
+		}
+
+		$out = [];
+
+		if ( ! \Emailexpert\Events\Options::is_lite() ) {
+			foreach ( $refs as $ref ) {
+				$record = \Emailexpert\Events\Frontend\Components::speaker_record( (int) $ref );
+
+				if ( null !== $record ) {
+					$out[] = $record;
+				}
+			}
+
+			return self::normalise_speakers( $out );
+		}
+
+		// Lite: the cached speaker pool the repository already builds from
+		// the session data (one bounded, cached pass — no per-ref fetches).
+		if ( null === self::$lite_speaker_pool ) {
+			$pool = [];
+			foreach ( Repositories::current()->speakers( [ 'limit' => 0 ] ) as $speaker ) {
+				$pool[ (string) ( $speaker['id'] ?? '' ) ] = $speaker;
+			}
+			self::$lite_speaker_pool = $pool;
+		}
+
+		foreach ( $refs as $ref ) {
+			if ( isset( self::$lite_speaker_pool[ (string) $ref ] ) ) {
+				$out[] = self::$lite_speaker_pool[ (string) $ref ];
+			}
+		}
+
+		return self::normalise_speakers( $out );
+	}
+
+	/**
+	 * Normalise a talk's speaker entries to the display shape the templates
+	 * share ({ name, url, headline, photo_id, photo_url }); entries without
+	 * a name are dropped, portraits are never fabricated.
+	 *
+	 * @param array<int,mixed> $speakers Raw speaker entries.
+	 * @return array<int,array<string,mixed>>
+	 */
+	private static function normalise_speakers( array $speakers ): array {
+		$out = [];
+
+		foreach ( $speakers as $speaker ) {
+			if ( ! is_array( $speaker ) ) {
+				continue;
+			}
+
+			$name = trim( (string) ( $speaker['name'] ?? '' ) );
+
+			if ( '' === $name ) {
+				continue;
+			}
+
+			$out[] = [
+				'name'      => $name,
+				'url'       => (string) ( $speaker['url'] ?? '' ),
+				'headline'  => (string) ( $speaker['headline'] ?? '' ),
+				'photo_id'  => (int) ( $speaker['photo_id'] ?? 0 ),
+				'photo_url' => (string) ( $speaker['photo_url'] ?? ( $speaker['headshot'] ?? '' ) ),
+			];
+		}
+
+		return $out;
 	}
 
 	/**

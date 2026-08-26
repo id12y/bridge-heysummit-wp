@@ -48,37 +48,108 @@ class HomepageHeroWidget extends CompositeWidget {
 	 */
 	protected function conditions(): array {
 		return [
-			'story_id'                => [ 'story_source' => 'manual' ],
-			'story_fallback'          => [ 'story_source' => 'manual' ],
-			'featured_event'          => [ 'featured_source' => 'manual_event' ],
-			'featured_session'        => [ 'featured_source' => 'manual_session' ],
-			'event_presentation'      => [ 'featured_source' => [ 'auto', 'manual_event' ] ],
-			'presentation_session'    => [
+			'story_id'                 => [ 'story_source' => 'manual' ],
+			'story_fallback'           => [ 'story_source' => 'manual' ],
+			'story2_source'            => [ 'story_count' => '2' ],
+			'story2_id'                => [
+				'story_count'   => '2',
+				'story2_source' => 'manual',
+			],
+			'story2_placement'         => [ 'story_count' => '2' ],
+			'featured_event'           => [ 'featured_source' => 'manual_event' ],
+			'featured_session'         => [ 'featured_source' => 'manual_session' ],
+			'event_presentation'       => [ 'featured_source' => [ 'auto', 'manual_event' ] ],
+			'presentation_session'     => [
 				'featured_source'    => [ 'auto', 'manual_event' ],
 				'event_presentation' => 'session',
 			],
-			'selection_strategy'      => [ 'featured_source' => 'auto' ],
-			'pin_duration'            => [ 'featured_source' => [ 'manual_event', 'manual_session' ] ],
-			'pin_until'               => [
+			'selection_strategy'       => [ 'featured_source' => 'auto' ],
+			'pin_duration'             => [ 'featured_source' => [ 'manual_event', 'manual_session' ] ],
+			'pin_until'                => [
 				'featured_source' => [ 'manual_event', 'manual_session' ],
 				'pin_duration'    => 'until_date',
 			],
-			'pin_expiry_action'       => [ 'featured_source' => [ 'manual_event', 'manual_session' ] ],
-			'news_title'              => [ 'news_show' => '1' ],
-			'news_count'              => [ 'news_show' => '1' ],
-			'news_types'              => [ 'news_show' => '1' ],
-			'news_categories'         => [ 'news_show' => '1' ],
-			'news_exclude_categories' => [ 'news_show' => '1' ],
-			'news_order'              => [ 'news_show' => '1' ],
-			'news_show_image'         => [ 'news_show' => '1' ],
-			'news_show_category'      => [ 'news_show' => '1' ],
-			'news_show_date'          => [ 'news_show' => '1' ],
-			'news_all_text'           => [ 'news_show' => '1' ],
-			'news_all_url'            => [ 'news_show' => '1' ],
-			'more_events_mode'        => [ 'more_events' => '1' ],
-			'more_events_limit'       => [ 'more_events' => '1' ],
-			'more_events_placement'   => [ 'more_events' => '1' ],
-			'more_events_title'       => [ 'more_events' => '1' ],
+			'pin_expiry_action'        => [ 'featured_source' => [ 'manual_event', 'manual_session' ] ],
+			'news_title'               => [ 'news_show' => '1' ],
+			'news_count'               => [ 'news_show' => '1' ],
+			'news_types'               => [ 'news_show' => '1' ],
+			'news_categories'          => [ 'news_show' => '1' ],
+			'news_exclude_categories'  => [ 'news_show' => '1' ],
+			'news_order'               => [ 'news_show' => '1' ],
+			'news_show_image'          => [ 'news_show' => '1' ],
+			'news_layout'              => [ 'news_show' => '1' ],
+			'news_lead_standfirst'     => [
+				'news_show'   => '1',
+				'news_layout' => [ 'auto', 'newsroom' ],
+			],
+			'news_dense_heading'       => [
+				'news_show'   => '1',
+				'news_layout' => [ 'auto', 'newsroom' ],
+			],
+			'news_media_emphasis'      => [
+				'news_show'   => '1',
+				'news_layout' => [ 'auto', 'newsroom' ],
+			],
+			'news_image_position'      => [
+				'news_show'       => '1',
+				'news_show_image' => '1',
+				'news_layout'     => [ 'media', 'editorial', 'list' ],
+			],
+			'news_image_size'          => [
+				'news_show'           => '1',
+				'news_show_image'     => '1',
+				'news_image_position' => [ 'auto', 'above' ],
+				'news_layout'         => [ 'media', 'editorial', 'list' ],
+			],
+			'news_show_category'       => [ 'news_show' => '1' ],
+			'news_link_categories'     => [
+				'news_show'          => '1',
+				'news_show_category' => '1',
+			],
+			'news_link_images'         => [
+				'news_show'       => '1',
+				'news_show_image' => '1',
+			],
+			'news_show_date'           => [ 'news_show' => '1' ],
+			'news_all_show'            => [ 'news_show' => '1' ],
+			'news_all_text'            => [
+				'news_show'     => '1',
+				'news_all_show' => '1',
+			],
+			'news_all_url'             => [
+				'news_show'     => '1',
+				'news_all_show' => '1',
+			],
+			'more_events_mode'         => [ 'more_events' => '1' ],
+			'more_events_limit'        => [ 'more_events' => '1' ],
+			'more_events_placement'    => [ 'more_events' => '1' ],
+			'more_events_title'        => [ 'more_events' => '1' ],
+			'more_events_presentation' => [ 'more_events' => '1' ],
+			'more_events_speakers'     => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'speakers', 'auto', 'rich_horizontal', 'rich_vertical' ],
+			],
+			'more_events_interaction'  => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'rich_horizontal', 'rich_vertical' ],
+			],
+			'more_show_time'           => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'rich_horizontal', 'rich_vertical' ],
+			],
+			'more_show_event'          => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'rich_horizontal', 'rich_vertical' ],
+			],
+			'more_show_media'          => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'rich_horizontal', 'rich_vertical' ],
+			],
+			'more_events_layout'       => [
+				'more_events'              => '1',
+				'more_events_presentation' => [ 'auto', 'events', 'speakers', 'people' ],
+			],
+			'more_events_whisper'      => [ 'more_events' => '1' ],
 		];
 	}
 

@@ -920,6 +920,140 @@
 	border-bottom-color: var(--eex-line);
 }
 
+/* Rich session rows: publisher programme voice — quiet meta, serif title
+   at a middle scale, compact action; separation by hairline and space,
+   never by boxes. */
+.eex .eex-compact-event--rich .eex-compact-event__title {
+	font-size: clamp(1.02rem, 0.95rem + 0.4vw, 1.3rem);
+	line-height: 1.28;
+	text-wrap: pretty;
+}
+
+.eex .eex-compact-event--rich .eex-compact-event__date,
+.eex .eex-compact-event--rich .eex-compact-event__time {
+	font-family: var(--eex-sans);
+	font-weight: 650;
+	font-size: var(--eex-step--1);
+	color: var(--eex-ink);
+}
+
+.eex .eex-compact-event__context {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1);
+	color: var(--eex-muted);
+}
+
+.eex .eex-compact-event__action .eex-cta {
+	font-size: var(--eex-step--1);
+	padding: 0.4em 1em;
+}
+
+.eex .eex-compact-event__action .eex-cta-quiet {
+	font-size: var(--eex-step--1);
+	color: var(--eex-accent);
+}
+
+@media (min-width: 900px) {
+	.eex .eex-hh__more--lay-rich-h .eex-hh__more-list > li + li {
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
+		padding-left: calc(var(--eex-composition-gap) * 0.7);
+	}
+}
+
+/* The row whisper: the site's tiny-caps label voice. */
+.eex .eex-compact-event__whisper {
+	color: var(--eex-whisper-color, #2864dc);
+	font-family: var(--eex-sans);
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-size: 0.62rem;
+}
+
+/* Row speakers and person-led rows: people read as people. */
+.eex .eex-compact-event__speaker-name,
+.eex .eex-hh__person-name {
+	font-family: var(--eex-sans);
+	font-weight: 650;
+	font-size: var(--eex-step--1);
+	color: var(--eex-ink);
+}
+
+.eex .eex-compact-event__portrait,
+.eex .eex-hh__person-photo {
+	border: 1px solid var(--eex-line);
+	background: var(--eex-surface);
+}
+
+.eex .eex-hh__person {
+	border-bottom-color: var(--eex-line);
+}
+
+.eex .eex-hh__person-context {
+	font-family: var(--eex-serif);
+	font-weight: 600;
+	font-size: var(--eex-step--1);
+	color: var(--eex-ink);
+}
+
+.eex .eex-hh__person-context a:hover,
+.eex .eex-hh__person-context a:focus-visible {
+	text-decoration: underline;
+	text-underline-offset: 0.15em;
+}
+
+/* The secondary featured story: clearly subordinate to the lead — the
+   news-desk serif at a middle scale, hairline-separated beneath the
+   primary story. */
+.eex .eex-hh__story-second--beneath {
+	border-top: 1px solid var(--eex-line);
+	padding-top: calc(var(--eex-composition-gap) * 0.7);
+}
+
+.eex .eex-hh__story2-title {
+	font-family: var(--eex-serif);
+	font-size: clamp(1.05rem, 0.95rem + 0.55vw, 1.35rem);
+	font-weight: 650;
+	line-height: 1.25;
+	color: var(--eex-ink);
+	text-wrap: balance;
+}
+
+.eex .eex-hh__story2-title a:hover,
+.eex .eex-hh__story2-title a:focus-visible {
+	text-decoration: underline;
+	text-underline-offset: 0.12em;
+}
+
+.eex .eex-hh__story2-standfirst {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step--1);
+	line-height: 1.5;
+	color: var(--eex-muted);
+	max-width: 40em;
+}
+
+.eex .eex-hh__story2-media {
+	background: var(--eex-surface);
+}
+
+@media (min-width: 700px) {
+	.eex .eex-hh__story-second--beneath .eex-hh__story2 {
+		display: grid;
+		grid-template-columns: minmax(0, 34fr) minmax(0, 66fr);
+		gap: calc(var(--eex-composition-gap) * 0.8);
+		align-items: start;
+	}
+
+	.eex .eex-hh__story-second--beneath .eex-hh__story2--text {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.eex .eex-hh__story-second--beneath .eex-hh__story2-media {
+		margin-bottom: 0;
+	}
+}
+
 /* Latest News: an editorial news desk — headlines lead, hairlines divide. */
 .eex .eex-hh__news-head .eex-hh__news-all {
 	color: var(--eex-whisper-color, #2864dc);
@@ -931,29 +1065,196 @@
 	font-family: var(--eex-serif);
 	font-weight: 650;
 	color: var(--eex-ink);
-	line-height: 1.3;
+	line-height: 1.28;
+	text-wrap: pretty;
 }
 
 .eex .eex-hh__news-title a:hover {
 	color: var(--eex-accent);
 }
 
-/* Column hairlines between news items, per row shape. */
+/* News headline scale, per layout: strong editorial headlines that never
+   compete with the featured story. The token flows through the base rule,
+   so an explicit Elementor typography override still wins. */
+.eex .eex-hh__news {
+	--eex-news-title-size: clamp(1rem, 0.95rem + 0.3vw, 1.2rem);
+	--eex-news-line: var(--eex-line);
+}
+
+.eex .eex-hh__news--media {
+	--eex-news-title-size: clamp(1.05rem, 0.95rem + 0.55vw, 1.4rem);
+}
+
+.eex .eex-hh__news--media .eex-hh__news-list--cols-2 {
+	--eex-news-title-size: clamp(1.15rem, 1rem + 0.85vw, 1.65rem);
+}
+
+.eex .eex-hh__news--list {
+	--eex-news-title-size: var(--eex-step-0, 1rem);
+}
+
+/* Composed layouts: headline scale follows the editorial role — the news
+   lead clearly beneath the homepage featured story, secondaries beneath
+   the lead, standards lighter again, briefs built for scanning. */
+.eex .eex-hh__news-card--lead .eex-hh__news-title {
+	font-size: clamp(1.3rem, 1.1rem + 1vw, 1.9rem);
+	line-height: 1.18;
+}
+
+.eex .eex-hh__news-card--secondary .eex-hh__news-title {
+	font-size: clamp(1.02rem, 0.95rem + 0.4vw, 1.3rem);
+}
+
+.eex .eex-hh__news-card--standard .eex-hh__news-title {
+	font-size: clamp(0.95rem, 0.9rem + 0.3vw, 1.1rem);
+}
+
+.eex .eex-hh__news-card--brief .eex-hh__news-title {
+	font-size: var(--eex-step-0, 0.95rem);
+	line-height: 1.35;
+}
+
+.eex .eex-hh__news-standfirst {
+	font-family: var(--eex-sans);
+	font-size: var(--eex-step-0);
+	line-height: 1.5;
+	color: var(--eex-muted);
+	margin: 0.15em 0 0.35em;
+	max-width: 38em;
+}
+
+/* Rail secondaries and brief rows: hairline-separated editorial rows. */
+.eex .eex-hh__news-rail > li + li .eex-hh__news-card,
+.eex .eex-hh__news-brieflist > li + li .eex-hh__news-card--brief {
+	border-top: 1px solid var(--eex-news-line, var(--eex-line));
+}
+
+.eex .eex-hh__news-rail > li + li .eex-hh__news-card {
+	margin-top: 0.55em;
+	padding-top: 0.8em;
+}
+
+.eex .eex-hh__news-briefs .eex-hh__label {
+	margin: 0 0 0.4em;
+	padding-top: calc(var(--eex-composition-gap) * 0.55);
+	border-top: 1px solid var(--eex-line);
+	width: 100%;
+}
+
+.eex .eex-hh__news-standard {
+	border-top: 1px solid var(--eex-news-line, var(--eex-line));
+	padding-top: calc(var(--eex-composition-gap) * 0.55);
+}
+
+/* The standard row's own top rules never double up with the composed
+   row's shared rule. */
+.eex .eex-hh__news-standard .eex-hh__news-item .eex-hh__news-card {
+	border-top: 0;
+}
+
 @media (min-width: 900px) {
-	.eex .eex-hh__news-item:nth-child(n + 2) {
-		border-left: 1px solid var(--eex-line);
+	.eex .eex-hh__news-standard .eex-hh__news-item:nth-child(n + 2) {
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
 		padding-left: calc(var(--eex-composition-gap) * 0.7);
+	}
+
+	.eex .eex-hh__news-top .eex-hh__news-rail {
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
+		padding-left: var(--eex-composition-gap);
+	}
+
+	.eex .eex-hh__news--newsroom .eex-hh__news-top .eex-hh__news-rail {
+		border-left: 0;
+		padding-left: 0;
+		border-top: 1px solid var(--eex-news-line, var(--eex-line));
+		padding-top: 0.8em;
+		margin-top: 0.8em;
+	}
+}
+
+@media (min-width: 1100px) {
+	.eex .eex-hh__news--newsroom .eex-hh__news-briefs {
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
+		padding-left: var(--eex-composition-gap);
+	}
+
+	.eex .eex-hh__news--newsroom .eex-hh__news-briefs .eex-hh__label {
+		border-top: 0;
+		padding-top: 0;
+	}
+}
+
+/* Separators: quieter than the site hairline — editorial separation, not
+   four rigid boxes (color-mix browsers get the lighter rule; others keep
+   the standard hairline). */
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+	.eex .eex-hh__news {
+		--eex-news-line: color-mix(in srgb, var(--eex-line) 55%, transparent);
+	}
+}
+
+/* Tight within a story, clear space between stories (media grid). */
+.eex .eex-hh__news--media .eex-hh__news-media {
+	margin-bottom: 0.45em;
+}
+
+.eex .eex-hh__news--media .eex-hh__news-card--stacked > .eex-hh__news-category {
+	margin-bottom: 0.35em;
+}
+
+.eex .eex-hh__news--media .eex-hh__news-date {
+	margin-top: 0.1em;
+}
+
+/* The linked category label: same restrained caps, plainly interactive on
+   hover and focus (underline + outline, never colour alone). */
+.eex .eex-hh__news-category a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.eex .eex-hh__news-category a:hover {
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+}
+
+.eex .eex-hh__news-category a:focus-visible {
+	outline: 2px solid var(--eex-accent);
+	outline-offset: 2px;
+	text-decoration: underline;
+	text-underline-offset: 0.2em;
+}
+
+/* Column hairlines between news items, per row shape. The server states
+   the desktop column count on the list, so hairlines follow the real grid:
+   never a left border on a row's first item, a top rule for every row
+   after the first. */
+@media (min-width: 900px) {
+	.eex .eex-hh__news-list--cols-2 .eex-hh__news-item:nth-child(2n),
+	.eex .eex-hh__news-list--cols-3 .eex-hh__news-item:not(:nth-child(3n + 1)),
+	.eex .eex-hh__news-list--cols-4 .eex-hh__news-item:not(:nth-child(4n + 1)),
+	.eex .eex-hh__news-list:not([class*="--cols-"]) .eex-hh__news-item:nth-child(n + 2) {
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
+		padding-left: calc(var(--eex-composition-gap) * 0.7);
+	}
+
+	.eex .eex-hh__news-list--cols-2 .eex-hh__news-item:nth-child(n + 3) .eex-hh__news-card,
+	.eex .eex-hh__news-list--cols-3 .eex-hh__news-item:nth-child(n + 4) .eex-hh__news-card,
+	.eex .eex-hh__news-list--cols-4 .eex-hh__news-item:nth-child(n + 5) .eex-hh__news-card {
+		border-top: 1px solid var(--eex-news-line, var(--eex-line));
+		margin-top: 0.7em;
+		padding-top: 0.9em;
 	}
 }
 
 @media (min-width: 600px) and (max-width: 899.98px) {
 	.eex .eex-hh__news-item:nth-child(even) {
-		border-left: 1px solid var(--eex-line);
+		border-left: 1px solid var(--eex-news-line, var(--eex-line));
 		padding-left: var(--eex-composition-gap);
 	}
 
 	.eex .eex-hh__news-item:nth-child(n + 3) .eex-hh__news-card {
-		border-top: 1px solid var(--eex-line);
+		border-top: 1px solid var(--eex-news-line, var(--eex-line));
 		margin-top: 0.6em;
 		padding-top: 0.9em;
 	}
@@ -961,7 +1262,7 @@
 
 @media (max-width: 599.98px) {
 	.eex .eex-hh__news-item + .eex-hh__news-item .eex-hh__news-card {
-		border-top: 1px solid var(--eex-line);
+		border-top: 1px solid var(--eex-news-line, var(--eex-line));
 		margin-top: 0.35em;
 		padding-top: 0.7em;
 	}

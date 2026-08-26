@@ -204,6 +204,52 @@ final class SelectionTest extends TestCase {
 		);
 	}
 
+	public function test_upcoming_sessions_mode_lists_sessions_excluding_the_featured_one(): void {
+		$this->calendar();
+
+		$make_talk = function ( string $title, string $hs_id, string $event_hs_id, int $days ): void {
+			wp_insert_post(
+				[
+					'post_type'   => 'eex_talk',
+					'post_status' => 'publish',
+					'post_title'  => $title,
+					'meta_input'  => [
+						'_eex_heysummit_id'    => $hs_id,
+						'_eex_source_event_id' => $event_hs_id,
+						'_eex_starts_at'       => $this->iso( $this->t0 + $days * DAY_IN_SECONDS ),
+						'_eex_ends_at'         => $this->iso( $this->t0 + $days * DAY_IN_SECONDS + 3600 ),
+					],
+				]
+			);
+		};
+
+		// One long-running event (101) holding several sessions — the
+		// calendar shape where distinct-event modes have nothing to list.
+		$make_talk( 'RFP panel', '501', '101', 9 );
+		$make_talk( 'Deliverability clinic', '502', '101', 12 );
+		$make_talk( 'Roundtable session', '601', '102', 13 );
+
+		$target = FeatureTargetResolver::resolve(
+			[
+				'featured_source'  => 'manual_session',
+				'featured_session' => '501',
+			]
+		);
+
+		$more = EventSelector::more_sessions( 3, (array) $target['session'] );
+
+		$this->assertSame(
+			[ 'Deliverability clinic', 'Roundtable session' ],
+			array_map( static fn( array $row ): string => (string) $row['title'], $more ),
+			'upcoming sessions mode lists the following sessions, featured one excluded — including siblings from the same event'
+		);
+		$this->assertNotSame( '', (string) $more[0]['first_talk_at'], 'rows carry the session start for the compact row date' );
+		$this->assertNotSame( '', (string) $more[0]['url'], 'rows link to the session' );
+
+		$limited = EventSelector::more_sessions( 1, (array) $target['session'] );
+		$this->assertCount( 1, $limited, 'the row limit still applies after exclusion' );
+	}
+
 	public function test_exclusion_happens_before_the_limit_so_the_list_refills(): void {
 		$this->calendar();
 
@@ -582,6 +628,75 @@ final class SelectionTest extends TestCase {
 		$selection = EditorialSelector::select( [ 'story_source' => 'latest' ] );
 
 		$this->assertSame( 'Newest story', (string) $selection['lead']['title'] );
+	}
+
+	public function test_two_story_frontage_excludes_both_features_from_news_before_the_limit(): void {
+		foreach ( [ 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven' ] as $index => $title ) {
+			$this->make_story( $title, ( $index + 1 ) * 3600 );
+		}
+
+		$selection = EditorialSelector::select(
+			[
+				'story_source' => 'latest',
+				'story_count'  => '2',
+				'news_count'   => 4,
+			]
+		);
+
+		$this->assertSame( 'One', (string) $selection['lead']['title'], 'the newest story leads' );
+		$this->assertSame( 'Two', (string) $selection['second']['title'], 'the next eligible story is the secondary feature' );
+		$this->assertSame(
+			[ 'Three', 'Four', 'Five', 'Six' ],
+			array_map( static fn( array $item ): string => (string) $item['title'], $selection['items'] ),
+			'both features are excluded before the limit and the list refills to four'
+		);
+	}
+
+	public function test_a_manual_secondary_story_never_duplicates_the_lead(): void {
+		$one = $this->make_story( 'One', 3600 );
+		$this->make_story( 'Two', 7200 );
+
+		$selection = EditorialSelector::select(
+			[
+				'story_source'  => 'latest',
+				'story_count'   => '2',
+				'story2_source' => 'manual',
+				'story2_id'     => (string) $one, // Duplicates the lead.
+			]
+		);
+
+		$this->assertSame( 'One', (string) $selection['lead']['title'] );
+		$this->assertSame( 'Two', (string) $selection['second']['title'], 'a duplicate manual pick falls back to the next eligible story' );
+	}
+
+	public function test_one_eligible_story_means_the_two_story_layout_falls_back_to_one(): void {
+		$this->make_story( 'Only story', 3600 );
+
+		$selection = EditorialSelector::select(
+			[
+				'story_source' => 'latest',
+				'story_count'  => '2',
+			]
+		);
+
+		$this->assertSame( 'Only story', (string) $selection['lead']['title'] );
+		$this->assertNull( $selection['second'], 'no empty placeholder is reserved for a second story' );
+	}
+
+	public function test_latest_news_supports_up_to_twelve_items(): void {
+		for ( $i = 1; $i <= 15; $i++ ) {
+			$this->make_story( 'Story ' . $i, $i * 3600 );
+		}
+
+		$selection = EditorialSelector::select(
+			[
+				'story_source' => 'latest',
+				'news_count'   => 12,
+			]
+		);
+
+		$this->assertCount( 12, $selection['items'], 'twelve news items render when requested' );
+		$this->assertSame( 'Story 2', (string) $selection['items'][0]['title'], 'the lead is still excluded first' );
 	}
 
 	public function test_the_featured_story_is_removed_from_latest_news_and_the_list_refills(): void {

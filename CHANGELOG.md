@@ -3,6 +3,190 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.57.0
+- **Elementor: the editorial audience is picked, not typed.** The Homepage
+  Editorial Hero's post-type and category filters (story and Latest News,
+  include and exclude) are now searchable multi-select dropdowns listing
+  the site's real public post types and category names — no more
+  hand-typed, comma-separated slugs. They store the same slugs the block
+  and shortcode syntax speak, so existing saved values keep rendering
+  identically; a legacy value typed as several comma-separated slugs
+  shows unselected in the panel until re-picked once.
+- **Elementor: panel picker queries stay out of front-end page loads.**
+  The composite widgets' pickers (events, sessions, stories, and the new
+  type/category dropdowns) build their option lists only for editor
+  requests. Ordinary page views register the same controls purely to
+  parse saved values, so the option queries — and in Lite mode any live
+  fetches behind them — no longer run while a visitor waits.
+
+## 1.56.0
+- **Latest News becomes a composed front page.** Up to 20 stories
+  (`news_count` 2–20; 12 is the sensible everyday setting), presented
+  through deterministic editorial roles assigned from the existing
+  selector's order — selection still decides WHICH stories appear, the
+  layout only decides HOW, and switching layouts never changes the
+  selection. Nothing is persisted to posts; no story is ever dropped.
+  - **Front Page** (the `auto` layout, now the flagship): 1 lead (large
+    image, optional short standfirst), up to 3 secondary rail stories
+    (medium thumbnails, hairline rows), a standard row from nine stories
+    (small thumbnails, 2/2/3/4 for 9–12, capped at four), and everything
+    later as typography-led headline rows under a configurable "Latest"
+    label (two columns when eight or more). More stories means lighter
+    treatment, never more equal cards.
+  - **Newsroom**: denser — 1 lead, 2 secondaries, up to 4 standards, and
+    a dedicated Latest side rail on wide screens (reading order
+    unchanged). Built for a high publishing tempo at 12–20 stories.
+  - **Media Grid and the Newswire list are preserved unchanged** (the
+    grid remains best at 4–8 illustrated stories; the control says so).
+  - **Image economy**: briefs never build image markup at all — a
+    20-story Front Page requests at most eight story images (lead,
+    secondaries, standards); `news_media_emphasis`
+    (auto/restrained/strong) trims or extends that deliberately.
+  - Headline scale follows the role (lead clearly beneath the homepage
+    featured story, briefs built for scanning); category links, image
+    links, dates, the All-news route, balancing, exclusions and caching
+    are untouched. New controls: layout names, lead standfirst toggle,
+    headline-section label, image emphasis — same everywhere via the
+    shared renderer.
+
+## 1.55.0
+- **Rich More Sessions presentations.** The presentation control gains
+  Rich horizontal (a publisher programme strip: date, format, location,
+  title, speakers, owning event, one action) and Rich vertical (the same
+  entry stacked), alongside the kept Compact, Compact-with-speakers and
+  People-led modes. Auto now resolves session rows to the rich treatment
+  (horizontal in the strip, vertical in the column). Every rich row's
+  action is the existing registration system's answer: the shared RSVP
+  form ("Register") when its free-ticket rules apply, the shared ticket
+  panel ("Get tickets") when tickets exist, the session page ("View
+  session") otherwise — one cached decision per owning event, rows
+  compact until the visitor acts, never several open forms. New
+  restrained controls: rich row action (auto/details/registration),
+  show time, show owning event, show media.
+- **Format and location semantics corrected.** One shared resolver
+  (`Components::format_label`) derives Online / In person / Hybrid from
+  gathering data (in-person flag, venue fields) and the new per-event
+  presentation Format override only — URLs, checkout types and
+  registration mechanisms are not inputs and can never influence format.
+  Sessions inherit the owning event's city/country for location;
+  location, details, registration and speaker assignment are fully
+  independent fields.
+- **Local speaker assignment for sessions.** Sessions whose speakers
+  HeySummit cannot associate (external landing pages) can be assigned
+  speakers locally: references to the existing canonical speaker records
+  only — never copies, so a later change to the record shows everywhere.
+  Speaker source per session: Auto (local first, else HeySummit),
+  HeySummit only, Local only, None; stale references are skipped safely.
+  Full mode edits this in a meta box on the session edit screen; Lite
+  mode under each event's presentation row in Settings. Nothing is ever
+  written back to HeySummit.
+- **Details destination override** per event in the presentation layer:
+  a good public landing page can serve as Details without touching
+  registration or format.
+- **Elementor editor/frontend parity.** The editor preview iframe now
+  enqueues the same registered production stylesheet, skin and time
+  module the frontend uses (they previously enqueued only on demand
+  during render, which never reaches the preview head — the canvas
+  showed unstyled components). The time module re-initialises rendered
+  widgets through Elementor's own ready hook. Same renderer, same
+  templates, same CSS — no editor-only implementation of anything.
+
+## 1.54.0
+- **Latest News refinement pass** (UI and navigation only; selection,
+  exclusion, balancing, caching and every other region untouched).
+  - Category labels can link to their real term archive
+    (`news_link_categories`, on by default; resolved via get_term_link,
+    plain text when a term has no valid archive). Restrained caps stay;
+    linked labels gain a clear hover underline and a visible focus
+    outline.
+  - Story images can link to the article (`news_link_images`, on by
+    default) as a pointer-only shortcut — out of the tab order and the
+    accessibility tree, so the adjacent headline stays the one announced
+    route and no nested links exist.
+  - Headline hierarchy: news headlines take a layout-aware scale token
+    (quieter than the featured story; larger in the two-wide grid,
+    smaller in the compact list) that explicit Elementor typography
+    overrides still outrank. Long headlines wrap naturally
+    (`text-wrap: pretty`); no truncation, no fixed heights.
+  - The component's dates render as compact editorial dates ("19 Aug
+    2026") locally — site-wide date formatting is untouched.
+  - Column and row separators within Latest News use a quieter hairline.
+  - The View all news link can be switched off (`news_all_show`, on by
+    default) and, when no destination is configured, falls back to the
+    site's own posts page — never a guessed URL, never a broken link.
+
+## 1.53.0
+- **The compositions now lead with the plugin's own registration
+  experience by default.** The Homepage Editorial Hero and the Event
+  Landing Page have always rendered the shared register-form part, the
+  shared ticket drawer and the shared checkout routing — but their
+  Register button behaviour defaulted to "follow the ticket link", like
+  every classic widget. They now default to a new **auto** mode that asks
+  the existing registration system what to render: the in-place RSVP form
+  when `Components::rsvp_context` finds a usable free ticket under its
+  existing rules, otherwise the existing ticket panel — the richest
+  in-site experience the plugin already supports, handing off to external
+  checkout only where the existing system genuinely does. Explicit
+  link/panel/form choices keep their classic meaning, the classic widgets
+  are untouched, and there is still exactly one form template, one
+  consent implementation, one REST endpoint and one checkout router
+  behind every surface.
+
+## 1.52.0
+- **The Homepage Editorial Hero recomposes around its content.** A
+  layout-flexibility and content-density pass on the one composition —
+  no renderer, selection, lifecycle, registration or caching change.
+  - **Two featured stories.** `story_count="2"` adds a secondary feature
+    (automatic next-eligible or a manual pick that can never duplicate
+    the lead), placed beneath the primary story by default or as a side
+    feature (`story2_placement`). Both features are excluded from Latest
+    News before its limit, so the list refills. The lead, the secondary
+    story and the news list now share one bounded editorial query.
+  - **Latest News density.** Up to 12 items (`news_count` 2–12); desktop
+    columns follow the item count (2→2, 3→3, 4→4, 6→3×2, 8→4×2,
+    12→4×3) with hairlines that follow the real grid. Layout modes
+    (`news_layout`): auto, compact list, editorial grid, media grid.
+    Image controls: placement (`news_image_position` auto/none/beside/
+    above — above renders category, image, headline, date at content
+    width) and emphasis (`news_image_size` compact/medium/large), all
+    ratio-stable (no layout shift) and lazy-loaded.
+  - **More Events presentation.** `more_events_presentation`: events
+    only (unchanged default), events + featured speakers (one or two
+    portraits and names per row, `more_events_speakers` 1–3), featured
+    people (person-led rows with session context under a "Coming up"
+    label), or auto. Speaker treatments reuse the session data the page
+    already loads — no new fetch layer, and rows without speaker
+    information stay event-only. `more_events_layout` arranges any
+    placement as a vertical list, horizontal strip or two-column grid.
+    `more_events_whisper` adds a tiny-caps line per row: the format
+    (Online / In person, the featured pill's venue rule) or the
+    location (city and country where the venue data names them).
+  - Same controls in the widget (conditionally shown), the block and
+    the shortcode; one shared server renderer as before.
+
+## 1.51.0
+- **The hero's More Events strip can list upcoming sessions.** The strip
+  only listed distinct HeySummit events, with the featured event always
+  excluded — so on a calendar that is one long-running event holding many
+  sessions (the emailexpert shape), enabling it showed nothing. A new
+  source mode, `more_events_mode="upcoming_sessions"`, lists the next
+  sessions across the displayed events instead: same compact rows (date,
+  title, link), the featured session excluded, cancelled sessions
+  skipped, and the cached fragment expires when a listed session starts.
+  Available in the widget, block and shortcode; the default mode is
+  unchanged.
+
+## 1.50.1
+- **Deleting the plugin no longer erases its configuration.** The
+  uninstall routine wiped every `eex_*` option unconditionally, so a
+  delete-and-reinstall (instead of an in-place update) silently lost the
+  API keys, connections, chosen events, sponsors and the Lite/Full mode
+  choice — the site fell back to Full mode with empty components.
+  Uninstall now clears only caches and scheduled jobs; settings,
+  connections and synced content survive so a reinstall resumes exactly
+  where the site left off. The existing "on uninstall, delete all"
+  opt-in still removes everything, and its label now says so.
+
 ## 1.50.0
 - **New component: Homepage Editorial Hero** (`eex/homepage-hero`,
   `[eex_homepage_hero]`, an Elementor widget). One composition replaces

@@ -46,6 +46,24 @@ final class EventPresentation {
 	public const STATUSES = [ 'auto', 'scheduled', 'postponed', 'cancelled' ];
 
 	/**
+	 * Format overrides. Format is an editorial fact about the gathering —
+	 * never inferred from a URL, a checkout type or a registration mechanism.
+	 */
+	public const FORMATS = [ 'auto', 'online', 'inperson', 'hybrid' ];
+
+	/**
+	 * Per-session speaker sources.
+	 */
+	public const SPEAKER_SOURCES = [ 'auto', 'heysummit', 'local', 'none' ];
+
+	/**
+	 * Post meta key holding a talk's presentation array in Full mode (the
+	 * speaker source/override relationship — references to canonical speaker
+	 * records, never copies of their fields).
+	 */
+	public const TALK_META_KEY = '_eex_presentation';
+
+	/**
 	 * The neutral defaults: everything eligible, nothing overridden.
 	 *
 	 * @return array<string,mixed>
@@ -63,6 +81,90 @@ final class EventPresentation {
 			'hero_media'       => '',
 			'cta_label'        => '',
 			'cta_url'          => '',
+			// The gathering's format, independent of every URL and checkout
+			// concept ('auto' = read the session/event data).
+			'format'           => 'auto',
+			// An editorial Details destination (a good external landing page,
+			// a local page) — details, registration and format stay separate
+			// concepts.
+			'details_url'      => '',
+			// Lite mode's per-session speaker relationships, keyed by the
+			// session's HeySummit ID: { source, refs[] }. References to the
+			// canonical speaker records only, never copies of their fields.
+			// (Full mode stores the same shape as talk post meta.)
+			'session_speakers' => [],
+		];
+	}
+
+	/**
+	 * The per-session speaker relationship for one talk: source + canonical
+	 * references. Full mode reads the talk post's own meta; Lite reads the
+	 * owning event's presentation row.
+	 *
+	 * @param array<string,mixed> $talk               Talk data (see Data\Repository).
+	 * @param array<string,mixed> $event_presentation The owning event's sanitised presentation.
+	 * @return array{source:string,refs:array<int,string>}
+	 */
+	public static function for_talk( array $talk, array $event_presentation = [] ): array {
+		$none = [
+			'source' => 'auto',
+			'refs'   => [],
+		];
+
+		$post_id = (int) ( $talk['id'] ?? 0 );
+
+		if ( $post_id > 0 && ! Options::is_lite() ) {
+			$stored = get_post_meta( $post_id, self::TALK_META_KEY, true );
+
+			return self::sanitise_talk( is_array( $stored ) ? $stored : [] );
+		}
+
+		$rows = (array) ( $event_presentation['session_speakers'] ?? [] );
+		$row  = $rows[ (string) ( $talk['hs_id'] ?? '' ) ] ?? null;
+
+		return is_array( $row ) ? self::sanitise_talk( $row ) : $none;
+	}
+
+	/**
+	 * Save a Full-mode talk's speaker relationship and flush the display
+	 * cache. Neutral values delete the meta entirely.
+	 *
+	 * @param int                 $post_id Talk post ID.
+	 * @param array<string,mixed> $values  Raw values.
+	 */
+	public static function save_talk( int $post_id, array $values ): void {
+		$clean = self::sanitise_talk( $values );
+
+		if ( 'auto' === $clean['source'] && empty( $clean['refs'] ) ) {
+			delete_post_meta( $post_id, self::TALK_META_KEY );
+		} else {
+			update_post_meta( $post_id, self::TALK_META_KEY, $clean );
+		}
+
+		\Emailexpert\Events\Frontend\Cache::flush();
+	}
+
+	/**
+	 * Coerce one per-session speaker row into shape.
+	 *
+	 * @param array<string,mixed> $values Raw row.
+	 * @return array{source:string,refs:array<int,string>}
+	 */
+	public static function sanitise_talk( array $values ): array {
+		$source = (string) ( $values['source'] ?? 'auto' );
+
+		$refs = array_values(
+			array_filter(
+				array_map(
+					static fn( $ref ): string => sanitize_text_field( (string) ( is_scalar( $ref ) ? $ref : '' ) ),
+					array_slice( (array) ( $values['refs'] ?? [] ), 0, 10 )
+				)
+			)
+		);
+
+		return [
+			'source' => in_array( $source, self::SPEAKER_SOURCES, true ) ? $source : 'auto',
+			'refs'   => $refs,
 		];
 	}
 
@@ -166,6 +268,24 @@ final class EventPresentation {
 
 		$clean['cta_label'] = sanitize_text_field( (string) ( $values['cta_label'] ?? '' ) );
 		$clean['cta_url']   = esc_url_raw( (string) ( $values['cta_url'] ?? '' ) );
+
+		$format          = (string) ( $values['format'] ?? 'auto' );
+		$clean['format'] = in_array( $format, self::FORMATS, true ) ? $format : 'auto';
+
+		$clean['details_url'] = esc_url_raw( (string) ( $values['details_url'] ?? '' ) );
+
+		// Bounded: at most 20 per-session rows, each holding at most 10
+		// canonical references.
+		$sessions = [];
+		foreach ( array_slice( array_filter( (array) ( $values['session_speakers'] ?? [] ), 'is_array' ), 0, 20, true ) as $talk_id => $row ) {
+			$talk_id = sanitize_text_field( (string) $talk_id );
+			$row     = self::sanitise_talk( $row );
+
+			if ( '' !== $talk_id && ( 'auto' !== $row['source'] || ! empty( $row['refs'] ) ) ) {
+				$sessions[ $talk_id ] = $row;
+			}
+		}
+		$clean['session_speakers'] = $sessions;
 
 		return array_merge( $defaults, $clean );
 	}

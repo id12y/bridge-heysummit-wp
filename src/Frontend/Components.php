@@ -181,7 +181,22 @@ final class Components {
 			],
 			'description' => __( 'The RSVP form registers visitors on this site using the event\'s free ticket and adds the session to their schedule — returning members are recognised and never sent through checkout. It needs a free ticket: if the event has none, the button follows the ticket link instead (paid tickets always check out on the platform).', 'emailexpert-events' ),
 		];
-		$buy_on          = [
+		// The compositions' variant of the same control: one extra mode,
+		// "auto", which asks the existing registration system what to render
+		// (the in-place RSVP form when its free-ticket rules apply, else the
+		// ticket panel) instead of the widget deciding. Same options, same
+		// renderers, same handlers — only the default differs, so the new
+		// surfaces lead with the richest in-site experience the plugin
+		// already supports. The classic widgets keep their spec untouched.
+		$register_action_auto = array_merge(
+			$register_action,
+			[
+				'default' => 'auto',
+				'options' => [ 'auto' => __( 'Auto (RSVP form when its rules apply, else the ticket panel)', 'emailexpert-events' ) ] + $register_action['options'],
+			]
+		);
+
+		$buy_on      = [
 			'type'    => 'string',
 			'default' => 'heysummit',
 			'label'   => __( 'Paid tickets buy on', 'emailexpert-events' ),
@@ -190,17 +205,17 @@ final class Components {
 				'woo'       => __( 'This site (mapped WooCommerce products)', 'emailexpert-events' ),
 			],
 		];
-		$coupon          = [
+		$coupon      = [
 			'type'    => 'string',
 			'default' => '',
 			'label'   => __( 'Coupon code baked into ticket checkout links (HeySummit checkout only)', 'emailexpert-events' ),
 		];
-		$currency        = [
+		$currency    = [
 			'type'    => 'string',
 			'default' => '',
 			'label'   => __( 'Currency symbol shown before prices (empty = bare numbers, as the API sends them)', 'emailexpert-events' ),
 		];
-		$limit_label     = __( 'Number to show (0 = all)', 'emailexpert-events' );
+		$limit_label = __( 'Number to show (0 = all)', 'emailexpert-events' );
 
 		// Skipping the head of the list is how a listing avoids repeating a
 		// featured card placed above it. It stays a number rather than a
@@ -1205,7 +1220,7 @@ final class Components {
 			'title'     => __( 'Homepage Editorial Hero', 'emailexpert-events' ),
 			'composite' => true,
 			'atts'      => [
-				'layout'                  => [
+				'layout'                   => [
 					'type'    => 'string',
 					'default' => 'editorial-split',
 					'label'   => __( 'Layout preset', 'emailexpert-events' ),
@@ -1217,8 +1232,8 @@ final class Components {
 					],
 					'group'   => $g_general,
 				],
-				'heading_context'         => $heading_context,
-				'mobile_order'            => [
+				'heading_context'          => $heading_context,
+				'mobile_order'             => [
 					'type'    => 'string',
 					'default' => 'story-first',
 					'label'   => __( 'Mobile order', 'emailexpert-events' ),
@@ -1228,7 +1243,7 @@ final class Components {
 					],
 					'group'   => $g_general,
 				],
-				'eager_media'             => [
+				'eager_media'              => [
 					'type'    => 'string',
 					'default' => 'auto',
 					'label'   => __( 'Eager (high-priority) image', 'emailexpert-events' ),
@@ -1240,7 +1255,7 @@ final class Components {
 					],
 					'group'   => $g_general,
 				],
-				'story_source'            => [
+				'story_source'             => [
 					'type'    => 'string',
 					'default' => 'latest',
 					'label'   => __( 'Featured story', 'emailexpert-events' ),
@@ -1252,13 +1267,13 @@ final class Components {
 					],
 					'group'   => $g_story,
 				],
-				'story_id'                => [
+				'story_id'                 => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Story post (ID)', 'emailexpert-events' ),
 					'group'   => $g_story,
 				],
-				'story_fallback'          => [
+				'story_fallback'           => [
 					'type'    => 'string',
 					'default' => 'latest',
 					'label'   => __( 'If the selected story is unavailable', 'emailexpert-events' ),
@@ -1268,27 +1283,27 @@ final class Components {
 					],
 					'group'   => $g_story,
 				],
-				'story_types'             => [
+				'story_types'              => [
 					'type'    => 'string',
 					'default' => 'post',
 					'label'   => __( 'Story post types (comma separated)', 'emailexpert-events' ),
 					'group'   => $g_story,
 				],
-				'story_categories'        => [
+				'story_categories'         => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Only these categories (slugs, comma separated)', 'emailexpert-events' ),
 					'group'   => $g_story,
 				],
-				'story_show_eyebrow'      => $grouped( $flag( __( 'Show the story eyebrow', 'emailexpert-events' ) ), $g_story ),
-				'story_eyebrow'           => [
+				'story_show_eyebrow'       => $grouped( $flag( __( 'Show the story eyebrow', 'emailexpert-events' ) ), $g_story ),
+				'story_eyebrow'            => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Story eyebrow text (empty = "Featured story")', 'emailexpert-events' ),
 					'group'   => $g_story,
 				],
-				'story_show_image'        => $grouped( $flag( __( 'Show the story image', 'emailexpert-events' ) ), $g_story ),
-				'story_image_position'    => [
+				'story_show_image'         => $grouped( $flag( __( 'Show the story image', 'emailexpert-events' ) ), $g_story ),
+				'story_image_position'     => [
 					'type'    => 'string',
 					'default' => 'beside',
 					'label'   => __( 'Story image position', 'emailexpert-events' ),
@@ -1299,7 +1314,7 @@ final class Components {
 					],
 					'group'   => $g_story,
 				],
-				'story_media_fit'         => [
+				'story_media_fit'          => [
 					'type'    => 'string',
 					'default' => 'cover',
 					'label'   => __( 'Story media fit', 'emailexpert-events' ),
@@ -1309,55 +1324,127 @@ final class Components {
 					],
 					'group'   => $g_story,
 				],
-				'story_show_excerpt'      => $grouped( $flag( __( 'Show the standfirst (excerpt)', 'emailexpert-events' ) ), $g_story ),
-				'story_excerpt_length'    => [
+				'story_show_excerpt'       => $grouped( $flag( __( 'Show the standfirst (excerpt)', 'emailexpert-events' ) ), $g_story ),
+				'story_excerpt_length'     => [
 					'type'    => 'integer',
 					'default' => 32,
 					'label'   => __( 'Standfirst length (words)', 'emailexpert-events' ),
 					'group'   => $g_story,
 				],
-				'story_show_category'     => $grouped( $flag( __( 'Show the story category', 'emailexpert-events' ) ), $g_story ),
-				'story_show_date'         => $grouped( $flag( __( 'Show the story date', 'emailexpert-events' ) ), $g_story ),
-				'story_show_readtime'     => $grouped( $flag( __( 'Show the reading time', 'emailexpert-events' ) ), $g_story ),
-				'story_show_cta'          => $grouped( $flag( __( 'Show the story call to action', 'emailexpert-events' ) ), $g_story ),
-				'story_cta_text'          => [
+				'story_show_category'      => $grouped( $flag( __( 'Show the story category', 'emailexpert-events' ) ), $g_story ),
+				'story_show_date'          => $grouped( $flag( __( 'Show the story date', 'emailexpert-events' ) ), $g_story ),
+				'story_show_readtime'      => $grouped( $flag( __( 'Show the reading time', 'emailexpert-events' ) ), $g_story ),
+				'story_show_cta'           => $grouped( $flag( __( 'Show the story call to action', 'emailexpert-events' ) ), $g_story ),
+				'story_cta_text'           => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Story CTA text (empty = "Read the full story")', 'emailexpert-events' ),
 					'group'   => $g_story,
 				],
-				'news_show'               => $grouped( $flag( __( 'Show Latest News', 'emailexpert-events' ) ), $g_news ),
-				'news_title'              => [
+				'story_count'              => [
+					'type'    => 'string',
+					'default' => '1',
+					'label'   => __( 'Number of featured stories', 'emailexpert-events' ),
+					'options' => [
+						'1' => __( 'One featured story', 'emailexpert-events' ),
+						'2' => __( 'Two featured stories', 'emailexpert-events' ),
+					],
+					'group'   => $g_story,
+				],
+				'story2_source'            => [
+					'type'    => 'string',
+					'default' => 'auto',
+					'label'   => __( 'Secondary story', 'emailexpert-events' ),
+					'options' => [
+						'auto'   => __( 'Next eligible story automatically', 'emailexpert-events' ),
+						'manual' => __( 'Manually selected post', 'emailexpert-events' ),
+					],
+					'group'   => $g_story,
+				],
+				'story2_id'                => [
+					'type'    => 'string',
+					'default' => '',
+					'label'   => __( 'Secondary story post (ID)', 'emailexpert-events' ),
+					'group'   => $g_story,
+				],
+				'story2_placement'         => [
+					'type'        => 'string',
+					'default'     => 'auto',
+					'label'       => __( 'Secondary story placement', 'emailexpert-events' ),
+					'options'     => [
+						'auto'    => __( 'Auto (fits the current layout)', 'emailexpert-events' ),
+						'beneath' => __( 'Beneath the primary story', 'emailexpert-events' ),
+						'side'    => __( 'Side feature beside the primary story', 'emailexpert-events' ),
+						'hidden'  => __( 'Hidden', 'emailexpert-events' ),
+					],
+					'description' => __( 'The secondary story always excludes the lead, and both are excluded from Latest News.', 'emailexpert-events' ),
+					'group'       => $g_story,
+				],
+				'news_show'                => $grouped( $flag( __( 'Show Latest News', 'emailexpert-events' ) ), $g_news ),
+				'news_title'               => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Latest News label (empty = "Latest news")', 'emailexpert-events' ),
 					'group'   => $g_news,
 				],
-				'news_count'              => [
-					'type'    => 'integer',
-					'default' => 4,
-					'label'   => __( 'Latest News items (2–6)', 'emailexpert-events' ),
+				'news_count'               => [
+					'type'        => 'integer',
+					'default'     => 4,
+					'label'       => __( 'Latest News stories (2–20)', 'emailexpert-events' ),
+					'description' => __( 'Front Page, Newsroom and Newswire carry up to 20 — later stories become headline-led. The Media Grid is best at 4–8 illustrated stories (12 at most is sensible).', 'emailexpert-events' ),
+					'group'       => $g_news,
+				],
+				'news_layout'              => [
+					'type'        => 'string',
+					'default'     => 'auto',
+					'label'       => __( 'Latest News layout', 'emailexpert-events' ),
+					'options'     => [
+						'auto'      => __( 'Front Page (editorial hierarchy — recommended)', 'emailexpert-events' ),
+						'newsroom'  => __( 'Newsroom (information-dense, side rail)', 'emailexpert-events' ),
+						'media'     => __( 'Media grid (equal illustrated cards)', 'emailexpert-events' ),
+						'editorial' => __( 'Editorial grid (small media beside headlines)', 'emailexpert-events' ),
+						'list'      => __( 'Compact / Newswire (typography, categories, dates)', 'emailexpert-events' ),
+					],
+					'description' => __( 'Every layout presents the same selected stories: selection decides which stories appear, the layout only decides how. Front Page and Newsroom assign editorial roles — lead, secondary, standard, headline — so more stories never means more equal cards.', 'emailexpert-events' ),
+					'group'       => $g_news,
+				],
+				'news_lead_standfirst'     => $grouped( $flag( __( 'Front Page: show the lead standfirst', 'emailexpert-events' ) ), $g_news ),
+				'news_dense_heading'       => [
+					'type'    => 'string',
+					'default' => '',
+					'label'   => __( 'Headline-section label (empty = "Latest")', 'emailexpert-events' ),
 					'group'   => $g_news,
 				],
-				'news_types'              => [
+				'news_media_emphasis'      => [
+					'type'    => 'string',
+					'default' => 'auto',
+					'label'   => __( 'Front Page image emphasis', 'emailexpert-events' ),
+					'options' => [
+						'auto'       => __( 'Auto (large lead, medium secondary, small standard)', 'emailexpert-events' ),
+						'restrained' => __( 'Restrained (lead image only)', 'emailexpert-events' ),
+						'strong'     => __( 'Strong (standard stories gain images too)', 'emailexpert-events' ),
+					],
+					'group'   => $g_news,
+				],
+				'news_types'               => [
 					'type'    => 'string',
 					'default' => 'post',
 					'label'   => __( 'News post types (comma separated)', 'emailexpert-events' ),
 					'group'   => $g_news,
 				],
-				'news_categories'         => [
+				'news_categories'          => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Only these categories (slugs, comma separated)', 'emailexpert-events' ),
 					'group'   => $g_news,
 				],
-				'news_exclude_categories' => [
+				'news_exclude_categories'  => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Exclude these categories (slugs, comma separated)', 'emailexpert-events' ),
 					'group'   => $g_news,
 				],
-				'news_order'              => [
+				'news_order'               => [
 					'type'    => 'string',
 					'default' => 'latest',
 					'label'   => __( 'News order', 'emailexpert-events' ),
@@ -1367,22 +1454,48 @@ final class Components {
 					],
 					'group'   => $g_news,
 				],
-				'news_show_image'         => $grouped( $flag( __( 'Show compact news images', 'emailexpert-events' ) ), $g_news ),
-				'news_show_category'      => $grouped( $flag( __( 'Show news categories', 'emailexpert-events' ) ), $g_news ),
-				'news_show_date'          => $grouped( $flag( __( 'Show news dates', 'emailexpert-events' ) ), $g_news ),
-				'news_all_text'           => [
+				'news_show_image'          => $grouped( $flag( __( 'Show news images', 'emailexpert-events' ) ), $g_news ),
+				'news_image_position'      => [
+					'type'    => 'string',
+					'default' => 'auto',
+					'label'   => __( 'News image placement', 'emailexpert-events' ),
+					'options' => [
+						'auto'   => __( 'Auto (follows the layout)', 'emailexpert-events' ),
+						'none'   => __( 'No image', 'emailexpert-events' ),
+						'beside' => __( 'Thumbnail beside the text', 'emailexpert-events' ),
+						'above'  => __( 'Image above the headline', 'emailexpert-events' ),
+					],
+					'group'   => $g_news,
+				],
+				'news_image_size'          => [
+					'type'    => 'string',
+					'default' => 'medium',
+					'label'   => __( 'News image emphasis', 'emailexpert-events' ),
+					'options' => [
+						'compact' => __( 'Compact', 'emailexpert-events' ),
+						'medium'  => __( 'Medium', 'emailexpert-events' ),
+						'large'   => __( 'Large', 'emailexpert-events' ),
+					],
+					'group'   => $g_news,
+				],
+				'news_show_category'       => $grouped( $flag( __( 'Show news categories', 'emailexpert-events' ) ), $g_news ),
+				'news_link_categories'     => $grouped( $flag( __( 'Link categories to their archive', 'emailexpert-events' ) ), $g_news ),
+				'news_link_images'         => $grouped( $flag( __( 'Link images to the article', 'emailexpert-events' ) ), $g_news ),
+				'news_show_date'           => $grouped( $flag( __( 'Show news dates', 'emailexpert-events' ) ), $g_news ),
+				'news_all_show'            => $grouped( $flag( __( 'Show the View all news link', 'emailexpert-events' ) ), $g_news ),
+				'news_all_text'            => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( '"View all" text (empty = "View all news")', 'emailexpert-events' ),
 					'group'   => $g_news,
 				],
-				'news_all_url'            => [
+				'news_all_url'             => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( '"View all" URL (empty = hidden)', 'emailexpert-events' ),
 					'group'   => $g_news,
 				],
-				'featured_source'         => [
+				'featured_source'          => [
 					'type'    => 'string',
 					'default' => 'auto',
 					'label'   => __( 'What to feature', 'emailexpert-events' ),
@@ -1394,19 +1507,19 @@ final class Components {
 					],
 					'group'   => $g_event,
 				],
-				'featured_event'          => [
+				'featured_event'           => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Event', 'emailexpert-events' ),
 					'group'   => $g_event,
 				],
-				'featured_session'        => [
+				'featured_session'         => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Session', 'emailexpert-events' ),
 					'group'   => $g_event,
 				],
-				'event_presentation'      => [
+				'event_presentation'       => [
 					'type'    => 'string',
 					'default' => 'auto',
 					'label'   => __( 'Present a selected event as', 'emailexpert-events' ),
@@ -1418,13 +1531,13 @@ final class Components {
 					],
 					'group'   => $g_event,
 				],
-				'presentation_session'    => [
+				'presentation_session'     => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Presentation session', 'emailexpert-events' ),
 					'group'   => $g_event,
 				],
-				'selection_strategy'      => [
+				'selection_strategy'       => [
 					'type'    => 'string',
 					'default' => 'chronological',
 					'label'   => __( 'Automatic selection strategy', 'emailexpert-events' ),
@@ -1434,7 +1547,7 @@ final class Components {
 					],
 					'group'   => $g_event,
 				],
-				'pin_duration'            => [
+				'pin_duration'             => [
 					'type'    => 'string',
 					'default' => 'until_end',
 					'label'   => __( 'Pin the manual selection', 'emailexpert-events' ),
@@ -1445,13 +1558,13 @@ final class Components {
 					],
 					'group'   => $g_event,
 				],
-				'pin_until'               => [
+				'pin_until'                => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Pin expiry date and time', 'emailexpert-events' ),
 					'group'   => $g_event,
 				],
-				'pin_expiry_action'       => [
+				'pin_expiry_action'        => [
 					'type'    => 'string',
 					'default' => 'auto',
 					'label'   => __( 'After the pin expires (or the selection is unavailable)', 'emailexpert-events' ),
@@ -1462,13 +1575,13 @@ final class Components {
 					],
 					'group'   => $g_event,
 				],
-				'event_eyebrow'           => [
+				'event_eyebrow'            => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Event column eyebrow (empty = "Next from emailexpert")', 'emailexpert-events' ),
 					'group'   => $g_event,
 				],
-				'event_media'             => [
+				'event_media'              => [
 					'type'    => 'string',
 					'default' => 'auto',
 					'label'   => __( 'Event media', 'emailexpert-events' ),
@@ -1481,27 +1594,28 @@ final class Components {
 					],
 					'group'   => $g_event,
 				],
-				'event_show_speakers'     => $grouped( $flag( __( 'Show speaker names', 'emailexpert-events' ) ), $g_event ),
-				'event_show_countdown'    => $grouped( $flag( __( 'Show a countdown', 'emailexpert-events' ), 0 ), $g_event ),
-				'more_events'             => $grouped( $flag( __( 'Show More Events', 'emailexpert-events' ) ), $g_more ),
-				'more_events_mode'        => [
+				'event_show_speakers'      => $grouped( $flag( __( 'Show speaker names', 'emailexpert-events' ) ), $g_event ),
+				'event_show_countdown'     => $grouped( $flag( __( 'Show a countdown', 'emailexpert-events' ), 0 ), $g_event ),
+				'more_events'              => $grouped( $flag( __( 'Show More Events', 'emailexpert-events' ) ), $g_more ),
+				'more_events_mode'         => [
 					'type'    => 'string',
 					'default' => 'all_upcoming',
 					'label'   => __( 'More Events source', 'emailexpert-events' ),
 					'options' => [
-						'all_upcoming'   => __( 'All upcoming events, excluding featured', 'emailexpert-events' ),
-						'after_featured' => __( 'Events starting after the featured event', 'emailexpert-events' ),
-						'same_series'    => __( 'Upcoming events from the same series, excluding featured', 'emailexpert-events' ),
+						'all_upcoming'      => __( 'All upcoming events, excluding featured', 'emailexpert-events' ),
+						'after_featured'    => __( 'Events starting after the featured event', 'emailexpert-events' ),
+						'same_series'       => __( 'Upcoming events from the same series, excluding featured', 'emailexpert-events' ),
+						'upcoming_sessions' => __( 'Upcoming sessions, excluding the featured one', 'emailexpert-events' ),
 					],
 					'group'   => $g_more,
 				],
-				'more_events_limit'       => [
+				'more_events_limit'        => [
 					'type'    => 'integer',
 					'default' => 3,
 					'label'   => __( 'More Events rows', 'emailexpert-events' ),
 					'group'   => $g_more,
 				],
-				'more_events_placement'   => [
+				'more_events_placement'    => [
 					'type'    => 'string',
 					'default' => 'strip',
 					'label'   => __( 'More Events placement', 'emailexpert-events' ),
@@ -1512,39 +1626,98 @@ final class Components {
 					],
 					'group'   => $g_more,
 				],
-				'more_events_title'       => [
+				'more_events_title'        => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'More Events label (empty = "More events")', 'emailexpert-events' ),
 					'group'   => $g_more,
 				],
-				'buttons'                 => $grouped( $buttons, $g_cta ),
-				'register_text'           => $grouped( $tickets_text, $g_cta ),
-				'session_text'            => $grouped( $session_text, $g_cta ),
-				'register_url'            => $grouped( $register_url, $g_cta ),
-				'register_action'         => $grouped( $register_action, $g_cta ),
-				'buy_on'                  => $grouped( $buy_on, $g_cta ),
-				'coupon'                  => $grouped( $coupon, $g_cta ),
-				'currency'                => $grouped( $currency, $g_cta ),
-				'tickets'                 => [
+				'more_events_presentation' => [
+					'type'        => 'string',
+					'default'     => 'events',
+					'label'       => __( 'More Sessions presentation', 'emailexpert-events' ),
+					'options'     => [
+						'auto'            => __( 'Auto (rich for session rows, speakers where portraits exist)', 'emailexpert-events' ),
+						'events'          => __( 'Compact (date and title rows)', 'emailexpert-events' ),
+						'speakers'        => __( 'Compact with featured speakers', 'emailexpert-events' ),
+						'rich_horizontal' => __( 'Rich horizontal (programme strip: meta, speakers, action)', 'emailexpert-events' ),
+						'rich_vertical'   => __( 'Rich vertical (stacked rich rows)', 'emailexpert-events' ),
+						'people'          => __( 'People led (person first, session context)', 'emailexpert-events' ),
+					],
+					'description' => __( 'All presentations show the same selected sessions; rich modes add format, location, speakers and one action per session, simplifying automatically where information is absent.', 'emailexpert-events' ),
+					'group'       => $g_more,
+				],
+				'more_events_interaction'  => [
+					'type'        => 'string',
+					'default'     => 'auto',
+					'label'       => __( 'Rich row action', 'emailexpert-events' ),
+					'options'     => [
+						'auto'     => __( 'Auto (RSVP form, ticket panel or session page — the existing registration rules)', 'emailexpert-events' ),
+						'details'  => __( 'Details only (link to the session)', 'emailexpert-events' ),
+						'register' => __( 'Registration only (nothing when registration is unavailable)', 'emailexpert-events' ),
+					],
+					'description' => __( 'Rich rows use the same registration implementation as every other surface: the shared RSVP form, the shared ticket panel, the shared checkout routing.', 'emailexpert-events' ),
+					'group'       => $g_more,
+				],
+				'more_show_time'           => $grouped( $flag( __( 'Rich rows: show the start time', 'emailexpert-events' ), 0 ), $g_more ),
+				'more_show_event'          => $grouped( $flag( __( 'Rich rows: show the owning event', 'emailexpert-events' ) ), $g_more ),
+				'more_show_media'          => $grouped( $flag( __( 'Rich rows: show restrained session media', 'emailexpert-events' ), 0 ), $g_more ),
+				'more_events_speakers'     => [
+					'type'    => 'integer',
+					'default' => 2,
+					'label'   => __( 'Speakers per row (1–3)', 'emailexpert-events' ),
+					'group'   => $g_more,
+				],
+				'more_events_layout'       => [
+					'type'    => 'string',
+					'default' => 'auto',
+					'label'   => __( 'More Events arrangement', 'emailexpert-events' ),
+					'options' => [
+						'auto'       => __( 'Auto (balances the hero)', 'emailexpert-events' ),
+						'vertical'   => __( 'Compact vertical list', 'emailexpert-events' ),
+						'horizontal' => __( 'Horizontal strip', 'emailexpert-events' ),
+						'grid'       => __( 'Two-column compact grid', 'emailexpert-events' ),
+					],
+					'group'   => $g_more,
+				],
+				'more_events_whisper'      => [
+					'type'    => 'string',
+					'default' => 'none',
+					'label'   => __( 'Whisper above each row', 'emailexpert-events' ),
+					'options' => [
+						'none'     => __( 'None', 'emailexpert-events' ),
+						'format'   => __( 'Format (Online / In person)', 'emailexpert-events' ),
+						'location' => __( 'Location (city or country, else the format)', 'emailexpert-events' ),
+					],
+					'group'   => $g_more,
+				],
+				'buttons'                  => $grouped( $buttons, $g_cta ),
+				'register_text'            => $grouped( $tickets_text, $g_cta ),
+				'session_text'             => $grouped( $session_text, $g_cta ),
+				'register_url'             => $grouped( $register_url, $g_cta ),
+				'register_action'          => $grouped( $register_action_auto, $g_cta ),
+				'buy_on'                   => $grouped( $buy_on, $g_cta ),
+				'coupon'                   => $grouped( $coupon, $g_cta ),
+				'currency'                 => $grouped( $currency, $g_cta ),
+				'tickets'                  => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Panel: only these tickets (comma separated IDs)', 'emailexpert-events' ),
 					'group'   => $g_cta,
 				],
-				'exclude'                 => [
+				'exclude'                  => [
 					'type'    => 'string',
 					'default' => '',
 					'label'   => __( 'Panel: hide these tickets (comma separated IDs)', 'emailexpert-events' ),
 					'group'   => $g_cta,
 				],
-				'show_ics'                => $grouped( $flag( __( 'Show "Add to calendar" for a featured session', 'emailexpert-events' ) ), $g_cta ),
-				'empty_text'              => [
+				'show_ics'                 => $grouped( $flag( __( 'Show "Add to calendar" for a featured session', 'emailexpert-events' ) ), $g_cta ),
+				'empty_text'               => [
 					'type'    => 'string',
 					'default' => __( 'New stories and events are announced soon.', 'emailexpert-events' ),
 					'group'   => $g_general,
 				],
-				'preview_at'              => $preview_at,
+				'preview_at'               => $preview_at,
 			],
 		];
 
@@ -1746,7 +1919,7 @@ final class Components {
 				'register_text'     => $grouped( $tickets_text, $g_cta ),
 				'session_text'      => $grouped( $session_text, $g_cta ),
 				'register_url'      => $grouped( $register_url, $g_cta ),
-				'register_action'   => $grouped( $register_action, $g_cta ),
+				'register_action'   => $grouped( $register_action_auto, $g_cta ),
 				'buy_on'            => $grouped( $buy_on, $g_cta ),
 				'coupon'            => $grouped( $coupon, $g_cta ),
 				'currency'          => $grouped( $currency, $g_cta ),
@@ -1897,6 +2070,7 @@ final class Components {
 			// Selection memos must not leak between renders (or between a
 			// frozen preview and the real clock).
 			EventSelector::reset_request_state();
+			\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
 			Diagnostics::reset();
 		}
 
@@ -1973,6 +2147,7 @@ final class Components {
 			if ( $preview ) {
 				Clock::reset();
 				EventSelector::reset_request_state();
+				\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
 			}
 		}
 
@@ -2320,6 +2495,31 @@ final class Components {
 	}
 
 	/**
+	 * One canonical Full-mode speaker record, from the existing speaker
+	 * post — the single mapping every consumer shares (session speaker
+	 * lists, local speaker overrides). Null for missing/unpublished posts,
+	 * so stale references fail safely.
+	 *
+	 * @param int $speaker_id Speaker post ID.
+	 * @return array<string,mixed>|null
+	 */
+	public static function speaker_record( int $speaker_id ): ?array {
+		$speaker = $speaker_id > 0 ? get_post( $speaker_id ) : null;
+
+		if ( ! $speaker || 'publish' !== (string) $speaker->post_status ) {
+			return null;
+		}
+
+		return [
+			'id'       => $speaker_id,
+			'name'     => (string) $speaker->post_title,
+			'url'      => (string) get_permalink( $speaker_id ),
+			'headline' => (string) get_post_meta( $speaker_id, '_eex_headline', true ),
+			'photo_id' => (int) get_post_thumbnail_id( $speaker_id ),
+		];
+	}
+
+	/**
 	 * Assemble the render data for one talk (synced-post path; the Lite
 	 * repository assembles the same shape from the live API).
 	 *
@@ -2351,19 +2551,7 @@ final class Components {
 		}
 
 		$speaker_ids = array_filter( array_map( 'intval', (array) get_post_meta( $post_id, '_eex_speaker_ids', true ) ) );
-		$speakers    = [];
-		foreach ( $speaker_ids as $speaker_id ) {
-			$speaker = get_post( $speaker_id );
-			if ( $speaker && 'publish' === $speaker->post_status ) {
-				$speakers[] = [
-					'id'       => $speaker_id,
-					'name'     => (string) $speaker->post_title,
-					'url'      => (string) get_permalink( $speaker_id ),
-					'headline' => (string) get_post_meta( $speaker_id, '_eex_headline', true ),
-					'photo_id' => (int) get_post_thumbnail_id( $speaker_id ),
-				];
-			}
-		}
+		$speakers    = array_values( array_filter( array_map( [ self::class, 'speaker_record' ], $speaker_ids ) ) );
 
 		$categories = get_the_terms( $post_id, Taxonomies::CATEGORY );
 
@@ -2470,6 +2658,53 @@ final class Components {
 	 * never diverge. Operators override it in Settings; the legacy filter
 	 * still applies last.
 	 */
+	/**
+	 * The one format resolver: Online / In person / Hybrid, or '' to omit.
+	 *
+	 * Format is an editorial fact about the gathering. It is derived only
+	 * from gathering data — the in-person flag, venue fields — and the
+	 * deliberate presentation override; by construction no URL, checkout
+	 * type, registration mechanism or details destination can influence it
+	 * (none is even an input). Resolution order: the session's own data,
+	 * the owning event's data, the presentation override, then the
+	 * platform's established venue-less claim (a HeySummit-hosted gathering
+	 * with no venue anywhere is an online broadcast — the same claim the
+	 * structured-data layer has always made).
+	 *
+	 * @param array<string,mixed> $data         Session or event data (inperson, venue,
+	 *                                          venue_city, venue_country).
+	 * @param array<string,mixed> $presentation The owning event's sanitised presentation.
+	 * @return string Translated label, or '' to omit.
+	 */
+	public static function format_label( array $data, array $presentation = [] ): string {
+		// A deliberate override is the operator's explicit statement — the
+		// only way to claim Hybrid, and the correction for anything the
+		// platform data gets wrong.
+		$override = (string) ( $presentation['format'] ?? 'auto' );
+
+		if ( 'online' === $override ) {
+			return __( 'Online', 'emailexpert-events' );
+		}
+		if ( 'inperson' === $override ) {
+			return __( 'In person', 'emailexpert-events' );
+		}
+		if ( 'hybrid' === $override ) {
+			return __( 'Hybrid', 'emailexpert-events' );
+		}
+
+		// Auto: the session's (or event's) own data first…
+		if ( ! empty( $data['inperson'] ) || '' !== trim( (string) ( $data['venue'] ?? '' ) ) ) {
+			return __( 'In person', 'emailexpert-events' );
+		}
+
+		// …then the owning event's inherited venue fields.
+		if ( '' !== trim( (string) ( $data['venue_city'] ?? '' ) ) || '' !== trim( (string) ( $data['venue_country'] ?? '' ) ) ) {
+			return __( 'In person', 'emailexpert-events' );
+		}
+
+		return __( 'Online', 'emailexpert-events' );
+	}
+
 	public static function consent_disclosure_text(): string {
 		$text = trim( (string) Options::setting( 'reg_disclosure_text' ) );
 

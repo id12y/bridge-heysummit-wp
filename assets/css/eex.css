@@ -2050,6 +2050,59 @@
 	min-width: 0;
 }
 
+/* The two-story frontage. Beneath (default): the secondary story stacks
+   under the primary and fills the column instead of leaving it blank.
+   Side: a smaller editorial panel beside the primary story. */
+.eex-hh__story-second--beneath {
+	margin-top: calc(var(--eex-composition-gap) * 0.8);
+}
+
+@media (min-width: 900px) {
+	.eex-hh__story--with-side {
+		display: grid;
+		grid-template-columns: minmax(0, 62fr) minmax(0, 38fr);
+		gap: var(--eex-composition-gap);
+		align-items: start;
+	}
+
+	.eex-hh__story--with-side .eex-hh__story-second--side {
+		margin-top: 0;
+	}
+}
+
+.eex-hh__story-second--side {
+	margin-top: calc(var(--eex-composition-gap) * 0.8);
+	min-width: 0;
+}
+
+.eex-hh__story2-media {
+	margin: 0 0 0.6em;
+	border-radius: var(--eex-radius);
+	overflow: hidden;
+	aspect-ratio: 16 / 9;
+}
+
+.eex-hh__story2-media img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.eex-hh__story2-title {
+	margin: 0.1em 0 0.35em;
+	overflow-wrap: break-word;
+}
+
+.eex-hh__story2-title a {
+	text-decoration: none;
+	color: inherit;
+}
+
+.eex-hh__story2-standfirst {
+	margin: 0 0 0.4em;
+}
+
 /* The editorial split: copy leading, media beside it (the default). */
 .eex-hh__story-split {
 	display: grid;
@@ -2311,6 +2364,228 @@
 	border-bottom: 1px solid var(--eex-border);
 }
 
+/* Arrangement overrides: any placement can stack, run horizontally or use
+   a two-column compact grid — the same rows, recomposed. */
+.eex-hh__more--lay-vertical .eex-hh__more-list {
+	display: block;
+}
+
+.eex-hh__more--lay-vertical .eex-hh__more-list > li {
+	display: block;
+}
+
+.eex-hh__more--lay-vertical .eex-compact-event {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.25em 0.75em;
+	padding: var(--eex-compact-row-gap, 0.55em) 0;
+	border: 0;
+	border-bottom: 1px solid var(--eex-border);
+	margin: 0;
+}
+
+.eex-hh__more--strip.eex-hh__more--lay-vertical {
+	display: block;
+}
+
+.eex-hh__more--strip.eex-hh__more--lay-vertical .eex-hh__label {
+	margin: 0 0 0.5em;
+}
+
+.eex-hh__more--lay-horizontal .eex-hh__more-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4em 1.5em;
+}
+
+.eex-hh__more--lay-horizontal .eex-compact-event {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.25em 0.6em;
+	padding: 0;
+	border: 0;
+}
+
+.eex-hh__more--lay-grid .eex-hh__more-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+	gap: 0.4em var(--eex-composition-gap);
+}
+
+.eex-hh__more--lay-grid .eex-compact-event {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.25em 0.6em;
+	padding: var(--eex-compact-row-gap, 0.55em) 0;
+	border: 0;
+	border-bottom: 1px solid var(--eex-border);
+}
+
+/* Rich session rows: a programme entry — meta line, title, speakers,
+   owning-event context, one action — arranged horizontally (columns
+   across the strip) or vertically (stacked, hairline-separated). */
+/* The rich strip stacks its label above a full-width grid (the compact
+   strip's inline flex would leave the grid an indefinite width). */
+.eex-hh__more--strip.eex-hh__more--lay-rich-h,
+.eex-hh__more--strip.eex-hh__more--lay-rich-v {
+	display: block;
+}
+
+.eex-hh__more--strip.eex-hh__more--lay-rich-h .eex-hh__label,
+.eex-hh__more--strip.eex-hh__more--lay-rich-v .eex-hh__label {
+	margin: 0 0 0.75em;
+}
+
+.eex-hh__more--lay-rich-h .eex-hh__more-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+	gap: var(--eex-composition-gap);
+	align-items: start;
+}
+
+.eex-hh__more--lay-rich-h .eex-hh__more-list > li,
+.eex-hh__more--lay-rich-v .eex-hh__more-list > li {
+	display: block;
+	min-width: 0;
+}
+
+.eex-hh__more--lay-rich-v .eex-hh__more-list {
+	display: block;
+}
+
+.eex-compact-event--rich {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.35em;
+	padding: 0;
+	border: 0;
+}
+
+.eex-hh__more--lay-rich-v .eex-compact-event--rich {
+	padding: calc(var(--eex-compact-row-gap, 0.55em) * 1.4) 0;
+	border-bottom: 1px solid var(--eex-border);
+}
+
+.eex-compact-event__meta {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 0.25em 0.6em;
+	min-width: 0;
+}
+
+.eex-compact-event__media {
+	margin: 0.1em 0;
+	border-radius: calc(var(--eex-radius) * 0.6);
+	overflow: hidden;
+	aspect-ratio: 21 / 9;
+	width: 100%;
+	max-height: 6.5rem;
+}
+
+.eex-compact-event__media img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.eex-compact-event__context {
+	min-width: 0;
+	overflow-wrap: break-word;
+}
+
+.eex-compact-event__action {
+	margin-top: 0.25em;
+}
+
+.eex-compact-event__action .eex-reg-form {
+	margin-top: 0.6em;
+	width: 100%;
+}
+
+/* The whisper above a compact row: its own quiet line in stacked
+   arrangements, a leading label in the horizontal strip. */
+.eex-compact-event__whisper {
+	flex-basis: 100%;
+	font-size: var(--eex-step--1, 0.85em);
+}
+
+.eex-hh__more--lay-horizontal .eex-compact-event__whisper {
+	flex-basis: auto;
+}
+
+/* The optional speaker line on a compact row, and the person-led rows:
+   small portraits beside names, never a large card. */
+.eex-compact-event__speakers {
+	display: inline-flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.3em 0.9em;
+	flex-basis: 100%;
+}
+
+.eex-compact-event__speaker {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4em;
+	min-width: 0;
+}
+
+.eex-compact-event__portrait,
+.eex-hh__person-photo {
+	width: 1.6em;
+	height: 1.6em;
+	border-radius: 50%;
+	object-fit: cover;
+	flex: none;
+}
+
+.eex-hh__person {
+	display: flex;
+	align-items: center;
+	gap: 0.65em;
+	padding: var(--eex-compact-row-gap, 0.55em) 0;
+	border-bottom: 1px solid var(--eex-border);
+	min-width: 0;
+}
+
+.eex-hh__person-photo {
+	width: 2.4em;
+	height: 2.4em;
+}
+
+.eex-hh__person-body {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1em;
+	min-width: 0;
+}
+
+.eex-hh__person-name {
+	font-weight: 600;
+	overflow-wrap: break-word;
+}
+
+.eex-hh__person-context {
+	min-width: 0;
+	overflow-wrap: break-word;
+}
+
+.eex-hh__person-context a {
+	text-decoration: none;
+	color: inherit;
+}
+
+.eex-hh__more--lay-horizontal .eex-hh__person {
+	border-bottom: 0;
+	padding: 0;
+}
+
 .eex-compact-event__date {
 	flex: none;
 	color: var(--eex-muted);
@@ -2362,9 +2637,22 @@
 	}
 }
 
+/* Desktop columns follow the item count (the server states it): two rows
+   of four never pretend to be one row, two items never sit in a four-
+   column skeleton. The Elementor responsive control still wins via the
+   token. */
 @media (min-width: 900px) {
-	.eex-hh__news-list {
+	.eex-hh__news-list,
+	.eex-hh__news-list--cols-4 {
 		grid-template-columns: repeat(var(--eex-news-columns, 4), minmax(0, 1fr));
+	}
+
+	.eex-hh__news-list--cols-2 {
+		grid-template-columns: repeat(var(--eex-news-columns, 2), minmax(0, 1fr));
+	}
+
+	.eex-hh__news-list--cols-3 {
+		grid-template-columns: repeat(var(--eex-news-columns, 3), minmax(0, 1fr));
 	}
 }
 
@@ -2390,15 +2678,232 @@
 	border-radius: calc(var(--eex-radius) * 0.6);
 }
 
+/* Stacked news cards (image above the headline): the media frame takes the
+   story width at a stable ratio per emphasis, so absent images never leave
+   a hole and present ones never shift the layout. */
+.eex-hh__news-media {
+	margin: 0 0 0.55em;
+	border-radius: calc(var(--eex-radius) * 0.6);
+	overflow: hidden;
+	aspect-ratio: var(--eex-news-media-ratio, 16 / 9);
+}
+
+.eex-hh__news-card--compact .eex-hh__news-media {
+	--eex-news-media-ratio: 21 / 9;
+}
+
+.eex-hh__news-card--large .eex-hh__news-media {
+	--eex-news-media-ratio: 4 / 3;
+}
+
+.eex-hh__news-img--wide {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	border-radius: 0;
+	display: block;
+}
+
+.eex-hh__news-card--stacked > .eex-hh__news-category {
+	margin: 0 0 0.4em;
+}
+
+/* Composed layouts (Front Page, Newsroom): the lead and its secondary
+   rail share the top row; standard stories take an editorial row; briefs
+   become a dense headline list. Everything stacks linearly on mobile in
+   DOM order. */
+.eex-hh__news-top {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: var(--eex-composition-gap);
+	align-items: start;
+}
+
+@media (min-width: 900px) {
+	.eex-hh__news-top {
+		grid-template-columns: minmax(0, 62fr) minmax(0, 38fr);
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-top {
+		grid-template-columns: minmax(0, 58fr) minmax(0, 42fr);
+	}
+}
+
+.eex-hh__news-leadwrap {
+	min-width: 0;
+}
+
+/* The news lead is visibly important yet stays beneath the homepage
+   featured story: a wide editorial frame, never a tower. */
+.eex-hh__news-card--lead .eex-hh__news-media {
+	aspect-ratio: 16 / 9;
+	max-height: 20rem;
+}
+
+.eex-hh__news-rail {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	min-width: 0;
+}
+
+/* Secondary stories: compact editorial rail rows — medium thumbnail
+   beside the text. */
+.eex-hh__news-rail .eex-hh__news-card--thumb {
+	grid-template-columns: 7.5em minmax(0, 1fr);
+}
+
+.eex-hh__news-rail .eex-hh__news-card--thumb .eex-hh__news-img {
+	width: 7.5em;
+	height: 5em;
+}
+
+/* The standard row reuses the count-aware column classes. */
+.eex-hh__news-standard {
+	list-style: none;
+	margin: var(--eex-composition-gap) 0 0;
+	padding: 0;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+	gap: 0 var(--eex-composition-gap);
+}
+
+@media (min-width: 600px) {
+	.eex-hh__news-standard {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 900px) {
+	.eex-hh__news-standard.eex-hh__news-list--cols-4 {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+
+	.eex-hh__news-standard.eex-hh__news-list--cols-3 {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+
+	.eex-hh__news-standard.eex-hh__news-list--cols-2 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* The dense headline region: category, headline and date on one scanning
+   line at desktop; two columns when the list is long. */
+.eex-hh__news-briefs {
+	margin-top: var(--eex-composition-gap);
+}
+
+.eex-hh__news-brieflist {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+@media (min-width: 900px) {
+	.eex-hh__news-briefs--split .eex-hh__news-brieflist {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0 calc(var(--eex-composition-gap) * 1.4);
+	}
+}
+
+.eex-hh__news-card--brief {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	grid-template-areas: "category date" "title title";
+	align-items: baseline;
+	gap: 0.1em 1em;
+	padding: 0.55em 0;
+}
+
+.eex-hh__news-card--brief .eex-hh__news-category {
+	grid-area: category;
+	margin: 0;
+}
+
+.eex-hh__news-card--brief .eex-hh__news-title {
+	grid-area: title;
+	margin: 0;
+}
+
+.eex-hh__news-card--brief .eex-hh__news-date {
+	grid-area: date;
+	margin: 0;
+	white-space: nowrap;
+}
+
+@media (min-width: 700px) {
+	.eex-hh__news-card--brief {
+		grid-template-columns: 11rem minmax(0, 1fr) auto;
+		grid-template-areas: "category title date";
+		gap: 0 1.25em;
+	}
+}
+
+/* Newsroom: the briefs become a side rail beside the lead + standard
+   stack on wide screens — the reading order (lead, secondaries,
+   standards, briefs) is unchanged; only the placement moves. */
+@media (min-width: 1100px) {
+	.eex-hh__news--newsroom {
+		display: grid;
+		grid-template-columns: minmax(0, 68fr) minmax(0, 32fr);
+		grid-template-areas:
+			"head head"
+			"top rail"
+			"standard rail";
+		gap: 0 var(--eex-composition-gap);
+		align-items: start;
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-head {
+		grid-area: head;
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-top {
+		grid-area: top;
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-standard {
+		grid-area: standard;
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-standard.eex-hh__news-list--cols-4 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-briefs {
+		grid-area: rail;
+		margin-top: 0;
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-briefs--split .eex-hh__news-brieflist {
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.eex-hh__news--newsroom .eex-hh__news-card--brief {
+		grid-template-columns: minmax(0, 1fr) auto;
+		grid-template-areas: "category date" "title title";
+	}
+}
+
 .eex-hh__news-category {
 	margin: 0 0 0.25em;
 }
 
 .eex-hh__news-title {
-	margin: 0 0 0.3em;
-	font-size: var(--eex-step-0, 1em);
+	margin: 0 0 0.25em;
+	font-size: var(--eex-news-title-size, var(--eex-step-0, 1em));
 	line-height: 1.3;
 	overflow-wrap: break-word;
+}
+
+/* The image as a pointer shortcut to the article (aria-hidden; the
+   headline is the accessible route). */
+.eex-hh__news-imglink {
+	display: block;
+	line-height: 0;
 }
 
 .eex-hh__news-date {

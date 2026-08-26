@@ -263,23 +263,56 @@ default) `| keep | hide`. A missing manual selection follows the same
 fallback and explains itself to editors.
 
 **More Events** (`more_events`, default on, three rows, soonest first):
-`more_events_mode="all_upcoming" | after_featured | same_series`. The
+`more_events_mode="all_upcoming" | after_featured | same_series |
+upcoming_sessions`. The event modes list distinct events, and the
 featured event is always excluded by canonical identity (connection +
 HeySummit event ID) *before* the limit, so the list refills — and a
 manually featured future event never removes the wrong chronological
-event. Placement: `more_events_placement="event-column"` (default)
-`| strip | hidden`.
+event. `upcoming_sessions` lists the next sessions across the displayed
+events instead (the featured session excluded) — the mode for a calendar
+that is one long-running event holding many sessions, where the event
+modes have nothing left to list. Placement:
+`more_events_placement="strip"` (default) `| event-column | hidden`.
+Presentation (`more_events_presentation="events"` default `| speakers |
+people | auto`): speakers adds one or two portraits and names per row
+(`more_events_speakers` 1–3), people leads with the person (portrait,
+name, session title · date, under "Coming up"), auto uses speakers where
+good portraits exist — all from the session data the page already loads,
+falling back to event-only rows where none exists. Arrangement
+(`more_events_layout="auto" | vertical | horizontal | grid`) recomposes
+any placement, and `more_events_whisper="none" | format | location` adds
+a tiny-caps line per row (Online / In person, or city and country).
 
 **Featured story** (`story_source="latest" | sticky | manual | none`,
 manual picks are searchable by title in the editors with an ID fallback
 in the shortcode): eyebrow, image position and fit, standfirst length,
 category/date/read-time toggles, CTA text, and a fallback
 (`story_fallback="latest" | none`) when a manual story is unavailable.
-**Latest News** (`news_show`, `news_count` 2–6, post types, include and
-exclude categories, `news_order="latest" | balanced`): the featured story
-is always removed before the limit and the list refills; balanced mode is
-deterministic — a different category per initial slot where alternatives
-exist, chronological fill, no randomness.
+`story_count="2"` adds a secondary feature (`story2_source="auto" |
+manual`, `story2_id`) that can never duplicate the lead, placed by
+`story2_placement="auto"` (beneath the primary story) `| beneath | side |
+hidden`; both features are excluded from Latest News before its limit.
+**Latest News** (`news_show`, `news_count` 2–20, post types, include and
+exclude categories, `news_order="latest" | balanced`): the featured
+stories are always removed before the limit and the list refills;
+balanced mode is deterministic — a different category per initial slot
+where alternatives exist, chronological fill, no randomness.
+`news_layout="auto"` is the **Front Page** (recommended): deterministic
+editorial roles from the selection order — one lead (large image,
+optional standfirst via `news_lead_standfirst`), up to three secondary
+rail stories, a standard row from nine stories, and every later story as
+a typography-led headline under a configurable label
+(`news_dense_heading`, default "Latest"). Briefs build no image markup,
+so 20 stories request at most eight images (`news_media_emphasis="auto"
+| restrained | strong`). `newsroom` is denser, with a Latest side rail
+on wide screens. `media` (equal illustrated cards — best at 4–8) and
+`list` (the newswire) keep their flat treatment, where desktop columns
+follow the item count (2→2, 3→3, 4→4, 6→3×2, 8→4×2, 12→4×3) and images
+(`news_image_position="auto" | none | beside | above`,
+`news_image_size="compact" | medium | large`) render at content width in
+a stable ratio (no layout shift). Everything lazy-loads, a story without
+an image aligns cleanly beside its neighbours, and switching layouts
+never changes which stories are selected.
 
 ```text
 [eex_homepage_hero]
@@ -383,6 +416,14 @@ ticket is genuinely free, rate-limits, honours the suppression list and
 creates the attendee server-side); paid tickets deep-link to checkout, or —
 with `buy_on="woo"` — to the mapped WooCommerce product. `tickets` /
 `exclude` control which tickets the panel offers.
+
+The two compositions (Homepage Editorial Hero, Event Landing Page) share
+this exact system — the same form part, consent wording, REST endpoint,
+panel and checkout routing — and add one mode of their own:
+`register_action="auto"` (their default) asks it what to render: the
+in-place RSVP form when the existing free-ticket rules apply, else the
+ticket panel. Explicit `link | panel | form` keep their classic meaning
+everywhere.
 
 ### The sponsor wall and spotlight
 

@@ -46,6 +46,51 @@
 	var conditions = {
 		story_id: function ( a ) { return 'manual' === a.story_source; },
 		story_fallback: function ( a ) { return 'manual' === a.story_source; },
+		story2_source: function ( a ) { return '2' === a.story_count; },
+		story2_id: function ( a ) { return '2' === a.story_count && 'manual' === a.story2_source; },
+		story2_placement: function ( a ) { return '2' === a.story_count; },
+		news_image_position: function ( a ) {
+			var layout = a.news_layout || 'auto';
+			return ( void 0 === a.news_show_image || !! a.news_show_image ) && -1 !== [ 'media', 'editorial', 'list' ].indexOf( layout );
+		},
+		news_lead_standfirst: function ( a ) { return -1 !== [ 'auto', 'newsroom' ].indexOf( a.news_layout || 'auto' ); },
+		news_dense_heading: function ( a ) { return -1 !== [ 'auto', 'newsroom' ].indexOf( a.news_layout || 'auto' ); },
+		news_media_emphasis: function ( a ) { return -1 !== [ 'auto', 'newsroom' ].indexOf( a.news_layout || 'auto' ); },
+		news_link_categories: function ( a ) { return void 0 === a.news_show_category || !! a.news_show_category; },
+		news_link_images: function ( a ) { return void 0 === a.news_show_image || !! a.news_show_image; },
+		news_all_text: function ( a ) { return void 0 === a.news_all_show || !! a.news_all_show; },
+		news_all_url: function ( a ) { return void 0 === a.news_all_show || !! a.news_all_show; },
+		news_image_size: function ( a ) {
+			var position = a.news_image_position || 'auto';
+			var layout = a.news_layout || 'auto';
+			return ( void 0 === a.news_show_image || !! a.news_show_image ) && ( 'auto' === position || 'above' === position ) && -1 !== [ 'media', 'editorial', 'list' ].indexOf( layout );
+		},
+		more_events_speakers: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'speakers', 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_events_interaction: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_show_time: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_show_event: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_show_media: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 !== [ 'auto', 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_events_presentation: function ( a ) { return void 0 === a.more_events || !! a.more_events; },
+		more_events_layout: function ( a ) {
+			var presentation = a.more_events_presentation || 'events';
+			return ( void 0 === a.more_events || !! a.more_events ) && -1 === [ 'rich_horizontal', 'rich_vertical' ].indexOf( presentation );
+		},
+		more_events_whisper: function ( a ) { return void 0 === a.more_events || !! a.more_events; },
 		featured_event: function ( a ) { return 'manual_event' === a.featured_source; },
 		featured_session: function ( a ) { return 'manual_session' === a.featured_source; },
 		event_presentation: function ( a ) { return 'none' !== a.featured_source && 'manual_session' !== a.featured_source; },

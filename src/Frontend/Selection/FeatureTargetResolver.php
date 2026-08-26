@@ -281,6 +281,13 @@ final class FeatureTargetResolver {
 			}
 		}
 
+		// The presented session's speakers honour the same per-session
+		// relationship the More Sessions rows use (local assignment first in
+		// auto, canonical records only, unresolvable references skipped).
+		if ( null !== $presented ) {
+			$presented['speakers'] = EventSelector::session_speakers( $presented, (array) ( $event['presentation'] ?? [] ) );
+		}
+
 		$lifecycle = EventLifecycle::resolve( $event, $presented, (array) ( $event['presentation'] ?? [] ) );
 
 		Diagnostics::boundaries( (array) $lifecycle['boundaries'] );
