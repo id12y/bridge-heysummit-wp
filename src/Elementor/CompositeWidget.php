@@ -144,8 +144,11 @@ abstract class CompositeWidget extends \Elementor\Widget_Base {
 			$args['description'] = (string) $spec['description'];
 		}
 
-		// Picker upgrades: events, sessions and posts by name, never raw IDs
-		// once the data source has answered.
+		// Picker upgrades: events, sessions, posts, post types and categories
+		// by name, never raw IDs or hand-typed slugs once the data source has
+		// answered. Front-end requests register these same controls only so
+		// saved values parse — the choice methods return nothing there and
+		// the plain fallbacks apply; values flow through identically.
 		if ( in_array( $key, [ 'featured_event', 'event' ], true ) ) {
 			$options = $this->event_choices();
 
@@ -180,6 +183,44 @@ abstract class CompositeWidget extends \Elementor\Widget_Base {
 				$args['options']     = $options;
 				$args['default']     = '';
 				$args['description'] = __( 'Search by title. Posts published later appear after the editor reloads.', 'emailexpert-events' );
+				$this->add_control( $key, $args );
+
+				return;
+			}
+		}
+
+		if ( in_array( $key, [ 'story_types', 'news_types' ], true ) ) {
+			$options = $this->post_type_choices();
+
+			if ( ! empty( $options ) ) {
+				$args['label']       = 'story_types' === $key
+					? __( 'Story post types', 'emailexpert-events' )
+					: __( 'News post types', 'emailexpert-events' );
+				$args['type']        = \Elementor\Controls_Manager::SELECT2;
+				$args['multiple']    = true;
+				$args['options']     = $options;
+				$args['default']     = array_values( array_filter( array_map( 'trim', explode( ',', (string) $spec['default'] ) ) ) );
+				$args['description'] = __( 'Empty = ordinary posts.', 'emailexpert-events' );
+				$this->add_control( $key, $args );
+
+				return;
+			}
+		}
+
+		if ( in_array( $key, [ 'story_categories', 'news_categories', 'news_exclude_categories' ], true ) ) {
+			$options = $this->category_choices();
+
+			if ( ! empty( $options ) ) {
+				$args['label']       = 'news_exclude_categories' === $key
+					? __( 'Exclude these categories', 'emailexpert-events' )
+					: __( 'Only these categories', 'emailexpert-events' );
+				$args['type']        = \Elementor\Controls_Manager::SELECT2;
+				$args['multiple']    = true;
+				$args['options']     = $options;
+				$args['default']     = [];
+				$args['description'] = 'news_exclude_categories' === $key
+					? __( 'Stories in any of these categories never appear.', 'emailexpert-events' )
+					: __( 'Empty = every category. Categories created later appear after the editor reloads.', 'emailexpert-events' );
 				$this->add_control( $key, $args );
 
 				return;
@@ -228,11 +269,27 @@ abstract class CompositeWidget extends \Elementor\Widget_Base {
 	}
 
 	/**
+	 * Whether this request is building the editor panel (the editor page and
+	 * its ajax renders are admin requests). Ordinary front-end views register
+	 * these same controls only so saved values parse — no panel ever shows
+	 * there, so option lists would be pure page-load cost: queries, and in
+	 * Lite mode live fetches. Every choice method returns nothing outside
+	 * the panel and the plain-control fallbacks take over.
+	 */
+	protected function panel_request(): bool {
+		return is_admin();
+	}
+
+	/**
 	 * Events as "name — date" options, from either repository.
 	 *
 	 * @return array<string,string>
 	 */
 	protected function event_choices(): array {
+		if ( ! $this->panel_request() ) {
+			return [];
+		}
+
 		$options = [];
 
 		foreach ( Repositories::current()->all_events( [] ) as $event ) {
@@ -262,6 +319,10 @@ abstract class CompositeWidget extends \Elementor\Widget_Base {
 	 * @return array<string,string>
 	 */
 	protected function session_choices(): array {
+		if ( ! $this->panel_request() ) {
+			return [];
+		}
+
 		$repository = Repositories::current();
 
 		$talks = array_merge(
@@ -299,6 +360,10 @@ abstract class CompositeWidget extends \Elementor\Widget_Base {
 	 * @return array<string,string>
 	 */
 	protected function story_choices(): array {
+		if ( ! $this->panel_request() ) {
+			return [];
+		}
+
 		$posts = get_posts(
 			[
 				'post_type'      => 'post',
@@ -315,6 +380,68 @@ abstract class CompositeWidget extends \Elementor\Widget_Base {
 		}
 
 		return $options;
+	}
+
+	/**
+	 * Public post types as editorial-source options, keyed by slug — the
+	 * value the selector and the shortcode syntax already speak. The
+	 * attachment type is public but never an editorial story.
+	 *
+	 * @return array<string,string>
+	 */
+	protected function post_type_choices(): array {
+		if ( ! $this->panel_request() ) {
+			return [];
+		}
+
+		$options = [];
+
+		foreach ( get_post_types( [ 'public' => true ], 'objects' ) as $type ) {
+			if ( 'attachment' === (string) $type->name ) {
+				continue;
+			}
+
+			$options[ (string) $type->name ] = $this->slugged_label( (string) $type->label, (string) $type->name );
+		}
+
+		return $options;
+	}
+
+	/**
+	 * The site's post categories as options, keyed by slug. Empty terms are
+	 * offered too: filters are often configured before their stories exist.
+	 *
+	 * @return array<string,string>
+	 */
+	protected function category_choices(): array {
+		if ( ! $this->panel_request() ) {
+			return [];
+		}
+
+		$terms = get_terms(
+			[
+				'taxonomy'   => 'category',
+				'hide_empty' => false,
+			]
+		);
+
+		$options = [];
+
+		foreach ( is_array( $terms ) ? $terms : [] as $term ) {
+			$options[ (string) $term->slug ] = $this->slugged_label( (string) $term->name, (string) $term->slug );
+		}
+
+		return $options;
+	}
+
+	/**
+	 * A display label that carries its slug only when the slug isn't obvious
+	 * from the name — quiet for "Deliverability", explicit for "Posts (post)"
+	 * — so the stored value stays discoverable without being what the
+	 * operator reads first.
+	 */
+	protected function slugged_label( string $name, string $slug ): string {
+		return sanitize_title( $name ) === $slug ? $name : sprintf( '%s (%s)', $name, $slug );
 	}
 
 	/**

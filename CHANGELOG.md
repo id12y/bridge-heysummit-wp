@@ -3,6 +3,22 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.57.0
+- **Elementor: the editorial audience is picked, not typed.** The Homepage
+  Editorial Hero's post-type and category filters (story and Latest News,
+  include and exclude) are now searchable multi-select dropdowns listing
+  the site's real public post types and category names — no more
+  hand-typed, comma-separated slugs. They store the same slugs the block
+  and shortcode syntax speak, so existing saved values keep rendering
+  identically; a legacy value typed as several comma-separated slugs
+  shows unselected in the panel until re-picked once.
+- **Elementor: panel picker queries stay out of front-end page loads.**
+  The composite widgets' pickers (events, sessions, stories, and the new
+  type/category dropdowns) build their option lists only for editor
+  requests. Ordinary page views register the same controls purely to
+  parse saved values, so the option queries — and in Lite mode any live
+  fetches behind them — no longer run while a visitor waits.
+
 ## 1.56.0
 - **Latest News becomes a composed front page.** Up to 20 stories
   (`news_count` 2–20; 12 is the sensible everyday setting), presented
