@@ -3,6 +3,17 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.58.0
+- **Front Page: the lead story image fills its column.** The lead's
+  16:9 frame carried a height cap that, with the width left automatic,
+  transferred back through the aspect ratio and shrank the frame —
+  leaving the lead column part-empty on wide screens. The frame now
+  spans the full column width and the cap works as intended, as a
+  gentle cinematic crop on very wide columns; below the cap (all
+  mobile and tablet widths) nothing changes — exact 16:9, full width.
+  The lead's srcset ceiling rises from the 1024 "large" size to the
+  1536 size so the wider frame stays sharp on high-density screens.
+
 ## 1.57.0
 - **Elementor: the editorial audience is picked, not typed.** The Homepage
   Editorial Hero's post-type and category filters (story and Latest News,

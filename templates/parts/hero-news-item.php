@@ -73,8 +73,10 @@ $eex_size     = in_array( (string) ( $args['image_size'] ?? 'medium' ), [ 'compa
 $eex_thumb = '';
 if ( 'none' !== $eex_position ) {
 	// Above-the-headline images render at content width, so the generated
-	// medium size (with srcset) replaces the tiny square thumbnail.
-	$eex_wp_size   = 'above' === $eex_position ? ( 'large' === $eex_size ? 'large' : 'medium_large' ) : 'thumbnail';
+	// medium size (with srcset) replaces the tiny square thumbnail. Large
+	// emphasis (the Front Page lead) fills its whole column, so its srcset
+	// ceiling is the 1536 size — 1024 goes soft on high-density screens.
+	$eex_wp_size   = 'above' === $eex_position ? ( 'large' === $eex_size ? '1536x1536' : 'medium_large' ) : 'thumbnail';
 	$eex_img_class = 'above' === $eex_position ? 'eex-hh__news-img eex-hh__news-img--wide' : 'eex-hh__news-img';
 
 	if ( (int) ( $eex_story['image_id'] ?? 0 ) > 0 && function_exists( 'wp_get_attachment_image' ) ) {

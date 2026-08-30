@@ -2734,8 +2734,12 @@
 }
 
 /* The news lead is visibly important yet stays beneath the homepage
-   featured story: a wide editorial frame, never a tower. */
+   featured story: a wide editorial frame, never a tower. The explicit
+   width keeps the height cap working as a crop — with width left auto,
+   the max-height transfers back through the aspect ratio and shrinks
+   the frame, leaving the lead column part-empty on wide screens. */
 .eex-hh__news-card--lead .eex-hh__news-media {
+	width: 100%;
 	aspect-ratio: 16 / 9;
 	max-height: 20rem;
 }
