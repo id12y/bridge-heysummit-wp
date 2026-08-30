@@ -139,11 +139,16 @@ components:
       properties:
         id:
           type: string
-          description: "Box-office-scoped identity: bo:<box>:order:<id>:ticket:<id>."
+          description: >-
+            Box-office-scoped identity: bo:<box>:order:<id>:ticket:<id>.
+            Entries the CRM stored without a box office share the scope
+            'unrecorded' (see docs/hub-api.md §5 for the honest limits).
         box_office:
           type: object
           properties:
-            id: { type: string }
+            id:
+              type: string
+              description: Label-derived slug, or 'unrecorded'.
             label: { type: string }
         event:
           type: object
@@ -160,7 +165,9 @@ components:
         state:
           type: string
           enum: [valid, cancelled, refunded, transferred, unknown, other]
-          description: Snapshot at receipt time; NOT current validity.
+          description: >-
+            Snapshot at receipt time (order- or ticket-status vocabulary,
+            see state_raw); NOT current validity.
         state_raw: { type: [string, "null"] }
         contact_uuid: { type: string, format: uuid }
         updated_at: { type: [string, "null"], format: date-time }

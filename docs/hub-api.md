@@ -158,8 +158,8 @@ Enumerations and semantics:
 
 | Field | Values | Notes |
 |---|---|---|
-| `state` | `active` \| `suppressed` \| `deleted` | `suppressed` = unsubscribed or on a CRM suppression list. `deleted` = tombstone (see below). |
-| `email_news_state` | `subscribed` \| `pending_confirmation` \| `not_subscribed` \| `unsubscribed` \| `unknown` | The email-news preference as one enum: CRM status plus frequency/digest flags. `unknown` = the CRM was unreadable or used an unrecognised status. |
+| `state` | `active` \| `suppressed` \| `deleted` | `suppressed` = unsubscribed, or suppressed by the CRM's own checks (its thresholds, scopes and expiry rules are delegated to, never reimplemented). `deleted` = tombstone (see below). |
+| `email_news_state` | `subscribed` \| `pending_confirmation` \| `not_subscribed` \| `unsubscribed` \| `unknown` | The email-news preference as one enum. `subscribed` reflects the CRM's LIVE per-frequency subscription state (an active, un-snoozed subscription row), not the legacy creation-time frequency column. `unknown` = the CRM was unreadable or used an unrecognised status. |
 | `email`, `first_name`, `last_name`, `display_name` | string \| `null` | `null` = not held, or CRM unreadable. |
 | `sources` | string[] | CRM provenance values (e.g. `subscribe`, `ticket_tailor`, `wp_user`, `import`). Empty = none recorded. |
 | `community.*` | `true` \| `false` \| `null` | From operator-set CRM markers only (see §6). `false` = markers readable and absent; `null` = unreadable/not configured. **Never derived from tickets.** |
@@ -216,19 +216,33 @@ starts from the beginning (a full replay).
 ```
 
 The cursor is a position in an append-only journal whose sequence is
-assigned at write time — not a timestamp — so equal timestamps, clock
-skew and concurrent writes cannot hide changes behind a cursor, and
-replaying any cursor returns the same logical result with no mutation.
+assigned at write time — not a timestamp — so equal timestamps and clock
+skew cannot hide changes behind a cursor, and replaying any cursor
+returns the same logical result with no mutation. The feed additionally
+withholds rows younger than a short grace window (default 2 s) so a
+cursor cannot advance past a sequence number whose row is still
+committing; expect changes to appear with at least that delay.
 `projection` is the contact's **current** state (possibly newer than this
 change; consumers reconcile on `revision`). Consumers should treat
 upserts as idempotent puts and deletes as terminal for that UUID.
+`journal_head` is a floor for "changes exist up to here", suitable as a
+starting cursor.
 
 Change detection semantics: mutations are observed by the CRM's own
 lifecycle hooks (immediate) plus a background sweep (every 5 minutes,
 bounded batches) that re-projects contacts and journals only real
-projection changes (canonical-hash comparison). Worst-case detection lag
-for changes that leave no timestamp in the CRM (e.g. a tag removal) is
-one reconcile cycle over the registry — see the runbook for sizing.
+projection changes (canonical-hash comparison; the hash also covers a
+fingerprint of the contact's stored ticket allocations, so a ticket
+change surfaces as a contact upsert — the consumer's cue to refresh
+eligibility/catalogue data). Worst-case detection lag for changes that
+leave no timestamp in the CRM (e.g. a tag removal) is one reconcile
+cycle over the registry — see the runbook for sizing.
+
+Delivery guarantee, stated honestly: at-least-once for every observed
+change, with the one residual (and grace-window-mitigated) caveat of a
+database write stalling longer than the grace before commit. As belt
+and braces the runbook prescribes a periodic full snapshot re-walk;
+build the consumer so that re-walk is routine, not exceptional.
 
 ## 5. `GET /hub/ticket-catalogue`
 
@@ -260,12 +274,21 @@ Ticket Tailor credential.
 }
 ```
 
-- Every identity is **scoped by box office** (`bo:<box>:order:<id>:…`),
-  so identical external ids from different Ticket Tailor accounts never
-  collide.
+- Every identity is **prefixed with its box-office scope**
+  (`bo:<box>:order:<id>:…`), so external ids from different Ticket
+  Tailor accounts stay apart wherever the CRM recorded a box office.
+  Honest limits: the CRM's live webhook path stores no box-office label
+  (only its import wizard does) — those entries share the scope id
+  `unrecorded`, within which order/ticket ids are unique only per TT
+  account; and scope ids derive from operator-editable labels (a rename
+  re-keys the scope; identically-slugging labels merge). The durable
+  fix — a stored Ticket Tailor box-office id — is a CRM-side
+  recommendation in the runbook.
 - `state`: `valid` | `cancelled` | `refunded` | `transferred` |
-  `unknown` | `other` (mapped from the stored snapshot; `state_raw`
-  carries the verbatim stored status). **These are snapshots at receipt
+  `unknown` | `other` (mapped from the stored snapshot, which carries
+  the TT ORDER status on webhook-sourced entries — `completed`/`paid`
+  map to `valid` — and the issued-ticket status elsewhere; `state_raw`
+  carries the verbatim stored value). **These are snapshots at receipt
   time** — the CRM does not currently reconcile later cancellations, so
   treat `state` as "state when last recorded" (capabilities:
   `ticket_validity: false`).
@@ -303,8 +326,11 @@ each other** — a booking is not membership:
 ```
 
 - `has_ticket`: the person bought or received a ticket (durable CRM
-  facts: allocation records or the CRM's `ticket-buyer` tag). `false` =
-  records readable and absent; `null` = unreadable.
+  facts: allocation records, or the CRM's configured buyer tag — the
+  Hub honours the CRM's `general_tag` setting rather than assuming its
+  default name). `false` = records readable and absent; `null` =
+  unreadable, or the CRM's buyer tag is disabled (absence then proves
+  nothing).
 - `ticket_currently_valid`: **always `null` in contract v1.0.0** — see
   §5. The Hub must not treat `has_ticket` as validity.
 - `community_*`: read exclusively from operator-controlled CRM markers —

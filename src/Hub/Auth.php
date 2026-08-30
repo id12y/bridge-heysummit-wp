@@ -122,7 +122,11 @@ class Auth {
 	}
 
 	/**
-	 * Fixed-window per-credential rate limit.
+	 * Fixed-window per-credential rate limit. Deliberately coarse and
+	 * best-effort: the read-increment-write is not atomic and a window
+	 * boundary admits up to twice the cap — it is an abuse brake for a
+	 * single server-side consumer, never a security boundary (the token
+	 * is).
 	 *
 	 * @param int $credential_id Credential id.
 	 */

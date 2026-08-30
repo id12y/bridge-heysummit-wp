@@ -121,43 +121,36 @@ class Registry {
 	}
 
 	/**
-	 * Record a projection change: bump the revision, store the new hash.
+	 * Record a projection change: store the given revision and hash. The
+	 * WHERE clause is self-guarding — only an ACTIVE row is written, so a
+	 * concurrent tombstone can never be resurrected into an upsert.
 	 *
 	 * @param int    $registry_id Registry row id.
 	 * @param string $hash        New canonical projection hash.
-	 * @return int The new revision (0 when the row is gone).
+	 * @param int    $revision    The revision this change carries.
+	 * @return int The revision written (0 when the row is gone, deleted,
+	 *             or already past this revision).
 	 */
-	public function bump( int $registry_id, string $hash ): int {
+	public function bump( int $registry_id, string $hash, int $revision ): int {
 		global $wpdb;
 
-		$table = Schema::contacts_table();
-
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table.
-		$row = $wpdb->get_row(
-			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $registry_id ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
-			ARRAY_A
-		);
-
-		if ( null === $row ) {
-			return 0;
-		}
-
-		$revision = (int) $row['revision'] + 1;
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table.
-		$wpdb->update(
-			$table,
+		$updated = $wpdb->update(
+			Schema::contacts_table(),
 			[
 				'revision'        => $revision,
 				'projection_hash' => $hash,
 				'updated_at'      => gmdate( 'Y-m-d H:i:s' ),
 			],
-			[ 'id' => $registry_id ],
+			[
+				'id'    => $registry_id,
+				'state' => 'active',
+			],
 			[ '%d', '%s', '%s' ],
-			[ '%d' ]
+			[ '%d', '%s' ]
 		);
 
-		return $revision;
+		return (int) $updated > 0 ? $revision : 0;
 	}
 
 	/**

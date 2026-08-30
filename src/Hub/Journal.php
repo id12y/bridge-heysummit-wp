@@ -12,11 +12,16 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Append-only. The auto-increment row id (exposed as `seq`) is the
  * /hub/changes cursor: strictly ordered, replay-safe (reading never
- * mutates anything) and immune to the clock problems of
- * updated-after-timestamp feeds — equal timestamps, clock skew and
- * concurrent writes cannot hide a row behind a cursor that has already
- * passed it. Rows hold no personal data (uuid, op, revision, timestamp),
- * so retention needs no GDPR pruning.
+ * mutates anything) and free of the clock problems of
+ * updated-after-timestamp feeds. One caveat is inherent to id cursors:
+ * auto-increment ids are assigned at INSERT but become visible at
+ * COMMIT, so a reader polling the head could in principle pass an id
+ * whose row commits a moment later. page_after() therefore serves only
+ * rows older than a short grace window (default 2 s, filterable), which
+ * closes that race for any realistic commit latency; consumers wanting
+ * belt-and-braces should periodically re-walk the snapshot (documented
+ * in the runbook). Rows hold no personal data (uuid, op, revision,
+ * timestamp), so retention needs no GDPR pruning.
  */
 class Journal {
 
@@ -34,7 +39,7 @@ class Journal {
 		global $wpdb;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table.
-		$wpdb->insert(
+		$inserted = $wpdb->insert(
 			Schema::journal_table(),
 			[
 				'uuid'        => $uuid,
@@ -45,6 +50,10 @@ class Journal {
 			],
 			[ '%s', '%s', '%s', '%d', '%s' ]
 		);
+
+		if ( false === $inserted ) {
+			return 0; // Callers must not record the change as delivered.
+		}
 
 		$seq = (int) $wpdb->insert_id;
 
@@ -57,7 +66,9 @@ class Journal {
 
 	/**
 	 * One page of changes after a cursor position. Reading the same
-	 * position always returns the same logical rows.
+	 * position always returns the same logical rows. Rows younger than
+	 * the grace window are withheld so a cursor never advances past a
+	 * sequence number whose row might still be uncommitted.
 	 *
 	 * @param int $after Exclusive sequence floor.
 	 * @param int $limit Page size (already clamped by the caller).
@@ -68,9 +79,18 @@ class Journal {
 
 		$table = Schema::journal_table();
 
+		/**
+		 * Seconds a journal row must age before the changes feed serves
+		 * it — the commit-visibility grace window.
+		 *
+		 * @param int $grace Default 2.
+		 */
+		$grace  = max( 0, (int) apply_filters( 'eex_hub_journal_grace_seconds', 2 ) );
+		$cutoff = gmdate( 'Y-m-d H:i:s', time() - $grace );
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table.
 		$rows = $wpdb->get_results(
-			$wpdb->prepare( "SELECT * FROM {$table} WHERE id > %d ORDER BY id ASC LIMIT %d", $after, $limit ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE id > %d AND created_at <= %s ORDER BY id ASC LIMIT %d", $after, $cutoff, $limit ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- own table.
 			ARRAY_A
 		);
 

@@ -208,6 +208,12 @@ final class RestController {
 				$registry = new Registry();
 				$crm      = new Crm();
 
+				// Head BEFORE the page is read: a change journaled while
+				// this page serializes then sits above the head we hand
+				// out, so the documented snapshot-then-changes handoff
+				// replays it instead of missing it.
+				$head = ( new Journal() )->head();
+
 				$rows  = $registry->page_after( $after, $limit );
 				$items = array_map( fn( array $row ): array => $this->serialize_contact( $row, $crm ), $rows );
 
@@ -217,7 +223,7 @@ final class RestController {
 					'contacts'     => $items,
 					'next_cursor'  => Cursor::encode( 'contacts', [ 'after' => $last ] ),
 					'has_more'     => count( $rows ) === $limit,
-					'journal_head' => ( new Journal() )->head(),
+					'journal_head' => $head,
 				];
 			}
 		);
@@ -316,8 +322,10 @@ final class RestController {
 
 	/**
 	 * GET /hub/ticket-catalogue — the durable Ticket Tailor facts the CRM
-	 * holds, every identity scoped by its box office so identical external
-	 * ids from different accounts can never collide.
+	 * holds, each identity prefixed with its box-office scope so external
+	 * ids from different accounts stay apart wherever the CRM recorded
+	 * the box office (entries the CRM stored without one share the
+	 * 'unrecorded' scope — see serialize_ticket and the contract doc).
 	 *
 	 * @param WP_REST_Request $request Request.
 	 */
@@ -507,8 +515,12 @@ final class RestController {
 
 	/**
 	 * One catalogue item from a stored allocation entry, identity scoped
-	 * by box office. No payment or billing fields exist in the source
-	 * data, and none are ever added here.
+	 * by box office where the CRM recorded one. The CRM's live webhook
+	 * path stores no box-office label (only its import wizard does), so
+	 * those entries share the honest scope id 'unrecorded' — documented,
+	 * with the durable fix belonging CRM-side (a stored box-office id).
+	 * No payment or billing fields exist in the source data, and none
+	 * are ever added here.
 	 *
 	 * @param array<string,mixed> $entry Stored allocation entry.
 	 * @param array<string,mixed> $row   Registry row of the contact.
@@ -516,13 +528,19 @@ final class RestController {
 	 */
 	private function serialize_ticket( array $entry, array $row ): array {
 		$box_label = (string) ( $entry['box_office'] ?? '' );
-		$box_id    = '' !== $box_label ? sanitize_title( $box_label ) : 'unknown';
+		$box_id    = '' !== $box_label ? sanitize_title( $box_label ) : '';
+		$box_id    = '' !== $box_id ? $box_id : 'unrecorded';
 		$order_id  = (string) ( $entry['order_id'] ?? '' );
 		$ticket_id = (string) ( $entry['ticket_id'] ?? '' );
 		$raw_state = strtolower( trim( (string) ( $entry['status'] ?? '' ) ) );
 
+		// The stored status is a snapshot of whichever vocabulary the CRM
+		// captured — the Ticket Tailor ORDER status on the webhook path,
+		// the issued-ticket status elsewhere — so both are mapped.
 		$map = [
 			'valid'       => 'valid',
+			'completed'   => 'valid',
+			'paid'        => 'valid',
 			'cancelled'   => 'cancelled',
 			'canceled'    => 'cancelled',
 			'voided'      => 'cancelled',
@@ -708,12 +726,17 @@ final class RestController {
 	}
 
 	/**
-	 * Best-effort ISO 8601 Z from mixed stored formats (the CRM stores
-	 * allocation created_at as ISO already, field rows as MySQL UTC).
+	 * Best-effort ISO 8601 Z from mixed stored formats: the CRM's import
+	 * path stores allocation created_at as ISO, its webhook path as a raw
+	 * Unix-timestamp string, and field rows as MySQL UTC.
 	 *
 	 * @param string $stored Stored timestamp.
 	 */
 	private function iso_flexible( string $stored ): ?string {
+		if ( ctype_digit( $stored ) && strlen( $stored ) >= 9 && strlen( $stored ) <= 11 ) {
+			return gmdate( 'Y-m-d\TH:i:s\Z', (int) $stored );
+		}
+
 		if ( str_contains( $stored, 'T' ) ) {
 			$time = strtotime( $stored );
 		} else {

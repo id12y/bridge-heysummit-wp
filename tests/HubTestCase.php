@@ -26,6 +26,11 @@ abstract class HubTestCase extends TestCase {
 
 		$GLOBALS['eex_test_is_ssl'] = true;
 		$_SERVER['REMOTE_ADDR']     = '203.0.113.10';
+		unset( $GLOBALS['een_test_fail_find'] );
+
+		// Rows seeded "now" must be visible to the changes feed in the
+		// same test; the commit-visibility grace window has its own test.
+		add_filter( 'eex_hub_journal_grace_seconds', static fn(): int => 0 );
 
 		Options::update_settings( [ 'hub_enabled' => 1 ] );
 		Schema::ensure();

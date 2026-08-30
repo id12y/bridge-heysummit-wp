@@ -35,6 +35,81 @@ if ( ! class_exists( 'EEN_Table_Registry' ) ) {
 		public static function get_suppressions_table(): string {
 			return 'wp_een_suppressions';
 		}
+
+		public static function get_subscriptions_table(): string {
+			return 'wp_een_subscriptions';
+		}
+	}
+}
+
+if ( ! class_exists( 'EEN_Suppression_List' ) ) {
+	/**
+	 * Mirrors the CRM's static v1 check, including its sub-threshold
+	 * soft-bounce exclusion (rows below the threshold are tracking, not
+	 * suppression).
+	 */
+	class EEN_Suppression_List {
+		public static function is_suppressed( string $email ): bool {
+			global $wpdb;
+
+			$normalized = strtolower( trim( $email ) );
+
+			foreach ( $wpdb->tables['wp_een_suppression_list'] ?? [] as $row ) {
+				if ( ( $row['email'] ?? '' ) !== $normalized ) {
+					continue;
+				}
+
+				if ( 'soft_bounce' === ( $row['reason'] ?? '' ) && (int) ( $row['soft_bounce_count'] ?? 0 ) < 5 ) {
+					continue; // Tracking record, not a suppression yet.
+				}
+
+				return true;
+			}
+
+			return false;
+		}
+	}
+}
+
+if ( ! class_exists( 'EEN_Suppression_Service' ) ) {
+	/**
+	 * Mirrors the CRM's v2 engine: its OWN peppered hash (deliberately
+	 * different from EEN_Encryption::hash_email, as in the real plugin)
+	 * and expiry-aware global-scope lookups, answering with a Decision
+	 * array.
+	 */
+	class EEN_Suppression_Service {
+		public function hash_email( string $email_norm ): string {
+			return hash( 'sha256', 'een-suppress-pepper|' . $email_norm );
+		}
+
+		public function check( string $email, array $context = [] ): array {
+			global $wpdb;
+
+			$hash = $this->hash_email( strtolower( trim( $email ) ) );
+			$now  = gmdate( 'Y-m-d H:i:s' );
+
+			foreach ( $wpdb->tables['wp_een_suppressions'] ?? [] as $row ) {
+				if ( ( $row['email_hash'] ?? '' ) !== $hash || 'global' !== ( $row['scope_type'] ?? 'global' ) ) {
+					continue;
+				}
+
+				$expires = (string) ( $row['expires_at'] ?? '' );
+				if ( '' !== $expires && $expires <= $now ) {
+					continue; // Expired temporary suppression.
+				}
+
+				return [
+					'allowed'     => false,
+					'reason_code' => (string) ( $row['reason'] ?? 'manual' ),
+				];
+			}
+
+			return [
+				'allowed'     => true,
+				'reason_code' => '',
+			];
+		}
 	}
 }
 
@@ -85,6 +160,10 @@ if ( ! class_exists( 'EEN_Subscriber_Repository' ) ) {
 		public function __construct( $encryption = null ) {}
 
 		public function find_by_id( int $id ): ?EEN_Subscriber {
+			if ( ! empty( $GLOBALS['een_test_fail_find'][ $id ] ) ) {
+				throw new RuntimeException( 'simulated transient CRM read failure' );
+			}
+
 			global $wpdb;
 
 			foreach ( $wpdb->tables['wp_een_subscribers'] ?? [] as $row ) {
@@ -107,7 +186,10 @@ if ( ! class_exists( 'EEN_Encryption' ) ) {
 }
 
 /**
- * Seed one CRM subscriber row into the fake wpdb. Returns its id.
+ * Seed one CRM subscriber row into the fake wpdb. Returns its id. As in
+ * the real CRM, a confirmed subscriber with a delivery frequency also
+ * holds an ACTIVE row in the live subscriptions table (frequency 'none'
+ * seeds no row).
  */
 function eex_hub_seed_subscriber( array $overrides = [] ): int {
 	global $wpdb;
@@ -127,8 +209,33 @@ function eex_hub_seed_subscriber( array $overrides = [] ): int {
 	);
 
 	$wpdb->insert( 'wp_een_subscribers', $row );
+	$id = (int) $wpdb->insert_id;
 
-	return (int) $wpdb->insert_id;
+	if ( 'confirmed' === $row['status'] && 'none' !== $row['frequency'] ) {
+		eex_hub_seed_subscription( $id, (string) $row['frequency'] );
+	}
+
+	return $id;
+}
+
+/**
+ * Seed one live subscription row (the CRM's per-frequency delivery
+ * membership).
+ */
+function eex_hub_seed_subscription( int $subscriber_id, string $frequency = 'weekly', string $status = 'active', string $snoozed_until = '' ): void {
+	global $wpdb;
+
+	$wpdb->insert(
+		'wp_een_subscriptions',
+		[
+			'subscriber_id' => $subscriber_id,
+			'frequency'     => $frequency,
+			'status'        => $status,
+			'snoozed_until' => $snoozed_until,
+			'created_at'    => gmdate( 'Y-m-d H:i:s' ),
+			'updated_at'    => gmdate( 'Y-m-d H:i:s' ),
+		]
+	);
 }
 
 /**

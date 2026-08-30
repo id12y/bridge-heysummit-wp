@@ -52,7 +52,7 @@ final class Projection {
 			'last_name'        => '' !== $last ? $last : null,
 			'display_name'     => '' !== $display ? $display : null,
 			'state'            => true === $suppressed ? 'suppressed' : 'active',
-			'email_news_state' => self::email_news_state( $contact ),
+			'email_news_state' => self::email_news_state( $contact, $crm->has_active_subscription( $subscriber_id ) ),
 			'sources'          => self::sources( $crm, $subscriber_id ),
 			'community'        => self::community( $crm, $subscriber_id, $tags ),
 		];
@@ -71,11 +71,16 @@ final class Projection {
 	}
 
 	/**
-	 * The email-news preference as one explicit enum.
+	 * The email-news preference as one explicit enum. The CRM's LIVE
+	 * per-frequency subscription rows decide 'subscribed' when readable;
+	 * the legacy frequency column is only the fallback (it is written at
+	 * creation and not maintained by later preference changes).
 	 *
 	 * @param array<string,mixed> $contact Allowlisted contact columns.
+	 * @param bool|null           $live    Live subscription membership, or
+	 *                                     null when unreadable.
 	 */
-	public static function email_news_state( array $contact ): string {
+	public static function email_news_state( array $contact, ?bool $live = null ): string {
 		switch ( $contact['status'] ) {
 			case 'pending':
 				return 'pending_confirmation';
@@ -84,11 +89,15 @@ final class Projection {
 			case 'contact':
 				return 'not_subscribed';
 			case 'confirmed':
-				if ( 'none' === $contact['frequency'] || true === $contact['news_digest_off'] ) {
+				if ( true === $contact['news_digest_off'] ) {
 					return 'not_subscribed';
 				}
 
-				return 'subscribed';
+				if ( null !== $live ) {
+					return $live ? 'subscribed' : 'not_subscribed';
+				}
+
+				return 'none' === $contact['frequency'] ? 'not_subscribed' : 'subscribed';
 			default:
 				return 'unknown';
 		}
@@ -137,13 +146,16 @@ final class Projection {
 	 */
 	public static function ticket_facts( Crm $crm, int $subscriber_id, ?array $tags ): array {
 		$allocated = $crm->allocated_tickets( $subscriber_id );
+		$buyer_tag = $crm->buyer_tag_slug();
 
 		if ( [] !== $allocated ) {
 			$has_ticket = true;
-		} elseif ( null === $tags ) {
+		} elseif ( null === $tags || null === $buyer_tag ) {
+			// Tags unreadable, or the CRM's buyer tag is disabled — the
+			// marker's absence proves nothing either way.
 			$has_ticket = null;
 		} else {
-			$has_ticket = in_array( 'ticket-buyer', $tags, true );
+			$has_ticket = in_array( $buyer_tag, $tags, true );
 		}
 
 		return [

@@ -86,66 +86,127 @@ class Crm {
 	}
 
 	/**
-	 * Subscriber ids whose projection inputs changed since a watermark:
-	 * the subscriber row itself, an allowlisted custom field, or a tag
-	 * assignment. Tag REMOVALS leave no timestamp anywhere in the CRM —
-	 * the sweeper's reconciliation walk catches those.
+	 * Update HINTS from the subscriber rows' own timestamps, oldest first.
+	 * Hints only decide which contacts get looked at sooner — truth is
+	 * the canonical projection hash, and the reconcile walk is the
+	 * guarantee (tag REMOVALS, for one, leave no timestamp anywhere).
 	 *
-	 * @param string $since UTC 'Y-m-d H:i:s' watermark (inclusive).
-	 * @param int    $limit Maximum ids.
-	 * @return array<int,int>
+	 * @param string $since UTC 'Y-m-d H:i:s' floor (inclusive).
+	 * @param int    $limit Maximum rows.
+	 * @return array{rows:array<int,array{id:int,ts:string}>,truncated:bool}
 	 */
-	public function ids_updated_since( string $since, int $limit ): array {
-		if ( $limit < 1 ) {
-			return [];
+	public function subscriber_hints( string $since, int $limit ): array {
+		$table = $this->table( 'subscribers' );
+
+		if ( '' === $table || $limit < 1 ) {
+			return [
+				'rows'      => [],
+				'truncated' => false,
+			];
 		}
 
 		global $wpdb;
 
-		$ids = [];
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only hint scan.
+		$rows = (array) $wpdb->get_results(
+			$wpdb->prepare( "SELECT id, updated_at FROM {$table} WHERE updated_at >= %s ORDER BY updated_at ASC, id ASC LIMIT %d", $since, $limit ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- registry table name.
+			ARRAY_A
+		);
 
-		$subscribers = $this->table( 'subscribers' );
-		if ( '' !== $subscribers ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only id scan.
-			$rows = $wpdb->get_results(
-				$wpdb->prepare( "SELECT id FROM {$subscribers} WHERE updated_at >= %s ORDER BY updated_at ASC LIMIT %d", $since, $limit ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- registry table name.
+		return [
+			'rows'      => array_map(
+				static fn( array $row ): array => [
+					'id' => (int) ( $row['id'] ?? 0 ),
+					'ts' => (string) ( $row['updated_at'] ?? '' ),
+				],
+				$rows
+			),
+			'truncated' => count( $rows ) >= $limit,
+		];
+	}
+
+	/**
+	 * Update hints from the watched custom-field rows, oldest first.
+	 *
+	 * @param string $since UTC 'Y-m-d H:i:s' floor (inclusive).
+	 * @param int    $limit Maximum rows per field.
+	 * @return array{rows:array<int,array{id:int,ts:string}>,truncated:bool}
+	 */
+	public function field_hints( string $since, int $limit ): array {
+		$table = $this->table( 'subscriber_custom_fields' );
+
+		if ( '' === $table || $limit < 1 ) {
+			return [
+				'rows'      => [],
+				'truncated' => false,
+			];
+		}
+
+		global $wpdb;
+
+		$hints     = [];
+		$truncated = false;
+
+		foreach ( $this->watched_fields() as $field_id ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only hint scan.
+			$rows = (array) $wpdb->get_results(
+				$wpdb->prepare( "SELECT subscriber_id, updated_at FROM {$table} WHERE field_id = %s AND updated_at >= %s ORDER BY updated_at ASC LIMIT %d", $field_id, $since, $limit ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- registry table name.
 				ARRAY_A
 			);
-			foreach ( (array) $rows as $row ) {
-				$ids[ (int) $row['id'] ] = true;
+
+			$truncated = $truncated || count( $rows ) >= $limit;
+
+			foreach ( $rows as $row ) {
+				$hints[] = [
+					'id' => (int) ( $row['subscriber_id'] ?? 0 ),
+					'ts' => (string) ( $row['updated_at'] ?? '' ),
+				];
 			}
 		}
 
-		$fields = $this->table( 'subscriber_custom_fields' );
-		if ( '' !== $fields ) {
-			foreach ( $this->watched_fields() as $field_id ) {
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only id scan.
-				$rows = $wpdb->get_results(
-					$wpdb->prepare( "SELECT subscriber_id FROM {$fields} WHERE field_id = %s AND updated_at >= %s LIMIT %d", $field_id, $since, $limit ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- registry table name.
-					ARRAY_A
-				);
-				foreach ( (array) $rows as $row ) {
-					$ids[ (int) $row['subscriber_id'] ] = true;
-				}
-			}
+		usort( $hints, static fn( $a, $b ) => strcmp( $a['ts'], $b['ts'] ) );
+
+		return [
+			'rows'      => $hints,
+			'truncated' => $truncated,
+		];
+	}
+
+	/**
+	 * Update hints from tag ASSIGNMENTS, oldest first.
+	 *
+	 * @param string $since UTC 'Y-m-d H:i:s' floor (inclusive).
+	 * @param int    $limit Maximum rows.
+	 * @return array{rows:array<int,array{id:int,ts:string}>,truncated:bool}
+	 */
+	public function tag_hints( string $since, int $limit ): array {
+		$table = $this->table( 'subscriber_tags' );
+
+		if ( '' === $table || $limit < 1 ) {
+			return [
+				'rows'      => [],
+				'truncated' => false,
+			];
 		}
 
-		$pivot = $this->table( 'subscriber_tags' );
-		if ( '' !== $pivot ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only id scan.
-			$rows = $wpdb->get_results(
-				$wpdb->prepare( "SELECT subscriber_id FROM {$pivot} WHERE created_at >= %s LIMIT %d", $since, $limit ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- registry table name.
-				ARRAY_A
-			);
-			foreach ( (array) $rows as $row ) {
-				$ids[ (int) $row['subscriber_id'] ] = true;
-			}
-		}
+		global $wpdb;
 
-		$list = array_map( 'intval', array_keys( $ids ) );
-		sort( $list );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only hint scan.
+		$rows = (array) $wpdb->get_results(
+			$wpdb->prepare( "SELECT subscriber_id, created_at FROM {$table} WHERE created_at >= %s ORDER BY created_at ASC LIMIT %d", $since, $limit ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- registry table name.
+			ARRAY_A
+		);
 
-		return array_slice( $list, 0, $limit );
+		return [
+			'rows'      => array_map(
+				static fn( array $row ): array => [
+					'id' => (int) ( $row['subscriber_id'] ?? 0 ),
+					'ts' => (string) ( $row['created_at'] ?? '' ),
+				],
+				$rows
+			),
+			'truncated' => count( $rows ) >= $limit,
+		];
 	}
 
 	/**
@@ -307,8 +368,11 @@ class Crm {
 	}
 
 	/**
-	 * Whether an address sits on a CRM suppression list. Null = unknown
-	 * (CRM unavailable or its suppression internals unreadable).
+	 * Whether an address sits on a CRM suppression list. Delegates to the
+	 * CRM's OWN checks — its hashing, soft-bounce thresholds, scope and
+	 * expiry policies all live over there and are not reimplemented here.
+	 * Null = unknown (the CRM's modern suppression engine could not
+	 * answer); `false` is asserted only when it answered.
 	 *
 	 * @param string $email Email address.
 	 */
@@ -317,51 +381,89 @@ class Crm {
 			return null;
 		}
 
-		global $wpdb;
-
-		$known = false;
-
-		$v1 = $this->table( 'suppression_list' );
-		if ( '' !== $v1 ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only suppression probe.
-			$row = $wpdb->get_row(
-				$wpdb->prepare( "SELECT id FROM {$v1} WHERE email = %s", strtolower( trim( $email ) ) ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- registry table name.
-				ARRAY_A
-			);
-
-			if ( null !== $row ) {
-				return true;
-			}
-
-			$known = true;
-		}
-
-		$v2 = $this->table( 'suppressions' );
-		if ( '' !== $v2 && class_exists( 'EEN_Encryption' ) ) {
+		// Legacy v1 list — its static check applies the CRM's own
+		// sub-threshold soft-bounce exclusion. A positive is decisive; a
+		// negative alone is not enough to assert "not suppressed".
+		if ( class_exists( 'EEN_Suppression_List' ) ) {
 			try {
-				$encryption = new \EEN_Encryption();
-				$hash       = (string) $encryption->hash_email( $email );
-
-				if ( '' !== $hash ) {
-					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only suppression probe.
-					$row = $wpdb->get_row(
-						$wpdb->prepare( "SELECT id FROM {$v2} WHERE email_hash = %s AND scope_type = %s", $hash, 'global' ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- registry table name.
-						ARRAY_A
-					);
-
-					if ( null !== $row ) {
-						return true;
-					}
-
-					$known = true;
+				if ( true === \EEN_Suppression_List::is_suppressed( $email ) ) {
+					return true;
 				}
 			} catch ( \Throwable $e ) {
-				// Fall through: the v1 answer (if any) stands.
 				unset( $e );
 			}
 		}
 
-		return $known ? false : null;
+		// The modern engine: its check() applies the real hash scheme(s),
+		// scope, expiry and policy rules in one place.
+		if ( class_exists( 'EEN_Suppression_Service' ) ) {
+			try {
+				$decision = ( new \EEN_Suppression_Service() )->check( $email, [ 'scope_type' => 'global' ] );
+
+				if ( is_array( $decision ) && array_key_exists( 'allowed', $decision ) ) {
+					return false === $decision['allowed'];
+				}
+			} catch ( \Throwable $e ) {
+				unset( $e );
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Whether the contact holds at least one ACTIVE, un-snoozed
+	 * subscription row — the CRM's live delivery membership (the
+	 * subscribers.frequency column is a creation-time value that later
+	 * per-frequency preference changes do not maintain). Null = the
+	 * subscriptions table is unreadable.
+	 *
+	 * @param int $subscriber_id CRM subscriber id.
+	 */
+	public function has_active_subscription( int $subscriber_id ): ?bool {
+		$table = $this->table( 'subscriptions' );
+
+		if ( '' === $table ) {
+			return null;
+		}
+
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read-only bounded probe (a handful of frequency rows per contact).
+		$rows = (array) $wpdb->get_results(
+			$wpdb->prepare( "SELECT snoozed_until FROM {$table} WHERE subscriber_id = %d AND status = %s", $subscriber_id, 'active' ), // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- registry table name.
+			ARRAY_A
+		);
+
+		$now = gmdate( 'Y-m-d H:i:s' );
+
+		foreach ( $rows as $row ) {
+			$snoozed = (string) ( $row['snoozed_until'] ?? '' );
+
+			if ( '' === $snoozed || $snoozed <= $now ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * The slug of the CRM's "bought a ticket" marker tag. The CRM makes
+	 * the tag name configurable (and disable-able): honour that instead
+	 * of hard-coding the default. Null = the operator disabled the tag,
+	 * so tag absence proves nothing.
+	 */
+	public function buyer_tag_slug(): ?string {
+		$rules = get_option( 'een_tt_tag_rules', null );
+
+		if ( is_array( $rules ) && array_key_exists( 'general_tag', $rules ) ) {
+			$tag = trim( (string) $rules['general_tag'] );
+
+			return '' !== $tag ? sanitize_title( $tag ) : null;
+		}
+
+		return 'ticket-buyer';
 	}
 
 	/**

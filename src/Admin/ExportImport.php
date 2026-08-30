@@ -209,6 +209,10 @@ final class ExportImport {
 		if ( isset( $options['eex_settings'] ) && is_array( $options['eex_settings'] ) ) {
 			// Only known keys, coerced against defaults.
 			$clean = array_intersect_key( $options['eex_settings'], Options::defaults() );
+			// The Hub feature switch flips only via its explicit enable
+			// path (`wp eex hub enable`, which also creates the schema) —
+			// never as a side effect of a settings import.
+			unset( $clean['hub_enabled'] );
 			Options::update_settings( $clean );
 		}
 

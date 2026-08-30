@@ -84,8 +84,17 @@ final class Cli {
 
 		Options::update_settings( [ 'hub_enabled' => 1 ] );
 
+		// The module (and with it the custom interval) was not registered
+		// in this process — the switch was off at plugins_loaded — so the
+		// schedule must be added here for wp_schedule_event to accept it.
+		add_filter( 'cron_schedules', [ Module::class, 'add_schedule' ] ); // phpcs:ignore WordPress.WP.CronInterval.ChangeDetected -- Module::add_schedule registers a fixed 300s interval, above the platform minimum.
+
 		if ( ! wp_next_scheduled( Module::SWEEP_HOOK ) ) {
-			wp_schedule_event( time() + MINUTE_IN_SECONDS, Module::SWEEP_SCHEDULE, Module::SWEEP_HOOK );
+			$scheduled = wp_schedule_event( time() + MINUTE_IN_SECONDS, Module::SWEEP_SCHEDULE, Module::SWEEP_HOOK );
+
+			if ( true !== $scheduled ) {
+				WP_CLI::warning( 'Could not schedule the sweep from here; the module self-schedules it on the next site request.' );
+			}
 		}
 
 		WP_CLI::success( 'Hub API enabled. Create a credential with `wp eex hub token-create --label=community-hub`, then run `wp eex hub backfill`.' );
@@ -232,14 +241,31 @@ final class Cli {
 			WP_CLI::error( 'The CRM plugin (EmailExpert Newsletter) is not available.' );
 		}
 
-		$batch   = min( 500, max( 10, (int) ( $assoc_args['batch'] ?? 200 ) ) );
-		$sweeper = new Sweeper();
-		$total   = $crm->count_subscribers();
-		$done    = 0;
+		$batch     = min( 500, max( 10, (int) ( $assoc_args['batch'] ?? 200 ) ) );
+		$sweeper   = new Sweeper();
+		$total     = $crm->count_subscribers();
+		$done      = 0;
+		$lock_hits = 0;
 
 		while ( true ) {
 			$stats = $sweeper->run( $batch, 0, 0 );
-			$done += $stats['enrolled'];
+
+			if ( ! empty( $stats['locked'] ) ) {
+				// The cron sweep holds the lock; wait it out rather than
+				// mistaking a locked run for an empty backlog.
+				if ( ++$lock_hits > 60 ) {
+					WP_CLI::error( 'The sweep lock stayed held; re-run the backfill in a moment.' );
+				}
+				sleep( 3 );
+				continue;
+			}
+
+			if ( ! empty( $stats['crm_unavailable'] ) ) {
+				WP_CLI::error( 'The CRM plugin became unavailable mid-backfill; re-run when it is active.' );
+			}
+
+			$lock_hits = 0;
+			$done     += $stats['enrolled'];
 
 			if ( 0 === $stats['enrolled'] ) {
 				break;
@@ -249,7 +275,12 @@ final class Cli {
 		}
 
 		$counts = ( new Registry() )->counts();
-		WP_CLI::success( 'Backfill complete: ' . $counts['total'] . ' registry rows for ~' . $total . ' CRM contacts.' );
+
+		if ( $counts['total'] < $total ) {
+			WP_CLI::warning( 'Registry holds ' . $counts['total'] . ' of ~' . $total . ' CRM contacts — some reads failed and are queued for retry; re-run the backfill or let the sweep catch up (`wp eex hub status`).' );
+		} else {
+			WP_CLI::success( 'Backfill complete: ' . $counts['total'] . ' registry rows for ~' . $total . ' CRM contacts.' );
+		}
 	}
 
 	/**

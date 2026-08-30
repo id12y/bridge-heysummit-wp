@@ -158,15 +158,34 @@ wp eex hub backfill --batch=200
 ## 5. Change-feed operation and sizing
 
 - The 5-minute sweep processes bounded batches (defaults: 200 enrol +
-  200 updated + 50 reconcile). New/updated contacts (anything that bumps
-  a CRM timestamp, plus everything the lifecycle hooks announce) surface
-  within one sweep.
+  200 hint rows per source + 50 reconcile). New/updated contacts
+  (anything that bumps a CRM timestamp, plus everything the lifecycle
+  hooks announce) surface within one sweep once the backlog drains; each
+  hint source (subscriber rows, watched custom fields, tag assignments)
+  keeps its own oldest-first watermark that advances through truncated
+  backlogs instead of freezing on them. A read failure during enrolment
+  parks the contact on a bounded retry list rather than dropping it.
 - Changes that leave **no** CRM timestamp (tag removal) are caught by
   the cyclic reconcile walk: worst case `registry_rows / 50` sweeps
   (≈ 7 hours per 4,000 contacts). If that lag matters, raise the
   reconcile budget via a small mu-plugin calling
   `( new Sweeper() )->run( 200, 200, <bigger> )` from its own schedule,
   or run `wp eex hub sweep` from system cron.
+- The changes feed withholds journal rows younger than a 2 s grace
+  window (filter `eex_hub_journal_grace_seconds`) so a cursor can never
+  pass a still-committing row; writes are journal-first, so a failed
+  write is retried rather than silently marked delivered. Residual
+  honesty: a database commit stalling beyond the grace window could
+  still slip one row behind a racing cursor — hence the next point.
+- **Prescribe a periodic snapshot re-walk in the Hub consumer** (e.g.
+  weekly, off-peak): walk `/hub/contacts` fully and reconcile. This is
+  the belt-and-braces guarantee on top of the feed, and it also heals
+  any consumer-side loss.
+- Scan cost: the hint queries filter the CRM's `een_subscribers.updated_at`
+  and `een_subscriber_tags.created_at`, which carry **no indexes** in the
+  CRM's schema — each is a bounded-output but full-scan read every 5
+  minutes. Fine at current scale (thousands of rows); at tens of
+  thousands, add indexes CRM-side (recommendation §8).
 - The journal is append-only and tiny (~100 bytes/row, no personal
   data); no pruning is needed or performed in v1.
 
@@ -201,6 +220,18 @@ wp eex hub enable
 wp eex hub backfill
 wp eex hub status
 ```
+
+Reverse-proxy reality check (do this once, before Step 4): the HTTPS
+gate uses `is_ssl()` and the optional allowlist uses `REMOTE_ADDR`.
+Behind a TLS-terminating proxy or load balancer, set the standard
+`X-Forwarded-Proto` fix-up in `wp-config.php`
+(`if ( isset( $_SERVER['HTTP_X_FORWARDED_PROTO'] ) && 'https' === $_SERVER['HTTP_X_FORWARDED_PROTO'] ) { $_SERVER['HTTPS'] = 'on'; }`)
+or every Hub request 403s despite being HTTPS end-to-end; and remember
+`REMOTE_ADDR` is then the proxy's address, so an IP allowlist must list
+what WordPress actually sees (or stay empty). Never disable the
+`eex_hub_require_https` filter in production. The per-credential rate
+limit is a coarse, best-effort abuse brake — the token is the security
+boundary, not the limiter.
 
 Step 4 — credential + **smallest-possible smoke test** (page size 1):
 
@@ -247,10 +278,20 @@ read (limit=1) IS the bounded production verification.
 
 ## 7. Verification evidence
 
-Automated: `vendor/bin/phpunit` — **511 tests, 2409 assertions, 0
-failures** (478 pre-existing + 33 new Hub tests), and `vendor/bin/phpcs`
-exit 0 (WordPress-Extra), matching CI (PHP 8.1/8.3). Mapping of the
-required proofs to tests (all in `tests/Unit/Hub*.php`):
+Automated: `vendor/bin/phpunit` — **522 tests, 2433 assertions, 0
+failures** (478 pre-existing + 44 new Hub tests), and `vendor/bin/phpcs`
+exit 0 (WordPress-Extra), matching CI (PHP 8.1/8.3). The Hub layer was
+additionally put through an adversarial multi-agent review (five lenses:
+security, correctness/concurrency, WordPress integration, CRM-side
+factual assumptions, regression/contract; every finding independently
+double-verified); all 33 confirmed findings were fixed or honestly
+documented, each fix pinned by a regression test in
+`tests/Unit/HubReviewFixesTest.php` (suppression delegated to the CRM's
+own two check paths, live subscription state, watermark progress under
+truncation, journal-first write ordering with a commit-grace window,
+enrolment retry, epoch-timestamp and order-status handling, the
+tombstone-resurrection guard, and the settings-import switch strip).
+Mapping of the required proofs to tests (all in `tests/Unit/Hub*.php`):
 
 | Requirement | Proof |
 |---|---|
@@ -262,7 +303,7 @@ required proofs to tests (all in `tests/Unit/Hub*.php`):
 | Only allowlisted fields returned | `HubRestTest::test_contacts_returns_only_the_allowlisted_projection` (exact key list; a planted `_internal_notes` field never appears) |
 | Page-size limits enforced | `HubRestTest::test_snapshot_pagination…` (99999 → 100 clamp) |
 | Cursor replay consistent | same test + changes-feed replay |
-| Concurrent updates: no silent gaps | Change detection is canonical-hash truth (not timestamps): `HubIdentityTest::test_tag_removal_is_caught_by_reconciliation…` proves even timestamp-less mutations surface; journal seq ordering proves no cursor can skip a committed change |
+| Concurrent updates: no silent gaps | Change detection is canonical-hash truth (not timestamps): `HubIdentityTest::test_tag_removal_is_caught_by_reconciliation…` proves even timestamp-less mutations surface; writes are journal-first (`HubReviewFixesTest` retry/tombstone tests) and the feed's commit-grace window (`test_the_journal_grace_window_withholds_fresh_rows`) keeps cursors behind still-committing rows; the periodic snapshot re-walk (§5) is the documented belt-and-braces for the residual commit-stall race |
 | Deletions appear as minimal tombstones | `HubIdentityTest::test_a_deleted_contact_becomes_a_minimal_tombstone` (state, cleared subscriber id, no email anywhere), `HubRestTest::test_single_contact_lookup_and_tombstone_shape` |
 | TT identities isolated per box office | `HubRestTest::test_ticket_catalogue_scopes_identities_by_box_office` (identical order/ticket ids under two box offices never collide) |
 | Logs/errors free of credentials and personal data | Tokens stored as hashes only (`HubAuthTest::test_tokens_are_stored_only_as_hashes…`); access log carries ids/route/status/ms; `Logger` redacts emails by design; error bodies are generic (`HubRestTest` 400/404 assertions; capabilities secret-leak test plants a fake API key and asserts absence) |
@@ -289,10 +330,12 @@ CRM plugin (separate repo, separate review — out of scope here):
    `issued_ticket.updated` by rewriting the stored entry status; then
    this layer can flip `features.ticket_validity` on with no contract
    change (`state` already carries the vocabulary).
-2. **Box offices are label-scoped** — the CRM stores no Ticket Tailor
-   box-office id, and labels are operator-mutable (a rename changes the
-   derived `box_office.id`). Recommendation: store the TT box-office id
-   alongside the label in `een_ticket_tailor_box_offices`.
+2. **Box offices are label-scoped, and webhook-sourced allocations carry
+   none at all** (they surface under the honest scope id `unrecorded`;
+   labels are operator-mutable, so a rename re-keys the derived
+   `box_office.id`). Recommendation: store the TT box-office id
+   alongside the label in `een_ticket_tailor_box_offices` and stamp it
+   into webhook-written allocation entries.
 3. **Buyer-only purchases** appear via tags (`has_ticket`), not the
    catalogue — the CRM stores per-attendee allocations only.
 4. **Community facts default to operator-set markers** (tags
@@ -306,5 +349,8 @@ CRM plugin (separate repo, separate review — out of scope here):
    the timestamp sweep (≤ 1 cycle) rather than instantly. Adding a
    `een_subscriber_updated` action in `EEN_Subscriber_Repository::update()`
    would make capture immediate; correctness does not depend on it.
+   Similarly worthwhile CRM-side at scale: indexes on
+   `een_subscribers.updated_at` and `een_subscriber_tags.created_at`
+   (the Hub's hint scans filter on them, unindexed today).
 6. **Production inspection was impossible from the build environment**
    (egress policy) — hence §6 step 0 is mandatory before deploy.
