@@ -102,6 +102,18 @@ final class Crypto {
 	}
 
 	/**
+	 * Purpose-scoped MAC over arbitrary data — lets callers sign small
+	 * payloads (opaque pagination cursors) without a new secret to manage.
+	 *
+	 * @param string $data    Data to authenticate.
+	 * @param string $purpose Key namespace, so MACs for one purpose can
+	 *                        never validate for another.
+	 */
+	public static function mac( string $data, string $purpose ): string {
+		return hash_hmac( 'sha256', $data, self::derived( 'mac|' . $purpose ) );
+	}
+
+	/**
 	 * The secretbox key (32 bytes) from the auth salt.
 	 */
 	private static function key(): string {

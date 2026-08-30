@@ -481,7 +481,7 @@ final class HomepageHero {
 				if ( ! empty( $grouped_items['standard'] ) ) {
 					printf(
 						'<ul class="eex-hh__news-standard eex-hh__news-list--cols-%d" role="list">',
-						count( $grouped_items['standard'] ) >= 4 ? 4 : max( 2, count( $grouped_items['standard'] ) )
+						absint( count( $grouped_items['standard'] ) >= 4 ? 4 : max( 2, count( $grouped_items['standard'] ) ) )
 					);
 					foreach ( $grouped_items['standard'] as $item ) {
 						echo '<li class="eex-hh__news-item">';

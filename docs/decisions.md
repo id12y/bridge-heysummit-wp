@@ -2781,3 +2781,53 @@ The headline scale was transcribed down to the mockup's ~36px (a separate,
 larger text-led scale covers imageless stories). No selection, lifecycle,
 registration, deduplication or caching code changed — templates, CSS,
 defaults and two presentation-only label defaults only.
+
+## D108. The Community Hub reads a contract, never the CRM (v1.59.0)
+
+The Community Hub application needs approved contact and Ticket Tailor
+facts from the CRM (the sibling EmailExpert Newsletter plugin). The CRM
+holds the data but exposes only admin-cookie routes; nothing in either
+plugin offered a stable contact identity, a change feed, or a
+server-to-server credential. Decisions, and why:
+
+- **The Hub layer lives in this plugin, under a plugin-agnostic
+  namespace.** `emailexpert-crm/v1` (no other plugin claims it) so the
+  contract belongs to the CRM domain and the implementation can migrate
+  into the CRM plugin later with zero Hub-side URL changes. All Hub state
+  sits in three new `eex_hub_*` tables; not one CRM table, option or
+  behaviour is modified — rollback is the feature switch plus DROP TABLE.
+- **CRM facts are read through the CRM's own public classes at runtime**
+  (`EEN_Subscriber_Repository` for decryption, `EEN_Table_Registry` for
+  names; guarded `class_exists` everywhere, degrading to explicit
+  "unknown" answers). The Hub layer never reimplements the CRM's
+  cryptography, never calls the Ticket Tailor API, and never sees a
+  Ticket Tailor key.
+- **Identity is a minted UUID, not a derived one.** The CRM's candidates
+  all fail the contract: row ids leak sequence and size, `email_hash`
+  rotates with the WP salts, `email_hash_v2` is partially backfilled and
+  key-dependent. A UUID minted at enrolment survives email/name changes,
+  is never recycled, and its registry row degrades to a minimal tombstone
+  (uuid, revision, deleted_at — subscriber id and hash cleared) on CRM
+  purge, so deletion is observable without impeding erasure.
+- **Change detection is hash-truth, timestamp-hint.** The CRM's
+  `updated_at` is second-resolution and bypassed by several writers, and
+  tag removals stamp nothing at all — so "updated after T" can silently
+  lose changes. Instead every observation recomputes the canonical
+  projection hash; timestamps (and the CRM's lifecycle hooks) only decide
+  which contacts to look at sooner, and a cyclic reconcile walk
+  guarantees the rest. The journal's auto-increment seq is the cursor:
+  append-only, replay-safe, personal-data-free.
+- **Facts are tri-state and never inferred.** Community
+  eligibility/opt-in/invited/admitted come only from operator-set CRM
+  markers (tags, a tier field) or the `eex_hub_community_facts` seam —
+  never from ticket purchases. `ticket_currently_valid` is honestly
+  `null` (the CRM stores status snapshots and never reconciles
+  cancellations); capabilities says so
+  (`features.ticket_validity: false`) instead of guessing.
+- **Credentials are plugin-managed bearer tokens** (HMAC-hashed at rest,
+  hint-only listings, status-flag revocation, per-credential rate
+  limits) rather than an Application Password: an Application Password
+  authenticates as a full WP user and would need a user, a role and
+  capability surgery to scope; a table row scoped to exactly six GET
+  routes is smaller and fails closed. IP allowlisting exists but only on
+  top of the token.

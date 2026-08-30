@@ -46,7 +46,17 @@ if ( 'brief' === $eex_role ) {
 	?>
 	<article class="eex-hh__news-card eex-hh__news-card--brief">
 		<?php if ( ! empty( $args['show_category'] ) && '' !== (string) ( $eex_story['category'] ?? '' ) ) : ?>
-			<p class="eex-hh__news-category"><?php if ( '' !== $eex_category_link ) : ?><a href="<?php echo esc_url( $eex_category_link ); ?>" data-eex-action="news-category"><?php echo esc_html( (string) $eex_story['category'] ); ?></a><?php else : ?><?php echo esc_html( (string) $eex_story['category'] ); ?><?php endif; ?></p>
+			<p class="eex-hh__news-category">
+			<?php
+			// Leading/trailing whitespace inside the paragraph collapses in
+			// rendering; the link itself is emitted in one piece.
+			if ( '' !== $eex_category_link ) {
+				echo '<a href="' . esc_url( $eex_category_link ) . '" data-eex-action="news-category">' . esc_html( (string) $eex_story['category'] ) . '</a>';
+			} else {
+				echo esc_html( (string) $eex_story['category'] );
+			}
+			?>
+			</p>
 		<?php endif; ?>
 		<<?php echo esc_attr( $eex_tag ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- whitelisted tag. ?> class="eex-hh__news-title">
 			<?php if ( '' !== $eex_url ) : ?>

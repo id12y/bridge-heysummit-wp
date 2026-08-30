@@ -21,7 +21,7 @@ final class Cron {
 	/**
 	 * Recurring schedules.
 	 */
-	public const RECURRING = [ 'eex_sync_cron', 'eex_daily_maintenance', 'eex_weekly_digest' ];
+	public const RECURRING = [ 'eex_sync_cron', 'eex_daily_maintenance', 'eex_weekly_digest', 'eex_hub_sweep' ];
 
 	/**
 	 * Queued single-event jobs (all carry args).
