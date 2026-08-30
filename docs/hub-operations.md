@@ -1,5 +1,13 @@
 # Community Hub API — operations runbook
 
+> **A native hosting of this same API now exists in the CRM plugin**
+> (EmailExpert Newsletter, branch `claude/community-hub-crm-api-s8hxxm`,
+> module `includes/hub/`, enabled via `wp een hub enable`) — same
+> contract 1.0.0, same URLs, delegating directly to the CRM's own
+> services. That hosting is the recommended one. Enable exactly ONE of
+> the two implementations, never both (they register the same
+> `emailexpert-crm/v1` namespace); both ship disabled by default.
+
 Companion to [hub-api.md](hub-api.md) (contract) and
 [hub-openapi.yaml](hub-openapi.yaml). Covers: what existed vs. what was
 added, every file and table touched, credential lifecycle, the UUID
