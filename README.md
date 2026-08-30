@@ -739,6 +739,8 @@ src/                     PSR-4 (Emailexpert\Events), no runtime Composer
   Rest/                  public endpoints (register, counter)
   Webhooks/              receiver, parser, processor, attribution, relay
   Accounts/              registration rules module (Full, opt-in)
+  Hub/                   Community Hub read-only API (opt-in, off by default;
+                         docs/hub-api.md + docs/hub-operations.md)
   Forms/                 forms bridge (mappings, queue, pusher, adapters)
   WooCommerce/           Woo bridge (loads only with WooCommerce)
   MyListing/             listings bridge (loads only with MyListing)

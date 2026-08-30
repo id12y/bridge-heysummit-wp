@@ -80,6 +80,20 @@ class EEX_Fake_WPDB {
 		return addcslashes( (string) $text, '_%\\' );
 	}
 
+	public function update( string $table, array $data, array $where, $format = null, $where_format = null ): int {
+		$updated = 0;
+		foreach ( $this->tables[ $table ] ?? [] as $i => $row ) {
+			foreach ( $where as $col => $val ) {
+				if ( (string) ( $row[ $col ] ?? '' ) !== (string) $val ) {
+					continue 2;
+				}
+			}
+			$this->tables[ $table ][ $i ] = array_merge( $row, $data );
+			$updated++;
+		}
+		return $updated;
+	}
+
 	/**
 	 * Parse "FROM <table> [WHERE ...]" with simple AND-joined conditions:
 	 * col = 'v' | col = v | col LIKE '%v%' | col < 'v' | col >= 'v' | col != 'v'.
@@ -527,6 +541,26 @@ if ( ! function_exists( 'wp_generate_password' ) ) {
 			$out .= $chars[ random_int( 0, strlen( $chars ) - 1 ) ];
 		}
 		return $out;
+	}
+}
+if ( ! function_exists( 'wp_generate_uuid4' ) ) {
+	function wp_generate_uuid4() {
+		return sprintf(
+			'%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+			random_int( 0, 0xffff ),
+			random_int( 0, 0xffff ),
+			random_int( 0, 0xffff ),
+			random_int( 0, 0x0fff ) | 0x4000,
+			random_int( 0, 0x3fff ) | 0x8000,
+			random_int( 0, 0xffff ),
+			random_int( 0, 0xffff ),
+			random_int( 0, 0xffff )
+		);
+	}
+}
+if ( ! function_exists( 'is_ssl' ) ) {
+	function is_ssl() {
+		return $GLOBALS['eex_test_is_ssl'] ?? true;
 	}
 }
 if ( ! function_exists( 'wp_unschedule_hook' ) ) {
@@ -1102,14 +1136,20 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
 	class WP_REST_Request implements ArrayAccess {
 		private array $params;
 		private array $json;
+		private array $headers;
 
-		public function __construct( array $params = [], array $json = [] ) {
-			$this->params = $params;
-			$this->json   = $json;
+		public function __construct( array $params = [], array $json = [], array $headers = [] ) {
+			$this->params  = $params;
+			$this->json    = $json;
+			$this->headers = array_change_key_case( $headers, CASE_LOWER );
 		}
 
 		public function get_json_params() {
 			return $this->json;
+		}
+
+		public function get_header( $key ) {
+			return $this->headers[ strtolower( (string) $key ) ] ?? null;
 		}
 
 		#[\ReturnTypeWillChange]

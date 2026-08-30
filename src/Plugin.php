@@ -121,6 +121,14 @@ final class Plugin {
 			Accounts\Module::register();
 		}
 
+		// Community Hub API: both modes (its data comes from the sibling
+		// CRM plugin, not from HeySummit), same default-off gate — until
+		// `wp eex hub enable` flips the switch, no Hub code loads and no
+		// Hub route exists.
+		if ( (bool) Options::setting( 'hub_enabled' ) ) {
+			Hub\Module::register();
+		}
+
 		// Optional modules: each loads zero code unless its host announces
 		// itself (Elementor via elementor/init, WooCommerce via
 		// woocommerce_loaded, MyListing via a cheap inline theme check after

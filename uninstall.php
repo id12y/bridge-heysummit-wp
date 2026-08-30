@@ -34,6 +34,7 @@ $eex_cron_hooks = [
 	'eex_woo_push',
 	'eex_accounts_push',
 	'eex_accounts_backfill',
+	'eex_hub_sweep',
 ];
 
 foreach ( $eex_cron_hooks as $eex_cron_hook ) {
@@ -66,6 +67,9 @@ if ( $eex_delete_all ) {
 	// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}eex_log" );
 	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}eex_attribution" );
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}eex_hub_contacts" );
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}eex_hub_journal" );
+	$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}eex_hub_credentials" );
 
 	// Options (including per-connection discovery reports).
 	$eex_option_names = $wpdb->get_col(

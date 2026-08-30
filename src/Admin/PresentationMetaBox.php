@@ -70,7 +70,7 @@ final class PresentationMetaBox {
 			[
 				'post_type'      => PostTypes::SPEAKER,
 				'post_status'    => 'publish',
-				'posts_per_page' => 200,
+				'posts_per_page' => 200, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- bounded admin-only speaker picker.
 				'orderby'        => 'title',
 				'order'          => 'ASC',
 			]

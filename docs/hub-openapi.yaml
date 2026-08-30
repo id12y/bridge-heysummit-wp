@@ -1,0 +1,372 @@
+openapi: 3.1.0
+info:
+  title: emailexpert Community Hub API
+  version: 1.0.0
+  description: >-
+    Versioned, strictly read-only, server-to-server API exposing approved
+    CRM contact facts and Ticket Tailor ticket facts to the Community Hub
+    application. Disabled by default; every route requires a dedicated
+    revocable bearer credential over HTTPS. Human-readable contract:
+    docs/hub-api.md.
+servers:
+  - url: https://emailexpert.com/wp-json/emailexpert-crm/v1
+    description: Production WordPress REST base (configurable; never hard-code).
+security:
+  - hubToken: []
+components:
+  securitySchemes:
+    hubToken:
+      type: http
+      scheme: bearer
+      description: >-
+        Dedicated Hub service credential (eexhub_ prefix), created with
+        `wp eex hub token-create`, revocable with `wp eex hub
+        token-revoke`. Header-only; never sent as a query parameter.
+        X-EEX-Hub-Token is accepted as an alternate header.
+  parameters:
+    limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      description: Page size; values above 100 are clamped.
+    cursor:
+      name: cursor
+      in: query
+      schema: { type: string, maxLength: 400 }
+      description: >-
+        Opaque signed cursor from a previous page. Replay-safe and
+        endpoint-typed; tampered or foreign cursors yield 400.
+  headers:
+    CacheControl:
+      schema: { type: string, const: "private, no-store" }
+    RequestId:
+      schema: { type: string }
+      description: Echoed in the server's redacted access log.
+  responses:
+    Unauthorized:
+      description: Missing, invalid or revoked credential.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: HTTP (not HTTPS), or source IP not allowlisted.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RateLimited:
+      description: Per-credential rate limit exceeded.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string }
+        message: { type: string }
+      description: Generic; never internals, stack traces or configuration.
+    TriState:
+      type: [boolean, "null"]
+      description: >-
+        true/false = the CRM answered; null = unknown or not applicable.
+    ContactProjection:
+      type: object
+      description: The fixed allowlisted projection of an active contact.
+      required: [contact_uuid, revision, updated_at, state]
+      properties:
+        contact_uuid: { type: string, format: uuid }
+        revision: { type: integer, description: Per-contact monotonic. }
+        updated_at: { type: string, format: date-time }
+        email: { type: [string, "null"] }
+        first_name: { type: [string, "null"] }
+        last_name: { type: [string, "null"] }
+        display_name: { type: [string, "null"] }
+        state:
+          type: string
+          enum: [active, suppressed, deleted]
+        email_news_state:
+          type: string
+          enum: [subscribed, pending_confirmation, not_subscribed, unsubscribed, unknown]
+        sources:
+          type: array
+          items: { type: string }
+        community:
+          type: object
+          properties:
+            eligible: { $ref: "#/components/schemas/TriState" }
+            opt_in: { $ref: "#/components/schemas/TriState" }
+            invited: { $ref: "#/components/schemas/TriState" }
+            admitted: { $ref: "#/components/schemas/TriState" }
+            membership_tier: { type: [string, "null"] }
+    Tombstone:
+      type: object
+      description: >-
+        Minimal representation of a deleted contact — no personal data.
+      required: [contact_uuid, revision, updated_at, state, deleted_at]
+      properties:
+        contact_uuid: { type: string, format: uuid }
+        revision: { type: integer }
+        updated_at: { type: string, format: date-time }
+        state: { type: string, const: deleted }
+        deleted_at: { type: [string, "null"], format: date-time }
+    Contact:
+      oneOf:
+        - { $ref: "#/components/schemas/ContactProjection" }
+        - { $ref: "#/components/schemas/Tombstone" }
+    Change:
+      type: object
+      required: [change_id, contact_uuid, object_type, op, revision, changed_at]
+      properties:
+        change_id: { type: integer, description: Global journal sequence. }
+        contact_uuid: { type: string, format: uuid }
+        object_type: { type: string, const: contact }
+        op: { type: string, enum: [upsert, delete] }
+        revision: { type: integer }
+        changed_at: { type: string, format: date-time }
+        projection:
+          oneOf:
+            - { $ref: "#/components/schemas/Contact" }
+            - { type: "null" }
+          description: For upserts, the contact's CURRENT approved projection.
+        tombstone:
+          type: [object, "null"]
+          properties:
+            deleted_at: { type: [string, "null"], format: date-time }
+    Ticket:
+      type: object
+      required: [id, box_office, state, contact_uuid, revision]
+      properties:
+        id:
+          type: string
+          description: >-
+            Box-office-scoped identity: bo:<box>:order:<id>:ticket:<id>.
+            Entries the CRM stored without a box office share the scope
+            'unrecorded' (see docs/hub-api.md §5 for the honest limits).
+        box_office:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Label-derived slug, or 'unrecorded'.
+            label: { type: string }
+        event:
+          type: object
+          properties:
+            id: { type: [string, "null"] }
+            label: { type: [string, "null"] }
+        ticket_type:
+          type: object
+          properties:
+            id: { type: [string, "null"] }
+            label: { type: [string, "null"] }
+        order_id: { type: [string, "null"] }
+        ticket_ref: { type: [string, "null"] }
+        state:
+          type: string
+          enum: [valid, cancelled, refunded, transferred, unknown, other]
+          description: >-
+            Snapshot at receipt time (order- or ticket-status vocabulary,
+            see state_raw); NOT current validity.
+        state_raw: { type: [string, "null"] }
+        contact_uuid: { type: string, format: uuid }
+        updated_at: { type: [string, "null"], format: date-time }
+        revision: { type: integer }
+paths:
+  /hub/capabilities:
+    get:
+      summary: Contract, feature and health discovery. Safe facts only.
+      responses:
+        "200":
+          description: Capabilities.
+          headers:
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+            X-EEX-Request-Id: { $ref: "#/components/headers/RequestId" }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contract_version: { type: string }
+                  plugin:
+                    type: object
+                    properties:
+                      name: { type: string }
+                      version: { type: string }
+                  resources:
+                    type: array
+                    items: { type: string }
+                  features:
+                    type: object
+                    properties:
+                      contact_uuid: { type: boolean }
+                      snapshot: { type: boolean }
+                      changes: { type: boolean }
+                      deletions_as_tombstones: { type: boolean }
+                      ticket_validity: { type: boolean }
+                  ticket_tailor:
+                    type: object
+                    properties:
+                      available: { type: boolean }
+                      box_offices:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id: { type: string }
+                            label: { type: string }
+                  crm:
+                    type: object
+                    properties:
+                      available: { type: boolean }
+                  backfill:
+                    type: object
+                    properties:
+                      enrolled: { type: integer }
+                      estimated_total: { type: [integer, "null"] }
+                      complete: { type: boolean }
+                  journal_head: { type: integer }
+                  server_time_utc: { type: string, format: date-time }
+                  health: { type: string, enum: [ok, degraded] }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /hub/contacts:
+    get:
+      summary: Paginated contact snapshot (tombstones included).
+      parameters:
+        - { $ref: "#/components/parameters/limit" }
+        - { $ref: "#/components/parameters/cursor" }
+      responses:
+        "200":
+          description: One snapshot page.
+          headers:
+            Cache-Control: { $ref: "#/components/headers/CacheControl" }
+            X-EEX-Request-Id: { $ref: "#/components/headers/RequestId" }
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contacts:
+                    type: array
+                    items: { $ref: "#/components/schemas/Contact" }
+                  next_cursor: { type: string }
+                  has_more: { type: boolean }
+                  journal_head: { type: integer }
+        "400":
+          description: Invalid cursor.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "429": { $ref: "#/components/responses/RateLimited" }
+  /hub/contacts/{contact_uuid}:
+    get:
+      summary: One contact by UUID (or its tombstone).
+      parameters:
+        - name: contact_uuid
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The contact.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Contact" }
+        "404":
+          description: Unknown UUID.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /hub/changes:
+    get:
+      summary: Incremental changes and deletions (replay-safe cursor).
+      parameters:
+        - { $ref: "#/components/parameters/limit" }
+        - { $ref: "#/components/parameters/cursor" }
+      responses:
+        "200":
+          description: One page of changes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  changes:
+                    type: array
+                    items: { $ref: "#/components/schemas/Change" }
+                  next_cursor: { type: string }
+                  has_more: { type: boolean }
+                  journal_head: { type: integer }
+        "400":
+          description: Invalid cursor.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /hub/ticket-catalogue:
+    get:
+      summary: Durable Ticket Tailor facts, identities scoped by box office.
+      parameters:
+        - { $ref: "#/components/parameters/limit" }
+        - { $ref: "#/components/parameters/cursor" }
+      responses:
+        "200":
+          description: One catalogue page.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tickets:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ticket" }
+                  next_cursor: { type: string }
+                  has_more: { type: boolean }
+        "400":
+          description: Invalid cursor.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /hub/eligibility:
+    get:
+      summary: Separate eligibility facts for one contact.
+      parameters:
+        - name: contact_uuid
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: The facts.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contact_uuid: { type: string, format: uuid }
+                  state: { type: string, enum: [active, suppressed, deleted] }
+                  facts:
+                    type: object
+                    properties:
+                      has_ticket: { $ref: "#/components/schemas/TriState" }
+                      ticket_currently_valid:
+                        type: "null"
+                        description: Always null in v1.0.0 (unsupported).
+                      community_eligible: { $ref: "#/components/schemas/TriState" }
+                      community_opt_in: { $ref: "#/components/schemas/TriState" }
+                      community_invited: { $ref: "#/components/schemas/TriState" }
+                      community_admitted: { $ref: "#/components/schemas/TriState" }
+                  membership_tier: { type: [string, "null"] }
+                  as_of: { type: string, format: date-time }
+        "404":
+          description: Unknown or malformed UUID.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }

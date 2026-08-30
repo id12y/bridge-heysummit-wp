@@ -20,6 +20,7 @@ final class Logger {
 	public const CONTEXT_SYNC    = 'sync';
 	public const CONTEXT_WEBHOOK = 'webhook';
 	public const CONTEXT_API     = 'api';
+	public const CONTEXT_HUB     = 'hub';
 
 	/**
 	 * Write a log entry.

@@ -38,6 +38,10 @@ final class Commands {
 		WP_CLI::add_command( 'eex woo:push', [ $this, 'woo_push' ] );
 		WP_CLI::add_command( 'eex accounts:push', [ $this, 'accounts_push' ] );
 		WP_CLI::add_command( 'eex accounts:backfill', [ $this, 'accounts_backfill' ] );
+
+		// The Hub commands register even while the Hub is disabled —
+		// `wp eex hub enable` is how the switch gets turned on.
+		( new \Emailexpert\Events\Hub\Cli() )->register();
 	}
 
 	/**

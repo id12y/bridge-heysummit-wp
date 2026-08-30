@@ -3,6 +3,31 @@
 Notable changes per released version. Design reasoning lives in
 [docs/decisions.md](docs/decisions.md); this file is the operator's view.
 
+## 1.59.0
+- **Community Hub API (off by default).** A versioned, strictly read-only,
+  server-to-server REST contract at `/wp-json/emailexpert-crm/v1/hub/` for
+  the separate Community Hub application: stable opaque contact UUIDs with
+  minimal deletion tombstones, an allowlisted contact snapshot, a
+  replay-safe incremental changes feed, Ticket Tailor ticket facts scoped
+  by box office, separate eligibility facts, and a capabilities/health
+  endpoint. Everything — capabilities included — sits behind a dedicated,
+  revocable, hash-stored bearer credential with per-credential rate
+  limiting, an optional IP allowlist and HTTPS enforcement; responses are
+  never cacheable and errors are generic. All facts are read at runtime
+  from the sibling EmailExpert Newsletter (CRM) plugin's public classes —
+  no CRM table is altered, no Ticket Tailor call is ever made from this
+  layer, and a ticket never implies Community membership. Until
+  `wp eex hub enable` flips the switch, no Hub code loads and no Hub route
+  exists. Operator surface: `wp eex hub status | enable | disable |
+  token-create | token-revoke | token-list | backfill | sweep`. Contract
+  and runbook in [docs/hub-api.md](docs/hub-api.md) and
+  [docs/hub-operations.md](docs/hub-operations.md).
+- **Lint housekeeping.** Three pre-existing warnings/errors surfaced by
+  newer WordPress Coding Standards releases are settled (an `absint()` on
+  a computed column count, embedded-PHP formatting in the hero news-item
+  template, an annotated bounded admin query) so `vendor/bin/phpcs` exits
+  clean again on fresh installs.
+
 ## 1.58.0
 - **Front Page: the lead story image fills its column.** The lead's
   16:9 frame carried a height cap that, with the width left automatic,
