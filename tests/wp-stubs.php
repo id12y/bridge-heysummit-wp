@@ -58,6 +58,8 @@ class EEX_Fake_WPDB {
 	public array $tables  = []; // table => rows.
 	public array $queries = [];
 	public string $options = 'wp_options';
+	public string $posts = 'wp_posts';
+	public string $postmeta = 'wp_postmeta';
 
 	public function insert( string $table, array $data, $format = null ): int {
 		$data['id']                = count( $this->tables[ $table ] ?? [] ) + 1;
@@ -187,7 +189,58 @@ class EEX_Fake_WPDB {
 
 	public function get_col( string $query ): array {
 		$this->queries[] = $query;
-		return [];
+
+		// Structure-discovery queries join postmeta to posts; answer them
+		// from the in-memory post state so detection can be tested properly.
+		if ( false === stripos( $query, 'postmeta' ) ) {
+			return [];
+		}
+
+		if ( ! preg_match( "/p\.post_type = '([^']*)'/", $query, $pt ) ) {
+			return [];
+		}
+
+		$post_ids = [];
+		foreach ( EEX_Test_State::$posts as $post ) {
+			if ( $post->post_type === $pt[1] ) {
+				$post_ids[] = (int) $post->ID;
+			}
+		}
+
+		$selecting_values = false !== stripos( $query, 'meta_value FROM' );
+		$counts           = [];
+
+		foreach ( $post_ids as $post_id ) {
+			foreach ( (array) ( EEX_Test_State::$post_meta[ $post_id ] ?? [] ) as $key => $value ) {
+				$key = (string) $key;
+
+				if ( preg_match( "/m\.meta_key LIKE '%([^']*)%'/", $query, $like ) && false === strpos( $key, $like[1] ) ) {
+					continue;
+				}
+
+				if ( false !== stripos( $query, "meta_key NOT LIKE '\\_%'" ) && str_starts_with( $key, '_' ) ) {
+					continue;
+				}
+
+				if ( preg_match( "/m\.meta_key = '([^']*)'/", $query, $exact ) && $key !== $exact[1] ) {
+					continue;
+				}
+
+				$found = $selecting_values ? (string) ( is_scalar( $value ) ? $value : '' ) : $key;
+
+				if ( '' === $found ) {
+					continue;
+				}
+
+				$counts[ $found ] = ( $counts[ $found ] ?? 0 ) + 1;
+			}
+		}
+
+		if ( false !== stripos( $query, 'ORDER BY COUNT(*) DESC' ) ) {
+			arsort( $counts );
+		}
+
+		return array_map( 'strval', array_keys( $counts ) );
 	}
 
 	public function get_charset_collate(): string {
@@ -769,6 +822,25 @@ if ( ! function_exists( 'get_posts' ) ) {
 			return array_map( fn( $p ) => $p->ID, $results );
 		}
 		return $results;
+	}
+}
+if ( ! function_exists( 'post_type_exists' ) ) {
+	/**
+	 * Permissive by default so the suite behaves like a site with the usual
+	 * post types registered; a test that cares sets
+	 * $GLOBALS['eex_test_registered_post_types'] to an explicit list.
+	 */
+	function post_type_exists( $post_type ) {
+		if ( ! isset( $GLOBALS['eex_test_registered_post_types'] ) ) {
+			return true;
+		}
+
+		return in_array( (string) $post_type, (array) $GLOBALS['eex_test_registered_post_types'], true );
+	}
+}
+if ( ! function_exists( 'get_post_types' ) ) {
+	function get_post_types( $args = [], $output = 'names' ) {
+		return (array) ( $GLOBALS['eex_test_registered_post_types'] ?? [] );
 	}
 }
 if ( ! function_exists( 'get_post_meta' ) ) {

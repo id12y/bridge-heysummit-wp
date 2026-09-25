@@ -310,4 +310,165 @@ final class MyListingBridgeTest extends TestCase {
 		$this->assertSame( 'Event Spaces', $mapping['types'][0]['label'] );
 		$this->assertSame( [], $mapping['fields'], 'fields are optional' );
 	}
+
+	/**
+	 * Create a MyListing listing-type post, optionally with stored config.
+	 */
+	private function make_listing_type( string $slug, string $label, $config = null ): int {
+		$id = wp_insert_post(
+			[
+				'post_type'   => 'case27-listing-type',
+				'post_title'  => $label,
+				'post_name'   => $slug,
+				'post_status' => 'publish',
+			]
+		);
+
+		if ( null !== $config ) {
+			update_post_meta( $id, 'case27-listing-type', $config );
+		}
+
+		return (int) $id;
+	}
+
+	public function test_a_listing_type_without_readable_fields_is_still_a_usable_type(): void {
+		// This is the case that used to force the manual mapping: the type
+		// post is perfectly readable, only its field config is not.
+		remove_all_filters( 'eex_mylisting_detection_override' );
+		$this->make_listing_type( 'event-listing', 'Event listing' );
+
+		$detection = Detection::get( true );
+
+		$this->assertTrue( (bool) $detection['confident'], 'a type with no field config is still projectable' );
+		$this->assertSame( 'auto', $detection['source'] );
+		$this->assertSame( [ 'event-listing' ], array_column( $detection['types'], 'slug' ) );
+		$this->assertSame( 'Event listing', $detection['types'][0]['label'] );
+	}
+
+	public function test_field_config_is_read_from_json_and_from_a_serialised_or_nested_shape(): void {
+		remove_all_filters( 'eex_mylisting_detection_override' );
+
+		$this->make_listing_type( 'json-type', 'JSON type', wp_json_encode( [ 'fields' => [ [ 'key' => 'job_date', 'label' => 'Date' ] ] ] ) );
+		$this->make_listing_type( 'nested-type', 'Nested type', wp_json_encode( [ 'settings' => [ 'form' => [ 'custom_fields' => [ [ 'key' => 'job_link', 'label' => 'Link' ] ] ] ] ] ) );
+
+		$detection = Detection::get( true );
+		$by_slug   = array_column( $detection['types'], null, 'slug' );
+
+		$this->assertSame( 'job_date', $by_slug['json-type']['fields'][0]['key'] );
+		$this->assertSame( 'job_link', $by_slug['nested-type']['fields'][0]['key'], 'a field list nested under unknown keys is still found' );
+	}
+
+	public function test_types_are_recovered_from_existing_listings_when_no_type_posts_exist(): void {
+		// No case27-listing-type posts at all — the theme API and its stored
+		// configuration are both unavailable. The listings themselves still
+		// carry the slugs the site actually uses.
+		remove_all_filters( 'eex_mylisting_detection_override' );
+
+		foreach ( [ 'event-listing', 'venue', 'event-listing' ] as $slug ) {
+			$listing_id = wp_insert_post(
+				[
+					'post_type'   => 'job_listing',
+					'post_title'  => 'A listing',
+					'post_status' => 'publish',
+				]
+			);
+			update_post_meta( $listing_id, '_case27_listing_type', $slug );
+			update_post_meta( $listing_id, 'job_tagline', 'Tagline' );
+		}
+
+		$detection = Detection::get( true );
+
+		$this->assertTrue( (bool) $detection['confident'], 'real listings are enough to read the structure' );
+		$this->assertSame( [ 'event-listing', 'venue' ], array_column( $detection['types'], 'slug' ) );
+		$this->assertSame( 'Event listing', $detection['types'][0]['label'], 'slugs become readable labels' );
+		$this->assertContains( 'job_tagline', array_column( $detection['types'][0]['fields'], 'key' ), 'field keys are harvested from real listings' );
+		$this->assertNotContains( '_case27_listing_type', array_column( $detection['types'][0]['fields'], 'key' ), 'internal keys are not offered as mapping targets' );
+	}
+
+	public function test_type_posts_and_listings_are_merged_without_duplicates(): void {
+		remove_all_filters( 'eex_mylisting_detection_override' );
+
+		$this->make_listing_type( 'event-listing', 'Event listing', wp_json_encode( [ 'fields' => [ [ 'key' => 'job_date', 'label' => 'Date' ] ] ] ) );
+
+		$listing_id = wp_insert_post(
+			[
+				'post_type'   => 'job_listing',
+				'post_title'  => 'A listing',
+				'post_status' => 'publish',
+			]
+		);
+		update_post_meta( $listing_id, '_case27_listing_type', 'event-listing' );
+
+		$orphan_id = wp_insert_post(
+			[
+				'post_type'   => 'job_listing',
+				'post_title'  => 'Another listing',
+				'post_status' => 'publish',
+			]
+		);
+		update_post_meta( $orphan_id, '_case27_listing_type', 'legacy-type' );
+
+		$detection = Detection::get( true );
+		$slugs     = array_column( $detection['types'], 'slug' );
+
+		$this->assertSame( [ 'event-listing', 'legacy-type' ], $slugs, 'the configured type is not duplicated by its listings' );
+
+		$by_slug = array_column( $detection['types'], null, 'slug' );
+		$this->assertSame( 'job_date', $by_slug['event-listing']['fields'][0]['key'], 'the richer configured definition wins' );
+	}
+
+	public function test_detection_stays_unconfident_when_the_site_has_no_structure_at_all(): void {
+		remove_all_filters( 'eex_mylisting_detection_override' );
+
+		$detection = Detection::get( true );
+
+		$this->assertFalse( (bool) $detection['confident'] );
+		$this->assertNotEmpty( $detection['evidence'], 'the operator is told what was looked at' );
+	}
+
+	public function test_detection_heals_itself_once_the_site_becomes_readable(): void {
+		remove_all_filters( 'eex_mylisting_detection_override' );
+
+		$this->assertFalse( (bool) Detection::get( true )['confident'], 'nothing to read yet' );
+
+		// A listing type is created later; the cached failure must not stick.
+		$this->make_listing_type( 'event-listing', 'Event listing' );
+		Detection::heal();
+
+		$this->assertTrue( (bool) Detection::get()['confident'], 'the daily check recovers without anyone clicking retry' );
+	}
+
+	public function test_saving_a_listing_type_invalidates_the_cached_detection(): void {
+		remove_all_filters( 'eex_mylisting_detection_override' );
+
+		Detection::get( true );
+		$this->assertFalse( (bool) Detection::get()['confident'] );
+
+		$type_id = $this->make_listing_type( 'event-listing', 'Event listing' );
+		Detection::on_saved_post( $type_id, get_post( $type_id ) );
+
+		$this->assertTrue( (bool) Detection::get()['confident'], 'the cache is dropped when a listing type is saved' );
+	}
+
+	public function test_a_manual_mapping_for_a_post_type_that_no_longer_exists_is_not_used(): void {
+		Detection::save_manual(
+			[
+				'post_type'     => 'gone_listing',
+				'type_meta_key' => '_case27_listing_type',
+				'types'         => [ [ 'slug' => 'event', 'label' => 'Event' ] ],
+				'fields'        => [],
+			]
+		);
+
+		// Without post_type_exists() the mapping is taken at face value.
+		$this->assertSame( 'manual', Detection::get()['source'] );
+
+		// With it, a mapping pointing at a post type that has gone is
+		// ignored rather than left silently pointing at nothing.
+		$GLOBALS['eex_test_registered_post_types'] = [ 'job_listing' ];
+		$this->assertNull( Detection::manual(), 'a stale mapping does not keep the bridge aimed at a dead post type' );
+		unset( $GLOBALS['eex_test_registered_post_types'] );
+
+		Detection::save_manual( null );
+	}
 }

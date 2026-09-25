@@ -396,27 +396,38 @@ final class BridgePage {
 	 * manually instead of leaving a dead end.
 	 */
 	private function render_mylisting_helper(): void {
-		$manual = (array) get_option( Detection::MANUAL_OPTION, [] );
+		$manual    = (array) get_option( Detection::MANUAL_OPTION, [] );
+		$detection = Detection::get();
+		$evidence  = (array) ( $detection['evidence'] ?? [] );
 		?>
 		<h2><?php esc_html_e( 'MyListing projection', 'emailexpert-events' ); ?></h2>
 
 		<div class="eex-helper">
 			<p>
-				<strong><?php esc_html_e( 'MyListing was found, but its listing types could not be read automatically.', 'emailexpert-events' ); ?></strong>
-				<?php esc_html_e( 'The bridge is off and no listings will be created or changed. This usually means the theme version stores its listing-type configuration somewhere new. Two ways forward:', 'emailexpert-events' ); ?>
+				<strong><?php esc_html_e( 'MyListing was found, but this site has no listing types the bridge can read yet.', 'emailexpert-events' ); ?></strong>
+				<?php esc_html_e( 'The bridge is off and no listings will be created or changed. Detection looks at the theme, its stored configuration and the listings already on the site, and it re-runs itself whenever the theme or a listing type changes and once a day — so if listing types exist or are added later, this clears on its own. Nothing below is needed unless it does not.', 'emailexpert-events' ); ?>
 			</p>
+
+			<?php if ( ! empty( $evidence ) ) : ?>
+				<p class="description"><?php esc_html_e( 'What the last check found:', 'emailexpert-events' ); ?></p>
+				<ul class="eex-evidence">
+					<?php foreach ( $evidence as $line ) : ?>
+						<li><code><?php echo esc_html( (string) $line ); ?></code></li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
 
 			<ol>
 				<li>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="eex-inline-form">
 						<input type="hidden" name="action" value="eex_mylisting_redetect" />
 						<?php wp_nonce_field( 'eex_mylisting_redetect' ); ?>
-						<button type="submit" class="button"><?php esc_html_e( 'Retry automatic detection', 'emailexpert-events' ); ?></button>
-						<span class="description"><?php esc_html_e( 'worth a try after a theme update, or if listing types were created since the last check.', 'emailexpert-events' ); ?></span>
+						<button type="submit" class="button"><?php esc_html_e( 'Check again now', 'emailexpert-events' ); ?></button>
+						<span class="description"><?php esc_html_e( 'detection already re-runs on theme changes and daily; this is only to see the result immediately.', 'emailexpert-events' ); ?></span>
 					</form>
 				</li>
 				<li>
-					<p><strong><?php esc_html_e( 'Map it manually.', 'emailexpert-events' ); ?></strong> <?php esc_html_e( 'Tell the bridge how your listings are structured; everything else works exactly as with automatic detection, and the bridge still stays off until you enable a projection.', 'emailexpert-events' ); ?></p>
+					<p><strong><?php esc_html_e( 'Map it manually — last resort.', 'emailexpert-events' ); ?></strong> <?php esc_html_e( 'Only needed if automatic detection keeps coming back empty. A manual mapping overrides detection and stays in force until you discard it, so the bridge will not pick up listing types added afterwards.', 'emailexpert-events' ); ?></p>
 
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<input type="hidden" name="action" value="eex_mylisting_manual" />

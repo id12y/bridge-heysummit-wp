@@ -38,13 +38,18 @@ final class Module {
 	 * Entry point, called only after presence is established.
 	 */
 	public static function register(): void {
+		// Registered before the confidence check: a site that cannot be read
+		// today still re-checks itself when it changes, so detection
+		// recovers without anyone being asked to do anything.
+		Detection::register_maintenance();
+
 		$detection = Detection::get();
 
 		if ( empty( $detection['confident'] ) ) {
 			if ( is_admin() ) {
 				\Emailexpert\Events\Admin\Notices::add(
 					'mylisting_detection',
-					__( 'MyListing was found but its listing types could not be read automatically, so the listings bridge is off and no listings will be created or changed. You can map the listing structure yourself under Settings → EEX Bridges (it takes a minute), or retry detection there after a theme update.', 'emailexpert-events' ),
+					__( 'MyListing was found but no listing types could be read from the theme, its configuration, or any existing listing, so the listings bridge is off and no listings will be created or changed. Detection re-runs itself whenever the theme or a listing type changes, and once a day, so this usually clears on its own once the site has listing types. If it persists, you can map the structure yourself under Settings → EEX Bridges.', 'emailexpert-events' ),
 					'warning'
 				);
 			}
