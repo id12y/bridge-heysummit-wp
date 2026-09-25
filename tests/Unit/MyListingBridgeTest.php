@@ -314,10 +314,10 @@ final class MyListingBridgeTest extends TestCase {
 	/**
 	 * Create a MyListing listing-type post, optionally with stored config.
 	 */
-	private function make_listing_type( string $slug, string $label, $config = null ): int {
+	private function make_listing_type( string $slug, string $label, $config = null, string $post_type = 'case27_listing_type' ): int {
 		$id = wp_insert_post(
 			[
-				'post_type'   => 'case27-listing-type',
+				'post_type'   => $post_type,
 				'post_title'  => $label,
 				'post_name'   => $slug,
 				'post_status' => 'publish',
@@ -470,5 +470,19 @@ final class MyListingBridgeTest extends TestCase {
 		unset( $GLOBALS['eex_test_registered_post_types'] );
 
 		Detection::save_manual( null );
+	}
+
+	public function test_either_spelling_of_the_listing_type_post_type_is_found(): void {
+		// MyListing registers case27_listing_type; older themes used the
+		// hyphenated name. Detection used to assume the hyphenated one and
+		// found nothing on a site that registers only the underscored one.
+		remove_all_filters( 'eex_mylisting_detection_override' );
+
+		$GLOBALS['eex_test_registered_post_types'] = [ 'job_listing', 'case27-listing-type' ];
+		$this->make_listing_type( 'legacy-type', 'Legacy type', null, 'case27-listing-type' );
+
+		$this->assertSame( [ 'legacy-type' ], array_column( Detection::get( true )['types'], 'slug' ), 'the hyphenated spelling still works' );
+
+		unset( $GLOBALS['eex_test_registered_post_types'] );
 	}
 }

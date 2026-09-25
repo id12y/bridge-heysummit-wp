@@ -467,7 +467,11 @@ final class Detection {
 	 * @param array<int,string> $evidence Running account of what was found.
 	 */
 	private static function discover_type_post_type( array &$evidence ): string {
-		foreach ( [ 'case27-listing-type', 'case27_listing_type' ] as $known ) {
+		// case27_listing_type is the name MyListing actually registers; the
+		// hyphenated spelling is kept as a fallback for older themes, and
+		// was what this detection used to assume — on a site registering
+		// only the underscored name that assumption found nothing at all.
+		foreach ( [ 'case27_listing_type', 'case27-listing-type' ] as $known ) {
 			if ( ! function_exists( 'post_type_exists' ) || post_type_exists( $known ) ) {
 				return $known;
 			}
