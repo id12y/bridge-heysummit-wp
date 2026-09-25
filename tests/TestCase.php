@@ -30,6 +30,11 @@ abstract class TestCase extends PHPUnitTestCase {
 		\Emailexpert\Events\Frontend\Selection\EditorialSelector::reset_request_state();
 		\Emailexpert\Events\Support\Clock::reset();
 
+		// Real WordPress always fires init before a request does any work;
+		// code that waits for the theme's post types depends on having got
+		// there, so the harness reaches the same point.
+		do_action( 'init' );
+
 		// Make retries instantaneous in tests.
 		add_filter( 'eex_http_retry_delay', static fn() => 0 );
 	}

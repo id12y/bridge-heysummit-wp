@@ -66,6 +66,13 @@ final class Detection {
 		$result         = self::run();
 		$result['salt'] = $salt;
 
+		// Before init the theme has not registered its post types, so the
+		// listing-type posts are invisible and any answer is the degraded
+		// one. Use it for this request, but never cache it as the truth.
+		if ( ! did_action( 'init' ) ) {
+			return $result;
+		}
+
 		update_option( self::OPTION, $result, false );
 
 		Logger::log(

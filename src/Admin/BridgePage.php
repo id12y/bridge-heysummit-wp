@@ -263,22 +263,22 @@ final class BridgePage {
 		$config = MyListingModule::config();
 		$manual = 'manual' === (string) ( $detection['source'] ?? 'auto' );
 
-		// Everything the form can work out for itself, worked out up front.
-		$suggested_types  = [];
+		// The field mapping is worked out up front, but only within a listing
+		// type the operator has actually chosen. The type itself is never
+		// proposed — see Suggestions.
 		$suggested_maps   = [];
 		$suggestion_count = 0;
+		$awaiting_type    = false;
 
 		foreach ( [ 'events', 'sessions', 'speakers' ] as $suggest_source ) {
 			$row_config = $config[ $suggest_source ];
 			$chosen     = (string) $row_config['listing_type'];
 
 			if ( '' === $chosen ) {
-				$chosen = Suggestions::listing_type( $suggest_source, (array) $detection['types'] );
+				$suggested_maps[ $suggest_source ] = [];
+				$awaiting_type                     = true;
 
-				if ( '' !== $chosen ) {
-					$suggested_types[ $suggest_source ] = $chosen;
-					++$suggestion_count;
-				}
+				continue;
 			}
 
 			$chosen_type = null;
@@ -292,7 +292,17 @@ final class BridgePage {
 			$suggested_maps[ $suggest_source ] = Suggestions::map( $suggest_source, $chosen_type, (array) ( $row_config['map'] ?? [] ) );
 			$suggestion_count                 += count( $suggested_maps[ $suggest_source ] );
 		}
+
+		// Every type's mapping, so picking one fills the table straight away
+		// rather than making the operator save first to find out.
+		$per_type = [];
+		foreach ( [ 'events', 'sessions', 'speakers' ] as $suggest_source ) {
+			foreach ( (array) $detection['types'] as $candidate ) {
+				$per_type[ $suggest_source ][ (string) $candidate['slug'] ] = Suggestions::map( $suggest_source, $candidate );
+			}
+		}
 		?>
+		<script type="application/json" id="eex-mylisting-suggestions"><?php echo wp_json_encode( $per_type ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- JSON in a application/json block, encoded above. ?></script>
 		<h2><?php esc_html_e( 'MyListing projection', 'emailexpert-events' ); ?></h2>
 		<p>
 			<?php if ( $manual ) : ?>
@@ -317,13 +327,17 @@ final class BridgePage {
 				<strong>
 					<?php
 					printf(
-						/* translators: %d: number of suggested settings. */
-						esc_html( _n( '%d setting has been filled in for you below.', '%d settings have been filled in for you below.', $suggestion_count, 'emailexpert-events' ) ),
+						/* translators: %d: number of suggested field mappings. */
+						esc_html( _n( '%d field mapping has been filled in for you below.', '%d field mappings have been filled in for you below.', $suggestion_count, 'emailexpert-events' ) ),
 						(int) $suggestion_count
 					);
 					?>
 				</strong>
-				<?php esc_html_e( 'They are suggestions from the detected listing types, marked “suggested”, and nothing is stored until you save. Change anything that looks wrong first; already-saved choices are never overwritten.', 'emailexpert-events' ); ?>
+				<?php esc_html_e( 'They come from the fields on the listing type you chose, are marked “suggested”, and nothing is stored until you save. Change anything that looks wrong first; already-saved choices are never overwritten.', 'emailexpert-events' ); ?>
+			</p>
+		<?php elseif ( $awaiting_type ) : ?>
+			<p class="eex-suggestion-note">
+				<?php esc_html_e( 'Choose a target listing type and the field mapping below fills in from that type’s own fields straight away. The listing type is the one thing not chosen for you: it decides which listings this bridge creates and overwrites, and a type’s name does not say what it holds — a directory with its own Events type is not necessarily where these events belong.', 'emailexpert-events' ); ?>
 			</p>
 		<?php endif; ?>
 
@@ -345,10 +359,9 @@ final class BridgePage {
 				$row   = $config[ $source ];
 				$field = 'mylisting[' . $source . ']';
 
-				// The effective value of each control: what is saved, or the
-				// suggestion when nothing is saved.
-				$type_suggestion = (string) ( $suggested_types[ $source ] ?? '' );
-				$shown_type      = '' !== (string) $row['listing_type'] ? (string) $row['listing_type'] : $type_suggestion;
+				// The listing type shows only what is saved; the field mapping
+				// shows what is saved, or the suggestion for it.
+				$shown_type      = (string) $row['listing_type'];
 				$map_suggestions = (array) ( $suggested_maps[ $source ] ?? [] );
 				$shown_map       = (array) ( $row['map'] ?? [] ) + $map_suggestions;
 				?>
@@ -363,14 +376,7 @@ final class BridgePage {
 							<select name="<?php echo esc_attr( $field ); ?>[listing_type]">
 								<option value=""><?php esc_html_e( 'Choose…', 'emailexpert-events' ); ?></option>
 								<?php foreach ( (array) $detection['types'] as $type ) : ?>
-									<option value="<?php echo esc_attr( (string) $type['slug'] ); ?>" <?php selected( $shown_type, (string) $type['slug'] ); ?>>
-										<?php
-										echo esc_html(
-											(string) $type['label']
-											. ( (string) $type['slug'] === $type_suggestion ? ' — ' . __( 'suggested', 'emailexpert-events' ) : '' )
-										);
-										?>
-									</option>
+									<option value="<?php echo esc_attr( (string) $type['slug'] ); ?>" <?php selected( $shown_type, (string) $type['slug'] ); ?>><?php echo esc_html( (string) $type['label'] ); ?></option>
 								<?php endforeach; ?>
 							</select>
 						</label>
@@ -398,7 +404,7 @@ final class BridgePage {
 									<tr>
 										<td><?php echo esc_html( $label ); ?></td>
 										<td>
-											<select name="<?php echo esc_attr( $field ); ?>[map][<?php echo esc_attr( $source_field ); ?>]">
+											<select name="<?php echo esc_attr( $field ); ?>[map][<?php echo esc_attr( $source_field ); ?>]"<?php echo isset( $map_suggestions[ $source_field ] ) ? ' data-eex-suggested="1"' : ''; ?>>
 												<option value=""><?php esc_html_e( 'Not mapped', 'emailexpert-events' ); ?></option>
 												<?php if ( in_array( $source_field, [ 'title', 'description' ], true ) ) : ?>
 													<option value="post" <?php selected( (string) ( $shown_map[ $source_field ] ?? '' ), 'post' ); ?>>

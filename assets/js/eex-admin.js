@@ -363,3 +363,100 @@
 			} );
 	} );
 }() );
+
+/**
+ * MyListing projection: fill the field mapping from the chosen listing type.
+ *
+ * The target listing type is never chosen for the operator — it decides which
+ * listings the bridge creates and overwrites, and a type's name does not say
+ * what it holds. Once they choose one, every field this plugin can work out is
+ * filled in immediately, so the only real decision is the one they made.
+ */
+( function () {
+	'use strict';
+
+	var data = document.getElementById( 'eex-mylisting-suggestions' );
+
+	if ( ! data ) {
+		return;
+	}
+
+	var suggestions;
+
+	try {
+		suggestions = JSON.parse( data.textContent || '{}' );
+	} catch ( e ) {
+		return;
+	}
+
+	var SUFFIX = ' — suggested';
+
+	function clearMarkers( select ) {
+		Array.prototype.forEach.call( select.options, function ( option ) {
+			if ( option.textContent.slice( -SUFFIX.length ) === SUFFIX ) {
+				option.textContent = option.textContent.slice( 0, -SUFFIX.length );
+			}
+		} );
+	}
+
+	function applyType( source, slug ) {
+		var forSource = suggestions[ source ] || {};
+		var map = forSource[ slug ] || {};
+
+		Object.keys( forSource[ Object.keys( forSource )[ 0 ] ] || {} ).concat( Object.keys( map ) ).forEach( function ( field ) {
+			var select = document.querySelector( '[name="mylisting[' + source + '][map][' + field + ']"]' );
+
+			if ( ! select ) {
+				return;
+			}
+
+			clearMarkers( select );
+
+			var target = map[ field ] || '';
+
+			// Only fill what the operator has not set themselves.
+			if ( '' !== select.value && ! select.dataset.eexSuggested ) {
+				return;
+			}
+
+			if ( '' === target ) {
+				select.value = '';
+				delete select.dataset.eexSuggested;
+
+				return;
+			}
+
+			var option = select.querySelector( 'option[value="' + target.replace( /"/g, '\\"' ) + '"]' );
+
+			if ( ! option ) {
+				select.value = '';
+				delete select.dataset.eexSuggested;
+
+				return;
+			}
+
+			select.value = target;
+			select.dataset.eexSuggested = '1';
+			option.textContent += SUFFIX;
+		} );
+	}
+
+	Array.prototype.forEach.call(
+		document.querySelectorAll( 'select[name^="mylisting["][name$="[listing_type]"]' ),
+		function ( select ) {
+			var match = select.getAttribute( 'name' ).match( /^mylisting\[([a-z]+)\]\[listing_type\]$/ );
+
+			if ( ! match ) {
+				return;
+			}
+
+			// A server-rendered suggestion is already marked; note it so a
+			// later change may replace it while saved choices are kept.
+			var source = match[ 1 ];
+
+			select.addEventListener( 'change', function () {
+				applyType( source, select.value );
+			} );
+		}
+	);
+}() );

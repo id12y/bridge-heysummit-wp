@@ -19,6 +19,14 @@ defined( 'ABSPATH' ) || exit;
  * does not exist. The rest are matched against the listing type's discovered
  * fields on name and type.
  *
+ * The target listing type itself is never proposed. It is the one setting
+ * that decides which listings are created and overwritten, and a listing
+ * type's name does not tell you what it holds: a directory can carry its own
+ * Events type that has nothing to do with the events being projected.
+ * Guessing there would pre-select a write into someone else's content, so
+ * that choice stays entirely with the operator and the field suggestions
+ * follow only once it is made.
+ *
  * Nothing here writes anything. Suggestions are offered as the pre-selected
  * value in the form and take effect only when the operator saves, so the
  * bridge still never projects on a mapping nobody approved.
@@ -52,67 +60,26 @@ final class Suggestions {
 		],
 	];
 
-	/** Words that identify the listing type each source belongs in. */
-	private const TYPE_SIGNALS = [
-		'events'   => [ 'event', 'summit', 'conference', 'webinar', 'meetup' ],
-		'sessions' => [ 'session', 'talk', 'workshop', 'presentation', 'agenda', 'schedule' ],
-		'speakers' => [ 'speaker', 'presenter', 'person', 'people', 'profile', 'author', 'host' ],
-	];
-
-	/**
-	 * The listing type a source most likely projects into.
-	 *
-	 * @param string                            $source Source key.
-	 * @param array<int,array<string,mixed>>    $types  Detected listing types.
-	 * @return string Type slug, or '' when nothing matches well enough.
-	 */
-	public static function listing_type( string $source, array $types ): string {
-		$words = self::TYPE_SIGNALS[ $source ] ?? [];
-
-		if ( empty( $words ) ) {
-			return '';
-		}
-
-		$best       = '';
-		$best_score = 0;
-
-		foreach ( $types as $type ) {
-			$haystack = strtolower( (string) ( $type['slug'] ?? '' ) . ' ' . (string) ( $type['label'] ?? '' ) );
-
-			foreach ( $words as $rank => $word ) {
-				if ( ! str_contains( $haystack, $word ) ) {
-					continue;
-				}
-
-				// Earlier words are stronger; an exact slug is stronger still.
-				$score = ( count( $words ) - $rank ) * 10;
-
-				if ( strtolower( (string) ( $type['slug'] ?? '' ) ) === $word ) {
-					$score += 100;
-				}
-
-				if ( $score > $best_score ) {
-					$best_score = $score;
-					$best       = (string) ( $type['slug'] ?? '' );
-				}
-
-				break;
-			}
-		}
-
-		return $best;
-	}
-
 	/**
 	 * The mapping a source most likely wants, for the fields that are not
 	 * already mapped.
 	 *
 	 * @param string                    $source     Source key.
-	 * @param array<string,mixed>|null  $type       The chosen listing type, or null.
+	 * @param array<string,mixed>|null  $type       The listing type the operator chose,
+	 *                                              or null when they have not chosen one.
 	 * @param array<string,string>      $already    Existing mapping (never overridden).
 	 * @return array<string,string> Source field => suggested target.
 	 */
 	public static function map( string $source, ?array $type, array $already = [] ): array {
+		if ( null === $type ) {
+			// Which listing type a source projects into decides which
+			// listings get created and overwritten, so it is the operator's
+			// to choose. Until they have, there is nothing safe to propose:
+			// a directory whose own Events type means something unrelated
+			// must not be offered as a target for summit events.
+			return [];
+		}
+
 		$suggested = [];
 		$contested = [];
 

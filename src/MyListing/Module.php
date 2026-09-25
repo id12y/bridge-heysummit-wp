@@ -43,6 +43,24 @@ final class Module {
 		// recovers without anyone being asked to do anything.
 		Detection::register_maintenance();
 
+		// MyListing registers its post types on init, and this runs on
+		// after_setup_theme. Reading the structure here would miss every
+		// listing-type post and see only the slugs stored on listings, so
+		// the decision waits until the theme has registered what it has.
+		// Everything below hooks events that fire long after init.
+		if ( did_action( 'init' ) ) {
+			self::register_when_confident();
+
+			return;
+		}
+
+		add_action( 'init', [ self::class, 'register_when_confident' ], 20 );
+	}
+
+	/**
+	 * Enable the bridge once the listing structure can actually be read.
+	 */
+	public static function register_when_confident(): void {
 		$detection = Detection::get();
 
 		if ( empty( $detection['confident'] ) ) {

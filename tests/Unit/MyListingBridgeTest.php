@@ -504,14 +504,33 @@ final class MyListingBridgeTest extends TestCase {
 		];
 	}
 
-	public function test_structural_fields_are_suggested_without_needing_a_listing_type(): void {
-		// Title, description and photo have exactly one possible target, so
-		// leaving them unset was asking for a decision that does not exist.
-		$map = \Emailexpert\Events\MyListing\Suggestions::map( 'speakers', null );
+	public function test_nothing_is_suggested_until_a_listing_type_is_chosen(): void {
+		// The listing type decides which listings are created and overwritten,
+		// so it is never proposed, and nothing is proposed in its absence.
+		$this->assertSame( [], \Emailexpert\Events\MyListing\Suggestions::map( 'speakers', null ) );
+		$this->assertSame( [], \Emailexpert\Events\MyListing\Suggestions::map( 'events', null ) );
+	}
 
-		$this->assertSame( 'post', $map['title'] );
-		$this->assertSame( 'post', $map['description'] );
-		$this->assertSame( '_thumbnail', $map['photo'] );
+	public function test_a_directory_events_type_is_never_proposed_as_a_target(): void {
+		// A MyListing directory can carry its own Events type holding content
+		// that has nothing to do with the events being projected. Matching a
+		// type by name would pre-select a write into it.
+		$this->assertFalse(
+			method_exists( \Emailexpert\Events\MyListing\Suggestions::class, 'listing_type' ),
+			'no code path may choose a target listing type from its name'
+		);
+
+		$directory_events = [
+			'slug'       => 'events',
+			'label'      => 'Events',
+			'fields'     => [ [ 'key' => 'job_start_date', 'label' => 'Start date', 'type' => 'date' ] ],
+			'taxonomies' => [ 'job_listing_category' ],
+		];
+
+		// Once an operator picks that type deliberately, filling its fields in
+		// is their decision to have made, and is still offered.
+		$map = \Emailexpert\Events\MyListing\Suggestions::map( 'events', $directory_events );
+		$this->assertSame( 'job_start_date', $map['starts_at'] );
 	}
 
 	public function test_fields_are_matched_to_the_listing_types_own_fields(): void {
@@ -544,25 +563,6 @@ final class MyListingBridgeTest extends TestCase {
 		$this->assertArrayNotHasKey( 'starts_at', $map, 'the operator has already decided this one' );
 		$this->assertArrayNotHasKey( 'title', $map );
 		$this->assertSame( 'job_end_date', $map['ends_at'], 'the untouched fields are still suggested' );
-	}
-
-	public function test_each_source_is_matched_to_the_listing_type_that_fits_it(): void {
-		$types = [
-			[ 'slug' => 'event-listing', 'label' => 'Event listing' ],
-			[ 'slug' => 'talk', 'label' => 'Conference session' ],
-			[ 'slug' => 'speaker', 'label' => 'Speaker profile' ],
-			[ 'slug' => 'venue', 'label' => 'Venue' ],
-		];
-
-		$this->assertSame( 'event-listing', \Emailexpert\Events\MyListing\Suggestions::listing_type( 'events', $types ) );
-		$this->assertSame( 'talk', \Emailexpert\Events\MyListing\Suggestions::listing_type( 'sessions', $types ) );
-		$this->assertSame( 'speaker', \Emailexpert\Events\MyListing\Suggestions::listing_type( 'speakers', $types ) );
-	}
-
-	public function test_no_listing_type_is_suggested_when_none_resembles_the_source(): void {
-		$types = [ [ 'slug' => 'restaurant', 'label' => 'Restaurant' ], [ 'slug' => 'hotel', 'label' => 'Hotel' ] ];
-
-		$this->assertSame( '', \Emailexpert\Events\MyListing\Suggestions::listing_type( 'events', $types ), 'a wrong guess here would project into the wrong type' );
 	}
 
 	public function test_two_source_fields_never_claim_the_same_listing_field(): void {
