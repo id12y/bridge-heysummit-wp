@@ -10,6 +10,7 @@ namespace Emailexpert\Events\Admin;
 use Emailexpert\Events\MyListing\Detection;
 use Emailexpert\Events\MyListing\Module as MyListingModule;
 use Emailexpert\Events\MyListing\Projector;
+use Emailexpert\Events\MyListing\Suggestions;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -255,8 +256,42 @@ final class BridgePage {
 			return;
 		}
 
+		// Detection is confident here, so any earlier "could not be read"
+		// warning is stale; leaving it up contradicts the panel below it.
+		\Emailexpert\Events\Admin\Notices::remove( 'mylisting_detection' );
+
 		$config = MyListingModule::config();
 		$manual = 'manual' === (string) ( $detection['source'] ?? 'auto' );
+
+		// Everything the form can work out for itself, worked out up front.
+		$suggested_types  = [];
+		$suggested_maps   = [];
+		$suggestion_count = 0;
+
+		foreach ( [ 'events', 'sessions', 'speakers' ] as $suggest_source ) {
+			$row_config = $config[ $suggest_source ];
+			$chosen     = (string) $row_config['listing_type'];
+
+			if ( '' === $chosen ) {
+				$chosen = Suggestions::listing_type( $suggest_source, (array) $detection['types'] );
+
+				if ( '' !== $chosen ) {
+					$suggested_types[ $suggest_source ] = $chosen;
+					++$suggestion_count;
+				}
+			}
+
+			$chosen_type = null;
+			foreach ( (array) $detection['types'] as $candidate ) {
+				if ( (string) $candidate['slug'] === $chosen ) {
+					$chosen_type = $candidate;
+					break;
+				}
+			}
+
+			$suggested_maps[ $suggest_source ] = Suggestions::map( $suggest_source, $chosen_type, (array) ( $row_config['map'] ?? [] ) );
+			$suggestion_count                 += count( $suggested_maps[ $suggest_source ] );
+		}
 		?>
 		<h2><?php esc_html_e( 'MyListing projection', 'emailexpert-events' ); ?></h2>
 		<p>
@@ -277,6 +312,21 @@ final class BridgePage {
 		</p>
 		<p class="description"><?php esc_html_e( 'One-way projection: the emailexpert Events posts stay canonical as data; the bridge creates and updates listings after each sync. Unmapped fields are never written.', 'emailexpert-events' ); ?></p>
 
+		<?php if ( $suggestion_count > 0 ) : ?>
+			<p class="eex-suggestion-note">
+				<strong>
+					<?php
+					printf(
+						/* translators: %d: number of suggested settings. */
+						esc_html( _n( '%d setting has been filled in for you below.', '%d settings have been filled in for you below.', $suggestion_count, 'emailexpert-events' ) ),
+						(int) $suggestion_count
+					);
+					?>
+				</strong>
+				<?php esc_html_e( 'They are suggestions from the detected listing types, marked “suggested”, and nothing is stored until you save. Change anything that looks wrong first; already-saved choices are never overwritten.', 'emailexpert-events' ); ?>
+			</p>
+		<?php endif; ?>
+
 		<?php if ( $manual ) : ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="eex-inline-form">
 				<input type="hidden" name="action" value="eex_mylisting_manual" />
@@ -294,6 +344,13 @@ final class BridgePage {
 				<?php
 				$row   = $config[ $source ];
 				$field = 'mylisting[' . $source . ']';
+
+				// The effective value of each control: what is saved, or the
+				// suggestion when nothing is saved.
+				$type_suggestion = (string) ( $suggested_types[ $source ] ?? '' );
+				$shown_type      = '' !== (string) $row['listing_type'] ? (string) $row['listing_type'] : $type_suggestion;
+				$map_suggestions = (array) ( $suggested_maps[ $source ] ?? [] );
+				$shown_map       = (array) ( $row['map'] ?? [] ) + $map_suggestions;
 				?>
 				<div class="eex-event-row card">
 					<label class="eex-event-enable">
@@ -306,7 +363,14 @@ final class BridgePage {
 							<select name="<?php echo esc_attr( $field ); ?>[listing_type]">
 								<option value=""><?php esc_html_e( 'Choose…', 'emailexpert-events' ); ?></option>
 								<?php foreach ( (array) $detection['types'] as $type ) : ?>
-									<option value="<?php echo esc_attr( (string) $type['slug'] ); ?>" <?php selected( $row['listing_type'], $type['slug'] ); ?>><?php echo esc_html( (string) $type['label'] ); ?></option>
+									<option value="<?php echo esc_attr( (string) $type['slug'] ); ?>" <?php selected( $shown_type, (string) $type['slug'] ); ?>>
+										<?php
+										echo esc_html(
+											(string) $type['label']
+											. ( (string) $type['slug'] === $type_suggestion ? ' — ' . __( 'suggested', 'emailexpert-events' ) : '' )
+										);
+										?>
+									</option>
 								<?php endforeach; ?>
 							</select>
 						</label>
@@ -337,34 +401,58 @@ final class BridgePage {
 											<select name="<?php echo esc_attr( $field ); ?>[map][<?php echo esc_attr( $source_field ); ?>]">
 												<option value=""><?php esc_html_e( 'Not mapped', 'emailexpert-events' ); ?></option>
 												<?php if ( in_array( $source_field, [ 'title', 'description' ], true ) ) : ?>
-													<option value="post" <?php selected( (string) ( $row['map'][ $source_field ] ?? '' ), 'post' ); ?>>
-														<?php echo 'title' === $source_field ? esc_html__( 'Listing title', 'emailexpert-events' ) : esc_html__( 'Listing description', 'emailexpert-events' ); ?>
+													<option value="post" <?php selected( (string) ( $shown_map[ $source_field ] ?? '' ), 'post' ); ?>>
+														<?php
+														echo esc_html(
+															( 'title' === $source_field ? __( 'Listing title', 'emailexpert-events' ) : __( 'Listing description', 'emailexpert-events' ) )
+															. ( isset( $map_suggestions[ $source_field ] ) ? ' — ' . __( 'suggested', 'emailexpert-events' ) : '' )
+														);
+														?>
 													</option>
 												<?php elseif ( 'photo' === $source_field ) : ?>
-													<option value="_thumbnail" <?php selected( (string) ( $row['map']['photo'] ?? '' ), '_thumbnail' ); ?>><?php esc_html_e( 'Listing image (featured)', 'emailexpert-events' ); ?></option>
+													<option value="_thumbnail" <?php selected( (string) ( $shown_map['photo'] ?? '' ), '_thumbnail' ); ?>>
+														<?php
+														echo esc_html(
+															__( 'Listing image (featured)', 'emailexpert-events' )
+															. ( isset( $map_suggestions['photo'] ) ? ' — ' . __( 'suggested', 'emailexpert-events' ) : '' )
+														);
+														?>
+													</option>
 												<?php elseif ( 'categories' === $source_field ) : ?>
 													<?php
 													$type_taxonomies = [];
 													foreach ( (array) $detection['types'] as $type ) {
-														if ( (string) $type['slug'] === (string) $row['listing_type'] || '' === (string) $row['listing_type'] ) {
+														if ( (string) $type['slug'] === $shown_type || '' === $shown_type ) {
 															$type_taxonomies = array_merge( $type_taxonomies, (array) ( $type['taxonomies'] ?? [] ) );
 														}
 													}
 													foreach ( array_unique( $type_taxonomies ) as $taxonomy ) :
 														?>
-														<option value="<?php echo esc_attr( (string) $taxonomy ); ?>" <?php selected( (string) ( $row['map']['categories'] ?? '' ), (string) $taxonomy ); ?>><?php echo esc_html( (string) $taxonomy ); ?></option>
+														<option value="<?php echo esc_attr( (string) $taxonomy ); ?>" <?php selected( (string) ( $shown_map['categories'] ?? '' ), (string) $taxonomy ); ?>>
+															<?php
+															echo esc_html(
+																(string) $taxonomy
+																. ( ( $map_suggestions['categories'] ?? '' ) === (string) $taxonomy ? ' — ' . __( 'suggested', 'emailexpert-events' ) : '' )
+															);
+															?>
+														</option>
 													<?php endforeach; ?>
 												<?php endif; ?>
 												<?php if ( ! in_array( $source_field, [ 'title', 'description', 'categories' ], true ) ) : ?>
 													<?php foreach ( (array) $detection['types'] as $type ) : ?>
 														<?php
-														if ( (string) $type['slug'] !== (string) $row['listing_type'] && '' !== (string) $row['listing_type'] ) {
+														if ( (string) $type['slug'] !== $shown_type && '' !== $shown_type ) {
 															continue;
 														}
 														foreach ( (array) $type['fields'] as $listing_field ) :
 															?>
-															<option value="<?php echo esc_attr( (string) $listing_field['key'] ); ?>" <?php selected( (string) ( $row['map'][ $source_field ] ?? '' ), (string) $listing_field['key'] ); ?>>
-																<?php echo esc_html( (string) $listing_field['label'] . ' (' . (string) $listing_field['key'] . ')' ); ?>
+															<option value="<?php echo esc_attr( (string) $listing_field['key'] ); ?>" <?php selected( (string) ( $shown_map[ $source_field ] ?? '' ), (string) $listing_field['key'] ); ?>>
+																<?php
+																echo esc_html(
+																	(string) $listing_field['label'] . ' (' . (string) $listing_field['key'] . ')'
+																	. ( ( $map_suggestions[ $source_field ] ?? '' ) === (string) $listing_field['key'] ? ' — ' . __( 'suggested', 'emailexpert-events' ) : '' )
+																);
+																?>
 															</option>
 														<?php endforeach; ?>
 													<?php endforeach; ?>

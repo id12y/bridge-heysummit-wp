@@ -485,4 +485,83 @@ final class MyListingBridgeTest extends TestCase {
 
 		unset( $GLOBALS['eex_test_registered_post_types'] );
 	}
+
+	/**
+	 * A detected type shaped like a real MyListing event type.
+	 */
+	private function event_type(): array {
+		return [
+			'slug'       => 'event-listing',
+			'label'      => 'Event listing',
+			'fields'     => [
+				[ 'key' => 'job_start_date', 'label' => 'Start date', 'type' => 'date' ],
+				[ 'key' => 'job_end_date', 'label' => 'End date', 'type' => 'date' ],
+				[ 'key' => 'job_registration_url', 'label' => 'Registration link', 'type' => 'url' ],
+				[ 'key' => 'job_website', 'label' => 'Website', 'type' => 'url' ],
+				[ 'key' => 'job_tagline', 'label' => 'Tagline', 'type' => 'text' ],
+			],
+			'taxonomies' => [ 'job_listing_category', 'job_listing_region' ],
+		];
+	}
+
+	public function test_structural_fields_are_suggested_without_needing_a_listing_type(): void {
+		// Title, description and photo have exactly one possible target, so
+		// leaving them unset was asking for a decision that does not exist.
+		$map = \Emailexpert\Events\MyListing\Suggestions::map( 'speakers', null );
+
+		$this->assertSame( 'post', $map['title'] );
+		$this->assertSame( 'post', $map['description'] );
+		$this->assertSame( '_thumbnail', $map['photo'] );
+	}
+
+	public function test_fields_are_matched_to_the_listing_types_own_fields(): void {
+		$map = \Emailexpert\Events\MyListing\Suggestions::map( 'events', $this->event_type() );
+
+		$this->assertSame( 'job_start_date', $map['starts_at'] );
+		$this->assertSame( 'job_end_date', $map['ends_at'] );
+		$this->assertSame( 'job_registration_url', $map['register_url'] );
+		$this->assertSame( 'job_website', $map['event_url'] );
+		$this->assertSame( 'job_listing_category', $map['categories'], 'the category taxonomy is preferred over the others' );
+	}
+
+	public function test_nothing_is_suggested_when_the_type_has_no_matching_field(): void {
+		$bare = [ 'slug' => 'bare', 'label' => 'Bare', 'fields' => [ [ 'key' => 'job_tagline', 'label' => 'Tagline', 'type' => 'text' ] ], 'taxonomies' => [] ];
+		$map  = \Emailexpert\Events\MyListing\Suggestions::map( 'events', $bare );
+
+		$this->assertArrayNotHasKey( 'starts_at', $map, 'a date is never guessed onto an unrelated field' );
+		$this->assertArrayNotHasKey( 'register_url', $map );
+		$this->assertArrayNotHasKey( 'categories', $map, 'no taxonomy means no category suggestion' );
+		$this->assertSame( 'post', $map['title'], 'the structural targets still stand' );
+	}
+
+	public function test_an_existing_mapping_is_never_overridden(): void {
+		$map = \Emailexpert\Events\MyListing\Suggestions::map(
+			'events',
+			$this->event_type(),
+			[ 'starts_at' => 'a_field_the_operator_chose', 'title' => 'post' ]
+		);
+
+		$this->assertArrayNotHasKey( 'starts_at', $map, 'the operator has already decided this one' );
+		$this->assertArrayNotHasKey( 'title', $map );
+		$this->assertSame( 'job_end_date', $map['ends_at'], 'the untouched fields are still suggested' );
+	}
+
+	public function test_each_source_is_matched_to_the_listing_type_that_fits_it(): void {
+		$types = [
+			[ 'slug' => 'event-listing', 'label' => 'Event listing' ],
+			[ 'slug' => 'talk', 'label' => 'Conference session' ],
+			[ 'slug' => 'speaker', 'label' => 'Speaker profile' ],
+			[ 'slug' => 'venue', 'label' => 'Venue' ],
+		];
+
+		$this->assertSame( 'event-listing', \Emailexpert\Events\MyListing\Suggestions::listing_type( 'events', $types ) );
+		$this->assertSame( 'talk', \Emailexpert\Events\MyListing\Suggestions::listing_type( 'sessions', $types ) );
+		$this->assertSame( 'speaker', \Emailexpert\Events\MyListing\Suggestions::listing_type( 'speakers', $types ) );
+	}
+
+	public function test_no_listing_type_is_suggested_when_none_resembles_the_source(): void {
+		$types = [ [ 'slug' => 'restaurant', 'label' => 'Restaurant' ], [ 'slug' => 'hotel', 'label' => 'Hotel' ] ];
+
+		$this->assertSame( '', \Emailexpert\Events\MyListing\Suggestions::listing_type( 'events', $types ), 'a wrong guess here would project into the wrong type' );
+	}
 }

@@ -280,3 +280,17 @@
 		width: 100%;
 	}
 }
+
+/* Pre-filled suggestions: visible as a proposal, not as saved state. */
+.eex-suggestion-note {
+	border-left: 4px solid #2271b1;
+	background: #f0f6fc;
+	padding: 8px 12px;
+	margin: 12px 0;
+	max-width: 640px;
+}
+
+.eex-evidence {
+	margin: 4px 0 12px 16px;
+	font-size: 12px;
+}
