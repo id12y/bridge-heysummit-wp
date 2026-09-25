@@ -114,30 +114,81 @@ final class Suggestions {
 	 */
 	public static function map( string $source, ?array $type, array $already = [] ): array {
 		$suggested = [];
+		$contested = [];
 
 		foreach ( array_keys( Module::source_fields( $source ) ) as $source_field ) {
 			if ( '' !== (string) ( $already[ $source_field ] ?? '' ) ) {
 				continue; // The operator has already decided this one.
 			}
 
-			$target = self::target_for( $source_field, $type );
+			// Structural and taxonomy targets are settled directly; only the
+			// listing type's own fields are competed for.
+			$direct = self::direct_target_for( $source_field, $type );
 
-			if ( '' !== $target ) {
-				$suggested[ $source_field ] = $target;
+			if ( null !== $direct ) {
+				if ( '' !== $direct ) {
+					$suggested[ $source_field ] = $direct;
+				}
+
+				continue;
 			}
+
+			$signals = self::SIGNALS[ $source_field ] ?? null;
+
+			if ( null !== $signals && null !== $type ) {
+				$contested[ $source_field ] = self::candidates_for( $signals, (array) ( $type['fields'] ?? [] ) );
+			}
+		}
+
+		// One listing field cannot hold two different source values, so the
+		// strongest claim on each field wins and the losers go unsuggested
+		// rather than doubling up on a target that is already spoken for.
+		$taken = array_values( array_filter( $already ) );
+
+		while ( ! empty( $contested ) ) {
+			$best_field  = '';
+			$best_target = '';
+			$best_score  = 0;
+
+			foreach ( $contested as $source_field => $candidates ) {
+				foreach ( $candidates as $target => $score ) {
+					if ( in_array( $target, $taken, true ) ) {
+						continue;
+					}
+
+					if ( $score > $best_score ) {
+						$best_score  = $score;
+						$best_field  = (string) $source_field;
+						$best_target = (string) $target;
+					}
+
+					break; // Candidates are ordered; the first free one is its best.
+				}
+			}
+
+			if ( '' === $best_field ) {
+				break; // Nothing left that can be assigned.
+			}
+
+			$suggested[ $best_field ] = $best_target;
+			$taken[]                  = $best_target;
+			unset( $contested[ $best_field ] );
 		}
 
 		return $suggested;
 	}
 
 	/**
-	 * The target a single source field should map to.
+	 * The target for a source field that is not competed for: '' for no
+	 * suggestion, or null when the field must go through the contest.
 	 *
 	 * @param string                   $source_field Source field key.
 	 * @param array<string,mixed>|null $type         The chosen listing type, or null.
 	 */
-	private static function target_for( string $source_field, ?array $type ): string {
+	private static function direct_target_for( string $source_field, ?array $type ): ?string {
 		// Structural targets: one possible answer, so not really a choice.
+		// Title and description share the post target legitimately, so these
+		// are settled outside the contest for the type's own fields.
 		if ( 'title' === $source_field || 'description' === $source_field ) {
 			return 'post';
 		}
@@ -146,21 +197,11 @@ final class Suggestions {
 			return '_thumbnail';
 		}
 
-		if ( null === $type ) {
-			return ''; // Everything below needs to know the listing type.
-		}
-
 		if ( 'categories' === $source_field ) {
-			return self::taxonomy_for( (array) ( $type['taxonomies'] ?? [] ) );
+			return null === $type ? '' : self::taxonomy_for( (array) ( $type['taxonomies'] ?? [] ) );
 		}
 
-		$signals = self::SIGNALS[ $source_field ] ?? null;
-
-		if ( null === $signals ) {
-			return '';
-		}
-
-		return self::field_for( $signals, (array) ( $type['fields'] ?? [] ) );
+		return null === $type ? '' : null; // null: this one is contested.
 	}
 
 	/**
@@ -182,16 +223,17 @@ final class Suggestions {
 	}
 
 	/**
-	 * The best-matching listing field for a set of signals.
+	 * Every listing field a set of signals could match, scored, strongest
+	 * first, so a contested field can be awarded to its strongest claim.
 	 *
 	 * @param array<string,array<int,string>>  $signals Words and field types.
 	 * @param array<int,array<string,string>>  $fields  The type's fields.
+	 * @return array<string,int> Field key => score.
 	 */
-	private static function field_for( array $signals, array $fields ): string {
+	private static function candidates_for( array $signals, array $fields ): array {
 		$words      = $signals['words'];
 		$types      = $signals['types'];
-		$best       = '';
-		$best_score = 0;
+		$candidates = [];
 
 		foreach ( $fields as $field ) {
 			$key = (string) ( $field['key'] ?? '' );
@@ -218,12 +260,11 @@ final class Suggestions {
 				$score += 5;
 			}
 
-			if ( $score > $best_score ) {
-				$best_score = $score;
-				$best       = $key;
-			}
+			$candidates[ $key ] = $score;
 		}
 
-		return $best;
+		arsort( $candidates );
+
+		return $candidates;
 	}
 }

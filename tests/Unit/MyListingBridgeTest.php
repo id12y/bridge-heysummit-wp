@@ -564,4 +564,39 @@ final class MyListingBridgeTest extends TestCase {
 
 		$this->assertSame( '', \Emailexpert\Events\MyListing\Suggestions::listing_type( 'events', $types ), 'a wrong guess here would project into the wrong type' );
 	}
+
+	public function test_two_source_fields_never_claim_the_same_listing_field(): void {
+		// A session type with a recording field but no website field: the
+		// generic word "url" in job_replay_url used to win Event URL too,
+		// pointing two source fields at one target.
+		$talk = [
+			'slug'       => 'talk',
+			'label'      => 'Conference session',
+			'fields'     => [
+				[ 'key' => 'job_replay_url', 'label' => 'Recording', 'type' => 'url' ],
+				[ 'key' => 'job_registration_url', 'label' => 'Sign up', 'type' => 'url' ],
+			],
+			'taxonomies' => [],
+		];
+
+		$map = \Emailexpert\Events\MyListing\Suggestions::map( 'sessions', $talk );
+
+		$this->assertSame( 'job_replay_url', $map['replay_url'], 'the strongest claim keeps the field' );
+		$this->assertSame( 'job_registration_url', $map['register_url'] );
+		$this->assertArrayNotHasKey( 'event_url', $map, 'the weaker claim goes unsuggested rather than doubling up' );
+		$this->assertSame( count( array_unique( array_diff( $map, [ 'post' ] ) ) ), count( array_diff( $map, [ 'post' ] ) ), 'no target appears twice' );
+	}
+
+	public function test_a_field_already_taken_by_a_saved_choice_is_not_suggested_again(): void {
+		$talk = [
+			'slug'       => 'talk',
+			'label'      => 'Talk',
+			'fields'     => [ [ 'key' => 'job_replay_url', 'label' => 'Recording', 'type' => 'url' ] ],
+			'taxonomies' => [],
+		];
+
+		$map = \Emailexpert\Events\MyListing\Suggestions::map( 'sessions', $talk, [ 'replay_url' => 'job_replay_url' ] );
+
+		$this->assertArrayNotHasKey( 'event_url', $map, 'a field the operator already assigned is not offered elsewhere' );
+	}
 }
