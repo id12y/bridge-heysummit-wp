@@ -269,14 +269,22 @@ final class BridgePage {
 		$suggested_maps   = [];
 		$suggestion_count = 0;
 		$awaiting_type    = false;
+		$nothing_bridged  = true;
 
 		foreach ( [ 'events', 'sessions', 'speakers' ] as $suggest_source ) {
 			$row_config = $config[ $suggest_source ];
 			$chosen     = (string) $row_config['listing_type'];
 
+			if ( ! empty( $row_config['enabled'] ) || ! empty( $row_config['map'] ) || '' !== $chosen ) {
+				$nothing_bridged = false;
+			}
+
 			if ( '' === $chosen ) {
 				$suggested_maps[ $suggest_source ] = [];
-				$awaiting_type                     = true;
+
+				if ( ! empty( $row_config['enabled'] ) ) {
+					$awaiting_type = true;
+				}
 
 				continue;
 			}
@@ -335,6 +343,10 @@ final class BridgePage {
 				</strong>
 				<?php esc_html_e( 'They come from the fields on the listing type you chose, are marked “suggested”, and nothing is stored until you save. Change anything that looks wrong first; already-saved choices are never overwritten.', 'emailexpert-events' ); ?>
 			</p>
+		<?php elseif ( $nothing_bridged ) : ?>
+			<p class="eex-suggestion-note">
+				<?php esc_html_e( 'Nothing is bridged into MyListing, and nothing will be. Many sites want none of this — a MyListing directory of providers is not a home for summit events — so each source stays closed until you open it. Whether these belong in your listings is a judgement about what the directory is for, which is yours, not something this plugin should infer from your listing types.', 'emailexpert-events' ); ?>
+			</p>
 		<?php elseif ( $awaiting_type ) : ?>
 			<p class="eex-suggestion-note">
 				<?php esc_html_e( 'Choose a target listing type and the field mapping below fills in from that type’s own fields straight away. The listing type is the one thing not chosen for you: it decides which listings this bridge creates and overwrites, and a type’s name does not say what it holds — a directory with its own Events type is not necessarily where these events belong.', 'emailexpert-events' ); ?>
@@ -370,6 +382,18 @@ final class BridgePage {
 						<input type="checkbox" name="<?php echo esc_attr( $field ); ?>[enabled]" value="1" <?php checked( ! empty( $row['enabled'] ) ); ?> />
 						<strong><?php echo esc_html( ucfirst( $source ) ); ?></strong>
 					</label>
+					<?php
+					// A source nobody has turned on has nothing to configure.
+					// Most sites bridge none of these — a MyListing directory
+					// of providers bridges none of them — and twenty-odd
+					// dropdowns per source is a poor way to say "not for you".
+					// Whether they apply is a judgement about intent that no
+					// amount of inspecting the site can settle, so this is
+					// opt-in rather than guessed, and always reachable.
+					$configured = ! empty( $row['enabled'] ) || '' !== (string) $row['listing_type'] || ! empty( $row['map'] );
+					?>
+					<details class="eex-event-details"<?php echo $configured ? ' open' : ''; ?>>
+						<summary><?php echo $configured ? esc_html__( 'Projection settings', 'emailexpert-events' ) : esc_html__( 'Not bridged — open to set it up', 'emailexpert-events' ); ?></summary>
 					<div class="eex-event-options">
 						<label>
 							<?php esc_html_e( 'Target listing type:', 'emailexpert-events' ); ?>
@@ -470,6 +494,7 @@ final class BridgePage {
 							</tbody>
 						</table>
 					</div>
+					</details>
 				</div>
 			<?php endforeach; ?>
 
